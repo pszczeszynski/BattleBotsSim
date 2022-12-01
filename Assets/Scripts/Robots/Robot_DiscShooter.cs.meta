@@ -1,0 +1,28 @@
+fileFormatVersion: 2
+guid: 0c1fb1d68fa9bec469cb23b766fa6cb2
+timeCreated: 1525980465
+licenseType: Free
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - wheelTL: {instanceID: 0}
+  - wheelTR: {instanceID: 0}
+  - wheelBL: {instanceID: 0}
+  - wheelBR: {instanceID: 0}
+  - dumper: {instanceID: 0}
+  - gripper_1: {instanceID: 0}
+  - gripper_2: {instanceID: 0}
+  - lift: {instanceID: 0}
+  - Body: {instanceID: 0}
+  - collector_l: {instanceID: 0}
+  - collector_r: {instanceID: 0}
+  - collector_mid_l: {instanceID: 0}
+  - collector_mid_r: {instanceID: 0}
+  - collector_out_l: {instanceID: 0}
+  - collector_out_r: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

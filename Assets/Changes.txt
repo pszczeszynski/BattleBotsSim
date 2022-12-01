@@ -1,0 +1,11 @@
+v8.0d
+-----
+	- Roboteers and T Shooter real skin slow-down fix
+	- Spin-Up options-menu fixed to allow disabling of push-back wall
+	- Ability to lower player count for tournament mode added
+	- Linux Server - added console commands
+
+
+
+
+
