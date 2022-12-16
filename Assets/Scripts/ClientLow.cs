@@ -3773,7 +3773,6 @@ public class ClientLow : MonoBehaviour
         {
             receiverEP = new IPEndPoint(IPAddress.Parse(serverIP), serverPORT); // endpoint where server is listening
             m_udpClient.Connect(receiverEP);
-            
         }
         catch (Exception e)
         {
