@@ -12,9 +12,12 @@ public class Robot_BB_Flipsy : RobotInterface3D {
     public override void Update_Robot()
     {
         robotControllerLink.SendMessage("Hello");
-        ControlInput input = robotControllerLink.GetLatestControlInput();
-
-        gamepad1_left_stick_y = (float) input.drive_amount;
-        gamepad1_right_stick_x = (float) input.turn_amount;
+        RobotControllerMessage? input = robotControllerLink.GetLatestControlInput();
+        
+        if (input.HasValue) {
+            UnityEngine.Debug.Log("input has a value");
+            gamepad1_left_stick_y = (float) input.Value.drive_amount;
+            gamepad1_right_stick_x = (float) input.Value.turn_amount;
+        }
     }
 }
