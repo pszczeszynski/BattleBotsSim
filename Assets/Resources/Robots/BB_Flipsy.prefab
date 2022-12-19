@@ -2455,7 +2455,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4124394028350308}
   - component: {fileID: 114045422015583834}
-  - component: {fileID: 114031534148779630}
+  - component: {fileID: 5761571920714866724}
   m_Layer: 0
   m_Name: BB_Flipsy
   m_TagString: Robot
@@ -2526,7 +2526,7 @@ MonoBehaviour:
   calculated_pos: {x: 0, y: 0, z: 0}
   calculated_angle: {x: 0, y: 0, z: 0}
   delta_angle_found: {x: 0, y: 0, z: 0}
---- !u!114 &114031534148779630
+--- !u!114 &5761571920714866724
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2535,7 +2535,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1501763154005038}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b33038c2f0c96074ea9e5dea91cd9e50, type: 3}
+  m_Script: {fileID: 11500000, guid: 5a5b6af96a70662449506de9c7776841, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   deleted: 0
@@ -2688,18 +2688,6 @@ MonoBehaviour:
   hold_position: 0
   enemies: []
   enemies_collisions: 
-  dumper: {fileID: 59396412577292572}
-  gripper_1: {fileID: 59575643794952534}
-  gripper_2: {fileID: 59660287311590924}
-  lift: {fileID: 153332255994630684}
-  collector_l: {fileID: 153890024309957606}
-  collector_r: {fileID: 153699742664603484}
-  collector_mid_l: {fileID: 153216127397762528}
-  collector_mid_r: {fileID: 153877647911801386}
-  collector_out_l: {fileID: 153383322222418316}
-  collector_out_r: {fileID: 153952628593598394}
-  dumper1_wheelspeed: 20
-  dumper1_reversspeed: 40
 --- !u!1 &1513895556740696
 GameObject:
   m_ObjectHideFlags: 0
