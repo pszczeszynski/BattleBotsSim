@@ -31,6 +31,15 @@ public class BB_RobotControllerLink
         robotControllerEP = new IPEndPoint(IPAddress.Parse(robotControllerIP), robotControllerPort);
         robotControllerClient = new UdpClient();
         robotControllerClient.Connect(robotControllerEP);
+        Start();
+    }
+
+    ~BB_RobotControllerLink()
+    {
+        UnityEngine.Debug.Log("Aborting thread");
+        // not the cleanest shutdown
+        receiveThread.Abort();
+        robotControllerClient.Close();
     }
 
     // start the receiver thread on Start() of the Monobehavior
@@ -48,17 +57,25 @@ public class BB_RobotControllerLink
         {
             try
             {
+                Debug.Log("got here 1");
                 // Receive data from the server
                 IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, robotControllerPort);
+                Debug.Log("got here 2");
+
                 byte[] data = robotControllerClient.Receive(ref endPoint);
+                Debug.Log("got here 3");
 
                 // Convert the received data to a string and store it as the latest message
                 string message = System.Text.Encoding.ASCII.GetString(data);
                 lock (_latestResponseStringLockObj)
                 {
+                    Debug.Log("got here 4");
+
                     _hasReceivedMessage = true;
                     _latestResponseString = message;
                 }
+
+                Debug.Log("we received a message from the robot controller: " + message);
             }
             catch (Exception e)
             {
@@ -92,6 +109,8 @@ public class BB_RobotControllerLink
         }
         return _latestResponse;
     }
+
+
 }
 
 [System.Serializable]

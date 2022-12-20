@@ -7,6 +7,7 @@ struct Point
 {
     double x;
     double y;
+    double z;
 };
 
 struct RobotState
@@ -15,8 +16,15 @@ struct RobotState
     double robot_orientation;
 };
 
+struct RobotControllerMessage
+{
+    double drive_amount;
+    double turn_amount;
+};
+
 class RobotStateParser
 {
 public:
     static RobotState parse(const std::string &json_string);
+    static std::string serialize(RobotControllerMessage message);
 };

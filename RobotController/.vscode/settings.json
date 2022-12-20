@@ -42,6 +42,27 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xutility": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "any": "cpp",
+        "array": "cpp",
+        "*.tcc": "cpp",
+        "codecvt": "cpp",
+        "cwctype": "cpp",
+        "deque": "cpp",
+        "forward_list": "cpp",
+        "map": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "functional": "cpp",
+        "iomanip": "cpp",
+        "numbers": "cpp",
+        "numeric": "cpp",
+        "optional": "cpp",
+        "ranges": "cpp",
+        "ratio": "cpp",
+        "span": "cpp",
+        "sstream": "cpp",
+        "valarray": "cpp"
     }
 }
