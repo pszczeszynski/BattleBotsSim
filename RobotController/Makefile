@@ -1,4 +1,4 @@
-SOURCES = RobotController.cc
+SOURCES = RobotController.cc ServerSocket.cc
 EXECUTABLE = RobotController.exe
 
 all: $(EXECUTABLE)
