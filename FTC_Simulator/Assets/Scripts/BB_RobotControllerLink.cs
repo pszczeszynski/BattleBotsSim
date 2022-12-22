@@ -2,86 +2,53 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using UnityEngine;
 
 public class BB_RobotControllerLink
 {
-    private string robotControllerIP;
-    private int robotControllerPort;
     private UdpClient robotControllerClient;
     private IPEndPoint robotControllerEP;
-
-    // The latest message received from the server. Empty after consuming to prevent re-parsing
-    private string _latestResponseString = "";
-    private bool _hasReceivedMessage = false;
-
-    // Lock before using _latestResponseString or _hasReceivedMessages
-    private object _latestResponseStringLockObj = new object();
-
-    private RobotControllerMessage _latestResponse;
-    private Thread receiveThread;
+    bool hasReceivedMessage = false;
+    private RobotControllerMessage lastRobotControllerMessage;
 
     public BB_RobotControllerLink(string robotControllerIP = "127.0.0.1",
                                   int robotControllerPort = 11115)
     {
-        this.robotControllerIP = robotControllerIP;
-        this.robotControllerPort = robotControllerPort;
-
         robotControllerEP = new IPEndPoint(IPAddress.Parse(robotControllerIP), robotControllerPort);
         robotControllerClient = new UdpClient();
+
+        // somehow this prevents a weird exception from being thrown
+        uint IOC_IN = 0x80000000;
+        uint IOC_VENDOR = 0x18000000;
+        uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+        robotControllerClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+        ///////////////
+
         robotControllerClient.Connect(robotControllerEP);
-        Start();
     }
 
     ~BB_RobotControllerLink()
     {
-        UnityEngine.Debug.Log("Aborting thread");
-        // not the cleanest shutdown
-        receiveThread.Abort();
         robotControllerClient.Close();
     }
 
-    // start the receiver thread on Start() of the Monobehavior
-    void Start()
+    // Receive the latest message
+    public RobotControllerMessage? Receive()
     {
-        receiveThread = new Thread(new ThreadStart(ReceiveData));
-        receiveThread.IsBackground = true;
-        receiveThread.Start();
-    }
-
-    // receives messages from the robot controller in the background
-    private void ReceiveData()
-    {
-        while (true)
+        // THE NUMBER OF LOOPS CANNOT BE INIFINITE since the robot controller only sends one message per frame
+        while (robotControllerClient.Available > 0)
         {
-            try
-            {
-                Debug.Log("got here 1");
-                // Receive data from the server
-                IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, robotControllerPort);
-                Debug.Log("got here 2");
-
-                byte[] data = robotControllerClient.Receive(ref endPoint);
-                Debug.Log("got here 3");
-
-                // Convert the received data to a string and store it as the latest message
-                string message = System.Text.Encoding.ASCII.GetString(data);
-                lock (_latestResponseStringLockObj)
-                {
-                    Debug.Log("got here 4");
-
-                    _hasReceivedMessage = true;
-                    _latestResponseString = message;
-                }
-
-                Debug.Log("we received a message from the robot controller: " + message);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError("Error receiving UDP data: " + e.ToString());
-            }
+            byte[] data = robotControllerClient.Receive(ref robotControllerEP);
+            string message = System.Text.Encoding.ASCII.GetString(data);
+            lastRobotControllerMessage = JsonUtility.FromJson<RobotControllerMessage>(message);
+            hasReceivedMessage = true;
         }
+
+        if (!hasReceivedMessage) {
+            return null;
+        }
+
+        return lastRobotControllerMessage;
     }
 
     public void SendMessage(string message)
@@ -89,28 +56,6 @@ public class BB_RobotControllerLink
         byte[] messageBytes = Encoding.UTF8.GetBytes(message);
         robotControllerClient.Send(messageBytes, messageBytes.Length);
     }
-
-    // returns the response from the robot controller
-    // it is in json form, so we must deserialize it
-    public RobotControllerMessage? GetLatestControlInput()
-    {
-        lock (_latestResponseStringLockObj)
-        {
-            if (!_hasReceivedMessage) {
-                return null;
-            }
-
-            // only deserialize if we haven't already
-            if (_latestResponseString != "")
-            {
-                _latestResponse = JsonUtility.FromJson<RobotControllerMessage>(_latestResponseString);
-                _latestResponseString = "";
-            }
-        }
-        return _latestResponse;
-    }
-
-
 }
 
 [System.Serializable]
