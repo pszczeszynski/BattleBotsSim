@@ -2688,6 +2688,8 @@ MonoBehaviour:
   hold_position: 0
   enemies: []
   enemies_collisions: 
+  robot_body: {fileID: 3695129459032828758}
+  opponent_body: {fileID: 3695129459032828758}
 --- !u!1 &1513895556740696
 GameObject:
   m_ObjectHideFlags: 0

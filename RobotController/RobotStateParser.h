@@ -10,10 +10,14 @@ struct Point
     double z;
 };
 
+
+// should match the C# side
 struct RobotState
 {
     Point robot_position;
     double robot_orientation;
+    Point opponent_position;
+    double opponent_orientation;
 };
 
 struct RobotControllerMessage
