@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
+using System.Linq;
 
 // for now, just send the other robot's position + orientation
 // eventually: send camera images so that robot controller deduces other robot position + orientation
@@ -21,13 +23,27 @@ public class Robot_BB_Flipsy : RobotInterface3D
     // opponent's robot
     public Transform opponent_body;
     private BB_RobotControllerLink _robotControllerLink;
+
+    // cached enemies, sorted by distance
+    private List<Transform> _enemyRobotBodies = new List<Transform> { };
+    // search for enemies every so often
+    private const float ENEMY_SEARCH_INTERVAL_SECONDS = 2.0f;
     public void Awake()
     {
+        // don't execute this on the server
+        if (!GLOBALS.CLIENT_MODE) { return; }
         _robotControllerLink = new BB_RobotControllerLink("127.0.0.1", 11115);
+        InvokeRepeating("CacheEnemiesAndChooseOneToTrack", 0.0f, ENEMY_SEARCH_INTERVAL_SECONDS);
     }
 
     public override void Update_Robot()
     {
+        // don't execute this on the server
+        if (!GLOBALS.CLIENT_MODE) { return; }
+
+        updateGamepadVars();
+
+        UnityEngine.Debug.Log("in update_robot()");
         BattleBotState state = new BattleBotState
         {
             robot_position = robot_body.position,
@@ -46,9 +62,30 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // apply the control input to the robot
         if (input.HasValue)
         {
-            UnityEngine.Debug.Log("input has a value: " + input.Value.drive_amount + ", " + input.Value.turn_amount);
             gamepad1_left_stick_y = (float)input.Value.drive_amount;
             gamepad1_right_stick_x = (float)input.Value.turn_amount;
+        }
+    }
+
+    // this method is slow since it searches THE WHOLE SCENE for enemy robots
+    // it is called once every so often
+    private void CacheEnemiesAndChooseOneToTrack()
+    {
+        // find all enemy robot bo transforms.
+        // order by distance too us
+        _enemyRobotBodies = FindObjectsOfType<RobotInterface3D>()
+                .Select(c => c.transform)
+                .Where(c => c != this.transform)
+                .Select(c => c.Find("Body"))
+                .OrderBy(c => Vector3.Distance(robot_body.position, c.position))
+                .ToList();
+
+        Debug.Log("enemy robot bodies count: " + _enemyRobotBodies.Count);
+        // choose the closest to track
+        if (_enemyRobotBodies.Count > 0)
+        {
+            Debug.Log("found enemy robot!");
+            opponent_body = _enemyRobotBodies.First();
         }
     }
 }
