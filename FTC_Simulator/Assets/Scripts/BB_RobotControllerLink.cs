@@ -42,7 +42,6 @@ public class BB_RobotControllerLink
             string message = System.Text.Encoding.ASCII.GetString(data);
             lastRobotControllerMessage = JsonUtility.FromJson<RobotControllerMessage>(message);
             hasReceivedMessage = true;
-            UnityEngine.Debug.Log("received turn amount_amount: " + lastRobotControllerMessage.turn_amount);
         }
 
         if (!hasReceivedMessage) {

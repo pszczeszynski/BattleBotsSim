@@ -32,17 +32,15 @@ public class Robot_BB_Flipsy : RobotInterface3D
     {
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
-        UnityEngine.Debug.Log("in awake, not in client mode!");
         _robotControllerLink = new BB_RobotControllerLink("127.0.0.1", 11115);
         InvokeRepeating("CacheEnemiesAndChooseOneToTrack", 0.0f, ENEMY_SEARCH_INTERVAL_SECONDS);
     }
 
-    public override void Update_Robot()
+    protected override void FixedUpdate()
     {
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
 
-        UnityEngine.Debug.Log("in update_robot()");
         BattleBotState state = new BattleBotState
         {
             robot_position = robot_body.position,
@@ -61,10 +59,12 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // apply the control input to the robot
         if (input.HasValue)
         {
-            UnityEngine.Debug.Log("turn_amount received: " + input.Value.turn_amount);
             gamepad1_left_stick_y = (float)input.Value.drive_amount;
             gamepad1_right_stick_x = (float)input.Value.turn_amount;
         }
+
+        // call the base class method
+        base.FixedUpdate();
     }
 
     // this method is slow since it searches THE WHOLE SCENE for enemy robots

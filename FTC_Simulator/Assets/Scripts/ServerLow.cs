@@ -3240,19 +3240,18 @@ public class ServerLow : MonoBehaviour
         try
         {
             // If no avatar associated with client, don't bother getting the inputs
-            if (allClients[cnnId].avatar == null) { return true;  }
+            if (allClients[cnnId].avatar == null) { return true; }
 
             RobotInterface3D controller = allClients[cnnId].robot;
 
             // Exit if no controller found. 
-            if( controller == null )
-            { return false; }
+            if (controller == null) { return false; }
 
             // Split the data based on Separator2
             ReadOnlySpan<char> splitData = MyUtils.GetSplitSpan(rawData, indexes, 1);
             List<int> splitIndexes = MyUtils.Split(splitData, GLOBALS.SEPARATOR2);
 
-            
+
             // string[] splitData = rawData[1].Split(GLOBALS.SEPARATOR2); //our data is separated via SEPARATOR2
 
             int id = 0;
@@ -3264,6 +3263,7 @@ public class ServerLow : MonoBehaviour
 
             // Basic Movement
             controller.gamepad1_right_stick_y = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
+            UnityEngine.Debug.Log("WRONG somehow we are setting gampead1_right_stick_x from client input receive");
             controller.gamepad1_right_stick_x = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
             controller.gamepad1_left_stick_x = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
             controller.gamepad1_left_stick_y = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
@@ -3282,7 +3282,7 @@ public class ServerLow : MonoBehaviour
             controller.gamepad1_stop        = MyUtils.SpanToBool(splitData, splitIndexes[id++]);
             controller.gamepad1_restart     = MyUtils.SpanToBool(splitData, splitIndexes[id++]);
         }
-        catch( Exception e)
+        catch (Exception e)
         {
             MyUtils.LogMessageToFile("OnClientInputReceive error: " + e, true);
             return false;
@@ -3296,7 +3296,7 @@ public class ServerLow : MonoBehaviour
     private void OnClientFlags(int cnnId, ReadOnlySpan<char> rawData, List<int> indexes)
     {
         // See if the cnnId exists
-        if ( !allClients.ContainsKey(cnnId))
+        if (!allClients.ContainsKey(cnnId))
         {
             return;
         }

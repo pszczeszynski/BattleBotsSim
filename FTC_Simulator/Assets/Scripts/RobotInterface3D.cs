@@ -2498,14 +2498,13 @@ public class RobotInterface3D : MonoBehaviour {
     public float timemaxacc = 0;
     bool accreset = true;
 
-    private void FixedUpdate()
+    protected virtual void FixedUpdate()
     {
         // Movement wants to be updated at the highest frequency we can to keep it stable
         MoveAllHinges();
         MoveAllSlides();
         UpdateMovement();
         RobotFixedUpdate();
-
     }
 
     public virtual void RobotFixedUpdate()
