@@ -63,6 +63,10 @@
         "ratio": "cpp",
         "span": "cpp",
         "sstream": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "cstdarg": "cpp",
+        "algorithm": "cpp",
+        "memory_resource": "cpp",
+        "random": "cpp"
     }
 }
