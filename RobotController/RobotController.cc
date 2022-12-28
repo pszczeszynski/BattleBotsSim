@@ -55,5 +55,6 @@ RobotControllerMessage loop(RobotState &state)
     const double max_power_angle = 30.0 * TO_RAD;
     // turn towards other robot for now
     response.turn_amount = -std::clamp(angle_delta / max_power_angle, -1.0, 1.0);
+    response.drive_amount = -1.0;
     return response;
 }
