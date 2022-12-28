@@ -188,7 +188,7 @@ ConfigurableJoint:
   m_TargetVelocity: {x: 0, y: 0, z: 0}
   m_XDrive:
     serializedVersion: 3
-    positionSpring: 2000
+    positionSpring: 20000
     positionDamper: 200
     maximumForce: 3.4028233e+38
   m_YDrive:
@@ -379,7 +379,7 @@ ConfigurableJoint:
   m_TargetVelocity: {x: 0, y: 0, z: 0}
   m_XDrive:
     serializedVersion: 3
-    positionSpring: 2000
+    positionSpring: 20000
     positionDamper: 200
     maximumForce: 3.4028233e+38
   m_YDrive:
@@ -1161,8 +1161,8 @@ MonoBehaviour:
   - Mecanum
   DriveTrain: Tank
   DriveTrain_lock: 0
-  total_weight: 1
-  total_weight_lock: 0
+  total_weight: 25
+  total_weight_lock: 1
   fieldcentric: 0
   fieldcentric_lock: 0
   activebreaking: 0
@@ -1237,10 +1237,10 @@ MonoBehaviour:
   turning_scaler: 1
   precision_scaler: 0.3
   max_speed: 18
-  max_speed_lock: 0
+  max_speed_lock: 1
   max_speed_corr: 128.8
-  max_acceleration: 5
-  max_acceleration_lock: 0
+  max_acceleration: 15
+  max_acceleration_lock: 1
   max_torque: 15
   turn_scale: 0.75
   turn_scale_lock: 0

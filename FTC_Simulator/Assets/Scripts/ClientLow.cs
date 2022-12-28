@@ -2117,12 +2117,7 @@ public class ClientLow : MonoBehaviour
             return;
         }
 
-        // don't override flipsy's gamepad varaibles since it is controlled externally
-        // flipsy will decide when to call this
-        if (!(myRobot_working is Robot_BB_Flipsy))
-        {
-            myRobot_working.updateGamepadVars();
-        }
+        myRobot_working.updateGamepadVars();
 
         if ( myPosition == "Spectator" ) { return; }
 
