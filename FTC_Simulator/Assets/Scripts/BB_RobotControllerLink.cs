@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -63,4 +64,5 @@ public struct RobotControllerMessage
 {
     public double drive_amount;
     public double turn_amount;
+    public List<Vector3> point_cloud;
 }

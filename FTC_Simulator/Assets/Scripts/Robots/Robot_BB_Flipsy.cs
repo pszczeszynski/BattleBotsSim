@@ -28,6 +28,9 @@ public class Robot_BB_Flipsy : RobotInterface3D
     private List<Transform> _enemyRobotBodies = new List<Transform> { };
     // search for enemies every so often
     private const float ENEMY_SEARCH_INTERVAL_SECONDS = 2.0f;
+
+
+
     public void Awake()
     {
         // don't execute this on the client
@@ -59,8 +62,10 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // apply the control input to the robot
         if (input.HasValue)
         {
-            gamepad1_left_stick_y = (float)input.Value.drive_amount;
-            gamepad1_right_stick_x = (float)input.Value.turn_amount;
+            // gamepad1_left_stick_y = (float)input.Value.drive_amount;
+            // gamepad1_right_stick_x = (float)input.Value.turn_amount;
+            DisplaySpheres(input.Value.point_cloud);
+            UnityEngine.Debug.Log("point_cloud: " + input.Value.point_cloud.Count());
         }
 
         // call the base class method
@@ -85,6 +90,34 @@ public class Robot_BB_Flipsy : RobotInterface3D
         {
             Debug.Log("found enemy robot!");
             opponent_body = _enemyRobotBodies.First();
+        }
+    }
+
+
+
+
+    public GameObject spherePrefab;
+    private List<GameObject> spheres = new List<GameObject>();
+
+    // displaying point clouds
+    public void DisplaySpheres(List<Vector3> positions)
+    {
+        // Clear old spheres
+        foreach (var sphere in spheres)
+        {
+            Destroy(sphere);
+        }
+        spheres.Clear();
+
+        // Create new spheres
+        foreach (var position in positions)
+        {
+            var sphere = Instantiate(spherePrefab, position/400.0f, Quaternion.identity);
+            sphere.transform.localScale = Vector3.one * 0.05f;
+
+
+            sphere.transform.parent = transform;
+            spheres.Add(sphere);
         }
     }
 }

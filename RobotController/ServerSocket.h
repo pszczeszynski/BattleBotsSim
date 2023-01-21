@@ -23,6 +23,6 @@ private:
 
 public:
     std::string receive();
-    void reply_to_last_sender(std::string);
+    void reply_to_last_sender(std::string data);
     ServerSocket(std::string port);
 };
