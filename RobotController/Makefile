@@ -16,7 +16,7 @@ $(EXECUTABLE): $(OBJECTS)
 	-lws2_32 -o $@
 
 %.o: %.cc
-	g++ -I./libs/json/include/ -I$(OPENCV_INCLUDE_PATH) -I$(PCL_INCLUDE_PATH) -I$(BOOST_INCLUDE_PATH) -I$(EIGEN_INCLUDE_PATH) -I$(VTK_INCLUDE_PATH) -c $< -o $@
+	g++ -I./libs/json/include/ -I$(OPENCV_INCLUDE_PATH) -c $< -o $@
 
 clean:
 	del -f $(EXECUTABLE) $(OBJECTS)
