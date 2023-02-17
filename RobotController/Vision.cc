@@ -5,10 +5,10 @@
 #include <opencv2/calib3d.hpp>
 #include <iostream>
 #include <opencv2/features2d.hpp>
+#include "Graphics/GameLoop.h"
 
-// #include <pcl/visualization/cloud_viewer.h>
-// #include <pcl/point_cloud.h>
-// #include <pcl/point_types.h>
+// GLint doesn't have different sizes on different compilers whereas int does
+const GLint POINT_CLOUD_WINDOW_WIDTH = 1920, POINT_CLOUD_WINDOW_HEIGHT = 1080;
 
 
 #define WIDTH 640
@@ -35,7 +35,24 @@ Vision::Vision() : sgbm(cv::StereoSGBM::create())
     sgbm->setP1(2 * channels * 3 * 3);
     sgbm->setP2(4 * channels * 3 * 3); // increasing makes sortof smoother -> more blobby
 
-    std::cout << "done" << std::endl;
+    pointCloudThread = new std::thread([this]()
+    {
+        const Engine::WindowSettings myWindowSettings = {POINT_CLOUD_WINDOW_WIDTH, POINT_CLOUD_WINDOW_HEIGHT};
+        Engine::Window myWindow = Engine::Window(myWindowSettings);
+        myWindow.Show();
+
+        // this will handle all the logic of our game
+        GameLoop gameLoop(WIDTH, HEIGHT, &myWindow);
+        pGameLoop = &gameLoop;
+
+        // bind gameLoop's update function to the window
+        myWindow.addLoopFunction([&gameLoop]()
+                                { gameLoop.update(); });
+        myWindow.addInitFunction([&gameLoop]()
+                                { gameLoop.init(); });
+        // this will start calling the gameLoop update and also polling events
+        myWindow.startLoop();
+    });
 }
 
 void extendImageLeftSide(const cv::Mat &src, cv::Mat &dst, int width)
@@ -81,7 +98,7 @@ Point Vision::convert2dPointTo3d(int x, int y, short disparity)
     double yNormalized = -(y - (HEIGHT / 2.0)) / (HEIGHT / 2.0);
     double zPos = DISPARITY_SCALAR / (disparity);
 
-    Point point{xNormalized, yNormalized, zPos};
+    Point point{xNormalized, yNormalized, zPos * 1.3};
 
     point.x = xNormalized * sin(FOV_X / 2) * zPos;
     point.y = yNormalized * sin(FOV_Y / 2) * zPos;
@@ -90,7 +107,6 @@ Point Vision::convert2dPointTo3d(int x, int y, short disparity)
     point.y *= 500.0;
     point.z *= 500.0;
 
-    // point.y += 100.0;
     return point;
 }
 
@@ -100,9 +116,9 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
     cv::Mat disparity;
     computeDisparity(leftCam, rightCam, disparity);
 
-    for (int y = 0; y < disparity.rows; y += 10)
+    for (int y = 0; y < disparity.rows; y += 1)
     {
-        for (int x = 0; x < disparity.cols; x += 10)
+        for (int x = 0; x < disparity.cols; x += 1)
         {
             short pixel = disparity.at<short>(y, x);
 
@@ -114,34 +130,10 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
             }
         }
     }
-    // visualizePointCloud(pointCloud);
-}
 
-/*
-void Vision::visualizePointCloud(const std::vector<Point>& pointCloud)
-{
-    // Create a PCL point cloud object
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-
-    // Fill the cloud with points from the input vector
-    for (const auto& p : pointCloud)
+    if (pGameLoop)
     {
-        cloud->points.push_back(pcl::PointXYZ(p.x, p.y, p.z));
-    }
-
-    // Set the number of points in the cloud
-    cloud->width = cloud->points.size();
-    cloud->height = 1;
-
-    // Create a PCL cloud viewer
-    pcl::visualization::CloudViewer viewer("Point Cloud Viewer");
-
-    // Show the cloud
-    viewer.showCloud(cloud);
-
-    // Wait until the viewer is closed
-    while (!viewer.wasStopped())
-    {
+        // TODO: can't just directly pass them, must copy them into buffer, then other thread reads them.
+        pGameLoop->SetPointCloudVerts(pointCloud);
     }
 }
-*/

@@ -7,6 +7,8 @@
 #include <opencv2/features2d.hpp>
 #include "MathUtils.h"
 #include "RobotStateParser.h"
+#include <thread>
+#include "Graphics/GameLoop.h"
 
 class Vision
 {
@@ -16,7 +18,9 @@ public:
     Point convert2dPointTo3d(int x, int y, short disparity);
     void visualizePointCloud(const std::vector<Point>& pointCloud);
 
-
     Vision();
     cv::Ptr<cv::StereoSGBM> sgbm;
+
+    GameLoop* pGameLoop = nullptr;
+    std::thread *pointCloudThread;
 };

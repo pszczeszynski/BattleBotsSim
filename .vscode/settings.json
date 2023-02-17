@@ -75,6 +75,7 @@
         "xstddef": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "fstream": "cpp"
     }
 }

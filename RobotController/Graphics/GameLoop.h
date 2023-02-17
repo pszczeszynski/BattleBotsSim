@@ -6,6 +6,8 @@
 #include "Camera.h"
 #include "GameLoop.h"
 #include "Window/Window.h"
+#include "../RobotStateParser.h"
+#include <mutex>
 
 using namespace std;
 using namespace glm;
@@ -18,16 +20,25 @@ public:
 	void cleanUp();
 	void init();
 
+	void SetPointCloudVerts(std::vector<Point>& vertices);
+
 	//dimensions of the window
 	const int WIDTH;
 	const int HEIGHT;
 	
 private:
+	void updateCameraPosition();
+
 	//MODELS
-	OpenGLModel* catBox;
-	OpenGLModel* dogBox;
+	OpenGLModel* pointCloudGameObject;
 	Camera* myCamera;
 	Engine::Window* myWindow;
 	Clock* myClock;
+
+
+
+	std::mutex pointCloudLock;
+	// Point cloud
+	std::vector<GLfloat> pointCloud;
 };
 

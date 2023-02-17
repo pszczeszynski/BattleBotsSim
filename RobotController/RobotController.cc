@@ -9,6 +9,7 @@
 
 int main()
 {
+    std::cout << "running " << std::endl;
     RobotController rc{};
     rc.Run();
 }
@@ -39,8 +40,8 @@ void RobotController::Run()
         cv::Mat leftCamera = cameraFL.getFrame();
         cv::Mat rightCamera = cameraFR.getFrame();
 
-        vision.compute3dPointCloud(leftCamera, rightCamera, response.point_cloud);
-
+        std::vector<Point> pointCloud;
+        vision.compute3dPointCloud(leftCamera, rightCamera, pointCloud);
         char c = cv::waitKey(1);
         if (c == 'q')
         {

@@ -5,6 +5,8 @@
 #include <functional>
 #include "Clock.h"
 #include <SFML/Window/Window.hpp>
+#include <map>
+#include <SFML/Window/Keyboard.hpp>
 
 namespace Engine
 {
@@ -38,7 +40,17 @@ namespace Engine
 		void addInitFunction(const std::function<void()> initFunction);
 		void startLoop();
 
+		bool keyIsDown(sf::Keyboard::Key);
+		float getMouseX();
+		float getMouseY();
+
 	private:
+		// maps keys to bool, which is true of the key is currently pressed down
+		std::map<sf::Keyboard::Key, bool> keyMap;
+		// mouse position
+		float mouseX;
+		float mouseY;
+
 		std::function<void()> loopFunctionCallback;
 		std::function<void()> initFunctionCallback;
 		sf::Window* window;
