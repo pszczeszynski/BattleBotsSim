@@ -14,7 +14,7 @@ uniform vec3 overrideColor;
 	
 void main()
 {
-	pointColor = position;
+	pointColor = color;
 	Texcoord = texcoord;
 	gl_Position = proj * view * model * vec4(position, 1.0);
 };

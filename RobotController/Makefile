@@ -21,12 +21,12 @@ SOIL_INCLUDE_PATH = ./libs/SOIL/src/SOIL2
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	g++ $^ -L$(OPENCV_LIB_PATH) -lopencv_core455 -lopencv_imgproc455 -lopencv_highgui455 -lopencv_calib3d455 -lopencv_features2d455 \
+	g++ -std=c++17 $^ -L$(OPENCV_LIB_PATH) -lopencv_core455 -lopencv_imgproc455 -lopencv_highgui455 -lopencv_calib3d455 -lopencv_features2d455 \
 	-L$(GLEW_LIB_PATH) -L$(SMFL_LIB_PATH) -L$(SOIL_LIB_PATH) -lsoil2-debug -lsfml-system -lsfml-window  -lglew32s -lws2_32 -lglew32 -lopengl32 \
 	-lws2_32 -o $@
 
 %.o: %.cc
-	g++ -I./libs/json/include/ -I$(OPENCV_INCLUDE_PATH) \
+	g++ -std=c++17 -I./libs/json/include/ -I$(OPENCV_INCLUDE_PATH) \
 	-I$(GLEW_INCLUDE_PATH) -I$(GLM_INCLUDE_PATH) -I$(SMFL_INCLUDE_PATH) -I$(SOIL_INCLUDE_PATH) -c $< -o $@
 
 clean:

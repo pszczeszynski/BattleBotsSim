@@ -61,11 +61,10 @@ void GameLoop::SetPointCloudVerts(std::vector<Point> &vertices)
 		pointCloud.push_back(-thisPoint.y);
 		pointCloud.push_back(thisPoint.z);
 		
-		
 		// color
-		pointCloud.push_back(1);//(i % 10) / 10.0f);
-		pointCloud.push_back(0);//((i + 3) % 10) / 10.0f);
-		pointCloud.push_back(1);//((i + 6) % 10) / 10.0f);
+		pointCloud.push_back((double) 1.0);//(i % 10) / 10.0f);
+		pointCloud.push_back((double) 0.0);//((i + 3) % 10) / 10.0f);
+		pointCloud.push_back((double) 1.0);//((i + 6) % 10) / 10.0f);
 
 		// tex coord
 		pointCloud.push_back(0.0f);
@@ -76,7 +75,7 @@ void GameLoop::SetPointCloudVerts(std::vector<Point> &vertices)
 
 void GameLoop::updateCameraPosition()
 {
-	const float MOVEMENT_SPEED = 0.3f;
+	const float MOVEMENT_SPEED = 0.15f;
 	vec3 deltaMovement = vec3(0, 0, 0);
 
 	// move left and right
