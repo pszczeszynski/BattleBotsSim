@@ -5,6 +5,7 @@
 #include <SFML/System/Err.hpp>
 #include <iostream>
 #include <SFML/Window/Keyboard.hpp>
+#include <opencv2/core/core.hpp>
 
 /**
  * \brief initializes the gameloop object
@@ -43,7 +44,7 @@ GameLoop::GameLoop(int width, int height, Engine::Window* window) :
 	pointCloudGameObject->bindToCamera(myCamera);
 }
 
-void GameLoop::SetPointCloudVerts(std::vector<Point> &vertices)
+void GameLoop::SetPointCloudVerts(std::vector<Point> &vertices, std::vector<cv::Vec3b> &colors)
 {
 	pointCloudLock.lock();
 	pointCloud = {};
@@ -62,20 +63,20 @@ void GameLoop::SetPointCloudVerts(std::vector<Point> &vertices)
 		pointCloud.push_back(thisPoint.z);
 		
 		// color
-		pointCloud.push_back((double) 1.0);//(i % 10) / 10.0f);
-		pointCloud.push_back((double) 0.0);//((i + 3) % 10) / 10.0f);
-		pointCloud.push_back((double) 1.0);//((i + 6) % 10) / 10.0f);
+		pointCloud.push_back((double) colors[i][2] / 255.0);//(i % 10) / 10.0f);
+		pointCloud.push_back((double) colors[i][1] / 255.0);//((i + 3) % 10) / 10.0f);
+		pointCloud.push_back((double) colors[i][0] / 255.0);//((i + 6) % 10) / 10.0f);
 
 		// tex coord
-		pointCloud.push_back(0.0f);
-		pointCloud.push_back(0.0f);
+		pointCloud.push_back((double) 1.0);
+		pointCloud.push_back((double) 0.0);
 	}
 	pointCloudLock.unlock();
 }
 
 void GameLoop::updateCameraPosition()
 {
-	const float MOVEMENT_SPEED = 0.15f;
+	const float MOVEMENT_SPEED = 0.05f;
 	vec3 deltaMovement = vec3(0, 0, 0);
 
 	// move left and right
@@ -127,6 +128,9 @@ void GameLoop::update()
 	pointCloudLock.lock();
 	pointCloudGameObject->addVertices(&pointCloud[0], pointCloud.size() * sizeof(pointCloud[0]));
 	pointCloudGameObject->bindToPositionAttribute();
+	pointCloudGameObject->bindToColorAttribute();
+	pointCloudGameObject->bindToTextureCoordinateAttribute();
+
 	pointCloudSize = pointCloud.size();
 	pointCloudLock.unlock();
 

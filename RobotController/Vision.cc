@@ -116,6 +116,9 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
     cv::Mat disparity;
     computeDisparity(leftCam, rightCam, disparity);
 
+    // corresponding colors of all the points
+    std::vector<cv::Vec3b> colors = {};
+
     for (int y = 0; y < disparity.rows; y += 1)
     {
         for (int x = 0; x < disparity.cols; x += 1)
@@ -125,6 +128,9 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
             // only send pixels with disparities greater than 0
             if (pixel > 0)
             {
+                // check this
+                colors.push_back(leftCam.at<cv::Vec3b>(y, x));
+
                 Point p = convert2dPointTo3d(x, y, pixel);
                 pointCloud.push_back(p);
             }
@@ -134,6 +140,6 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
     if (pGameLoop)
     {
         // TODO: can't just directly pass them, must copy them into buffer, then other thread reads them.
-        pGameLoop->SetPointCloudVerts(pointCloud);
+        pGameLoop->SetPointCloudVerts(pointCloud, colors);
     }
 }

@@ -188,6 +188,7 @@ void OpenGLModel::bindToPositionAttribute()
 
 	posAttrib = glGetAttribLocation(shaderProgram, "position");
 	glEnableVertexAttribArray(posAttrib);
+
 	// stride 0 and offset 0. The information will be stored in the VAO. this makes switching between different vertex data
 	// and vertex formats as easy as binding a different VAO! The VAO doesn't store any vertex data by itself, it just
 	// references the VBOs we've created and how to retrieve the attribute values from them
@@ -199,7 +200,7 @@ void OpenGLModel::bindToColorAttribute()
 {
 	makeSureBoundToVao();
 
-	colorAttrib = glGetAttribLocation(shaderProgram, "color");
+	colorAttrib = glGetAttribLocation(shaderProgram, "vertexColor");
 	glEnableVertexAttribArray(colorAttrib);
 	glVertexAttribPointer(colorAttrib, 3, GL_FLOAT, GL_FALSE, VERTEX_SHADER_STRIDE, (void *)(3 * sizeof(GLfloat)));
 }

@@ -8,6 +8,7 @@
 #include "Window/Window.h"
 #include "../RobotStateParser.h"
 #include <mutex>
+#include <opencv2/core/core.hpp>
 
 using namespace std;
 using namespace glm;
@@ -20,7 +21,7 @@ public:
 	void cleanUp();
 	void init();
 
-	void SetPointCloudVerts(std::vector<Point>& vertices);
+	void SetPointCloudVerts(std::vector<Point>& vertices, std::vector<cv::Vec3b>& colors);
 
 	//dimensions of the window
 	const int WIDTH;

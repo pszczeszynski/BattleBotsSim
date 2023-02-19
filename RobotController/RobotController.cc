@@ -42,6 +42,7 @@ void RobotController::Run()
 
         std::vector<Point> pointCloud;
         vision.compute3dPointCloud(leftCamera, rightCamera, pointCloud);
+
         char c = cv::waitKey(1);
         if (c == 'q')
         {
