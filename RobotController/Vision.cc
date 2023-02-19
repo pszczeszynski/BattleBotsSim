@@ -130,9 +130,7 @@ void Vision::compute3dPointCloud(const cv::Mat &leftCam, const cv::Mat &rightCam
             // only send pixels with disparities greater than 0
             if (pixel > 0)
             {
-                // check this
                 colors.push_back(leftCam.at<cv::Vec3b>(y, x));
-
                 Point p = convert2dPointTo3d(x, y, pixel);
                 pointCloud.push_back(p);
             }

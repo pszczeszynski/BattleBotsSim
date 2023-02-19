@@ -5,10 +5,10 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/opencv/build/include",
-                "C:/Program Files/PCL 1.13.0/include/pcl-1.13",
-                "C:/Program Files/PCL 1.13.0/3rdParty/Boost/include/boost-1_80",
-                "C:/Program Files/PCL 1.13.0/3rdParty/Eigen/eigen3",
-                "C:/Program Files/PCL 1.13.0/3rdParty/VTK/include/vtk-9.2"
+                "${workspaceFolder}/libs/json/include/nlohmann/",
+                "${workspaceFolder}/libs/SFML/include/",
+                "${workspaceFolder}/libs/GLM/",
+                "${workspaceFolder}/libs/GLEW/include/"
             ],
             "defines": [
                 "_DEBUG",
@@ -16,10 +16,10 @@
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.19041.0",
-            "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.33.31629/bin/Hostx64/x64/cl.exe",
+            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-msvc-x64",
+            "intelliSenseMode": "gcc-x64",
             "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
