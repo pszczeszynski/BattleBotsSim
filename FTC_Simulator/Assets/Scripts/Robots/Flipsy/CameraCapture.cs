@@ -9,8 +9,8 @@ public class CameraCapture : MonoBehaviour
     private MemoryMappedFile mmf;
     private MemoryMappedViewAccessor accessor;
     public RenderTexture rt;
-    private int width = 640;
-    private int height = 480;
+    private int width = 320;
+    private int height = 240;
 
     void GetCameraParams()
     {

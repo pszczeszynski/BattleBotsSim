@@ -11,8 +11,8 @@
 const GLint POINT_CLOUD_WINDOW_WIDTH = 1920, POINT_CLOUD_WINDOW_HEIGHT = 1080;
 
 
-#define WIDTH 640
-#define HEIGHT 480
+#define WIDTH 320
+#define HEIGHT 240
 
 #define HEIGHT_DISPARITY WIDTH * 0.6
 
@@ -22,7 +22,9 @@ const GLint POINT_CLOUD_WINDOW_WIDTH = 1920, POINT_CLOUD_WINDOW_HEIGHT = 1080;
 #define FOV_X TO_RAD * 75.18 * 2
 #define FOV_Y TO_RAD * 60.0 * 2
 
-const int NUM_DISPARITIES = 200;
+const int NUM_DISPARITIES = 100;
+
+
 Vision::Vision() : sgbm(cv::StereoSGBM::create())
 {
     // 1. setup StereoSGBM
@@ -31,9 +33,9 @@ Vision::Vision() : sgbm(cv::StereoSGBM::create())
     sgbm->setMinDisparity(0);
     sgbm->setDisp12MaxDiff(0);
     sgbm->setNumDisparities(NUM_DISPARITIES);
-    sgbm->setBlockSize(5);
-    sgbm->setP1(2 * channels * 3 * 3);
-    sgbm->setP2(4 * channels * 3 * 3); // increasing makes sortof smoother -> more blobby
+    sgbm->setBlockSize(3);
+    sgbm->setP1(1 * channels * 3 * 3);
+    sgbm->setP2(1 * channels * 3 * 3); // increasing makes sortof smoother -> more blobby
 
     pointCloudThread = new std::thread([this]()
     {

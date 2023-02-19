@@ -16,8 +16,8 @@ int main()
 
 RobotController::RobotController()
     : socket{"11115"},
-      cameraFL{"cameraCapture1"},
-      cameraFR{"cameraCapture2"},
+      cameraFL{"cameraCapture1", 320, 240},
+      cameraFR{"cameraCapture2", 320, 240},
       vision{}
 {
 }
