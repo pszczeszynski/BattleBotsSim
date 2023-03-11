@@ -17,16 +17,17 @@ public:
 	mat4 viewMatrix;
 	mat4 projectionMatrix;
 
-	//creates a new camera object
-	Camera(vec3 startPos, vec3 startLook, int mScreenWidth, int mScreenHeight) 
-		: Object(startPos, startLook), //Initialize our position and orientation
-		screenWidth(mScreenWidth), 
-		screenHeight(mScreenHeight) {
-		//update the view matrix
+	// creates a new camera object
+	Camera(vec3 startPos, vec3 startLook, int mScreenWidth, int mScreenHeight)
+		: Object(startPos, startLook), // Initialize our position and orientation
+		  screenWidth(mScreenWidth),
+		  screenHeight(mScreenHeight)
+	{
+		// update the view matrix
 		getViewMatrix();
 	}
 
-	//gets the transform matrix
+	// gets the transform matrix
 	mat4* getViewMatrix();
 	//gets the projection matrix to the screen
 	mat4* getProjectionMatrix();

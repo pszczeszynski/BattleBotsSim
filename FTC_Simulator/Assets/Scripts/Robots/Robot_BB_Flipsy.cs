@@ -18,10 +18,13 @@ public struct BattleBotState
 
 public class Robot_BB_Flipsy : RobotInterface3D
 {
+    public int SPINNER_SPEED = 36000;
     // our robot
     public Transform robot_body;
     // opponent's robot
     public Transform opponent_body;
+    public HingeJoint spinner1;
+    public HingeJoint spinner2;
     private BB_RobotControllerLink _robotControllerLink;
 
     // cached enemies, sorted by distance
@@ -29,7 +32,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
     // search for enemies every so often
     private const float ENEMY_SEARCH_INTERVAL_SECONDS = 2.0f;
 
-
+    private bool _spinnersOn;
 
     public void Awake()
     {
@@ -39,7 +42,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
         InvokeRepeating("CacheEnemiesAndChooseOneToTrack", 0.0f, ENEMY_SEARCH_INTERVAL_SECONDS);
     }
 
-    protected override void FixedUpdate()
+    private void RobotControllerUpdate()
     {
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
@@ -58,18 +61,37 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
         // receive latest control input from the robot controller
         RobotControllerMessage? input = _robotControllerLink.Receive();
-
+ 
         // apply the control input to the robot
         if (input.HasValue)
         {
-            // gamepad1_left_stick_y = (float)input.Value.drive_amount;
-            // gamepad1_right_stick_x = (float)input.Value.turn_amount;
-            DisplaySpheres(input.Value.point_cloud);
-            UnityEngine.Debug.Log("point_cloud: " + input.Value.point_cloud.Count());
+            gamepad1_left_stick_y = (float)input.Value.drive_amount;
+            gamepad1_right_stick_x = (float)input.Value.turn_amount;
         }
+    }
 
+    protected override void FixedUpdate()
+    {
+        RobotControllerUpdate();
         // call the base class method
         base.FixedUpdate();
+    }
+
+    void Update()
+    {
+        if (gamepad1_b)
+        {
+            UnityEngine.Debug.Log("pszczesz: b pressed!");
+            float velocity = _spinnersOn ? 0 : -SPINNER_SPEED;
+            JointMotor motor = spinner1.motor;
+            motor.targetVelocity = velocity;
+            spinner1.motor = motor;
+
+            motor = spinner2.motor;
+            motor.targetVelocity = velocity;
+            spinner2.motor = motor;
+            _spinnersOn = !_spinnersOn;
+        }
     }
 
     // this method is slow since it searches THE WHOLE SCENE for enemy robots
@@ -88,36 +110,8 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // choose the closest to track
         if (_enemyRobotBodies.Count > 0)
         {
-            Debug.Log("found enemy robot!");
+            Debug.Log("found enemy robot: " + _enemyRobotBodies.First().parent.name);
             opponent_body = _enemyRobotBodies.First();
-        }
-    }
-
-
-
-
-    public GameObject spherePrefab;
-    private List<GameObject> spheres = new List<GameObject>();
-
-    // displaying point clouds
-    public void DisplaySpheres(List<Vector3> positions)
-    {
-        // Clear old spheres
-        foreach (var sphere in spheres)
-        {
-            Destroy(sphere);
-        }
-        spheres.Clear();
-
-        // Create new spheres
-        foreach (var position in positions)
-        {
-            var sphere = Instantiate(spherePrefab, position/400.0f, Quaternion.identity);
-            sphere.transform.localScale = Vector3.one * 0.05f;
-
-
-            sphere.transform.parent = transform;
-            spheres.Add(sphere);
         }
     }
 }

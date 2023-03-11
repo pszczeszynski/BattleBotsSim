@@ -5,15 +5,22 @@
 #include "Clock.h"
 #include <SFML/Window/Event.hpp>
 #include <SFML/System/Sleep.hpp>
-
+#include <iostream>
 namespace Engine
 {
+	Window::Window(const WindowSettings &windowSettings)
+		: Width(windowSettings.width), Height(windowSettings.height), Title(windowSettings.title)
+	{
+	}
+
 	/**
 	 * \brief
 	 * This will actually show the window
 	 */
 	void Window::Show()
 	{
+
+
 		sf::ContextSettings settings;
 		settings.depthBits = 24;
 		settings.stencilBits = 8;
@@ -21,6 +28,7 @@ namespace Engine
 		settings.majorVersion = 3;
 		settings.minorVersion = 3;
 		glewExperimental = GL_TRUE; // use OpenGL extensions
+
 
 		// setup the window
 		window = new sf::Window(sf::VideoMode(Width, Height, 32),

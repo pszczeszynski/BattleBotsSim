@@ -23,10 +23,7 @@ namespace Engine
 		 * \brief
 		 * When you create a window, you need to give it it's settings, and a loop function
 		 */
-		Window(const WindowSettings& windowSettings)
-			: Width(windowSettings.width), Height(windowSettings.height), Title(windowSettings.title)
-		{
-		}
+		Window(const WindowSettings& windowSettings);
 
 		int Width;
 		int Height;

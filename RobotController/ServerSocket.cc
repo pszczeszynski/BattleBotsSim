@@ -1,8 +1,10 @@
 #include "ServerSocket.h"
+#include <fcntl.h>
 
 ServerSocket::ServerSocket(std::string port)
     : port(port), listenSocket(INVALID_SOCKET)
 {
+    std::cout << "in ServerSocket" << std::endl;
     setup_receiving_socket();
 }
 
@@ -66,14 +68,40 @@ int ServerSocket::setup_receiving_socket()
 std::string ServerSocket::receive()
 {
     last_sender_addr_len = sizeof(last_sender_addr);
-    int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0,
-                                    (sockaddr *)&last_sender_addr, &last_sender_addr_len);
-
     std::string ret = "";
-    if (numBytesReceived > 0)
+
+    // Set the socket to non-blocking mode
+    u_long iMode = 1;
+    ioctlsocket(listenSocket, FIONBIO, &iMode);
+
+    // Read all available messages and only keep the last one
+    while (true)
     {
+        int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0,
+                                        (sockaddr *)&last_sender_addr, &last_sender_addr_len);
+
+        if (numBytesReceived == SOCKET_ERROR)
+        {
+            int err = WSAGetLastError();
+
+            if (err == WSAEWOULDBLOCK)
+            {
+                // No more messages
+                break;
+            }
+            else
+            {
+                // Error occurred
+                return "";
+            }
+        }
+
         ret.assign(recvbuf, numBytesReceived);
     }
+
+    // Set the socket back to blocking mode
+    iMode = 0;
+    ioctlsocket(listenSocket, FIONBIO, &iMode);
 
     return ret;
 }

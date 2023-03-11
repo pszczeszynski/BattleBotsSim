@@ -20,10 +20,5 @@ std::string RobotStateParser::serialize(RobotControllerMessage message)
     j["drive_amount"] = message.drive_amount;
     j["turn_amount"] = message.turn_amount;
 
-    for (Point p : message.point_cloud)
-    {
-        j["point_cloud"].push_back(nlohmann::json{{"x", p.x}, {"y", p.y}, {"z", p.z}});
-    }
-
     return j.dump();
 }

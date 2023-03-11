@@ -24,7 +24,6 @@ struct RobotControllerMessage
 {
     double drive_amount;
     double turn_amount;
-    std::vector<Point> point_cloud;
 };
 
 class RobotStateParser

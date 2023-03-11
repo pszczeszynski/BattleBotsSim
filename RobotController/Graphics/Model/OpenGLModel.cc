@@ -170,17 +170,29 @@ GLuint *OpenGLModel::createProgramFromShaders()
 }
 
 // pass in the vertices along with their size because we can't get the size from here
-void OpenGLModel::addVertices(GLfloat *vertices, int sizeOfArray)
+void OpenGLModel::setVertices(GLfloat *vertices, int sizeOfArray)
 {
 	makeSureBoundToVao();
+
+	// free all previous vertices
+	glDeleteBuffers(1, &vbo);
 
 	// generate the vbo
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
 	glBufferData(GL_ARRAY_BUFFER, sizeOfArray, vertices, GL_STATIC_DRAW);
+
+	// rebind to all attributes in case they changed
+	rebindAllAttribtes();
 }
 
+void OpenGLModel::rebindAllAttribtes()
+{
+	bindToPositionAttribute();
+	bindToColorAttribute();
+	bindToTextureCoordinateAttribute();
+}
 // binds to the position attribute in the shader
 void OpenGLModel::bindToPositionAttribute()
 {
@@ -334,7 +346,6 @@ void OpenGLModel::makeSureActive()
 
 void OpenGLModel::readyTextures()
 {
-
 	for (int i = 0; i < texturesGenerated; i++)
 	{
 		switch (i)

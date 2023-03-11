@@ -16,5 +16,6 @@ public:
 private:
     cv::Mat image;
     HANDLE hMapFile;
+    HANDLE hMutex;
     LPVOID lpMapAddress;
 };

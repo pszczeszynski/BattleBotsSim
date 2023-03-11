@@ -16,30 +16,55 @@ using namespace glm;
 class GameLoop
 {
 public:
-	GameLoop(int width, int height, Engine::Window* window);
+
+	GameLoop(int width, int height, Engine::Window *window);
 	void update();
 	void cleanUp();
 	void init();
 
-	void SetPointCloudVerts(std::vector<Point>& vertices, std::vector<cv::Vec3b>& colors);
 
-	//dimensions of the window
+	struct Line
+	{
+		cv::Point3f start;
+		cv::Point3f end;
+		cv::Vec3b color;
+	};
+
+	void SetPointCloudVerts(std::vector<cv::Point3f> &vertices, std::vector<cv::Vec3b> &colors);
+	void SetOpponentPosition(vec3 position);
+	void SetPathPlanningLines(std::vector<Line> &lines);
+
+	// dimensions of the window
 	const int WIDTH;
 	const int HEIGHT;
-	
+
 private:
-	void updateCameraPosition();
+	void UpdateCameraPosition();
+	void drawPointCloud();
+	void drawOpponentPosition();
+	void drawPathPlanning();
 
-	//MODELS
-	OpenGLModel* pointCloudGameObject;
-	Camera* myCamera;
-	Engine::Window* myWindow;
-	Clock* myClock;
+	void initPointCloud();
+	void initOpponentRobot();
+	void initPathPlanning();
 
+	//////////// MODELS ////////////////
+	// opponent
+	OpenGLModel *opponentRobotGameObject;
+	glm::vec3 opponentPosition;
+	std::mutex opponentPositionMutex;
 
+	// path planning
+	OpenGLModel *pathPlanningGameObject;
+	std::vector<GLfloat> pathPlanningVerts;
 
+	// point cloud
 	std::mutex pointCloudLock;
-	// Point cloud
-	std::vector<GLfloat> pointCloud;
-};
+	std::vector<GLfloat> pointCloudVerts;
+	OpenGLModel *pointCloudGameObject;
+	////////////////////////////////////
 
+	Camera *myCamera;
+	Engine::Window *myWindow;
+	Clock *myClock;
+};

@@ -9,18 +9,54 @@
 #include "RobotStateParser.h"
 #include <thread>
 #include "Graphics/GameLoop.h"
+#include <opencv2/cudaarithm.hpp>
+#include <opencv2/cudastereo.hpp>
+#include "CameraReceiver.h"
 
 class Vision
 {
 public:
-    void compute3dPointCloud(const cv::Mat &left, const cv::Mat &right, std::vector<Point> &pointCloud);
+    enum class RobotSide
+    {
+        Front,
+        Back,
+        Left,
+        Right
+    };
+
+    /**
+     * Every point cloud side chooses a robot candidate and the best one is used
+    */
+    struct OpponentCandidate
+    {
+        cv::Point3f pos;
+        double score;
+    };
+
+    void runPipeline(cv::Point3f opponentPositionSim, cv::Point3f motionVector);
+
+    void compute3dPointCloud(cv::Mat &left, cv::Mat &right,
+                             std::vector<cv::Point3f> &pointCloud, std::vector<cv::Vec3b> &colors, Vision::RobotSide robotSide);
+    OpponentCandidate findOpponent(std::vector<cv::Point3f> &pointCloud, std::vector<cv::Vec3b> &colors);
     void computeDisparity(const cv::Mat &left, const cv::Mat &right, cv::Mat &disparity);
-    Point convert2dPointTo3d(int x, int y, short disparity);
-    void visualizePointCloud(const std::vector<Point>& pointCloud);
+    cv::Point3f convert2dPointTo3d(int x, int y, short disparity);
 
-    Vision();
-    cv::Ptr<cv::StereoSGBM> sgbm;
+    Vision(CameraReceiver &cameraTL, CameraReceiver &cameraTR, CameraReceiver &cameraBL, CameraReceiver &cameraBR,
+           CameraReceiver &cameraLL, CameraReceiver &cameraLR, CameraReceiver &cameraRL, CameraReceiver &cameraRR);
 
+private:
+    cv::Ptr<cv::cuda::StereoSGM> stereoSGMMain;
     GameLoop* pGameLoop = nullptr;
-    std::thread *pointCloudThread;
+    std::thread *gameLoopThread;
+
+    CameraReceiver& cameraTL;
+    CameraReceiver& cameraTR;
+    CameraReceiver& cameraBL;
+    CameraReceiver& cameraBR;
+    CameraReceiver& cameraLL;
+    CameraReceiver& cameraLR;
+    CameraReceiver& cameraRL;
+    CameraReceiver& cameraRR;
+
+    cv::Point3f rotatePointToRobotSide(cv::Point3f p, RobotSide robotSide);
 };

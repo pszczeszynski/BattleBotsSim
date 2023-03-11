@@ -39,13 +39,15 @@ public class BB_RobotControllerLink
         // THE NUMBER OF LOOPS CANNOT BE INIFINITE since the robot controller only sends one message per frame
         while (robotControllerClient.Available > 0)
         {
+            UnityEngine.Debug.Log("got new message!");
             byte[] data = robotControllerClient.Receive(ref robotControllerEP);
             string message = System.Text.Encoding.ASCII.GetString(data);
             lastRobotControllerMessage = JsonUtility.FromJson<RobotControllerMessage>(message);
             hasReceivedMessage = true;
         }
 
-        if (!hasReceivedMessage) {
+        if (!hasReceivedMessage)
+        {
             return null;
         }
 
@@ -64,5 +66,4 @@ public struct RobotControllerMessage
 {
     public double drive_amount;
     public double turn_amount;
-    public List<Vector3> point_cloud;
 }

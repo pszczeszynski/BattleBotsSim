@@ -20,6 +20,12 @@ private:
 
     CameraReceiver cameraFL;
     CameraReceiver cameraFR;
+    CameraReceiver cameraBL;
+    CameraReceiver cameraBR;
+    CameraReceiver cameraLL;
+    CameraReceiver cameraLR;
+    CameraReceiver cameraRL;
+    CameraReceiver cameraRR;
 
     Vision vision;
 

@@ -2582,7 +2582,7 @@ public class ServerLow : MonoBehaviour
             }
 
             // Send the packet (if data present)
-            if (j != 0) { 
+            if (j != 0) {
                 SendUdp(m, null, (GLOBALS.PACKET_COMPRESSION > 0) ? 3 : 0, who);
                 message_id++;
             }

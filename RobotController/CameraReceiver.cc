@@ -8,8 +8,10 @@
 
 CameraReceiver::CameraReceiver(std::string sharedFileName, int width, int height)
 {
+    // 1. Create shared file
     // Open a handle to the memory-mapped file
     hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, sharedFileName.c_str());
+
     if (hMapFile == NULL)
     {
         std::cerr << "Could not open memory-mapped file" << std::endl;
@@ -31,12 +33,11 @@ CameraReceiver::CameraReceiver(std::string sharedFileName, int width, int height
 
 cv::Mat CameraReceiver::getFrame()
 {
-    // Create a new matrix to store the output image
-    cv::Mat output = image.clone();
+    cv::Mat output;
+
+    cv::cvtColor(image, output, cv::COLOR_RGBA2BGR);
     // Flip the image vertically
     cv::flip(output, output, 0);
-    cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
-
     return output;
 }
 

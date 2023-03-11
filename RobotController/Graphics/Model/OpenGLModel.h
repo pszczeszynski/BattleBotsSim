@@ -60,8 +60,9 @@ public:
 	void printShaderCompileStatus(GLuint shader);
 	GLuint *createProgramFromShaders();
 
-	void addVertices(GLfloat *vertices, int sizeOfArray);
+	void setVertices(GLfloat *vertices, int sizeOfArray);
 
+	void rebindAllAttribtes();
 	// specifies how the vertex shader input position is grabbed from the vertices
 	void bindToPositionAttribute();
 	// binds to the color attribute
