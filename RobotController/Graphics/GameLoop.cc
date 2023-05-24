@@ -7,6 +7,9 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <opencv2/core/core.hpp>
 
+bool GameLoop::run = false;
+bool GameLoop::backup = false;
+
 /**
  * \brief initializes the gameloop object
  */
@@ -184,8 +187,34 @@ void GameLoop::UpdateCameraPosition()
 		deltaMovement.y = -1;
 	}
 
-	myCamera->setOrientation(vec3(myWindow->getMouseX(), 0.2, -myWindow->getMouseY()));
-	myCamera->translateRelative(deltaMovement * MOVEMENT_SPEED);
+	if (myWindow->keyIsDown(sf::Keyboard::Key::L))
+	{
+		cameraLock = true;
+	}
+
+	if (myWindow->keyIsDown(sf::Keyboard::Key::U))
+	{
+		cameraLock = false;
+	}
+
+	if (myWindow->keyIsDown(sf::Keyboard::Key::Space))
+	{
+		GameLoop::run = true;
+	}
+
+	if (myWindow->keyIsDown(sf::Keyboard::Key::I))
+	{
+		GameLoop::run = false;
+	}
+
+	GameLoop::backup = myWindow->keyIsDown(sf::Keyboard::Key::B);
+
+
+	if (!cameraLock)
+	{
+		myCamera->setOrientation(vec3(myWindow->getMouseX(), 0.2, -myWindow->getMouseY()));
+		myCamera->translateRelative(deltaMovement * MOVEMENT_SPEED);
+	}
 }
 
 void GameLoop::drawPathPlanning()

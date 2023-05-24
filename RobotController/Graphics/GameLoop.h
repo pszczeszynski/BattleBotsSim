@@ -37,7 +37,8 @@ public:
 	// dimensions of the window
 	const int WIDTH;
 	const int HEIGHT;
-
+	static bool run;
+	static bool backup;
 private:
 	void UpdateCameraPosition();
 	void drawPointCloud();
@@ -67,4 +68,6 @@ private:
 	Camera *myCamera;
 	Engine::Window *myWindow;
 	Clock *myClock;
+
+	bool cameraLock = false;
 };

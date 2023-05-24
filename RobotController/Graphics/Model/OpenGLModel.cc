@@ -78,10 +78,10 @@ GLuint *OpenGLModel::createShadersFromSource(const char *shaderFile, bool print)
 	string fragmentSourceString = ss[static_cast<int>(ShaderType::FRAGMENT)].str();
 	const char *vertexSource = vertexSourceString.c_str();
 	const char *fragmentSource = fragmentSourceString.c_str();
-	std::cout << "VERTEX: " << std::endl
-			  << vertexSource << std::endl;
-	std::cout << "FRAGMENT: " << std::endl
-			  << fragmentSource << std::endl;
+	// std::cout << "VERTEX: " << std::endl
+	// 		  << vertexSource << std::endl;
+	// std::cout << "FRAGMENT: " << std::endl
+	// 		  << fragmentSource << std::endl;
 
 	// i don't think we need this but just in case;
 	makeSureBoundToVao();

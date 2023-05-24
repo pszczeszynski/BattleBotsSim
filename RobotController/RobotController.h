@@ -8,6 +8,7 @@
 #endif
 #include "RobotStateParser.h"
 #include "Vision.h"
+#include "Graphics/Window/Clock.h"
 
 class RobotController
 {
@@ -28,6 +29,9 @@ private:
     CameraReceiver cameraRR;
 
     Vision vision;
+    Clock clock;
+    Clock waitToBackupClock;
+    bool backingUp = false;
 
     RobotControllerMessage loop(RobotState &state);
 };
