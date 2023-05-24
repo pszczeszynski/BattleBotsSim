@@ -1,17 +1,12 @@
 #include "RobotController.h"
-#ifdef LINUX_MODE
-#include "ServerSocketLinux.h"
-#else
 #include "ServerSocket.h"
-#endif
 #include "RobotStateParser.h"
 #include "MathUtils.h"
 #include "Vision.h"
 #include <opencv2/core.hpp>
+
 int main()
 {
-    std::cout << "running " << std::endl;
-
     RobotController rc{};
     rc.Run();
 
@@ -39,13 +34,16 @@ void RobotController::Run()
     // receive until the peer closes the connection
     while (true)
     {
+        // 1. receive state info from unity
         std::string received = socket.receive();
         if (received == "")
         {
             continue;
         }
 
+        // 2. parse state info
         RobotState state = RobotStateParser::parse(received);
+        // 3. run our robot controller loop
         RobotControllerMessage response = loop(state);
 
         char key = cv::waitKey(1);
@@ -62,6 +60,7 @@ void RobotController::Run()
             response.turn_amount = 0;
         }
 
+        // send the response back to unity (tell it how much to drive and turn)
         socket.reply_to_last_sender(RobotStateParser::serialize(response));
 
         // calculate delta position from us to the opponent
@@ -74,10 +73,16 @@ void RobotController::Run()
     }
 }
 
-double angle_us_to_follow_point_last = 0;
-cv::Point2f opponent_pos_last = cv::Point2f(0,0);
+/**
+ * This is the main robot controller loop. It is called once per frame.
+ * @param state The current state of the robot and opponent
+ * @return The response to send back to unity
+*/
 RobotControllerMessage RobotController::loop(RobotState &state)
 {
+    static cv::Point2f opponent_pos_last = cv::Point2f(0,0);
+    static double angle_us_to_follow_point_last = 0;
+
     RobotControllerMessage response{0, 0};
     // get elapsed time since last update
     double elapsed_time = clock.getElapsedTime();
@@ -91,9 +96,12 @@ RobotControllerMessage RobotController::loop(RobotState &state)
         LOOK_AHEAD_TIME = 1;
     }
 
+    // calculate opponent velocity
     cv::Point2f opponent_velocity = (opponent_pos_curr - opponent_pos_last) / elapsed_time;
+    // calculate opponent future position based on velocity and the look ahead time
     cv::Point2f oppponent_pos_future = opponent_pos_curr + opponent_velocity * LOOK_AHEAD_TIME;
 
+    // save opponent position for next time
     opponent_pos_last = opponent_pos_curr;
     // angle from opponent to us
     double angle_opponent_to_us = angle_between_points(oppponent_pos_future.x, oppponent_pos_future.y,
@@ -115,10 +123,7 @@ RobotControllerMessage RobotController::loop(RobotState &state)
     angle_us_to_follow_point += angle_wrap(state.robot_orientation * TO_RAD);
     angle_us_to_follow_point = angle_wrap(angle_us_to_follow_point);
 
-
-    // std::cout << "elapsed_time: " << elapsed_time << std::endl;
     double angle_velocity = clock.getElapsedTime() > 0 ? ((angle_wrap(angle_us_to_follow_point - angle_us_to_follow_point_last)) / elapsed_time) : 0;
-    // std::cout << "angle_velocity: " << angle_velocity * TO_DEG << std::endl;
     angle_us_to_follow_point_last = angle_us_to_follow_point;
 
     angle_us_to_follow_point = angle_wrap(angle_us_to_follow_point + angle_velocity * 80.0 / 360.0);
@@ -134,18 +139,17 @@ RobotControllerMessage RobotController::loop(RobotState &state)
     double distToOpponnent = cv::norm(oppponent_pos_future - cv::Point2f(state.robot_position.x, state.robot_position.z));
     // backups logic
 
-    std::cout << "dist to opponent: " << distToOpponnent << " waitToBackupClock: " << waitToBackupClock.getElapsedTime() << std::endl;
     // if close and wait to backup expired, restart wait to backup
     if (distToOpponnent < 2 && waitToBackupClock.getElapsedTime() > WAIT_TO_BACKUP_TIME && !backingUp)
     {
-        std::cout << "starting wait to backup" << std::endl;
+        // start backing up
         waitToBackupClock.markStart();
         backingUp = true;
     }
 
-
     if (backingUp)
     {
+        // if delay expired and not too long, backup
         if (waitToBackupClock.getElapsedTime() > WAIT_TO_BACKUP_TIME &&
             waitToBackupClock.getElapsedTime() < WAIT_TO_BACKUP_TIME + BACKUP_TIME_SECONDS)
         {
@@ -154,10 +158,9 @@ RobotControllerMessage RobotController::loop(RobotState &state)
             response.turn_amount = 0;
         }
 
+        // if backup time expired, stop backing up
         if (waitToBackupClock.getElapsedTime() > WAIT_TO_BACKUP_TIME + BACKUP_TIME_SECONDS)
         {
-            std::cout << "done backing up" << std::endl;
-
             backingUp = false;
         }
     }

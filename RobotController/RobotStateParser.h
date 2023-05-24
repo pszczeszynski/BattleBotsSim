@@ -10,13 +10,21 @@ struct Point
     double z;
 };
 
-
-// should match the C# side
+/**
+ * The state of the robot, should match the C# side.
+ * NOTE: this shouldn't be used for navigating the robot.
+ * All of the information it needs should be obtained from
+ * the vision system.
+*/
 struct RobotState
 {
+    // position of our robot
     Point robot_position;
+    // orientation of our robot
     double robot_orientation;
+    // position of the opponent's robot
     Point opponent_position;
+    // orientation of the opponent's robot
     double opponent_orientation;
 };
 

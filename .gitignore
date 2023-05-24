@@ -3,3 +3,5 @@
 FTC_Simulator/Build/**
 FTC_Simulator/UserSettings/Layouts/default-2021.dwlt
 RobotController/build/RobotController.dir/Release/*.obj
+RobotController/build/RobotController.dir/Release/RobotController.tlog/*.tlog
+RobotController/build/CMakeFiles/RobotController.dir/Release/*.cu.obj

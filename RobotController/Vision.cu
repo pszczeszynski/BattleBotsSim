@@ -40,7 +40,7 @@ Vision::Vision(CameraReceiver &cameraTL, CameraReceiver &cameraTR, CameraReceive
       cameraRL(cameraRL),
       cameraRR(cameraRR)
 {
-    // 1. setup StereoSGBM
+    // Setup StereoSGBM
     const int channels = 1;
     stereoSGMMain = cv::cuda::createStereoSGM(MIN_DISPARITY, NUM_DISPARITIES, 18, 120, 5, 3);
     // Define the stereo matching method and parameters
@@ -126,8 +126,6 @@ void Vision::computeDisparity(const cv::Mat &left, const cv::Mat &right, cv::Mat
     cv::normalize(disparity, disparityNormalized, 0, 255, cv::NORM_MINMAX, CV_8U);
 
     disparityNormalized = 255 - disparityNormalized;
-    // cv::imshow("Disparity Normalized", disparityNormalized);
-    // cv::waitKey(1);
 }
 
 cv::Point3f Vision::convert2dPointTo3d(int x, int y, short disparity)

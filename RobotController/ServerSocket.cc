@@ -1,13 +1,22 @@
 #include "ServerSocket.h"
 #include <fcntl.h>
 
+/**
+ * Constructor
+ * @param port The port to listen on
+ * @return A ServerSocket object
+*/
 ServerSocket::ServerSocket(std::string port)
     : port(port), listenSocket(INVALID_SOCKET)
 {
-    std::cout << "in ServerSocket" << std::endl;
     setup_receiving_socket();
 }
 
+/**
+ * Setup the socket to receive messages
+ * This is only internal and is called by the constructor.
+ * @return 0 on success, otherwise 1
+*/
 int ServerSocket::setup_receiving_socket()
 {
     WSADATA wsaData;
@@ -65,6 +74,10 @@ int ServerSocket::setup_receiving_socket()
     return 0;
 }
 
+/**
+ * Receive a message from the socket
+ * @return The message received, otherwise an empty string
+*/
 std::string ServerSocket::receive()
 {
     last_sender_addr_len = sizeof(last_sender_addr);
@@ -106,10 +119,16 @@ std::string ServerSocket::receive()
     return ret;
 }
 
+/**
+ * Replies to the last sender
+ * 
+ * @param data The string to send
+ * @return void
+*/
 void ServerSocket::reply_to_last_sender(std::string data)
 {
-
     int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (sockaddr *)&last_sender_addr, last_sender_addr_len);
+
     if (iSendResult == SOCKET_ERROR)
     {
         std::cerr << "sendto failed with error: " << WSAGetLastError() << std::endl;

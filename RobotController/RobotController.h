@@ -1,11 +1,6 @@
 #pragma once
-#ifdef LINUX_MODE
-#include "ServerSocketLinux.h"
-#include "CameraReceiverLinux.h"
-#else
 #include "ServerSocket.h"
 #include "CameraReceiver.h"
-#endif
 #include "RobotStateParser.h"
 #include "Vision.h"
 #include "Graphics/Window/Clock.h"
@@ -19,6 +14,7 @@ public:
 private:
     ServerSocket socket;
 
+    // cameras
     CameraReceiver cameraFL;
     CameraReceiver cameraFR;
     CameraReceiver cameraBL;

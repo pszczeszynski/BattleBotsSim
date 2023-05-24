@@ -76,6 +76,15 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "complex": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "csignal": "cpp",
+        "cstdarg": "cpp",
+        "deque": "cpp",
+        "queue": "cpp",
+        "random": "cpp",
+        "regex": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp",
+        "variant": "cpp"
     }
 }
