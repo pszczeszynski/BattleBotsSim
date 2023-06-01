@@ -16,22 +16,28 @@
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\RobotStateParser.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\GameLoop.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Clock.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Camera.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\RobotTracker.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Window\Clock.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\ValueBin.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Window\Window.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\TrackingUtils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Model\Object.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Timer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Model\OpenGLModel.cc">
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\OpticalFlow.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\CornerTracker.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Corner.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
