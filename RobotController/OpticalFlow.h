@@ -53,8 +53,12 @@ public:
 	double GetYPosition();
 	double GetScale();
 	double GetRotation();
+	void SetRotation(double);
 	
-	void PerformMotionDetection(cv::cuda::GpuMat&, cv::Mat&);
+	void PerformMotionDetection(cv::cuda::GpuMat&, cv::Mat&,
+		bool trackTranslation = true,
+		bool trackRotation = true,
+		bool trackScale = true);
 	void InitializeMotionDetection(cv::cuda::GpuMat&);
 	double CalcConfidence(cv::Mat&);
 	OpticalFlow();

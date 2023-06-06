@@ -8,7 +8,7 @@
 class CameraReceiver
 {
 public:
-    CameraReceiver(std::string fileName, int width = 640, int height = 480);
+    CameraReceiver(std::string fileName, int width = 1280, int height = 960);
 
     cv::Mat getFrame();
     ~CameraReceiver();

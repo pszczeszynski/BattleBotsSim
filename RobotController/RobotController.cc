@@ -16,7 +16,7 @@ int main()
 RobotController::RobotController()
     : socket{"11115"},
       overheadCam{"overheadCam"},
-      vision{overheadCam},
+      vision{overheadCam}
 {
 
 }
@@ -36,8 +36,8 @@ void RobotController::Run()
         // 2. parse state info
         RobotState state = RobotStateParser::parse(received);
 
-        // vision.findOpponent();
-        vision.performOpticalFlow();
+        vision.runPipeline();
+        // vision.performOpticalFlow();
         cv::waitKey(1);
 
         // 3. run our robot controller loop

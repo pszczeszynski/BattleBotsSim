@@ -38,7 +38,7 @@ double OpticalFlow::CalculateAngleDelta()
     }
 
     ValueBin angles{1};
-    double MAX_ANGLE_CHANGE_PER_FRAME = 5.0 * PI / 180.0;
+    double MAX_ANGLE_CHANGE_PER_FRAME = 30.0 * PI / 180.0;
     double cornerSpread = ct.LargestBoundingBoxSide();
     double sumAngleChange = 0;
 
@@ -157,6 +157,10 @@ double OpticalFlow::CalculateScaleDelta()
 
 cv::Point2f OpticalFlow::CalculateTranslationChangeXY(cv::Mat &drawingImage)
 {
+    if (ct.corners.size() < 1)
+    {
+        return cv::Point2f(0, 0);
+    }
 
     ValueBin xBin;
     ValueBin yBin;
@@ -177,32 +181,45 @@ cv::Point2f OpticalFlow::CalculateTranslationChangeXY(cv::Mat &drawingImage)
     return cv::Point2f(xBin.GetModeValue(), yBin.GetModeValue());
 }
 
-void OpticalFlow::PerformMotionDetection(cv::cuda::GpuMat &img_gray, cv::Mat &drawingImage)
+void OpticalFlow::PerformMotionDetection(cv::cuda::GpuMat &img_gray, cv::Mat &drawingImage, bool trackTranslation, bool trackRotation, bool trackScale)
 {
     Timer t;
 
     numFrames++;
+
     ct.PerformMotionDetection(img_gray, drawingImage);
     std::cout << "time for ct.PerformMotionDetection(): " << t.GetTimeMS() << std::endl;
     t.Start();
 
-    // Calculate angle change angle
-    angleDelta = CalculateAngleDelta();
-    trackedCameraAngle += angleDelta;
-    trackedCameraAngle *= 0.997;
-
-    // scaleDelta = CalculateScaleDelta();
-
-    // now that we calculated our scale + angle delta, pass that to the corners
-    for (int i = 0; i < ct.corners.size(); i++)
+    if (trackRotation)
     {
-        // for now don't pass scale
-        ct.corners[i].SetRotAndScale(1, 0, imageWidth, imageHeight);
+        // Calculate angle change angle
+        angleDelta = CalculateAngleDelta();
+        trackedCameraAngle += angleDelta;
+    }
+    else
+    {
+        angleDelta = 0;
     }
 
-    // recompute scale delta now that we have set the pois
-    scaleDelta = CalculateScaleDelta();
-    trackedScale *= scaleDelta;
+    // trackedCameraAngle *= 0.997;
+
+    // // now that we calculated our scale + angle delta, pass that to the corners
+    // for (int i = 0; i < ct.corners.size(); i++)
+    // {
+    //     // for now don't pass scale
+    //     ct.corners[i].SetRotAndScale(1, 0, imageWidth, imageHeight);
+    // }
+
+    if (trackScale)
+    {
+        scaleDelta = CalculateScaleDelta();
+        trackedScale *= scaleDelta;
+    }
+    else
+    {
+        scaleDelta = 1;
+    }
 
     // now we can set their scales
     for (int i = 0; i < ct.corners.size(); i++)
@@ -210,8 +227,16 @@ void OpticalFlow::PerformMotionDetection(cv::cuda::GpuMat &img_gray, cv::Mat &dr
         ct.corners[i].SetRotAndScale(scaleDelta, angleDelta, imageWidth, imageHeight);
     }
 
-    // finally compute the translation change
-    translateDelta = CalculateTranslationChangeXY(drawingImage);
+
+    if (trackTranslation)
+    {
+        // finally compute the translation change
+        translateDelta = CalculateTranslationChangeXY(drawingImage);
+    }
+    else
+    {
+        translateDelta = cv::Point2f(0, 0);
+    }
 
     DrawTrackerVelocityDistribution(drawingImage);
 
@@ -225,6 +250,7 @@ void OpticalFlow::PerformMotionDetection(cv::cuda::GpuMat &img_gray, cv::Mat &dr
 
     std::cout << "time for calculations: " << t.GetTimeMS() << std::endl;
     t.Start();
+
     if (numFrames % FRAMES_PER_TRACK == 0)
     {
         ct.ChooseNewTrackingPoints(img_gray);
@@ -242,7 +268,7 @@ void OpticalFlow::PerformMotionDetection(cv::cuda::GpuMat &img_gray, cv::Mat &dr
 void OpticalFlow::DrawVisualizerGrid(cv::Mat &drawingImage)
 {
     // draw grid
-    double gridSize = 60 * trackedScale;
+    double gridSize = 20 * trackedScale;
 
     gridPosition.x += translateDelta.x * cos(trackedCameraAngle) + translateDelta.y * sin(trackedCameraAngle);
     gridPosition.y += translateDelta.y * cos(trackedCameraAngle) - translateDelta.x * sin(trackedCameraAngle);
@@ -370,6 +396,11 @@ double OpticalFlow::GetScale()
 double OpticalFlow::GetRotation()
 {
     return trackedCameraAngle;
+}
+
+void OpticalFlow::SetRotation(double rotation)
+{
+    trackedCameraAngle = rotation;
 }
 
 void OpticalFlow::DrawTrackerVelocityDistribution(cv::Mat &drawingImage)

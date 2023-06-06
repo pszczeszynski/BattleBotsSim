@@ -26,7 +26,7 @@ CornerTracker::CornerTracker()
       MIN_CORNER_DIST(7),
       CORNER_SIZE(7),
       K_VALUE(0.04),
-      BORDER_SIZE(16)
+      BORDER_SIZE(5)
 {
     detector = cuda::createGoodFeaturesToTrackDetector(CV_8UC1, MAX_CORNERS, MIN_CORNER_QUALITY_PERCENTAGE, MIN_CORNER_DIST, CORNER_SIZE, false, K_VALUE);
     tracker = cuda::SparsePyrLKOpticalFlow::create(cv::Size(15, 15), 3, 10);
@@ -146,6 +146,10 @@ void CornerTracker::PerformMotionDetection(cv::cuda::GpuMat &frame, cv::Mat& dra
     if (pf.size() > 0)
     {
         pl = pf;
+    }
+    else
+    {
+        return;
     }
 
     cv::cuda::GpuMat status_GPU;

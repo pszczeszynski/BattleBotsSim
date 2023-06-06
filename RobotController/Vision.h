@@ -15,10 +15,9 @@ class Vision
 {
 public:
     Vision(CameraReceiver &overheadCam);
-    cv::Point2f Vision::findOpponent();
+    cv::Point2f Vision::findOpponent(cv::Mat&, cv::Mat&);
     void performOpticalFlow();
     void runPipeline();
-
 private:
     CameraReceiver& overheadCam;
     cv::Mat previousFrame;
@@ -29,6 +28,6 @@ private:
     OpticalFlow opponentOpticalFlow;
     bool isInitialized = false;
 
-    void updateRobotTrackers(std::vector<cv::Point2f> centers, cv::Mat& frame);
+    void updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame);
     void getOpponentRotation();
 };
