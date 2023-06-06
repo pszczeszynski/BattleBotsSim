@@ -19,15 +19,7 @@ double angle_wrap(double angle)
     return angle;
 }
 
-/**
- * Rotates a point around the y axis (x and z affected)
-*/
-cv::Point3f rotate_point(cv::Point3f p, double angle_rad)
+double norm(Point2f p)
 {
-    // Rotate around y axis
-    float x1 = p.x * cos(angle_rad) + p.z * sin(angle_rad);
-    float y1 = p.y;
-    float z1 = -p.x * sin(angle_rad) + p.z * cos(angle_rad);
-
-    return cv::Point3f(x1, y1, z1);
+    return std::sqrt(p.x * p.x + p.y * p.y);
 }

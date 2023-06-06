@@ -1,9 +1,14 @@
 #pragma once
 #include "ServerSocket.h"
-#include "CameraReceiver.h"
 #include "RobotStateParser.h"
-#include "Vision.h"
 #include "Clock.h"
+
+#define ENABLE_VISION
+#ifdef ENABLE_VISION
+#include "CameraReceiver.h"
+#include "Vision.h"
+#endif
+
 class RobotController
 {
 public:
@@ -13,11 +18,13 @@ public:
 private:
     ServerSocket socket;
 
-    // cameras
+#ifdef ENABLE_VISION
     CameraReceiver overheadCam;
+    Vision vision;
+#endif
+
     Clock clock;
 
-    Vision vision;
 
     RobotControllerMessage loop(RobotState &state);
 };

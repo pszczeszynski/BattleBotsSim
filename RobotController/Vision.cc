@@ -23,9 +23,9 @@ void Vision::performOpticalFlow()
     cv::Mat drawingImage = frame.clone();
 
     // upload to gpu + convert to grayscale
-    cv::cuda::GpuMat gpuFrame;
+    cv::cuda::GpuMat gpuFrame(frame);
     cv::cuda::GpuMat gpuGrayFrame;
-    gpuFrame.upload(frame);
+
     cv::cuda::cvtColor(gpuFrame, gpuGrayFrame, cv::COLOR_BGR2GRAY);
 
 
@@ -75,42 +75,6 @@ void Vision::runPipeline()
 
     // find the opponent
     cv::Point2f opponent_new = findOpponent(frame, previousFrame);
-
-    // crop the image around the opponent
-    unsigned int cropSize = 50;
-    cv::Rect opponentRect = cv::Rect(opponent_new.x - cropSize / 2, opponent_new.y - cropSize / 2, cropSize, cropSize);
-    // make sure the crop rectangle doesn't go out of bounds
-    opponentRect.x = std::max(0, opponentRect.x);
-    opponentRect.y = std::max(0, opponentRect.y);
-    opponentRect.width = std::min(opponentRect.width, frame.cols - opponentRect.x);
-    opponentRect.height = std::min(opponentRect.height, frame.rows - opponentRect.y);
-
-    cv::Mat croppedDrawingImage = frame(opponentRect).clone();
-    std::cout << "about to crop. Crop size: " + std::to_string(cropSize) << std::endl;
-
-    cv::cuda::GpuMat gpuFrame;
-    cv::cuda::GpuMat gpuGrayFrame;
-    gpuFrame.upload(croppedDrawingImage);
-    cv::cuda::cvtColor(gpuFrame, gpuGrayFrame, cv::COLOR_BGR2GRAY);
-    std::cout << "cropped" << std::endl;
-
-    // if (!isInitialized)
-    // {
-    //     std::cout << "about to init" << std::endl;
-    //     opponentOpticalFlow.InitializeMotionDetection(gpuGrayFrame);
-    //     std::cout << "init done" << std::endl;
-    //     isInitialized = true;
-    // }
-    // else
-    // {
-    //     std::cout << "about to perform motion detection" << std::endl;
-    //     opponentOpticalFlow.PerformMotionDetection(gpuGrayFrame, croppedDrawingImage, true, true, false);
-    //     std::cout << "motion detection done" << std::endl;
-    //     // cv::imshow("optical flow", croppedDrawingImage);
-    // }
-
-    cv::waitKey(1);
-
 
     // save the current frame
     previousFrame = frame;
@@ -207,25 +171,6 @@ cv::Point2f Vision::findOpponent(cv::Mat& frame, cv::Mat& previousFrame)
     cv::circle(frameWithCircles, pos1, 30, cv::Scalar(255,0,0), 4);
     cv::circle(frameWithCircles, pos2, 30, cv::Scalar(0,0,255), 4);
 
-    // ang1 = angle_wrap(opponentOpticalFlow.GetRotation());
-
-    // std::cout << "velocity: " << robotTrackers[0].getVelocity() << std::endl;
-    // if (cv::norm(robotTrackers[0].getVelocity()) > 200)
-    // {
-    //     double velocity_angle = atan2(robotTrackers[0].getVelocity().y, robotTrackers[0].getVelocity().x);
-    //     if (abs(angle_wrap(velocity_angle - ang1)) > M_PI / 2)
-    //     {
-    //         velocity_angle += M_PI;
-    //     }
-    //     velocity_angle = angle_wrap(velocity_angle);
-
-    //     if (abs(angle_wrap(velocity_angle - ang1)) > M_PI / 4)
-    //     {
-    //         ang1 = velocity_angle;
-    //         opponentOpticalFlow.SetRotation(velocity_angle);
-    //     }
-    // }
-
     // draw lines starting at the center of each robot showing their angles
     const double RADIUS = 30;
     cv::line(frameWithCircles, pos1, pos1 + cv::Point2f(cos(ang1) * RADIUS, sin(ang1) * RADIUS), cv::Scalar(255,0,0), 4);
@@ -252,7 +197,7 @@ void Vision::updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& fram
     {
         double cost1 = robotTrackers[0].getCostOfUpdating(centers[0]);
         double cost2 = robotTrackers[1].getCostOfUpdating(centers[0]);
-        std::cout << "cost1: " << cost1 << std::endl;
+        // std::cout << "cost1: " << cost1 << std::endl;
 
         // assume the robot is us if we're moving
         if (cost1 < COST_THRESHOLD)

@@ -2,8 +2,11 @@
 #include "ServerSocket.h"
 #include "RobotStateParser.h"
 #include "MathUtils.h"
+
+#ifdef ENABLE_VISION
 #include "Vision.h"
 #include <opencv2/core.hpp>
+#endif
 
 int main()
 {
@@ -14,9 +17,11 @@ int main()
 }
 
 RobotController::RobotController()
-    : socket{"11115"},
-      overheadCam{"overheadCam"},
+    : socket{"11115"}
+#ifdef ENABLE_VISION
+      ,overheadCam{"overheadCam"},
       vision{overheadCam}
+#endif
 {
 
 }
@@ -36,23 +41,20 @@ void RobotController::Run()
         // 2. parse state info
         RobotState state = RobotStateParser::parse(received);
 
+#ifdef ENABLE_VISION
         vision.runPipeline();
+        char key = cv::waitKey(1);
+#endif
         // vision.performOpticalFlow();
-        cv::waitKey(1);
 
         // 3. run our robot controller loop
         RobotControllerMessage response = loop(state);
 
-        char key = cv::waitKey(1);
 
-        // // send the response back to unity (tell it how much to drive and turn)
-        // socket.reply_to_last_sender(RobotStateParser::serialize(response));
-
-        // calculate delta position from us to the opponent
-        cv::Point3f deltaPos = cv::Point3f(state.opponent_position.x, state.opponent_position.y, state.opponent_position.z) -
-                               cv::Point3f(state.robot_position.x, state.robot_position.y, state.robot_position.z);
-        // rotate it by our rotation
-        cv::Point3f deltaPosRelative = rotate_point(deltaPos, -state.robot_orientation * TO_RAD - M_PI / 2);
+#ifndef ENABLE_VISION
+        // send the response back to unity (tell it how much to drive and turn)
+        socket.reply_to_last_sender(RobotStateParser::serialize(response));
+#endif
     }
 }
 
@@ -63,7 +65,7 @@ void RobotController::Run()
 */
 RobotControllerMessage RobotController::loop(RobotState &state)
 {
-    static cv::Point2f opponent_pos_last = cv::Point2f(0,0);
+    static Point2f opponent_pos_last = Point2f(0,0);
     static double angle_us_to_follow_point_last = 0;
 
     RobotControllerMessage response{0, 0};
@@ -72,17 +74,17 @@ RobotControllerMessage RobotController::loop(RobotState &state)
     clock.markStart();
 
 
-    cv::Point2f opponent_pos_curr = cv::Point2f(state.opponent_position.x, state.opponent_position.z);
-    double LOOK_AHEAD_TIME = 1 * norm(opponent_pos_curr - cv::Point2f(state.robot_position.x, state.robot_position.z)) / 4.0;
+    Point2f opponent_pos_curr = Point2f(state.opponent_position.x, state.opponent_position.z);
+    double LOOK_AHEAD_TIME = 1 * norm(opponent_pos_curr - Point2f(state.robot_position.x, state.robot_position.z)) / 4.0;
     if (LOOK_AHEAD_TIME > 1)
     {
         LOOK_AHEAD_TIME = 1;
     }
 
     // calculate opponent velocity
-    cv::Point2f opponent_velocity = (opponent_pos_curr - opponent_pos_last) / elapsed_time;
+    Point2f opponent_velocity = (opponent_pos_curr - opponent_pos_last) / elapsed_time;
     // calculate opponent future position based on velocity and the look ahead time
-    cv::Point2f oppponent_pos_future = opponent_pos_curr + opponent_velocity * LOOK_AHEAD_TIME;
+    Point2f oppponent_pos_future = opponent_pos_curr + opponent_velocity * LOOK_AHEAD_TIME;
 
     // save opponent position for next time
     opponent_pos_last = opponent_pos_curr;

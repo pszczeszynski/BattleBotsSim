@@ -4,8 +4,6 @@ C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/3.26.0-rc3/CMakeCUDACompil
 C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/3.26.0-rc3/CMakeCXXCompiler.cmake
 C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/3.26.0-rc3/CMakeRCCompiler.cmake
 C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/3.26.0-rc3/CMakeSystem.cmake
-C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/RobotController.dir/RobotController_generated_Vision.cu.obj.cmake.pre-gen
-C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/RobotController.dir/RobotController_generated_Vision.cu.obj.depend
 C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCUDAInformation.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCXXInformation.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCommonLanguageInclude.cmake
@@ -20,7 +18,6 @@ C:/Program Files/CMake/share/cmake-3.26/Modules/Compiler/MSVC-CXX.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/Compiler/MSVC.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/Compiler/NVIDIA-CUDA.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/FindCUDA.cmake
-C:/Program Files/CMake/share/cmake-3.26/Modules/FindCUDA/run_nvcc.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/FindCUDA/select_compute_arch.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake
 C:/Program Files/CMake/share/cmake-3.26/Modules/FindPackageMessage.cmake

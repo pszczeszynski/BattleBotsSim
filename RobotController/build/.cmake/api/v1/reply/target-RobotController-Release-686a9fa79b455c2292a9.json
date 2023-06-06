@@ -2,10 +2,10 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "Debug/RobotController.exe"
+			"path" : "Release/RobotController.exe"
 		},
 		{
-			"path" : "Debug/RobotController.pdb"
+			"path" : "Release/RobotController.pdb"
 		}
 	],
 	"backtrace" : 2,
@@ -97,7 +97,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++17"
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG -std:c++17"
 				}
 			],
 			"includes" : 
@@ -127,8 +127,10 @@
 			},
 			"sourceIndexes" : 
 			[
+				0,
 				1,
 				2,
+				3,
 				4,
 				5,
 				6,
@@ -138,8 +140,7 @@
 				10,
 				11,
 				12,
-				13,
-				14
+				13
 			]
 		}
 	],
@@ -155,11 +156,11 @@
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1",
+				"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG",
 				"role" : "flags"
 			},
 			{
-				"fragment" : "/machine:x64 /debug /INCREMENTAL /subsystem:console",
+				"fragment" : "/machine:x64 /INCREMENTAL:NO /subsystem:console",
 				"role" : "flags"
 			},
 			{
@@ -183,14 +184,6 @@
 				"role" : "libraries"
 			},
 			{
-				"fragment" : "cudadevrt.lib",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "cudart_static.lib",
-				"role" : "libraries"
-			},
-			{
 				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
 				"role" : "libraries"
 			}
@@ -207,16 +200,10 @@
 	"sourceGroups" : 
 	[
 		{
-			"name" : "Object Files",
-			"sourceIndexes" : 
-			[
-				0
-			]
-		},
-		{
 			"name" : "Source Files",
 			"sourceIndexes" : 
 			[
+				0,
 				1,
 				2,
 				3,
@@ -229,8 +216,7 @@
 				10,
 				11,
 				12,
-				13,
-				14
+				13
 			]
 		}
 	],
@@ -238,92 +224,87 @@
 	[
 		{
 			"backtrace" : 2,
-			"isGenerated" : true,
-			"path" : "build/CMakeFiles/RobotController.dir/$(Configuration)/RobotController_generated_Vision.cu.obj",
+			"compileGroupIndex" : 0,
+			"path" : "RobotController.cc",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
-			"path" : "RobotController.cc",
-			"sourceGroupIndex" : 1
+			"path" : "MathUtils.cc",
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
-			"path" : "MathUtils.cc",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 2,
-			"path" : "Vision.cu",
-			"sourceGroupIndex" : 1
+			"path" : "Vision.cc",
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "CameraReceiver.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "ServerSocket.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "RobotStateParser.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "Clock.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "RobotTracker.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "ValueBin.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "TrackingUtils.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "Timer.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "OpticalFlow.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "CornerTracker.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 2,
 			"compileGroupIndex" : 0,
 			"path" : "Corner.cc",
-			"sourceGroupIndex" : 1
+			"sourceGroupIndex" : 0
 		}
 	],
 	"type" : "EXECUTABLE"

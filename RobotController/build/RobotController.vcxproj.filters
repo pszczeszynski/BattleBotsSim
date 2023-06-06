@@ -7,6 +7,9 @@
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\MathUtils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Vision.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\CameraReceiver.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -42,20 +45,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\Vision.cu">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="C:\Dev\BattleBotsSim\RobotController\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="C:\Dev\BattleBotsSim\RobotController\build\CMakeFiles\RobotController.dir\$(Configuration)\RobotController_generated_Vision.cu.obj">
-      <Filter>Object Files</Filter>
-    </Object>
-  </ItemGroup>
-  <ItemGroup>
-    <Filter Include="Object Files">
-      <UniqueIdentifier>{150A269C-095A-35B8-88A7-C45AF95E8B73}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files">
       <UniqueIdentifier>{7D70BB48-8ABB-35D2-ABEB-1BDFDB269D20}</UniqueIdentifier>
     </Filter>

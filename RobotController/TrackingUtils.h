@@ -20,6 +20,7 @@ public:
     static double AngleBetweenPoints(cv::Point2f, cv::Point2f);
     static float Round(float, float);
     static double AngleWrap(double);
+    static cv::Point3f rotate_point(cv::Point3f p, double angle_rad);
 };
 
 #endif

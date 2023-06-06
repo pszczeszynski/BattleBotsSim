@@ -42,8 +42,6 @@ double RobotTracker::getCostOfUpdating(MotionBlob& blob)
     }
 
     double areaCost = abs(blob.rect.area() - lastBlob.rect.area()) / (double) lastBlob.rect.area();
-    std::cout << "areaCost: " << areaCost << std::endl;
-    std::cout << "positionCost: " << positionCost << std::endl;
 
     if (areaCost > 1)
     {
@@ -123,7 +121,6 @@ double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Po
 
     
     double curr_angle_deg = angle * TO_DEG;
-    std::cout << "iterating from: " << curr_angle_deg - 90 << " to " << curr_angle_deg + 90 << std::endl;
     for (double ang = curr_angle_deg - 90; ang < curr_angle_deg + 90; ang += step)
     {
         cv::Mat rotMat = cv::getRotationMatrix2D(center, ang, 1.0);
@@ -132,12 +129,6 @@ double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Po
 
         cv::Mat diff;
         cv::absdiff(rotated, gray1, diff);
-
-        // cv::imshow("regular", gray1);
-        // cv::imshow("rotated", rotated);
-        // cv::imshow("diff", rotated - gray2);
-        // cv::waitKey(1);
-        // break;
 
         double score = cv::sum(diff)[0];
 

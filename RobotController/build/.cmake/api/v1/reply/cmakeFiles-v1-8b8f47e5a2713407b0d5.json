@@ -194,19 +194,6 @@
 			"isCMake" : true,
 			"isExternal" : true,
 			"path" : "C:/Program Files/CMake/share/cmake-3.26/Modules/FindCUDA/select_compute_arch.cmake"
-		},
-		{
-			"isGenerated" : true,
-			"path" : "build/CMakeFiles/RobotController.dir/RobotController_generated_Vision.cu.obj.depend"
-		},
-		{
-			"isCMake" : true,
-			"isExternal" : true,
-			"path" : "C:/Program Files/CMake/share/cmake-3.26/Modules/FindCUDA/run_nvcc.cmake"
-		},
-		{
-			"isGenerated" : true,
-			"path" : "build/CMakeFiles/RobotController.dir/RobotController_generated_Vision.cu.obj.cmake.pre-gen"
 		}
 	],
 	"kind" : "cmakeFiles",

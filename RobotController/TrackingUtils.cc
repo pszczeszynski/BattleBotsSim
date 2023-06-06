@@ -75,3 +75,17 @@ double TrackingUtils::AngleBetweenPoints(cv::Point2f pf, cv::Point2f p2)
     double deltaY = p2.y - pf.y;
     return atan2(deltaY, deltaX);
 }
+
+
+/**
+ * Rotates a point around the y axis (x and z affected)
+*/
+cv::Point3f TrackingUtils::rotate_point(cv::Point3f p, double angle_rad)
+{
+    // Rotate around y axis
+    float x1 = p.x * cos(angle_rad) + p.z * sin(angle_rad);
+    float y1 = p.y;
+    float z1 = -p.x * sin(angle_rad) + p.z * cos(angle_rad);
+
+    return cv::Point3f(x1, y1, z1);
+}
