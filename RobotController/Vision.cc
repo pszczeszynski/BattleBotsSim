@@ -65,6 +65,10 @@ void Vision::runPipeline()
     // get the frame from the camera
     cv::Mat frame = overheadCam.getFrame().clone();
 
+    convertToBirdsEyeView(frame, frame);
+
+    // scale to 1280 by 720
+    cv::resize(frame, frame, cv::Size(1280, 720));
 
     // Skip the first frame or if the current frame is the same as the previous frame
     if (previousFrame.empty() || areMatsEqual(frame, previousFrame))
@@ -251,4 +255,33 @@ void Vision::updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& fram
             robotTrackers[i].invalidate();
         }
     }
+}
+
+void Vision::convertToBirdsEyeView(cv::Mat& frame, cv::Mat& dst)
+{
+    // Define the four corners of the region of interest (ROI) in the input image
+    cv::Point2f srcPoints[4] = {
+        cv::Point2f(0, 0),    // Top-left corner
+        cv::Point2f(frame.cols, 0),    // Top-right corner
+        cv::Point2f(frame.cols, frame.rows),    // Bottom-right corner
+        cv::Point2f(0, frame.rows)     // Bottom-left corner
+    };
+
+    // Define the dimensions of the bird's-eye view output image
+    int outputWidth = frame.cols;
+    int outputHeight = frame.rows;
+
+    // Define the four corners of the bird's-eye view output image
+    cv::Point2f dstPoints[4] = {
+        cv::Point2f(0, 0),                      // Top-left corner
+        cv::Point2f(outputWidth, 0),        // Top-right corner
+        cv::Point2f(outputWidth * 0.65, outputHeight),  // Bottom-right corner
+        cv::Point2f(outputWidth * 0.35, outputHeight)        // Bottom-left corner
+    };
+
+    // Compute the transformation matrix
+    cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
+
+    // Apply the perspective transformation
+    warpPerspective(frame, dst, transformationMatrix, cv::Size(outputWidth, outputHeight));
 }

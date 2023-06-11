@@ -1,26 +1,64 @@
+import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 import numpy as np
 import pygad
-import keras
-from keras.models import Sequential
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
+
+import tensorflow.keras
+import pygad.kerasga
+
+from keras.models import Sequential, clone_model
 from keras.layers import Dense
+import Simulation
 
-
-input_dim = 8
+input_dim = 1
 weights_name = 'weights.h5'
 
+
+recorded_weights = []
+
+
 # Define the fitness function
-def fitness_func(solution, sol_idx):
-    model.set_weights(solution)
+def fitness_func(ga: pygad.GA, solution, sol_idx):
+    global recorded_weights
+    # reset recorded weights if new generation
+    if sol_idx == 1:
+        recorded_weights = []
 
-    # run simulation and then return fitness (from 0 to 1)
+    model.set_weights(pygad.kerasga.model_weights_as_matrix(model, solution))
 
-    return fitness
+    # get current generation number
+    generation = ga.generations_completed
+
+    if len(recorded_weights) > 0:
+        # clone the existing model
+        old_model = clone_model(model)
+        # choose random index
+        index = np.random.randint(0, len(recorded_weights))
+        old_model.set_weights(recorded_weights[index])
+        score = Simulation.simulate(old_model, model)
+
+        recorded_weights.append(model.get_weights())
+        return score
+    else:
+        recorded_weights.append(model.get_weights())
+        return 0
+
+def callback_generation(ga_instance):
+    print("Generation = {generation}".format(generation=ga_instance.generations_completed))
+    print("Fitness    = {fitness}".format(fitness=ga_instance.best_solution()[1]))
+    # plot the fitness
+    ga_instance.plot_fitness(title="Fitness over Generations", linewidth=4)
 
 # Create the Keras model
-model = Sequential()
-model.add(Dense(64, activation='relu', input_shape=(input_dim,)))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(1, activation='linear'))
+input_layer  = tensorflow.keras.layers.Input(input_dim)
+dense_layer1 = tensorflow.keras.layers.Dense(5, activation="relu")(input_layer)
+output_layer = tensorflow.keras.layers.Dense(2, activation="linear")(dense_layer1)
+model = tensorflow.keras.Model(inputs=input_layer, outputs=output_layer)
+keras_ga = pygad.kerasga.KerasGA(model=model,
+                                 num_solutions=10)
 
 # Compile the model
 model.compile(loss='mse', optimizer='adam')
@@ -32,37 +70,27 @@ except:
     print("No weights found, starting from scratch")
 
 # Set up the PyGAD optimizer
-num_solutions = 10
 num_parents_mating = 5
-num_generations = 20
+num_generations = 200000
 
 # Create the initial population
-init_range_low = -2
-init_range_high = 5
+init_range_low = -1
+init_range_high = 1
 parent_selection_type = "rank"
-crossover_type = "single_point"
+crossover_type = "uniform"
 mutation_type = "random"
-mutation_percent_genes = 10
+mutation_percent_genes = 2
+initial_population = keras_ga.population_weights # Initial population of network weights
 
-# Initialize the population
-population_size = (num_solutions, model.count_params())
-population = pygad.initial_population(range_low=init_range_low, range_high=init_range_high, size=population_size)
 
-# Create an instance of the pygad.GA class
 ga_instance = pygad.GA(num_generations=num_generations,
                        num_parents_mating=num_parents_mating,
+                       initial_population=initial_population,
                        fitness_func=fitness_func,
-                       sol_per_pop=num_solutions,
-                       num_genes=model.count_params(),
-                       init_range_low=init_range_low,
-                       init_range_high=init_range_high,
-                       parent_selection_type=parent_selection_type,
-                       crossover_type=crossover_type,
-                       mutation_type=mutation_type,
-                       mutation_percent_genes=mutation_percent_genes)
+                       on_generation=callback_generation)
 
 # Run the genetic algorithm optimization
-ga_instance.run(population)
+ga_instance.run()
 
 # Obtain the best solution after optimization
 best_solution, best_solution_fitness = ga_instance.best_solution()

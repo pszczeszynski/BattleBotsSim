@@ -18,6 +18,8 @@ public:
     cv::Point2f Vision::findOpponent(cv::Mat&, cv::Mat&);
     void performOpticalFlow();
     void runPipeline();
+
+    void convertToBirdsEyeView(cv::Mat& frame, cv::Mat& dst);
 private:
     CameraReceiver& overheadCam;
     cv::Mat previousFrame;
