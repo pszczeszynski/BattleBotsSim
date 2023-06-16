@@ -43,6 +43,12 @@
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Corner.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\OpponentProfile.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\PathFinder.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Dev\BattleBotsSim\RobotController\CMakeLists.txt" />

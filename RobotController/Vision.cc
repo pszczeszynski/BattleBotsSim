@@ -5,6 +5,8 @@
 #include <opencv2/calib3d.hpp>
 #include <iostream>
 #include <opencv2/features2d.hpp>
+#include "PathFinder.h"
+
 
 Vision::Vision(CameraReceiver &overheadCam)
     : overheadCam(overheadCam),
@@ -14,32 +16,31 @@ Vision::Vision(CameraReceiver &overheadCam)
     // add 2 robot trackers
     robotTrackers.push_back(RobotTracker(cv::Point2f(0,0)));
     robotTrackers.push_back(RobotTracker(cv::Point2f(10000, 10000)));
-
 }
 
-void Vision::performOpticalFlow()
-{
-    cv::Mat frame = overheadCam.getFrame();
-    cv::Mat drawingImage = frame.clone();
+// void Vision::performOpticalFlow()
+// {
+//     cv::Mat frame = overheadCam.getFrame();
+//     cv::Mat drawingImage = frame.clone();
 
-    // upload to gpu + convert to grayscale
-    cv::cuda::GpuMat gpuFrame(frame);
-    cv::cuda::GpuMat gpuGrayFrame;
+//     // upload to gpu + convert to grayscale
+//     cv::cuda::GpuMat gpuFrame(frame);
+//     cv::cuda::GpuMat gpuGrayFrame;
 
-    cv::cuda::cvtColor(gpuFrame, gpuGrayFrame, cv::COLOR_BGR2GRAY);
+//     cv::cuda::cvtColor(gpuFrame, gpuGrayFrame, cv::COLOR_BGR2GRAY);
 
 
-    if (!isInitialized)
-    {
-        opticalFlow.InitializeMotionDetection(gpuGrayFrame);
-        isInitialized = true;
-    }
-    else
-    {
-        opticalFlow.PerformMotionDetection(gpuGrayFrame, drawingImage);
-        cv::imshow("optical flow", drawingImage);
-    }
-}
+//     if (!isInitialized)
+//     {
+//         opticalFlow.InitializeMotionDetection(gpuGrayFrame);
+//         isInitialized = true;
+//     }
+//     else
+//     {
+//         opticalFlow.PerformMotionDetection(gpuGrayFrame, drawingImage);
+//         cv::imshow("optical flow", drawingImage);
+//     }
+// }
 
 bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 {
@@ -62,32 +63,43 @@ bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 
 void Vision::runPipeline()
 {
+    Clock c2;
+    c2.markStart();
     // get the frame from the camera
-    cv::Mat frame = overheadCam.getFrame().clone();
-
-    convertToBirdsEyeView(frame, frame);
-
+    overheadCam.getFrame(currFrame);
+    convertToBirdsEyeView(currFrame, currFrame);
     // scale to 1280 by 720
-    cv::resize(frame, frame, cv::Size(1280, 720));
+    cv::resize(currFrame, currFrame, cv::Size(1280, 720));
 
-    // Skip the first frame or if the current frame is the same as the previous frame
-    if (previousFrame.empty() || areMatsEqual(frame, previousFrame))
-    {
-        previousFrame = frame;
-        return;
-    }
+    // // Skip the first frame or if the current frame is the same as the previous frame
+    // if (previousFrame.empty() || areMatsEqual(currFrame, previousFrame))
+    // {
+    //     previousFrame = currFrame.clone();
+    //     return;
+    // }
+    robotTrackers[0].angle = angle; // TODO: remove this
+    robotTrackers[0].position = position;
+    robotTrackers[1].angle = opponent_angle;
+    robotTrackers[1].position = opponent_position;
 
-    // find the opponent
-    cv::Point2f opponent_new = findOpponent(frame, previousFrame);
+    // // find the opponent
+    // locateRobots(currFrame, previousFrame);
 
     // save the current frame
-    previousFrame = frame;
+    previousFrame = currFrame.clone();
+
+    std::cout << "total time runPipeline" << c2.getElapsedTime() << std::endl;
 }
 
-cv::Size blurSize = cv::Size(14,14);
-
-cv::Point2f Vision::findOpponent(cv::Mat& frame, cv::Mat& previousFrame)
+const cv::Mat& Vision::GetBirdsEyeImage()
 {
+    return previousFrame;
+}
+
+void Vision::locateRobots(cv::Mat& frame, cv::Mat& previousFrame)
+{
+    const cv::Size BLUR_SIZE = cv::Size(14,14);
+
     const float MIN_AREA = 1200;
 
     cv::Point2f center = cv::Point2f(0,0);
@@ -105,9 +117,8 @@ cv::Point2f Vision::findOpponent(cv::Mat& frame, cv::Mat& previousFrame)
     cv::threshold(grayDiff, thresholdImg, 50, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
-    cv::blur(thresholdImg, thresholdImg, blurSize);
+    cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 25, 255, cv::THRESH_BINARY);
-    cv::imshow("threshold", thresholdImg);
 
     // find big blobs in the image using a blob detector
 
@@ -162,30 +173,29 @@ cv::Point2f Vision::findOpponent(cv::Mat& frame, cv::Mat& previousFrame)
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
 
+    // update the robot trackers
     updateRobotTrackers(motionBlobs, frame);
-
-    // clone the frame so we can draw on it
-    cv::Mat frameWithCircles = frame.clone();
-
-    cv::Point2f pos1 = robotTrackers[0].getPosition();
-    double ang1 = robotTrackers[0].getAngle();
-    cv::Point2f pos2 = robotTrackers[1].getPosition();
-    double ang2 = robotTrackers[1].getAngle();
-
-    cv::circle(frameWithCircles, pos1, 30, cv::Scalar(255,0,0), 4);
-    cv::circle(frameWithCircles, pos2, 30, cv::Scalar(0,0,255), 4);
-
-    // draw lines starting at the center of each robot showing their angles
-    const double RADIUS = 30;
-    cv::line(frameWithCircles, pos1, pos1 + cv::Point2f(cos(ang1) * RADIUS, sin(ang1) * RADIUS), cv::Scalar(255,0,0), 4);
-    cv::line(frameWithCircles, pos2, pos2 + cv::Point2f(cos(ang2) * RADIUS, sin(ang2) * RADIUS), cv::Scalar(0,0,255), 4);
-
-    // scale up th e
-    cv::imshow("keypoints", frameWithCircles);
-
-    return pos1;
 }
 
+cv::Point2f Vision::GetRobotPosition()
+{
+    return robotTrackers[0].getPosition();
+}
+
+double Vision::GetRobotAngle()
+{
+    return robotTrackers[0].getAngle();
+}
+
+cv::Point2f Vision::GetOpponentPosition()
+{
+    return robotTrackers[1].getPosition();
+}
+
+double Vision::GetOpponentAngle()
+{
+    return robotTrackers[1].getAngle();
+}
 
 void Vision::updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame)
 {

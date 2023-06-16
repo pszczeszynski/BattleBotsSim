@@ -1,7 +1,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include "Clock.h"
-
+#include "OpponentProfile.h"
 
 /**
  * @brief A motion blob is a connected component in the image
@@ -32,16 +32,18 @@ public:
     cv::Point2f getExtrapolatedPos();
 
     cv::Point2f getVelocity();
+
+    double angle; // TODO: make this private
+    cv::Point2f position;
+
 private:
 
-    cv::Point2f position;
     cv::Point2f lastPosition;
     cv::Point2f velocity;
     Clock lastUpdate;
     MotionBlob lastBlob;
 
     cv::Mat croppedFrameLast;
-    double angle;
 
     bool isValid;
 };

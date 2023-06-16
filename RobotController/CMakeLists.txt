@@ -33,6 +33,8 @@ set(SOURCES
     OpticalFlow.cc
     CornerTracker.cc
     Corner.cc
+    OpponentProfile.cc
+    PathFinder.cc
 )
 
 # Create the object files

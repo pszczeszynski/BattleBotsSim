@@ -23,3 +23,8 @@ double norm(Point2f p)
 {
     return std::sqrt(p.x * p.x + p.y * p.y);
 }
+
+cv::Point2f rotate_point(cv::Point2f p, double angle)
+{
+    return cv::Point2f(p.x * std::cos(angle) - p.y * std::sin(angle), p.x * std::sin(angle) + p.y * std::cos(angle));
+}

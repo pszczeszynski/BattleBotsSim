@@ -1,5 +1,6 @@
 #include "RobotTracker.h"
 #include "MathUtils.h"
+#include "OpponentProfile.h"
 
 RobotTracker::RobotTracker(cv::Point2f initialPosition) :
     position{initialPosition},
@@ -93,7 +94,7 @@ void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
     angle = getRotationBetweenMats(croppedFrameLast, croppedFrame, position - cv::Point2f(crop.tl()));
 
 
-    // croppedFrameLast = croppedFrame;
+    croppedFrameLast = croppedFrame;
 
     cv::imshow("cropped", croppedFrame);
     isValid = true;
@@ -118,6 +119,7 @@ double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Po
     double bestScore = std::numeric_limits<double>::infinity();
     double bestAngle = 0.0;
     double step = 1; // rotation step in degrees
+    // cv::Mat bestRotMat;
 
     
     double curr_angle_deg = angle * TO_DEG;
@@ -136,8 +138,11 @@ double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Po
         {
             bestScore = score;
             bestAngle = ang;
+            // bestRotMat = rotMat.clone();
         }
     }
+
+    // lastRotMat = bestRotMat;
 
     return angle_wrap(bestAngle * TO_RAD);
 }

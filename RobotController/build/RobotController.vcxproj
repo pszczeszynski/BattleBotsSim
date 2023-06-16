@@ -360,6 +360,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\OpticalFlow.cc" />
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\CornerTracker.cc" />
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Corner.cc" />
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\OpponentProfile.cc" />
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\PathFinder.cc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="C:\Dev\BattleBotsSim\RobotController\build\ZERO_CHECK.vcxproj">

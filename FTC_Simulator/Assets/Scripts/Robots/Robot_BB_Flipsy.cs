@@ -23,6 +23,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
     public Transform robot_body;
     // opponent's robot
     public Transform opponent_body;
+
     public HingeJoint spinner1;
     public HingeJoint spinner2;
     private BB_RobotControllerLink _robotControllerLink;
@@ -46,6 +47,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
     {
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
+        UnityEngine.Debug.Log("RobotControllerUpdate");
 
         BattleBotState state = new BattleBotState
         {
@@ -72,6 +74,8 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
     protected override void FixedUpdate()
     {
+        UnityEngine.Debug.Log("FixedUpdate");
+
         RobotControllerUpdate();
         // call the base class method
         base.FixedUpdate();
@@ -93,6 +97,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
             _spinnersOn = !_spinnersOn;
         }
     }
+
 
     // this method is slow since it searches THE WHOLE SCENE for enemy robots
     // it is called once every so often

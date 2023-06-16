@@ -8,9 +8,9 @@
 class CameraReceiver
 {
 public:
-    CameraReceiver(std::string fileName, int width = 1920, int height = 1080);
+    CameraReceiver(std::string fileName, int width = 1280, int height = 720);
 
-    cv::Mat getFrame();
+    void getFrame(cv::Mat& output);
     ~CameraReceiver();
 
 private:

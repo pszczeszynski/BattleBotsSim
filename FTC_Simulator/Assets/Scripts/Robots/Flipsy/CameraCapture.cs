@@ -15,8 +15,8 @@ public class CameraCapture : MonoBehaviour
     private Texture2D tex;
     private MemoryMappedFile mmf;
     private MemoryMappedViewAccessor accessor;
-    private static int width = 1920;
-    private static int height = 1080;
+    private static int width = 1280;
+    private static int height = 720;
     private RenderTexture rt;
 
     void Start()

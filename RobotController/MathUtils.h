@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <opencv2/opencv.hpp>
 
 #define M_PI 3.141592653589793238
 #define TO_RAD (M_PI / 180.0)
@@ -46,3 +47,5 @@ public:
 };
 
 double norm(Point2f p);
+
+cv::Point2f rotate_point(cv::Point2f p, double angle);

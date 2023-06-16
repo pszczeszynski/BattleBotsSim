@@ -31,14 +31,11 @@ CameraReceiver::CameraReceiver(std::string sharedFileName, int width, int height
     image = cv::Mat(cv::Size(width, height), CV_8UC4, lpMapAddress);
 }
 
-cv::Mat CameraReceiver::getFrame()
+void CameraReceiver::getFrame(cv::Mat& output)
 {
-    cv::Mat output;
-
     cv::cvtColor(image, output, cv::COLOR_RGBA2BGR);
     // Flip the image vertically
     cv::flip(output, output, 0);
-    return output;
 }
 
 CameraReceiver::~CameraReceiver()

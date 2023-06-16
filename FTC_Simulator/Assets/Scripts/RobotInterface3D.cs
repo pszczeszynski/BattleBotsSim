@@ -339,14 +339,16 @@ public class RobotInterface3D : MonoBehaviour {
 
         if (DriveTrain == "Tank")
         {
-            // The wheel that is supplied initial power is the Back wheels if 4-wheel drive
-            // Will prevent side-way motion in the driven wheel. All others are omni-wheels.
+            if (wheelBL && wheelBR)
+            {
+                // The wheel that is supplied initial power is the Back wheels if 4-wheel drive
+                // Will prevent side-way motion in the driven wheel. All others are omni-wheels.
 
-            wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-            wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
-            wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-            wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
-
+                wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+                wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+            }
         }
         else if (DriveTrain == "6-Wheel Tank")
         {
@@ -517,6 +519,7 @@ public class RobotInterface3D : MonoBehaviour {
 
     private void InitWheel(GameObject wheel, ref ConfigurableJoint wheel_joint, ref Rigidbody wheel_body)
     {
+        if (wheel == null) { return; }
         wheel_joint = wheel.GetComponent<ConfigurableJoint>();
         wheel_body = wheel_joint.GetComponent<Rigidbody>();
 
@@ -2122,6 +2125,7 @@ public class RobotInterface3D : MonoBehaviour {
         // Do not update movement if we dont have a body
         if (!rb_body) { return; }
         if (!rb_body.gameObject.activeSelf) { return; }
+        if (!wheelTL || !wheelTR || !wheelBL || !wheelBR) { return; }
 
 
         // *************************************************
@@ -2232,6 +2236,7 @@ public class RobotInterface3D : MonoBehaviour {
         // Do not update movement if we dont have a body
         if (!rb_body) { return; }
         if (!rb_body.gameObject.activeSelf) { return; }
+        if (!wheelTL || !wheelTR || !wheelBL || !wheelBR) { return; }
 
 
         // *************************************************

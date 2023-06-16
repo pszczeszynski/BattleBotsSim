@@ -10,18 +10,32 @@
 #include "CameraReceiver.h"
 #include "RobotTracker.h"
 #include "OpticalFlow.h"
+#include "PathFinder.h"
 
 class Vision
 {
 public:
     Vision(CameraReceiver &overheadCam);
-    cv::Point2f Vision::findOpponent(cv::Mat&, cv::Mat&);
-    void performOpticalFlow();
+    void Vision::locateRobots(cv::Mat&, cv::Mat&);
+    // void performOpticalFlow();
     void runPipeline();
 
     void convertToBirdsEyeView(cv::Mat& frame, cv::Mat& dst);
+
+    const cv::Mat& GetBirdsEyeImage();
+
+    cv::Point2f GetRobotPosition();
+    double GetRobotAngle();
+    cv::Point2f GetOpponentPosition();
+    double GetOpponentAngle();
+    
+    double angle;
+    cv::Point2f position;
+    double opponent_angle;
+    cv::Point2f opponent_position;
 private:
     CameraReceiver& overheadCam;
+    cv::Mat currFrame;
     cv::Mat previousFrame;
 
     std::vector<RobotTracker> robotTrackers = {};
@@ -32,4 +46,5 @@ private:
 
     void updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame);
     void getOpponentRotation();
+
 };
