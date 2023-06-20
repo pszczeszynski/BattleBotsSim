@@ -48,7 +48,6 @@ set(SOURCES
     PathFinder.cc
     Graphics/GameLoop.cc
     Graphics/Camera.cc
-    Graphics/Window/Clock.cc
     Graphics/Window/Window.cc
     Graphics/Model/Object.cc
     Graphics/Model/OpenGLModel.cc

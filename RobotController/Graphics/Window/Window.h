@@ -3,7 +3,7 @@
  * The Window class will manage the window of the game and also call the loop function when the game is started
  */
 #include <functional>
-#include "Clock.h"
+#include "../../Clock.h"
 #include <SFML/Window/Window.hpp>
 #include <map>
 #include <SFML/Window/Keyboard.hpp>

@@ -49,6 +49,21 @@
     <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\PathFinder.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\GameLoop.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Camera.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Window\Window.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Model\Object.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Dev\BattleBotsSim\RobotController\Graphics\Model\OpenGLModel.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Dev\BattleBotsSim\RobotController\CMakeLists.txt" />

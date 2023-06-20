@@ -11,6 +11,7 @@
 #include "RobotTracker.h"
 #include "OpticalFlow.h"
 #include "PathFinder.h"
+#include "Graphics/GameLoop.h"
 
 class Vision
 {
@@ -46,5 +47,9 @@ private:
 
     void updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame);
     void getOpponentRotation();
+
+
+    std::thread* gameLoopThread;
+    GameLoop* pGameLoop;
 
 };

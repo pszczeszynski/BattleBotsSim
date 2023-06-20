@@ -2,7 +2,6 @@
 #include <SFML/Window/ContextSettings.hpp>
 #include <GL/glew.h>
 #include <SFML/Window/Window.hpp>
-#include "Clock.h"
 #include <SFML/Window/Event.hpp>
 #include <SFML/System/Sleep.hpp>
 #include <iostream>

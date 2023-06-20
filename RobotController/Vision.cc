@@ -7,6 +7,10 @@
 #include <opencv2/features2d.hpp>
 #include "PathFinder.h"
 
+// GLint doesn't have different sizes on different compilers whereas int does
+const GLint POINT_CLOUD_WINDOW_WIDTH = 1920, POINT_CLOUD_WINDOW_HEIGHT = 1080;
+#define WIDTH 640
+#define HEIGHT 480
 
 Vision::Vision(CameraReceiver &overheadCam)
     : overheadCam(overheadCam),
@@ -16,6 +20,26 @@ Vision::Vision(CameraReceiver &overheadCam)
     // add 2 robot trackers
     robotTrackers.push_back(RobotTracker(cv::Point2f(0,0)));
     robotTrackers.push_back(RobotTracker(cv::Point2f(10000, 10000)));
+
+    gameLoopThread = new std::thread([this]()
+                                     {
+        // setup the window
+        const Engine::WindowSettings myWindowSettings = {POINT_CLOUD_WINDOW_WIDTH, POINT_CLOUD_WINDOW_HEIGHT};
+        Engine::Window myWindow = Engine::Window(myWindowSettings);
+        // show the window
+        myWindow.Show();
+
+        // this will handle all the logic of our game
+        GameLoop gameLoop(WIDTH, HEIGHT, &myWindow);
+        pGameLoop = &gameLoop;
+
+        // bind gameLoop's update function to the window
+        myWindow.addLoopFunction([&gameLoop]()
+                                { gameLoop.update(); });
+        myWindow.addInitFunction([&gameLoop]()
+                                { gameLoop.init(); });
+        // this will start calling the gameLoop update and also polling events
+        myWindow.startLoop(); });
 }
 
 // void Vision::performOpticalFlow()
