@@ -864,6 +864,7 @@ public class RobotInterface3D : MonoBehaviour {
 
         // Finally, calculate events to make Robot programming easier
         gamepad1_a_changed = gamepad1_a != gamepad1_a_previous;
+        UnityEngine.Debug.Log("gamepad1_a_changed: " + gamepad1_a_changed);
         something_changed |= gamepad1_a_changed;
         gamepad1_b_changed = gamepad1_b != gamepad1_b_previous;
         something_changed |= gamepad1_b_changed;
@@ -2522,6 +2523,7 @@ public class RobotInterface3D : MonoBehaviour {
     float logtime = 0f;
     private void Update()
     {
+        UnityEngine.Debug.Log("in update()");
         if (doinit)
         {
             myRobotID = gameObject.GetComponent<RobotID>();
@@ -2533,6 +2535,7 @@ public class RobotInterface3D : MonoBehaviour {
         ClearHingeList();
         ClearSlideList();
 
+        UnityEngine.Debug.Log("about to inputschanges");
         // Mark what control bits changed (for easy access in Update_Robot()
         InputsChanges();
 

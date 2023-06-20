@@ -63,20 +63,18 @@ bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 
 void Vision::runPipeline()
 {
-    Clock c2;
-    c2.markStart();
     // get the frame from the camera
     overheadCam.getFrame(currFrame);
     convertToBirdsEyeView(currFrame, currFrame);
     // scale to 1280 by 720
     cv::resize(currFrame, currFrame, cv::Size(1280, 720));
 
-    // // Skip the first frame or if the current frame is the same as the previous frame
-    // if (previousFrame.empty() || areMatsEqual(currFrame, previousFrame))
-    // {
-    //     previousFrame = currFrame.clone();
-    //     return;
-    // }
+    // Skip the first frame or if the current frame is the same as the previous frame
+    if (previousFrame.empty() || areMatsEqual(currFrame, previousFrame))
+    {
+        previousFrame = currFrame.clone();
+        return;
+    }
     robotTrackers[0].angle = angle; // TODO: remove this
     robotTrackers[0].position = position;
     robotTrackers[1].angle = opponent_angle;
@@ -87,8 +85,6 @@ void Vision::runPipeline()
 
     // save the current frame
     previousFrame = currFrame.clone();
-
-    std::cout << "total time runPipeline" << c2.getElapsedTime() << std::endl;
 }
 
 const cv::Mat& Vision::GetBirdsEyeImage()

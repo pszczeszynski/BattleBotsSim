@@ -200,7 +200,7 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
     RobotControllerMessage response{0, 0};
     response.turn_amount = std::clamp(deltaAngleRad / MAX_POWER_ANGLE, -1.0, 1.0) * 1.0;
 
-    double scaleDownMovement = danger ? 0.8 : 0.4;
+    double scaleDownMovement = danger ? 0.8 : 0.0;
     // Slow down when far away from the target angle
     double drive_scale = std::max(scaleDownMovement, 1.0 - abs(deltaAngleRad_noex) / MAX_POWER_ANGLE) * 1.0;
 
@@ -225,7 +225,7 @@ RobotControllerMessage RobotController::loop(RobotState &state, cv::Mat &drawing
 {
     double SAFE_RADIUS = 100;
     // Check if opponent is facing us
-    const double ANGLE_TOLERANCE = 85 * TO_RAD;
+    const double ANGLE_TOLERANCE = 70 * TO_RAD;
 
     static Extrapolator<cv::Point2f> ourPositionExtrapolator{cv::Point2f(0,0)};
     static Extrapolator<double> ourAngleExtrapolator{0};
@@ -248,17 +248,36 @@ RobotControllerMessage RobotController::loop(RobotState &state, cv::Mat &drawing
     double opponentAngleRad = vision.GetOpponentAngle();
     opponentAngleExtrapolator.SetValue(opponentAngleRad);
     double opponentAngleEx = angle_wrap(opponentAngleExtrapolator.Extrapolate(0.1 * norm(opponentPos - ourPosition) / SAFE_RADIUS));
-    opponentAngleRad = opponentAngleEx;
+    
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
 
     cv::Point2f usToOpponent = opponentPosEx - ourPosition;
     double angleToOpponent = atan2(usToOpponent.y, usToOpponent.x);
+    double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
-    double angleFromFacingUs = angle_wrap(angleToOpponent - opponentAngleRad - M_PI);
+    
+    // // make sure opponentAngleEx doesn't cross angleFromFacingUs
+    // if (opponentAngleExtrapolator.GetVelocity() > 0 &&
+    //     angle_wrap(opponentAngleRad - angleOpponentToUs) < 0 &&
+    //     angle_wrap(opponentAngleEx - angleOpponentToUs) > 0)
+    // {
+    //     opponentAngleEx = angleOpponentToUs;
+    //     std::cout << "limiting1" << std::endl;
+    // }
+    // else if (opponentAngleExtrapolator.GetVelocity() < 0 &&
+    //     angle_wrap(opponentAngleRad - angleOpponentToUs) > 0 &&
+    //     angle_wrap(opponentAngleEx - angleOpponentToUs) < 0)
+    // {
+    //     opponentAngleEx = angleOpponentToUs;
+    //     std::cout << "limiting2" << std::endl;
+    // }
+    opponentAngleRad = opponentAngleEx;
 
-    double angle1 = angle_wrap(opponentAngleRad + ANGLE_TOLERANCE);
-    double angle2 = angle_wrap(opponentAngleRad - ANGLE_TOLERANCE);
+    double angleFromFacingUs = angle_wrap(angleToOpponent - opponentAngleEx - M_PI);
+
+    double angle1 = angle_wrap(opponentAngleEx + ANGLE_TOLERANCE);
+    double angle2 = angle_wrap(opponentAngleEx - ANGLE_TOLERANCE);
     // draw line at each angle
     cv::line(drawingImage, opponentPosEx, opponentPosEx + cv::Point2f(cos(angle1), sin(angle1)) * SAFE_RADIUS, cv::Scalar(0,255,0), 4);
     cv::line(drawingImage, opponentPosEx, opponentPosEx + cv::Point2f(cos(angle2), sin(angle2)) * SAFE_RADIUS, cv::Scalar(0,255,0), 4);

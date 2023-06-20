@@ -26,6 +26,8 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
     public HingeJoint spinner1;
     public HingeJoint spinner2;
+    public HingeJoint selfRight;
+    public int selfRightPosExtended = 100;
     private BB_RobotControllerLink _robotControllerLink;
 
     // cached enemies, sorted by distance
@@ -69,6 +71,21 @@ public class Robot_BB_Flipsy : RobotInterface3D
         {
             gamepad1_left_stick_y = (float)input.Value.drive_amount;
             gamepad1_right_stick_x = (float)input.Value.turn_amount;
+        }
+
+        if (gamepad1_a)
+        {
+            UnityEngine.Debug.Log("pszczesz: a pressed!");
+            JointSpring spring = selfRight.spring;
+            spring.targetPosition = selfRightPosExtended;
+            selfRight.spring = spring;
+        }
+        else
+        {
+            UnityEngine.Debug.Log("pszczesz: a released!");
+            JointSpring spring = selfRight.spring;
+            spring.targetPosition = 0;
+            selfRight.spring = spring;
         }
     }
 
