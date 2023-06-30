@@ -31,6 +31,7 @@ GameLoop::GameLoop(int width, int height, Engine::Window *window) : WIDTH(width)
 	initPointCloud();
 	initOpponentRobot();
 	initPathPlanning();
+	std::cout << "done gameloop ctor" << std::endl;
 }
 
 void GameLoop::initOpponentRobot()
@@ -56,7 +57,6 @@ void GameLoop::initOpponentRobot()
 	opponentRobotGameObject->setVertices(&cubeVertices[0], cubeVertices.size() * sizeof(cubeVertices[0]));
 	opponentRobotGameObject->createShadersFromSource("Graphics/Shader/Basic.shader", true);
 	opponentRobotGameObject->createProgramFromShaders();
-	opponentRobotGameObject->addTexture("Graphics/Pictures/sample.png", "texKitten");
 	opponentRobotGameObject->rebindAllAttribtes();
 	opponentRobotGameObject->bindToCamera(myCamera);
 }
@@ -67,7 +67,6 @@ void GameLoop::initPointCloud()
 	pointCloudGameObject->createShadersFromSource("Graphics/Shader/Basic.shader", true);
 	pointCloudGameObject->createProgramFromShaders();
 	pointCloudGameObject->rebindAllAttribtes();
-	// pointCloudGameObject->addTexture("Graphics/Pictures/sample.png", "texKitten");
 	pointCloudGameObject->bindToCamera(myCamera);
 }
 
@@ -77,12 +76,15 @@ void GameLoop::initPathPlanning()
 	pathPlanningGameObject->createShadersFromSource("Graphics/Shader/Basic.shader", true);
 	pathPlanningGameObject->createProgramFromShaders();
 	pathPlanningGameObject->rebindAllAttribtes();
-	// pathPlanningGameObject->addTexture("Graphics/Pictures/sample.png", "texKitten");
 	pathPlanningGameObject->bindToCamera(myCamera);
 }
 
 void GameLoop::SetPointCloudVerts(std::vector<cv::Point3f> &vertices, std::vector<cv::Vec3b> &colors)
 {
+	if (!run)
+	{
+		return;
+	}
 	pointCloudLock.lock();
 	pointCloudVerts.clear(); // delete all vectory contents
 
@@ -212,6 +214,9 @@ void GameLoop::UpdateCameraPosition()
 
 	if (!cameraLock)
 	{
+		// // add sine wave motion
+		// deltaMovement += vec3(0, sin(myClock->getElapsedTime() * 2) * 0.5, 0);
+
 		myCamera->setOrientation(vec3(myWindow->getMouseX(), 0.2, -myWindow->getMouseY()));
 		myCamera->translateRelative(deltaMovement * MOVEMENT_SPEED);
 	}
@@ -281,11 +286,11 @@ void GameLoop::drawOpponentPosition()
 	double time = myClock->getElapsedTime();
 	opponentRobotGameObject->update();
 	// rotate it with time so it looks cool
-	opponentRobotGameObject->setOrientation(vec3(sin(time * 6), cos(time * 6), cos(time * 6)));
+	// opponentRobotGameObject->setOrientation(vec3(sin(time * 6), cos(time * 6), cos(time * 6)));
 	// we might have just drawn another obejct, so we must rebind to the vao to tell opengl which vertices to draw
 	opponentRobotGameObject->makeSureBoundToVao();
 	opponentRobotGameObject->readyTextures();
-	glLineWidth(7.0f); // set the line width to be 7 pixels
+	glLineWidth(4.0f); // set the line width to be 4 pixels
 	// TODO: make it not just use the CUBE_VERTICES size and have the object have a draw method
 	glDrawArrays(GL_LINE_LOOP, 0, CUBE_VERTICES.size() / 8);
 }

@@ -473,7 +473,7 @@ MonoBehaviour:
   max_acceleration: 15
   max_acceleration_lock: 1
   max_torque: 15
-  turn_scale: 0.75
+  turn_scale: 1
   turn_scale_lock: 0
   straffing_friction_scaler: 1.5
   default_regen_breaking: 0.25
@@ -542,6 +542,7 @@ MonoBehaviour:
   wheelBL: {fileID: 2752405089801163479}
   wheelBR: {fileID: 670127180382503842}
   body: {fileID: 3695129459032828758}
+  SPEED: 4000
 --- !u!1 &1513895556740696
 GameObject:
   m_ObjectHideFlags: 0

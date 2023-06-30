@@ -53,6 +53,7 @@ double RobotTracker::getCostOfUpdating(MotionBlob& blob)
     return (positionCost + areaCost) / 2.0;
 }
 
+
 /**
  * @brief update
  * Updates the position of the robot to the given position.
@@ -67,7 +68,7 @@ void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
     lastUpdate.markStart();
 
     // crop frame around newPosition + save
-    const int CROP_SIZE = 50;
+    const int CROP_SIZE = 75;
     cv::Mat croppedFrame;
     cv::Rect crop = cv::Rect(position.x - CROP_SIZE / 2, position.y - CROP_SIZE / 2, CROP_SIZE, CROP_SIZE);
     if (crop.x < 0 || crop.y < 0 || crop.x + crop.width > frame.cols || crop.y + crop.height > frame.rows)
@@ -91,12 +92,12 @@ void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
         croppedFrameLast = croppedFrame;
     }
 
-    angle = getRotationBetweenMats(croppedFrameLast, croppedFrame, position - cv::Point2f(crop.tl()));
-
+    // angle = getRotationOfMat(croppedFrame, position - cv::Point2f(crop.tl()));
+    // angle = getRotationBetweenMats(croppedFrameLast, croppedFrame, position - cv::Point2f(crop.tl()));
 
     croppedFrameLast = croppedFrame;
 
-    cv::imshow("cropped", croppedFrame);
+    // cv::imshow("cropped", croppedFrame);
     isValid = true;
 
 }
@@ -108,6 +109,66 @@ void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
 cv::Point2f RobotTracker::getPosition()
 {
     return position;
+}
+
+double RobotTracker::getRotationOfMat(cv::Mat& img, cv::Point2f center)
+{
+    double step = 1; // rotation step in degrees
+    cv::Mat workingImage = img.clone();
+
+    int bestAngle = 0;
+    long int bestSum = 0;
+
+    double curr_angle_deg = angle * TO_DEG;
+    for (double ang = 0; ang < 360; ang += step)
+    {
+        // 1 rotate image
+        cv::Mat rotMat = cv::getRotationMatrix2D(center, ang, 1.0);
+        cv::Mat rotated;
+        cv::warpAffine(workingImage, rotated, rotMat, workingImage.size());
+
+        // reduce along y axis
+        cv::Mat reduced;
+        cv::reduce(rotated, reduced, 1, cv::REDUCE_AVG);
+
+        // reduced is 1xcols
+
+
+        cv::Mat reducedContrast = reduced.clone();
+
+        long int sumAbsDiffLong = 0;
+        for (int i = 1; i < reduced.rows; i++)
+        {
+            // take difference between each row
+            cv::Vec3b diff = reduced.at<cv::Vec3b>(i, 0) - reduced.at<cv::Vec3b>(i - 1, 0); 
+            cv::Vec3b absDiff = cv::Vec3b(abs(diff[0]), abs(diff[1]), abs(diff[2])) * 4;
+            reducedContrast.at<cv::Vec3b>(i, 0) = absDiff;
+            sumAbsDiffLong += absDiff[0] + absDiff[1] + absDiff[2];
+        }
+
+        // make reduced contrast wider
+        cv::Mat reducedContrastWider;
+        cv::resize(reducedContrast, reducedContrastWider, cv::Size(100, reducedContrast.rows), 0, 0, cv::INTER_NEAREST);
+
+        // cvt to 8 bit
+        // reducedContrastWider.convertTo(reducedContrastWider, CV_8U);
+
+        cv::imshow("rotated", rotated);
+        cv::imshow("wide", reducedContrastWider);
+        // break;
+
+        // take sum of reduced contrast
+        if (sumAbsDiffLong > bestSum)
+        {
+            std::cout << "ang: " << ang << " new best sum: " << sumAbsDiffLong << std::endl;
+            bestSum = sumAbsDiffLong;
+            bestAngle = ang;
+        }
+    }
+
+    std::cout << "best angle: " << bestAngle << std::endl;
+
+    return bestAngle * TO_RAD;
 }
 
 double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Point2f center)

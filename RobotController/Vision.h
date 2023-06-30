@@ -12,32 +12,41 @@
 #include "OpticalFlow.h"
 #include "PathFinder.h"
 #include "Graphics/GameLoop.h"
+#include <opencv2/cudaarithm.hpp>
+#include <opencv2/cudastereo.hpp>
 
 class Vision
 {
 public:
-    Vision(CameraReceiver &overheadCam);
+    Vision(ICameraReceiver &overheadCamL, ICameraReceiver &overheadCamR);
     void Vision::locateRobots(cv::Mat&, cv::Mat&);
     // void performOpticalFlow();
     void runPipeline();
 
     void convertToBirdsEyeView(cv::Mat& frame, cv::Mat& dst);
 
-    const cv::Mat& GetBirdsEyeImage();
+    const cv::Mat& GetBirdsEyeImageL();
+    const cv::Mat& GetBirdsEyeImageR();
 
     cv::Point2f GetRobotPosition();
     double GetRobotAngle();
     cv::Point2f GetOpponentPosition();
     double GetOpponentAngle();
+
+    void DrawRobots();
+    void DetectRotation(cv::Mat& canny);
     
     double angle;
     cv::Point2f position;
     double opponent_angle;
     cv::Point2f opponent_position;
 private:
-    CameraReceiver& overheadCam;
-    cv::Mat currFrame;
-    cv::Mat previousFrame;
+    ICameraReceiver& overheadCamL;
+    ICameraReceiver& overheadCamR;
+    cv::Mat currFrameL;
+    cv::Mat previousFrameL;
+    cv::Mat currFrameR;
+    cv::Mat previousFrameR;
 
     std::vector<RobotTracker> robotTrackers = {};
 
@@ -47,9 +56,15 @@ private:
 
     void updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame);
     void getOpponentRotation();
+    void compute3dPointCloud(cv::Mat &leftCam, cv::Mat &rightCam, std::vector<cv::Point3f> &pointCloud,
+                             std::vector<cv::Vec3b> &colors);
+    cv::Point3f convert2dPointTo3d(int x, int y, short disparity);
+    void computeDisparity(const cv::Mat &left, const cv::Mat &right, cv::Mat &disparity, cv::Mat &disparityNormalized);
 
+    cv::Ptr<cv::cuda::StereoSGM> stereoSGMMain;
+    cv::Ptr<cv::StereoSGBM> stereoSGBMMainCPU;
 
     std::thread* gameLoopThread;
-    GameLoop* pGameLoop;
+    GameLoop* pGameLoop = nullptr;
 
 };

@@ -397,7 +397,7 @@ JSON_DIR:PATH=JSON_DIR-NOTFOUND
 NLOHMAN_JSON_DIR:PATH=NLOHMAN_JSON_DIR-NOTFOUND
 
 //The directory containing a CMake configuration file for OpenCV.
-OpenCV_DIR:PATH=C:/opencv/install
+OpenCV_DIR:PATH=OpenCV_DIR-NOTFOUND
 
 //Value Computed by CMake
 RobotController_BINARY_DIR:STATIC=C:/Dev/BattleBotsSim/RobotController/build

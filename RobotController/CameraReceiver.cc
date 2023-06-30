@@ -6,7 +6,43 @@
 #include <windows.h>
 #include <iostream>
 
-CameraReceiver::CameraReceiver(std::string sharedFileName, int width, int height)
+////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
+
+
+CameraReceiver::CameraReceiver(int cameraIndex)
+{
+    // Create a VideoCapture object with the DirectShow string
+    cap = new cv::VideoCapture(cameraIndex, cv::CAP_DSHOW);
+
+    // disable auto exposure
+    cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    // disable auto white balance
+    cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
+    // set exposure
+    cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
+    // set white balance
+    cap->set(cv::CAP_PROP_WB_TEMPERATURE, 4500);
+    
+
+    if (!cap->isOpened())
+    {
+        std::cout << "Failed to open VideoCapture " << cameraIndex << std::endl;
+    }
+}
+
+void CameraReceiver::getFrame(cv::Mat& output)
+{
+    *cap >> output;
+}
+
+CameraReceiver::~CameraReceiver()
+{
+    delete cap;
+}
+
+
+////////////////////////////////////////// SIMULATION //////////////////////////////////////////
+CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
 {
     // 1. Create shared file
     // Open a handle to the memory-mapped file
@@ -31,14 +67,14 @@ CameraReceiver::CameraReceiver(std::string sharedFileName, int width, int height
     image = cv::Mat(cv::Size(width, height), CV_8UC4, lpMapAddress);
 }
 
-void CameraReceiver::getFrame(cv::Mat& output)
+void CameraReceiverSim::getFrame(cv::Mat& output)
 {
     cv::cvtColor(image, output, cv::COLOR_RGBA2BGR);
     // Flip the image vertically
     cv::flip(output, output, 0);
 }
 
-CameraReceiver::~CameraReceiver()
+CameraReceiverSim::~CameraReceiverSim()
 {
     // Unmap the memory-mapped file and close the handle
     UnmapViewOfFile(lpMapAddress);

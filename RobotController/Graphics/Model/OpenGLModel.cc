@@ -1,7 +1,7 @@
 #include "OpenGLModel.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-#include <SOIL2.h>
+// #include <SOIL2.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include "../Camera.h"
 #include <fstream>
@@ -231,6 +231,7 @@ void OpenGLModel::bindToTextureCoordinateAttribute()
 // adds a texture to this object
 void OpenGLModel::addTexture(const char *fileName, const char *shaderAttribName)
 {
+	std::cout << "We removed the soil library for now so addTexture isn't supported" << std::endl;
 	// return if we have already generated all the textures
 	if (texturesGenerated >= totalNumTextures)
 	{
@@ -250,12 +251,14 @@ void OpenGLModel::addTexture(const char *fileName, const char *shaderAttribName)
 
 	// bind the texture to the active one before performing operations on it. Right now the other one is still bound I think.
 	glBindTexture(GL_TEXTURE_2D, textures[texturesGenerated]);
-	// grab the image data from soil
-	image = SOIL_load_image(fileName, &width, &height, 0, SOIL_LOAD_RGB);
+	// load image without soil
+
+	// // grab the image data from soil
+	// image = SOIL_load_image(fileName, &width, &height, 0, SOIL_LOAD_RGB);
 	// now we load it to the texture, since image contains the pixels
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-	// clean up the image data since we have already loaded to the texture
-	SOIL_free_image_data(image);
+	// // clean up the image data since we have already loaded to the texture
+	// SOIL_free_image_data(image);
 	glUniform1i(glGetUniformLocation(shaderProgram, shaderAttribName), texturesGenerated);
 
 	// set the ends of the texture to be repeated

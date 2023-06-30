@@ -24,9 +24,8 @@ set(JSON_INCLUDE_PATH "./libs/json/include")
 set(GLEW_INCLUDE_PATH "./libs/GLEW/include")
 set(GLM_INCLUDE_PATH  "./libs/GLM")
 set(SFML_INCLUDE_PATH "./libs/SFML/include")
-set(SOIL_INCLUDE_PATH "./libs/SOIL/src/SOIL2")
 
-include_directories( ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${GLEW_INCLUDE_PATH} ${GLM_INCLUDE_PATH} ${SFML_INCLUDE_PATH} ${SOIL_INCLUDE_PATH} )
+include_directories( ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${GLEW_INCLUDE_PATH} ${GLM_INCLUDE_PATH} ${SFML_INCLUDE_PATH} )
 
 # Define the sources and headers
 set(SOURCES 
@@ -61,4 +60,4 @@ set(SOURCES
 # Create the executable
 cuda_add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController ${CUDA_LIBRARIES} ${SFML_LIBRARIES} opencv_world glew32 opengl32 sfml-system sfml-graphics sfml-window soil2-debug)
+target_link_libraries(RobotController ${CUDA_LIBRARIES} ${SFML_LIBRARIES} opencv_world glew32 opengl32 sfml-system sfml-graphics sfml-window)

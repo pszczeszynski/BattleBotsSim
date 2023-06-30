@@ -413,7 +413,7 @@ public class SinglePlayer : MonoBehaviour
     // Update camera to new positions
     private void LateUpdate()
     {
-        UpdateTrackingCamera();
+        // UpdateTrackingCamera();
     }
 
     // Process key events that single player deals with

@@ -49,7 +49,6 @@ public class Robot_BB_Flipsy : RobotInterface3D
     {
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
-        UnityEngine.Debug.Log("RobotControllerUpdate");
 
         BattleBotState state = new BattleBotState
         {
@@ -75,14 +74,12 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
         if (gamepad1_a)
         {
-            UnityEngine.Debug.Log("pszczesz: a pressed!");
             JointSpring spring = selfRight.spring;
             spring.targetPosition = selfRightPosExtended;
             selfRight.spring = spring;
         }
         else
         {
-            UnityEngine.Debug.Log("pszczesz: a released!");
             JointSpring spring = selfRight.spring;
             spring.targetPosition = 0;
             selfRight.spring = spring;
@@ -91,8 +88,6 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
     protected override void FixedUpdate()
     {
-        UnityEngine.Debug.Log("FixedUpdate");
-
         RobotControllerUpdate();
         // call the base class method
         base.FixedUpdate();
@@ -102,7 +97,6 @@ public class Robot_BB_Flipsy : RobotInterface3D
     {
         if (gamepad1_b)
         {
-            UnityEngine.Debug.Log("pszczesz: b pressed!");
             float velocity = _spinnersOn ? 0 : -SPINNER_SPEED;
             JointMotor motor = spinner1.motor;
             motor.targetVelocity = velocity;

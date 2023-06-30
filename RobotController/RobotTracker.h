@@ -28,6 +28,7 @@ public:
     double getAngle();
 
     double getRotationBetweenMats(cv::Mat& img1, cv::Mat& img2, cv::Point2f center);
+    double getRotationOfMat(cv::Mat& img1, cv::Point2f center);
 
     cv::Point2f getExtrapolatedPos();
 

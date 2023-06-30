@@ -9,6 +9,13 @@ ValueBin::ValueBin(int scale) : counts({}),
 {
 }
 
+void ValueBin::Clear()
+{
+    counts.clear();
+    valueSum.clear();
+    numValues = 0;
+}
+
 void ValueBin::AddValue(double value)
 {
     double valueScaled = value * scaleSize;

@@ -14,6 +14,7 @@ private:
 
 public:
     ValueBin(int scale = 1);
+    void Clear();
 
     void AddValue(double);
     double GetAverageOfBin(double);

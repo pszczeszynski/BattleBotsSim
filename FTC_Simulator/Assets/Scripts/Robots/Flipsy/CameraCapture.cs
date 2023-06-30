@@ -37,6 +37,14 @@ public class CameraCapture : MonoBehaviour
     }
     void Update()
     {
+        // ApplicationManager applicationManager = FindObjectOfType<ApplicationManager>();
+        // // move MainCamera to this location
+        // applicationManager.MainCamera.transform.position = transform.position;
+        // applicationManager.MainCamera.transform.rotation = transform.rotation;
+        // UnityEngine.Debug.Log("set position of: " + applicationManager.MainCamera);
+        // // copy fov
+        // applicationManager.MainCamera.GetComponent<Camera>().fieldOfView = cameraToCapture.fieldOfView;
+
         // Read the pixel data from the RenderTexture
         RenderTexture.active = rt;
         cameraToCapture.targetTexture = rt;

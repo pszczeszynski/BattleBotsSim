@@ -22,8 +22,15 @@ int main()
 RobotController::RobotController()
     : socket{"11115"}
 #ifdef ENABLE_VISION
-      ,overheadCam{"overheadCam"},
-      vision{overheadCam}
+#ifdef SIMULATION
+      ,overheadCamL_sim{"overheadCamL"}
+      ,overheadCamR_sim{"overheadCamR"}
+      ,vision{overheadCamL_sim, overheadCamR_sim}
+#else
+      ,overheadCamL_real{0}
+      ,overheadCamR_real{1}
+      ,vision{overheadCamL_real, overheadCamR_real}
+#endif
 #endif
 {
 
@@ -44,41 +51,48 @@ StateMachine<State> stateMachine;
 
 void RobotController::Run()
 {
+    std::cout << "running" << std::endl;
     Clock lastTime;
     lastTime.markStart();
     unsigned long frames = 0;
     // receive until the peer closes the connection
     while (true)
     {
+        frames ++;
+        // if (frames % 100 == 0)
+        // {
+        //     std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
+        // }
+
+#ifdef SIMULATION
         // 1. receive state info from unity
         std::string received = socket.receive();
         if (received == "")
         {
             continue;
         }
-        frames ++;
-        if (frames % 100 == 0)
-        {
-            std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
-        }
 
         // 2. parse state info
         RobotState state = RobotStateParser::parse(received);
+#endif
 
 #ifdef ENABLE_VISION
+#ifdef SIMULATION
         vision.angle = state.robot_orientation * TO_RAD;
         vision.opponent_angle = state.opponent_orientation * TO_RAD;
         vision.position = cv::Point2f(state.robot_position.x + 20, -state.robot_position.z + 13) * 30;
         vision.opponent_position = cv::Point2f(state.opponent_position.x + 20, -state.opponent_position.z + 13) * 30;
+#endif
 
         vision.runPipeline();
         char key = cv::waitKey(1);
 #endif
 
         // get birds eye view image
-        cv::Mat& drawingImage = (cv::Mat&) vision.GetBirdsEyeImage();
+        cv::Mat& drawingImage = (cv::Mat&) vision.GetBirdsEyeImageL();
         // cv::Mat drawingImage = frame.clone();
 
+#ifdef SIMULATION
         // 3. run our robot controller loop
         RobotControllerMessage response = loop(state, drawingImage);
 
@@ -109,14 +123,14 @@ void RobotController::Run()
         // send the response back to unity (tell it how much to drive and turn)
         socket.reply_to_last_sender(RobotStateParser::serialize(response));
 
-
+#endif
         // // draw the opponent profile graphic
         // // init square mat of 400 x 400
         // cv::Mat drawing_image = cv::Mat::zeros(400, 400, CV_8UC3);
         // p.DrawGraphic(drawing_image);
 
         // DrawGraphic(drawingImage);
-        cv::imshow("drawing", drawingImage);
+        // cv::imshow("drawing", drawingImage);
 
     }
 }
