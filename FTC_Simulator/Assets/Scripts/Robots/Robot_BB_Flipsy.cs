@@ -29,6 +29,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
     public HingeJoint selfRight;
     public int selfRightPosExtended = 100;
     private BB_RobotControllerLink _robotControllerLink;
+    private TankDrive _tankDrive;
 
     // cached enemies, sorted by distance
     private List<Transform> _enemyRobotBodies = new List<Transform> { };
@@ -43,6 +44,8 @@ public class Robot_BB_Flipsy : RobotInterface3D
         if (GLOBALS.CLIENT_MODE) { return; }
         _robotControllerLink = new BB_RobotControllerLink("127.0.0.1", 11115);
         InvokeRepeating("CacheEnemiesAndChooseOneToTrack", 0.0f, ENEMY_SEARCH_INTERVAL_SECONDS);
+        // find the tank drive script
+        _tankDrive = GetComponent<TankDrive>();
     }
 
     private void RobotControllerUpdate()
@@ -50,12 +53,14 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
 
+        double input_rotation = Mathf.Atan2(Input.GetAxis("J1Axis2"), Input.GetAxis("J1Axis1")) * 180.0f / Mathf.PI;
+        double actual_rotation = opponent_body.rotation.eulerAngles[1];
         BattleBotState state = new BattleBotState
         {
             robot_position = robot_body.position,
             robot_orientation = robot_body.rotation.eulerAngles[1],
             opponent_position = opponent_body.position,
-            opponent_orientation = opponent_body.rotation.eulerAngles[1]
+            opponent_orientation = actual_rotation
         };
 
         // send the robot controller the current state
@@ -65,14 +70,23 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // receive latest control input from the robot controller
         RobotControllerMessage? input = _robotControllerLink.Receive();
  
-        // apply the control input to the robot
+
+        // movement with w and s
+        float movement_amount = (Input.GetKey(KeyCode.W) ? 1.0f : 0) - (Input.GetKey(KeyCode.S) ? 1.0f : 0);
+        // turn with j and l
+        float turn_amount = (Input.GetKey(KeyCode.A) ? 1.0f : 0) - (Input.GetKey(KeyCode.D) ? 1.0f : 0);
+
+        // IF has input from robot controller, use that
         if (input.HasValue)
         {
-            gamepad1_left_stick_y = (float)input.Value.drive_amount;
-            gamepad1_right_stick_x = (float)input.Value.turn_amount;
+            movement_amount += (float)input.Value.drive_amount;
+            turn_amount += (float)input.Value.turn_amount;
         }
 
-        if (gamepad1_a)
+        _tankDrive.Drive(movement_amount, turn_amount);
+
+        // q to self right
+        if (Input.GetKey(KeyCode.Q))
         {
             JointSpring spring = selfRight.spring;
             spring.targetPosition = selfRightPosExtended;

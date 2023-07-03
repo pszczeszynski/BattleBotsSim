@@ -37,6 +37,7 @@ public class CameraCapture : MonoBehaviour
     }
     void Update()
     {
+        UnityEngine.Debug.Log("FPS:" + 1.0f / Time.deltaTime);
         // ApplicationManager applicationManager = FindObjectOfType<ApplicationManager>();
         // // move MainCamera to this location
         // applicationManager.MainCamera.transform.position = transform.position;

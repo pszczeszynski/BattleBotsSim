@@ -6,21 +6,21 @@ public class TankDrive : MonoBehaviour
     public HingeJoint wheelTR;
     public HingeJoint wheelBL;
     public HingeJoint wheelBR;
-    private RobotInterface3D _robotInterface3D;
     public Transform body;
     public float SPEED = 4000;
+    private float movement_amount;
+    private float turn_amount;
 
-    void Start()
+    // Call this to move the robot
+    public void Drive(float movement_amount, float turn_amount)
     {
-        _robotInterface3D = GetComponent<RobotInterface3D>();
+        this.movement_amount = -movement_amount;
+        this.turn_amount = -turn_amount;
     }
 
 
     void FixedUpdate()
     {
-        float movement_amount = _robotInterface3D.gamepad1_left_stick_y;
-        float turn_amount = _robotInterface3D.gamepad1_right_stick_x;
-
         // apply movement
         float left_wheel_torque = movement_amount;
         float right_wheel_torque = movement_amount;

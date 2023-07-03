@@ -48,6 +48,7 @@ double RobotTracker::getCostOfUpdating(MotionBlob& blob)
     {
         areaCost = 1;
     }
+    areaCost = 0;
 
     // return the average of the two costs
     return (positionCost + areaCost) / 2.0;

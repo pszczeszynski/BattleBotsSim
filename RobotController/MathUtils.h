@@ -11,6 +11,10 @@ double angle_between_points(double x1, double y1, double x2, double y2);
 
 double angle_wrap(double angle);
 
+cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad);
+
+void calculateTangentPoints(const cv::Point2f& center, float radius, const cv::Point2f& externalPoint, cv::Point2f& tangent1, cv::Point2f& tangent2);
+
 class Point2f
 {
 public:

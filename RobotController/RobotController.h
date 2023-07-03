@@ -17,7 +17,6 @@ class RobotController
 public:
     RobotController();
     void Run();
-    void DrawGraphic(const cv::Mat& frame);
 private:
     ServerSocket socket;
 
@@ -37,7 +36,7 @@ private:
 ////////// SIMULATION ////////
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;
-    CameraReceiverSim overheadCamR_sim;
+    // CameraReceiverSim overheadCamR_sim;
 #else
 ////////// REAL ////////
     CameraReceiver overheadCamL_real;
