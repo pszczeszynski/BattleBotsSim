@@ -19,7 +19,7 @@ class Vision
 {
 public:
     Vision(ICameraReceiver &overheadCam);
-    void Vision::locateRobots2d(cv::Mat&, cv::Mat&);
+    void locateRobots2d(cv::Mat&, cv::Mat&);
     void runPipeline();
     void convertToBirdsEyeView2d(cv::Mat& frame, cv::Mat& dst);
     const cv::Mat& GetBirdsEyeImage();

@@ -2,7 +2,20 @@
 #include "ServerSocket.h"
 #include "RobotStateParser.h"
 #include "MathUtils.h"
-#include "StateMachine.h"
+#include <QApplication>
+#include <QMainWindow>
+
+
+// #define ENABLE_TIMERS
+#ifdef ENABLE_TIMERS
+    #define TIMER_INIT Clock c;
+    #define TIMER_START c.markStart();
+    #define TIMER_PRINT(msg) std::cout << msg << " time: " << c.getElapsedTime() << std::endl;
+#else
+    #define TIMER_INIT 
+    #define TIMER_START 
+    #define TIMER_PRINT(msg)
+#endif
 
 #ifdef ENABLE_VISION
 #include "Vision.h"
@@ -11,8 +24,15 @@
 
 #include "Extrapolator.h"
 
-int main()
+int main(int argc, char *argv[])
 {
+    QApplication app(argc, argv);
+
+    QMainWindow window;
+    window.show();
+
+    app.exec();
+
     RobotController rc{};
     rc.Run();
 
@@ -28,8 +48,8 @@ RobotController::RobotController()
       ,vision{overheadCamL_sim}
 #else
       ,overheadCamL_real{0}
-      ,overheadCamR_real{1}
-      ,vision{overheadCamL_real, overheadCamR_real}
+    //   ,overheadCamR_real{1}
+      ,vision{overheadCamL_real} // overheadCamR_real
 #endif
 #endif
 {
@@ -40,22 +60,13 @@ bool pause = true;
 
 double extrapolateAmount = 0;
 
-enum class State
-{
-    DRIVE_DIRECTLY_NO_DANGER,
-    PURE_PURSUIT,
-    GET_AWAY,
-};
-
-StateMachine<State> stateMachine;
-
 void RobotController::Run()
 {
+    TIMER_INIT
     std::cout << "running" << std::endl;
     Clock lastTime;
     lastTime.markStart();
 
-    Clock c;
     unsigned long frames = 0;
     // receive until the peer closes the connection
     while (true)
@@ -66,7 +77,6 @@ void RobotController::Run()
         std::string received = socket.receive();
         if (received == "")
         {
-            std::cout << "continuing" << std::endl;
             continue;
         }
         frames ++;
@@ -89,25 +99,26 @@ void RobotController::Run()
         vision.opponent_position = cv::Point2f(state.opponent_position.x + 20, -state.opponent_position.z + 13) * 30;
 #endif
 
-        c.markStart();
+        TIMER_START
         vision.runPipeline();
-        std::cout << "vision time: " << c.getElapsedTime() << std::endl;
+        TIMER_PRINT("vision.runPipeline()")
 
         char key = cv::waitKey(1);
 #endif
 
-        c.markStart();
+        
         // get birds eye view image
+        TIMER_START
         cv::Mat& drawingImage = (cv::Mat&) vision.GetBirdsEyeImage().clone();
-        std::cout << "clone time: " << c.getElapsedTime() << std::endl;
+        TIMER_PRINT("Cloning the drawing image")
         // cv::Mat drawingImage = frame.clone();
 
 #ifdef SIMULATION
 
-        c.markStart();
         // 3. run our robot controller loop
+        TIMER_START
         RobotControllerMessage response = loop(state, drawingImage);
-        std::cout << "loop time: " << c.getElapsedTime() << std::endl;
+        TIMER_PRINT("loop()")
 
         // check if space pressed
         if (key == ' ')
@@ -133,19 +144,16 @@ void RobotController::Run()
             response.drive_amount = 0;
             response.turn_amount = 0;
         }
+
+        TIMER_START
         // send the response back to unity (tell it how much to drive and turn)
         socket.reply_to_last_sender(RobotStateParser::serialize(response));
+        TIMER_PRINT("Reply to last sender")
 
 #endif
-        // // draw the opponent profile graphic
-        // // init square mat of 400 x 400
-        // cv::Mat drawing_image = cv::Mat::zeros(400, 400, CV_8UC3);
-        // p.DrawGraphic(drawing_image);
-
-        c.markStart();
-        // DrawGraphic(drawingImage);
+        TIMER_START
         cv::imshow("drawing", drawingImage);
-        std::cout << "draw time: " << c.getElapsedTime() << std::endl;
+        TIMER_PRINT("imshow()")
     }
 }
 
@@ -227,7 +235,7 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
 
     const double TURN_THRESH1_ANG = 50 * TO_RAD;
     const double TURN_THRESH2_ANG = 10 * TO_RAD;
-    const double MAX_TURN_POWER = 1.0;
+    const double MAX_TURN_POWER = 1.0; 
     const double MIN_TURN_POWER = 0.3;
 
     RobotControllerMessage response{0, 0};

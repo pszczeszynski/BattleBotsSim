@@ -1,15 +1,22 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.16)
 project(RobotController VERSION 0.1.0 LANGUAGES CUDA CXX)
 set(CMAKE_CUDA_ARCHITECTURES 86) # look up the cuda architecture for your gpu. For my RTX 3080 it's 8.6
+
+# set C++ 17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set policy for find_package to use <PackageName>_ROOT variables
 cmake_policy(SET CMP0074 NEW)
 
+# TODO: make this not hardcoded
+list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
+
 find_package( OpenCV REQUIRED )
 find_package( CUDA REQUIRED )
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+qt_standard_project_setup()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add library paths
 set(GLEW_LIB_PATH ${CMAKE_SOURCE_DIR}/libs/GLEW/lib/Release/x64/)
@@ -58,6 +65,7 @@ set(SOURCES
 
 
 # Create the executable
-cuda_add_executable(RobotController ${SOURCES})
+# cuda_add_executable(RobotController ${SOURCES})
+add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController ${CUDA_LIBRARIES} ${SFML_LIBRARIES} opencv_world glew32 opengl32 sfml-system sfml-graphics sfml-window)
+target_link_libraries(RobotController ${CUDA_LIBRARIES} ${SFML_LIBRARIES} opencv_world glew32 opengl32 sfml-system sfml-graphics sfml-window Qt6::Widgets)

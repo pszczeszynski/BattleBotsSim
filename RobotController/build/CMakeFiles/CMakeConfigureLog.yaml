@@ -498,3 +498,257 @@ events:
       
       
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CheckCXXSourceCompiles.cmake:76 (cmake_check_source_compiles)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:99 (CHECK_CXX_SOURCE_COMPILES)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:163 (_threads_check_libc)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Dependencies.cmake:24 (_qt_internal_find_third_party_dependencies)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Config.cmake:112 (include)"
+      - "CMakeLists.txt:10 (find_package)"
+    checks:
+      - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
+    directories:
+      source: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-5h2xip"
+      binary: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-5h2xip"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "86"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/kwin"
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-5h2xip
+        
+        Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_80dfb.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:n && Microsoft (R) Build Engine version 16.11.2+f32259642 for .NET Framework
+        Copyright (C) Microsoft Corporation. All rights reserved.
+        
+        Build started 7/3/2023 7:49:16 AM.
+        Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\cmTC_80dfb.vcxproj" on node 1 (default targets).
+        PrepareForBuild:
+          Creating directory "cmTC_80dfb.dir\\Debug\\".
+          Creating directory "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\Debug\\".
+          Creating directory "cmTC_80dfb.dir\\Debug\\cmTC_80dfb.tlog\\".
+        InitializeBuildStatus:
+          Creating "cmTC_80dfb.dir\\Debug\\cmTC_80dfb.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+        ClCompile:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CMAKE_HAVE_LIBC_PTHREAD /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_80dfb.dir\\Debug\\\\" /Fd"cmTC_80dfb.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\src.cxx"
+          Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30148 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          src.cxx
+          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CMAKE_HAVE_LIBC_PTHREAD /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_80dfb.dir\\Debug\\\\" /Fd"cmTC_80dfb.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\src.cxx"
+        C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\src.cxx(1,10): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\cmTC_80dfb.vcxproj]
+        Done Building Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\cmTC_80dfb.vcxproj" (default targets) -- FAILED.
+        
+        Build FAILED.
+        
+        "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\cmTC_80dfb.vcxproj" (default target) (1) ->
+        (ClCompile target) -> 
+          C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\src.cxx(1,10): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-5h2xip\\cmTC_80dfb.vcxproj]
+        
+            0 Warning(s)
+            1 Error(s)
+        
+        Time Elapsed 00:00:00.74
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CheckLibraryExists.cmake:71 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:112 (CHECK_LIBRARY_EXISTS)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:175 (_threads_check_lib)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Dependencies.cmake:24 (_qt_internal_find_third_party_dependencies)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Config.cmake:112 (include)"
+      - "CMakeLists.txt:10 (find_package)"
+    checks:
+      - "Looking for pthread_create in pthreads"
+    directories:
+      source: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-pqzyav"
+      binary: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-pqzyav"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "86"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/kwin"
+    buildResult:
+      variable: "CMAKE_HAVE_PTHREADS_CREATE"
+      cached: true
+      stdout: |
+        Change Dir: C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-pqzyav
+        
+        Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_02e87.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:n && Microsoft (R) Build Engine version 16.11.2+f32259642 for .NET Framework
+        Copyright (C) Microsoft Corporation. All rights reserved.
+        
+        Build started 7/3/2023 7:49:17 AM.
+        Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\cmTC_02e87.vcxproj" on node 1 (default targets).
+        PrepareForBuild:
+          Creating directory "cmTC_02e87.dir\\Debug\\".
+          Creating directory "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\Debug\\".
+          Creating directory "cmTC_02e87.dir\\Debug\\cmTC_02e87.tlog\\".
+        InitializeBuildStatus:
+          Creating "cmTC_02e87.dir\\Debug\\cmTC_02e87.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+        ClCompile:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_02e87.dir\\Debug\\\\" /Fd"cmTC_02e87.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\CheckFunctionExists.cxx"
+          Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30148 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          CheckFunctionExists.cxx
+          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_02e87.dir\\Debug\\\\" /Fd"cmTC_02e87.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\CheckFunctionExists.cxx"
+        Link:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\Debug\\cmTC_02e87.exe" /INCREMENTAL /ILK:"cmTC_02e87.dir\\Debug\\cmTC_02e87.ilk" /NOLOGO pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-pqzyav/Debug/cmTC_02e87.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-pqzyav/Debug/cmTC_02e87.lib" /MACHINE:X64  /machine:x64 cmTC_02e87.dir\\Debug\\CheckFunctionExists.obj
+        LINK : fatal error LNK1104: cannot open file 'pthreads.lib' [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\cmTC_02e87.vcxproj]
+        Done Building Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\cmTC_02e87.vcxproj" (default targets) -- FAILED.
+        
+        Build FAILED.
+        
+        "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\cmTC_02e87.vcxproj" (default target) (1) ->
+        (Link target) -> 
+          LINK : fatal error LNK1104: cannot open file 'pthreads.lib' [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pqzyav\\cmTC_02e87.vcxproj]
+        
+            0 Warning(s)
+            1 Error(s)
+        
+        Time Elapsed 00:00:00.65
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CheckLibraryExists.cmake:71 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:112 (CHECK_LIBRARY_EXISTS)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/FindThreads.cmake:176 (_threads_check_lib)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Dependencies.cmake:24 (_qt_internal_find_third_party_dependencies)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Config.cmake:112 (include)"
+      - "CMakeLists.txt:10 (find_package)"
+    checks:
+      - "Looking for pthread_create in pthread"
+    directories:
+      source: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-tlylop"
+      binary: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-tlylop"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "86"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/kwin"
+    buildResult:
+      variable: "CMAKE_HAVE_PTHREAD_CREATE"
+      cached: true
+      stdout: |
+        Change Dir: C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-tlylop
+        
+        Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_f8b15.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:n && Microsoft (R) Build Engine version 16.11.2+f32259642 for .NET Framework
+        Copyright (C) Microsoft Corporation. All rights reserved.
+        
+        Build started 7/3/2023 7:49:18 AM.
+        Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\cmTC_f8b15.vcxproj" on node 1 (default targets).
+        PrepareForBuild:
+          Creating directory "cmTC_f8b15.dir\\Debug\\".
+          Creating directory "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\Debug\\".
+          Creating directory "cmTC_f8b15.dir\\Debug\\cmTC_f8b15.tlog\\".
+        InitializeBuildStatus:
+          Creating "cmTC_f8b15.dir\\Debug\\cmTC_f8b15.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+        ClCompile:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_f8b15.dir\\Debug\\\\" /Fd"cmTC_f8b15.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\CheckFunctionExists.cxx"
+          Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30148 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          CheckFunctionExists.cxx
+          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_f8b15.dir\\Debug\\\\" /Fd"cmTC_f8b15.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\CheckFunctionExists.cxx"
+        Link:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\Debug\\cmTC_f8b15.exe" /INCREMENTAL /ILK:"cmTC_f8b15.dir\\Debug\\cmTC_f8b15.ilk" /NOLOGO pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-tlylop/Debug/cmTC_f8b15.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-tlylop/Debug/cmTC_f8b15.lib" /MACHINE:X64  /machine:x64 cmTC_f8b15.dir\\Debug\\CheckFunctionExists.obj
+        LINK : fatal error LNK1104: cannot open file 'pthread.lib' [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\cmTC_f8b15.vcxproj]
+        Done Building Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\cmTC_f8b15.vcxproj" (default targets) -- FAILED.
+        
+        Build FAILED.
+        
+        "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\cmTC_f8b15.vcxproj" (default target) (1) ->
+        (Link target) -> 
+          LINK : fatal error LNK1104: cannot open file 'pthread.lib' [C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-tlylop\\cmTC_f8b15.vcxproj]
+        
+            0 Warning(s)
+            1 Error(s)
+        
+        Time Elapsed 00:00:00.58
+        
+      exitCode: 1
+...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CheckCXXSourceCompiles.cmake:76 (cmake_check_source_compiles)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/FindWrapAtomic.cmake:36 (check_cxx_source_compiles)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake:30 (_qt_internal_find_third_party_dependencies)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake:40 (include)"
+      - "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/Qt6Config.cmake:157 (find_package)"
+      - "CMakeLists.txt:10 (find_package)"
+    checks:
+      - "Performing Test HAVE_STDATOMIC"
+    directories:
+      source: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-iw1h4f"
+      binary: "C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-iw1h4f"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "86"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/extra-cmake-modules/find-modules;C:/Qt/6.5.1/mingw_64/lib/cmake/Qt6/3rdparty/kwin"
+    buildResult:
+      variable: "HAVE_STDATOMIC"
+      cached: true
+      stdout: |
+        Change Dir: C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-iw1h4f
+        
+        Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_45d20.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:n && Microsoft (R) Build Engine version 16.11.2+f32259642 for .NET Framework
+        Copyright (C) Microsoft Corporation. All rights reserved.
+        
+        Build started 7/3/2023 7:56:04 AM.
+        Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\cmTC_45d20.vcxproj" on node 1 (default targets).
+        PrepareForBuild:
+          Creating directory "cmTC_45d20.dir\\Debug\\".
+          Creating directory "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\Debug\\".
+          Creating directory "cmTC_45d20.dir\\Debug\\cmTC_45d20.tlog\\".
+        InitializeBuildStatus:
+          Creating "cmTC_45d20.dir\\Debug\\cmTC_45d20.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+        ClCompile:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\CL.exe /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D HAVE_STDATOMIC /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_45d20.dir\\Debug\\\\" /Fd"cmTC_45d20.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\src.cxx"
+          Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30148 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          src.cxx
+          cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D HAVE_STDATOMIC /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_45d20.dir\\Debug\\\\" /Fd"cmTC_45d20.dir\\Debug\\vc142.pdb" /external:W3 /Gd /TP /errorReport:queue "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\src.cxx"
+        Link:
+          C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\HostX86\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\Debug\\cmTC_45d20.exe" /INCREMENTAL /ILK:"cmTC_45d20.dir\\Debug\\cmTC_45d20.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-iw1h4f/Debug/cmTC_45d20.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/CMakeScratch/TryCompile-iw1h4f/Debug/cmTC_45d20.lib" /MACHINE:X64  /machine:x64 cmTC_45d20.dir\\Debug\\src.obj
+          cmTC_45d20.vcxproj -> C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\Debug\\cmTC_45d20.exe
+        FinalizeBuildStatus:
+          Deleting file "cmTC_45d20.dir\\Debug\\cmTC_45d20.tlog\\unsuccessfulbuild".
+          Touching "cmTC_45d20.dir\\Debug\\cmTC_45d20.tlog\\cmTC_45d20.lastbuildstate".
+        Done Building Project "C:\\Dev\\BattleBotsSim\\RobotController\\build\\CMakeFiles\\CMakeScratch\\TryCompile-iw1h4f\\cmTC_45d20.vcxproj" (default targets).
+        
+        Build succeeded.
+            0 Warning(s)
+            0 Error(s)
+        
+        Time Elapsed 00:00:01.37
+        
+      exitCode: 0
+...

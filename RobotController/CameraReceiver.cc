@@ -44,9 +44,10 @@ CameraReceiver::~CameraReceiver()
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
 CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
 {
+    LPCWSTR sharedFileNameLPCWSTR = std::wstring(sharedFileName.begin(), sharedFileName.end()).c_str();
     // 1. Create shared file
     // Open a handle to the memory-mapped file
-    hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, sharedFileName.c_str());
+    hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameLPCWSTR);
 
     if (hMapFile == NULL)
     {
