@@ -3,19 +3,45 @@
 
 Required tools:
 
-make - download from here for windows: https://gnuwin32.sourceforge.io/packages/make.htm
+cmake
+qt
+opencv
+cuda
 
 
+OPENCV INSTALL:
 
 
-Opencv install:
-1. Download opencv 4.5.5 from their site, run the exe file
+0. Install cuda + cudann
 
-2. Move the opencv dir to C:/opencv
+1. download opencv source 4.7.0
+https://opencv.org/releases/
 
-3. Downlaod opencv mingw version 4.5.5 from below
-- https://github.com/huihut/OpenCV-MinGW-Build
+2. download opencv_contrib 4.7.0
+![Alt text](doc_images/image.png)
 
-4. Copy the x64/mingw/ folder into opencv/build/bin/x64
+CMAKE gui -> copy this, press configure
+![Alt text](doc_images/image2.png)
 
-5. Add opencv/build/x64/mingw/bin to path
+Press configure, then set as follows:
+![Alt text](doc_images/image-0.png)
+
+Will take a while
+
+	- Enable cuda
+	
+![Alt text](doc_images/image-1.png)
+![Alt text](doc_images/image-2.png)
+![Alt text](doc_images/image-3.png)
+![Alt text](doc_images/image-4.png)
+Set extra modules to where you installed opencv_contrib
+![Alt text](doc_images/image-5.png)
+	- hit configure again (verify no errors)
+![Alt text](doc_images/image-6.png)
+Set install prefix (I put it in C:/opencv/install)
+![Alt text](doc_images/image-7.png)
+Remove debug in below (should say only release):
+![Alt text](doc_images/image-8.png)
+Finally hit generate
+Open command prompt and run:
+![Alt text](doc_images/image-9.png)
