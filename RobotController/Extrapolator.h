@@ -1,6 +1,7 @@
 #pragma once
 #include "Clock.h"
 
+#define UPDATES_PER_DERIVATIVE_CHANGE 3
 template <typename T>
 class Extrapolator
 {
@@ -15,12 +16,14 @@ public:
     {
         currentValue = newValue;
 
-        if (clock.getElapsedTime() > 0.05)
+        if (updatesSinceLastDerivativeChange > UPDATES_PER_DERIVATIVE_CHANGE)
         {
+            updatesSinceLastDerivativeChange = 0;
             derivative = (newValue - lastValue) / clock.getElapsedTime();
             lastValue = newValue;
             clock.markStart();
         }
+        updatesSinceLastDerivativeChange++;
 
         return newValue;
     }
@@ -41,4 +44,5 @@ private:
     T lastValue;
     T currentValue;
     Clock clock;
+    int updatesSinceLastDerivativeChange = 0;
 };

@@ -9,17 +9,20 @@
 #include "CameraReceiver.h"
 #include "Vision.h"
 #endif
+#include <QObject>
+#include <QPixmap>
 
 #define SIMULATION
 
-class RobotController
+class RobotController : public QObject
 {
+    Q_OBJECT
 public:
     RobotController();
+public slots:
     void Run();
 private:
     ServerSocket socket;
-
 
     Clock clock;
 

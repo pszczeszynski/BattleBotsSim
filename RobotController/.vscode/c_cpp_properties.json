@@ -8,7 +8,8 @@
                 "${workspaceFolder}/libs/json/include/nlohmann/",
                 "${workspaceFolder}/libs/SFML/include/",
                 "${workspaceFolder}/libs/GLM/",
-                "${workspaceFolder}/libs/GLEW/include/"
+                "${workspaceFolder}/libs/GLEW/include/",
+                "C:/Qt/6.5.1/msvc2019_64/include/**"
             ],
             "defines": [
                 "_DEBUG",

@@ -30,6 +30,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
     public int selfRightPosExtended = 100;
     private BB_RobotControllerLink _robotControllerLink;
     private TankDrive _tankDrive;
+    public float downForce = 100f;
 
     // cached enemies, sorted by distance
     private List<Transform> _enemyRobotBodies = new List<Transform> { };
@@ -37,6 +38,14 @@ public class Robot_BB_Flipsy : RobotInterface3D
     private const float ENEMY_SEARCH_INTERVAL_SECONDS = 2.0f;
 
     private bool _spinnersOn;
+
+    // adds a force to the robot body to keep it on the ground
+    void ApplyDownForce()
+    {
+        // apply down force
+        robot_body.GetComponent<Rigidbody>().AddForce(Vector3.down * downForce);
+    }
+
 
     public void Awake()
     {
@@ -53,14 +62,20 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // don't execute this on the client
         if (GLOBALS.CLIENT_MODE) { return; }
 
+        ApplyDownForce();
+
         double input_rotation = Mathf.Atan2(Input.GetAxis("J1Axis2"), Input.GetAxis("J1Axis1")) * 180.0f / Mathf.PI;
+        if (Mathf.Abs(Input.GetAxis("J1Axis2")) < 0.1 && Mathf.Abs(Input.GetAxis("J1Axis1")) < 0.1)
+        {
+            input_rotation = 0;
+        }
         double actual_rotation = opponent_body.rotation.eulerAngles[1];
         BattleBotState state = new BattleBotState
         {
             robot_position = robot_body.position,
             robot_orientation = robot_body.rotation.eulerAngles[1],
             opponent_position = opponent_body.position,
-            opponent_orientation = actual_rotation
+            opponent_orientation = Mathf.PI //input_rotation//actual_rotation
         };
 
         // send the robot controller the current state
@@ -73,8 +88,10 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
         // movement with w and s
         float movement_amount = (Input.GetKey(KeyCode.W) ? 1.0f : 0) - (Input.GetKey(KeyCode.S) ? 1.0f : 0);
+        // movement_amount += Input.GetAxis("J1Axis5");
         // turn with j and l
         float turn_amount = (Input.GetKey(KeyCode.A) ? 1.0f : 0) - (Input.GetKey(KeyCode.D) ? 1.0f : 0);
+        // turn_amount -= Input.GetAxis("J1Axis1");
 
         // IF has input from robot controller, use that
         if (input.HasValue)
@@ -106,9 +123,48 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // call the base class method
         base.FixedUpdate();
     }
+    private Vector3 posLast = new Vector3(0, 0, 0);
+    private Vector3 velocityLast = new Vector3(0, 0, 0);
+    private bool wasMovingLast = false;
+    private float lastMoveStartTime = 0;
+    private Vector3 lastMovePos = new Vector3(0, 0, 0);
+    void MeasureVelocity()
+    {
+        Vector3 currPos = robot_body.position * 2.658f / 3.28f; // hewo
+        // get delta
+        Vector3 delta = currPos - posLast;
+        posLast = currPos;
 
+        Vector3 currVelocity = delta / Time.deltaTime;
+        Vector3 deltaVelocity = currVelocity - velocityLast;
+        velocityLast = currVelocity;
+
+        Vector3 acceleration = deltaVelocity / Time.deltaTime;
+
+        if (currVelocity.magnitude > 0.1 && !wasMovingLast)
+        {
+            lastMoveStartTime = Time.timeSinceLevelLoad;
+            lastMovePos = currPos;
+            wasMovingLast = true;
+        }
+
+        if (currVelocity.magnitude < 0.1)
+        {
+            wasMovingLast = false;
+        }
+
+        Debug.Log("average acceleration = " + ((currPos - lastMovePos).magnitude / Mathf.Pow(Time.timeSinceLevelLoad - lastMoveStartTime, 2)));
+        Debug.Log("time since last stopped = " + (Time.timeSinceLevelLoad - lastMoveStartTime));
+
+
+        Debug.Log("acceleration: " + acceleration.magnitude);
+        Debug.Log("velocity: " + currVelocity.magnitude);
+        Debug.Log("position: " + currPos.magnitude);
+    }
     void Update()
     {
+        MeasureVelocity();
+
         if (gamepad1_b)
         {
             float velocity = _spinnersOn ? 0 : -SPINNER_SPEED;
