@@ -14,6 +14,8 @@
 #include "Graphics/GameLoop.h"
 #include <opencv2/cudaarithm.hpp>
 #include <opencv2/cudastereo.hpp>
+#include "RobotClassifier.h"
+#include "Globals.h"
 
 class Vision
 {
@@ -29,7 +31,6 @@ public:
     cv::Point2f GetOpponentPosition();
     double GetOpponentAngle();
 
-    void DrawRobots();
     void DetectRotation(cv::Mat& canny);
     bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2);
 
@@ -42,7 +43,8 @@ private:
     cv::Mat currFrame;
     cv::Mat previousBirdsEye;
 
-    std::vector<RobotTracker> robotTrackers = {};
+    RobotTracker robotTracker;
+    RobotTracker opponentTracker;
 
-    void updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame);
+    RobotClassifier robotClassifier;
 };

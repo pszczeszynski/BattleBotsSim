@@ -70,7 +70,8 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
 
 void CameraReceiverSim::getFrame(cv::Mat& output)
 {
-    cv::cvtColor(image, output, cv::COLOR_RGBA2BGR);
+    // remove alpha
+    cv::cvtColor(image, output, cv::COLOR_BGRA2BGR);
     // Flip the image vertically
     cv::flip(output, output, 0);
 }

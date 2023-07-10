@@ -30,10 +30,6 @@
 #endif
 
 #include "Extrapolator.h"
-#define WIDTH 1280
-#define HEIGHT 720
-
-cv::Mat drawingImage = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
 
 QString SAVE_FILE_NAME = "RobotConfig.txt";
 
@@ -192,11 +188,10 @@ int main(int argc, char *argv[])
     addLabeledSpinBox(&window, "DriveToPos Scale Down Movement (%): ", SCALE_DOWN_MOVEMENT_PERCENT);
     addLabeledSlider(&window, "DriveToPos Angle Extrapolate MS:", ANGLE_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(&window, "DriveToPos Position Extrapolate MS:", POSITION_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(&window, "DriveToPos Angle Integral Factor:", ANGLE_INTEGRAL_FACTOR, 0, 1000);
-    addLabeledSpinBox(&window, "DriveToPos Max integral sum:", MAX_ANGLE_INTEGRAL_SUM_DEG);
     addLabeledSlider(&window, "Master: Orbit Radius:", ORBIT_RADIUS, 0, 300);
     addLabeledSlider(&window, "Master: Orbit dTheta Degrees:", ORBIT_DTHETA_DEG, 0, 300);
     addLabeledSlider(&window, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(&window, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
 
     addToggleButton(&window, "Orbitron Starter", "Start", "Stop", IS_RUNNING);
 
@@ -206,6 +201,19 @@ int main(int argc, char *argv[])
     addPushButton(&window, "Save", []()
     {
         saveGlobalVariablesToFile(SAVE_FILE_NAME.toStdString());
+    });
+
+
+    // add switch robots button
+    addPushButton(&window, "Switch Robots", []()
+    {
+        RobotClassifier::instance->SwitchRobots();
+    });
+
+    // add calibrate button
+    addPushButton(&window, "Calibrate Robot Images", []()
+    {
+        RobotClassifier::instance->RequestRecalibrate();
     });
 
 
@@ -260,6 +268,8 @@ RobotController::RobotController()
 }
 
 
+double stickAngle = 0;
+
 
 void RobotController::Run()
 {
@@ -295,30 +305,26 @@ void RobotController::Run()
 #ifdef ENABLE_VISION
 #ifdef SIMULATION
         vision.angle = state.robot_orientation * TO_RAD;
-        vision.opponent_angle = state.opponent_orientation * TO_RAD;
-        vision.position = cv::Point2f(state.robot_position.x + 20, -state.robot_position.z + 13) * 30;
-        vision.opponent_position = cv::Point2f(state.opponent_position.x + 20, -state.opponent_position.z + 13) * 30;
+        stickAngle = state.opponent_orientation * TO_RAD;
+        // vision.opponent_angle = state.opponent_orientation * TO_RAD;
+        // vision.position = cv::Point2f(state.robot_position.x + 20, -state.robot_position.z + 13) * 30;
+        // vision.opponent_position = cv::Point2f(state.opponent_position.x + 20, -state.opponent_position.z + 13) * 30;
 #endif
 
-        // TIMER_START
-        // vision.runPipeline();
-        // TIMER_PRINT("vision.runPipeline()")
+        TIMER_START
+        vision.runPipeline();
+        TIMER_PRINT("vision.runPipeline()")
 
         // char key = cv::waitKey(1);
 #endif
 
-        
-        // // get birds eye view image
-        // TIMER_START
-        // drawingImage = (cv::Mat&) vision.GetBirdsEyeImage().clone();
-        // TIMER_PRINT("Cloning the drawing image")
-
+    
 #ifdef SIMULATION
 
-        drawingImage = cv::Mat::zeros(720, 1280, CV_8UC3);
+        //drawingImage = cv::Mat::zeros(720, 1280, CV_8UC3);
         // 3. run our robot controller loop
         TIMER_START
-        RobotControllerMessage response = loop(state, drawingImage);
+        RobotControllerMessage response = loop(state);
         TIMER_PRINT("loop()")
 
         // check if space pressed
@@ -396,21 +402,21 @@ bool danger = false;
  * @param drawingImage The image for drawing debugging information
  * @return The response to send back to Unity
  */
-RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, const RobotState &state, cv::Mat &drawingImage, bool chooseNewTarget = false)
+RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, const RobotState &state, bool chooseNewTarget = false)
 {
-    static Extrapolator<double> currAngleExtrapolator{0};
+    static Extrapolator<Angle> currAngleExtrapolator{Angle(0.0)};
     static Extrapolator<cv::Point2f> currPositionExtrapolator{cv::Point2f(0, 0)};
-    static double angleIntegralSum = 0;
     static Clock c;
-    static bool goToOtherTarget = false;
+    static bool goToOtherTarget = true;
 
     double deltaTime = c.getElapsedTime();
     c.markStart();
 
-    currAngleExtrapolator.SetValue(currAngle);
+    currAngleExtrapolator.SetValue(Angle(currAngle));
     double currAngleEx = currAngleExtrapolator.Extrapolate(ANGLE_EXTRAPOLATE_MS / 1000.0);
     currPositionExtrapolator.SetValue(currPos);
     cv::Point2f currPosEx = currPositionExtrapolator.Extrapolate(POSITION_EXTRAPOLATE_MS / 1000.0);
+
 
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(100.0 * cos(currAngle), 100.0 * sin(currAngle));
@@ -436,30 +442,6 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
     }
 
     double deltaAngleRad = goToOtherTarget ? deltaAngleRad1 : deltaAngleRad2;
-    double deltaAngleRad_noex = goToOtherTarget ? deltaAngleRad1_noex : deltaAngleRad2_noex;
-
-    // display the integral sum
-    cv::putText(drawingImage, "Integral sum: " + std::to_string(angleIntegralSum), cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
-    // increment the integral sum
-    angleIntegralSum += deltaAngleRad_noex * deltaTime;
-
-    // cap the integral sum at a max value
-    if (angleIntegralSum > MAX_ANGLE_INTEGRAL_SUM_DEG * TO_RAD)
-    {
-        angleIntegralSum = MAX_ANGLE_INTEGRAL_SUM_DEG * TO_RAD;
-    }
-    else if (angleIntegralSum < -MAX_ANGLE_INTEGRAL_SUM_DEG * TO_RAD)
-    {
-        angleIntegralSum = -MAX_ANGLE_INTEGRAL_SUM_DEG * TO_RAD;
-    }
-
-    if (!IS_RUNNING)
-    {
-        angleIntegralSum = 0;
-    }
-
-    // increase the error by a factor of the integral sum
-    deltaAngleRad += ANGLE_INTEGRAL_FACTOR * angleIntegralSum / 1000.0;
 
     RobotControllerMessage response{0, 0};
     response.turn_amount = doubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
@@ -495,26 +477,23 @@ bool timing = false;
  * @param state The current state of the robot and opponent
  * @return The response to send back to unity
  */
-RobotControllerMessage RobotController::loop(RobotState &state, cv::Mat &drawingImage)
+RobotControllerMessage RobotController::loop(RobotState &state)
 {
     static Extrapolator<cv::Point2f> ourPositionExtrapolator{cv::Point2f(0,0)};
-    static Extrapolator<double> ourAngleExtrapolator{0};
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
     static bool shouldRunClockwiseLast = false;
 
     // our pos + angle
     cv::Point2f ourPosition = vision.GetRobotPosition();
     ourPositionExtrapolator.SetValue(ourPosition);
-    cv::Point2f ourPositionEx = ourPositionExtrapolator.Extrapolate(0.1);
-    ourAngleExtrapolator.SetValue(vision.GetRobotAngle());
-    double ourAngleEx = ourAngleExtrapolator.Extrapolate(0.3);
+    cv::Point2f ourPositionEx = ourPositionExtrapolator.Extrapolate(POSITION_EXTRAPOLATE_MS / 1000.0);
     double velocity = norm(ourPositionExtrapolator.GetVelocity());
 
     // opponent pos + angle
     cv::Point2f opponentPos = vision.GetOpponentPosition();
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
-    double stickAngleRad = vision.GetOpponentAngle();
+    double stickAngleRad = stickAngle;//vision.GetOpponentAngle();
 
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
@@ -523,8 +502,13 @@ RobotControllerMessage RobotController::loop(RobotState &state, cv::Mat &drawing
     double angleToOpponent = atan2(usToOpponent.y, usToOpponent.x);
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
+
     // draw blue circle around opponent
-    cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(0, 0, 255), 1);
+    cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
+
+    // draw arrow from opponent position at opponent angle
+    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(vision.GetOpponentAngle()), 100.0 * sin(vision.GetOpponentAngle()));
+    cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
 
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
@@ -547,7 +531,10 @@ RobotControllerMessage RobotController::loop(RobotState &state, cv::Mat &drawing
     bool allowReverse = false;
 
     // Drive to the opponent position
-    RobotControllerMessage response = driveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, state, drawingImage, allowReverse);
+    RobotControllerMessage response = driveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, state, allowReverse);
+
+    response.drive_amount *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+    response.turn_amount *= MASTER_SPEED_SCALE_PERCENT / 100.0;
 
     return response;
 }

@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include "Clock.h"
 #include "OpponentProfile.h"
+#include "MathUtils.h"
 
 /**
  * @brief A motion blob is a connected component in the image
@@ -25,7 +26,8 @@ public:
     void invalidate();
 
     cv::Point2f getPosition();
-    double getAngle();
+    Angle getExtrapolatedAngle();
+    Angle getAngle();
 
     double getRotationBetweenMats(cv::Mat& img1, cv::Mat& img2, cv::Point2f center);
     double getRotationOfMat(cv::Mat& img1, cv::Point2f center);
@@ -34,17 +36,21 @@ public:
 
     cv::Point2f getVelocity();
 
-    double angle; // TODO: make this private
+    Angle angle; // TODO: make this private
     cv::Point2f position;
+    bool isValid;
 
 private:
+    void UpdateAngle(cv::Mat& frame);
+
+    cv::Point2f lastPositionWhenUpdatedAngle; // angle updated based on displacement
+    cv::Point2f lastLastPositionWhenUpdatedAngle;
+    Angle prevAngle;
 
     cv::Point2f lastPosition;
     cv::Point2f velocity;
     Clock lastUpdate;
     MotionBlob lastBlob;
 
-    cv::Mat croppedFrameLast;
-
-    bool isValid;
+    cv::Mat croppedFrame;
 };

@@ -28,8 +28,8 @@ private:
 
     void show_opponent_charges(cv::Mat& drawing_image);
 
-    RobotControllerMessage loop(RobotState &state, cv::Mat& drawingImage);
-    RobotControllerMessage driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, const RobotState& state, cv::Mat& drawingImage, bool chooseNewTarget);
+    RobotControllerMessage loop(RobotState &state);
+    RobotControllerMessage driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, const RobotState& state, bool chooseNewTarget);
     OpponentProfile p{};
 
 ////////// VISION /////////

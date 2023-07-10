@@ -2083,7 +2083,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4124394028350308, guid: d7e15697026a15a4399f467835f3600f, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.5162606
+      value: -2.6
       objectReference: {fileID: 0}
     - target: {fileID: 4124394028350308, guid: d7e15697026a15a4399f467835f3600f, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2091,7 +2091,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4124394028350308, guid: d7e15697026a15a4399f467835f3600f, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -1.4894758
+      value: -6.6
       objectReference: {fileID: 0}
     - target: {fileID: 4124394028350308, guid: d7e15697026a15a4399f467835f3600f, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2153,10 +2153,30 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: -0.012
       objectReference: {fileID: 0}
+    - target: {fileID: 7521685951981570030, guid: d7e15697026a15a4399f467835f3600f,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 125
+      objectReference: {fileID: 0}
     - target: {fileID: 7764089576358817182, guid: d7e15697026a15a4399f467835f3600f,
         type: 3}
       propertyPath: SPEED
       value: 8000
+      objectReference: {fileID: 0}
+    - target: {fileID: 7858753407242542062, guid: d7e15697026a15a4399f467835f3600f,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 125
+      objectReference: {fileID: 0}
+    - target: {fileID: 8210475909138373660, guid: d7e15697026a15a4399f467835f3600f,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 125
+      objectReference: {fileID: 0}
+    - target: {fileID: 8440217998152361865, guid: d7e15697026a15a4399f467835f3600f,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 125
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d7e15697026a15a4399f467835f3600f, type: 3}

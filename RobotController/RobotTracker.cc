@@ -55,6 +55,38 @@ double RobotTracker::getCostOfUpdating(MotionBlob& blob)
 }
 
 
+// the displacement required to update the angle
+#define DIST_BETWEEN_ANG_UPDATES_PX 5
+
+// 0 = no change, 1 = full change
+#define MOVING_AVERAGE_RATE 0.5
+
+// how fast the robot needs to be moving to update the angle
+#define VELOCITY_THRESH_FOR_ANGLE_UPDATE 50
+
+Angle RobotTracker::getExtrapolatedAngle()
+{
+    double extrap = norm(position - lastPositionWhenUpdatedAngle) / DIST_BETWEEN_ANG_UPDATES_PX;
+    return (angle - prevAngle) * extrap + angle;
+}
+
+void RobotTracker::UpdateAngle(cv::Mat& frame)
+{
+    static Angle lastAngleRaw(0);
+
+    if (norm(position - lastPositionWhenUpdatedAngle) >= DIST_BETWEEN_ANG_UPDATES_PX &&
+        norm(velocity) > VELOCITY_THRESH_FOR_ANGLE_UPDATE)
+    {
+        prevAngle = angle;
+        // calcualte the change from the last update
+        cv::Point2f delta = position - lastPositionWhenUpdatedAngle;
+        // update the angle but only by half the change
+        angle = (Angle(atan2(delta.y, delta.x)) - angle) * MOVING_AVERAGE_RATE + angle;
+        lastLastPositionWhenUpdatedAngle = lastPositionWhenUpdatedAngle;
+        lastPositionWhenUpdatedAngle = position;
+    }
+}
+
 /**
  * @brief update
  * Updates the position of the robot to the given position.
@@ -66,41 +98,37 @@ void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
     position = blob.center;
     lastBlob = blob;
 
-    lastUpdate.markStart();
+    // next update our angle
+    UpdateAngle(frame);
 
     // crop frame around newPosition + save
     const int CROP_SIZE = 75;
-    cv::Mat croppedFrame;
     cv::Rect crop = cv::Rect(position.x - CROP_SIZE / 2, position.y - CROP_SIZE / 2, CROP_SIZE, CROP_SIZE);
-    if (crop.x < 0 || crop.y < 0 || crop.x + crop.width > frame.cols || crop.y + crop.height > frame.rows)
+
+    // make sure the crop is within the frame
+    if (crop.x < 0)
     {
-        return;
+        crop.x = 0;
     }
+    if (crop.y < 0)
+    {
+        crop.y = 0;
+    }
+    if (crop.x + crop.width > frame.cols)
+    {
+        crop.width = frame.cols - crop.x;
+    }
+    if (crop.y + crop.height > frame.rows)
+    {
+        crop.height = frame.rows - crop.y;
+    }
+
+    // crop the frame
     croppedFrame = frame(crop);
-
-    if (croppedFrameLast.empty())
-    {
-        croppedFrameLast = croppedFrame;
-        angle = 0;
-        return;
-    }
-
-
-    // check if space pressed
-    if (cv::waitKey(1) == 32)
-    {
-        std::cout << "space" << std::endl;
-        croppedFrameLast = croppedFrame;
-    }
-
-    // angle = getRotationOfMat(croppedFrame, position - cv::Point2f(crop.tl()));
-    // angle = getRotationBetweenMats(croppedFrameLast, croppedFrame, position - cv::Point2f(crop.tl()));
-
-    croppedFrameLast = croppedFrame;
-
-    // cv::imshow("cropped", croppedFrame);
     isValid = true;
 
+    // mark this as the last update time
+    lastUpdate.markStart();
 }
 
 /**
@@ -209,7 +237,7 @@ double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Po
     return angle_wrap(bestAngle * TO_RAD);
 }
 
-double RobotTracker::getAngle()
+Angle RobotTracker::getAngle()
 {
     return angle;
 }

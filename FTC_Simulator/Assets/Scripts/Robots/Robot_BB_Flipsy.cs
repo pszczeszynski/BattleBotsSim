@@ -65,17 +65,26 @@ public class Robot_BB_Flipsy : RobotInterface3D
         ApplyDownForce();
 
         double input_rotation = Mathf.Atan2(Input.GetAxis("J1Axis2"), Input.GetAxis("J1Axis1")) * 180.0f / Mathf.PI;
+
         if (Mathf.Abs(Input.GetAxis("J1Axis2")) < 0.1 && Mathf.Abs(Input.GetAxis("J1Axis1")) < 0.1)
         {
             input_rotation = 0;
         }
+
+        input_rotation = -180;
+        // if k is pressed
+        if (Input.GetKey(KeyCode.K))
+        {
+            input_rotation = 0;
+        }
+
         double actual_rotation = opponent_body.rotation.eulerAngles[1];
         BattleBotState state = new BattleBotState
         {
             robot_position = robot_body.position,
             robot_orientation = robot_body.rotation.eulerAngles[1],
             opponent_position = opponent_body.position,
-            opponent_orientation = Mathf.PI //input_rotation//actual_rotation
+            opponent_orientation = input_rotation//actual_rotation
         };
 
         // send the robot controller the current state
@@ -154,12 +163,12 @@ public class Robot_BB_Flipsy : RobotInterface3D
         }
 
         Debug.Log("average acceleration = " + ((currPos - lastMovePos).magnitude / Mathf.Pow(Time.timeSinceLevelLoad - lastMoveStartTime, 2)));
-        Debug.Log("time since last stopped = " + (Time.timeSinceLevelLoad - lastMoveStartTime));
+        // Debug.Log("time since last stopped = " + (Time.timeSinceLevelLoad - lastMoveStartTime));
 
 
-        Debug.Log("acceleration: " + acceleration.magnitude);
-        Debug.Log("velocity: " + currVelocity.magnitude);
-        Debug.Log("position: " + currPos.magnitude);
+        // Debug.Log("acceleration: " + acceleration.magnitude);
+        // Debug.Log("velocity: " + currVelocity.magnitude);
+        // Debug.Log("position: " + currPos.magnitude);
     }
     void Update()
     {

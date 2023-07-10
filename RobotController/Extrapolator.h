@@ -19,7 +19,7 @@ public:
         if (updatesSinceLastDerivativeChange > UPDATES_PER_DERIVATIVE_CHANGE)
         {
             updatesSinceLastDerivativeChange = 0;
-            derivative = (newValue - lastValue) / clock.getElapsedTime();
+            derivative = T(T(newValue - lastValue) / clock.getElapsedTime());
             lastValue = newValue;
             clock.markStart();
         }
@@ -30,7 +30,7 @@ public:
 
     T Extrapolate(double time)
     {
-        T extrapolatedValue = currentValue + derivative * time;
+        T extrapolatedValue = currentValue + T(derivative * time);
         return extrapolatedValue;
     }
 

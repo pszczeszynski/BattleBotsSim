@@ -6,3 +6,4 @@ RobotController/build/RobotController.dir/Release/*.obj
 RobotController/build/RobotController.dir/Release/RobotController.tlog/*.tlog
 RobotController/build/CMakeFiles/RobotController.dir/Release/*.cu.obj
 RobotController/MachineLearning/TrainingData
+RobotController/build

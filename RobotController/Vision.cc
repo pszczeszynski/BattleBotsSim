@@ -14,11 +14,11 @@
 #define HEIGHT 720
 
 Vision::Vision(ICameraReceiver &overheadCam)
-    : overheadCam(overheadCam)
+    : overheadCam(overheadCam),
+      robotTracker(cv::Point2f(0, 0)),
+      opponentTracker(cv::Point2f(10000, 10000)),
+      robotClassifier(robotTracker, opponentTracker)
 {
-    // add 2 robot trackers
-    robotTrackers.push_back(RobotTracker(cv::Point2f(0,0)));
-    robotTrackers.push_back(RobotTracker(cv::Point2f(10000, 10000)));
 }
 
 bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
@@ -38,27 +38,6 @@ bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
     return cv::countNonZero(grayDiff) == 0;
-}
-
-void Vision::DrawRobots()
-{
-    cv::Mat frameWithCircles = currFrame.clone();
-
-    const cv::Point2f robotPosition = GetRobotPosition();
-    const cv::Point2f opponentPosition = GetOpponentPosition();
-    const double robotAngle = angle;//GetRobotAngle();
-    const double opponentAngle = opponent_angle;//GetOpponentAngle();
-
-    // draw lines starting at the center of each robot showing their angles
-    const double RADIUS = 30;
-
-    cv::circle(frameWithCircles, robotPosition, RADIUS, cv::Scalar(255,0,0), 4);
-    cv::circle(frameWithCircles, opponentPosition, RADIUS, cv::Scalar(0,0,255), 4);
-
-    cv::line(frameWithCircles, robotPosition, robotPosition + cv::Point2f(cos(robotAngle) * RADIUS, sin(robotAngle) * RADIUS), cv::Scalar(255,0,0), 4);
-    cv::line(frameWithCircles, opponentPosition, opponentPosition + cv::Point2f(cos(opponentAngle) * RADIUS, sin(opponentAngle) * RADIUS), cv::Scalar(0,0,255), 4);
-
-    cv::imshow("circles", frameWithCircles);
 }
 
 void Vision::DetectRotation(cv::Mat& canny)
@@ -124,16 +103,17 @@ void Vision::runPipeline()
     cv::resize(currFrame, currFrame, cv::Size(WIDTH, HEIGHT));
 
     convertToBirdsEyeView2d(currFrame, currFrame);
+    drawingImage = currFrame.clone();
 
-    // // Skip the first frame or if the current frame is the same as the previous frame
-    // if (previousBirdsEye.empty() || areMatsEqual(currFrame, previousBirdsEye))
-    // {
-    //     previousBirdsEye = currFrame.clone();
-    //     return;
-    // }
+    // Skip the first frame or if the current frame is the same as the previous frame
+    if (previousBirdsEye.empty() || areMatsEqual(currFrame, previousBirdsEye))
+    {
+        previousBirdsEye = currFrame.clone();
+        return;
+    }
 
-    // // find the opponent
-    // locateRobots2d(currFrame, previousBirdsEye);
+    // find the opponent
+    locateRobots2d(currFrame, previousBirdsEye);
     previousBirdsEye = currFrame.clone();
 }
 
@@ -216,109 +196,28 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
 
-    // update the robot trackers
-    updateRobotTrackers(motionBlobs, frame);
+    // classify the blobs and then update the trackers
+    robotClassifier.Update(motionBlobs, frame, thresholdImg);
 }
 
 cv::Point2f Vision::GetRobotPosition()
 {
-    return position;//robotTrackers[0].getPosition();
+    return robotTracker.getPosition();
 }
 
 double Vision::GetRobotAngle()
 {
-    return angle;//robotTrackers[0].getAngle();
+    return angle;
 }
 
 cv::Point2f Vision::GetOpponentPosition()
 {
-    return opponent_position;//robotTrackers[1].getPosition();
+    return opponentTracker.getPosition();
 }
 
 double Vision::GetOpponentAngle()
 {
-    return opponent_angle;//robotTrackers[1].getAngle();
-}
-
-/**
- * Assigns existing trackers to the closest blobs
-*/
-void Vision::updateRobotTrackers(std::vector<MotionBlob>& centers, cv::Mat& frame)
-{
-    // minimize cost of updating
-    if (centers.empty()) return;
-
-    double COST_THRESHOLD = 0.15; // above this cost means we're not updating
-    std::vector<bool> updatedTrackers = {};
-    // fill updatedTrackers with false
-    for (int i = 0; i < robotTrackers.size(); i++) updatedTrackers.push_back(false);
-
-    if (centers.size() == 1)
-    {
-        double cost1 = robotTrackers[0].getCostOfUpdating(centers[0]);
-        double cost2 = robotTrackers[1].getCostOfUpdating(centers[0]);
-        // std::cout << "cost1: " << cost1 << std::endl;
-
-        // assume the robot is us if we're moving
-        if (cost1 < COST_THRESHOLD)
-        {
-            // if (cost1 < cost2)
-            // {
-                robotTrackers[0].update(centers[0], frame);
-                updatedTrackers[0] = true;
-            // }
-            // else
-            // {
-            //     robotTrackers[1].update(centers[0], frame);
-            //     updatedTrackers[1] = true;
-            // }
-        }
-    }
-    else
-    {
-        double cost00 = robotTrackers[0].getCostOfUpdating(centers[0]);
-        double cost01 = robotTrackers[0].getCostOfUpdating(centers[1]);
-        double cost10 = robotTrackers[1].getCostOfUpdating(centers[0]);
-        double cost11 = robotTrackers[1].getCostOfUpdating(centers[1]);
-
-        if (cost00 + cost11 < cost01 + cost10)
-        {
-            if (cost00 < COST_THRESHOLD)
-            {
-                robotTrackers[0].update(centers[0], frame);
-                updatedTrackers[0] = true;
-            }
-
-            if (cost11 < COST_THRESHOLD)
-            {
-                robotTrackers[1].update(centers[1], frame);
-                updatedTrackers[1] = true;
-            }
-        }
-        else
-        {
-            if (cost01 < COST_THRESHOLD)
-            {
-                robotTrackers[0].update(centers[1], frame);
-                updatedTrackers[0] = true;
-            }
-
-            if (cost10 < COST_THRESHOLD)
-            {
-                robotTrackers[1].update(centers[0], frame);
-                updatedTrackers[1] = true;
-            }
-        }
-    }
-
-    // for each tracker that wasn't updated, mark it as invalid
-    for (int i = 0; i < robotTrackers.size(); i++)
-    {
-        if (!updatedTrackers[i])
-        {
-            robotTrackers[i].invalidate();
-        }
-    }
+    return opponentTracker.getAngle();
 }
 
 void Vision::convertToBirdsEyeView2d(cv::Mat &frame, cv::Mat &dst)

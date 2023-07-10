@@ -52,11 +52,13 @@ set(SOURCES
     Corner.cc
     OpponentProfile.cc
     PathFinder.cc
+    RobotClassifier.cc
     Graphics/GameLoop.cc
     Graphics/Camera.cc
     Graphics/Window/Window.cc
     Graphics/Model/Object.cc
     Graphics/Model/OpenGLModel.cc
+    Globals.cc
 )
 
 # Create the object files

@@ -1,3 +1,0 @@
-C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/RobotController.dir
-C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/ALL_BUILD.dir
-C:/Dev/BattleBotsSim/RobotController/build/CMakeFiles/ZERO_CHECK.dir

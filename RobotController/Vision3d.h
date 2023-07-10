@@ -30,7 +30,6 @@ public:
     cv::Point2f GetOpponentPosition();
     double GetOpponentAngle();
 
-    void DrawRobots();
     void DetectRotation(cv::Mat& canny);
     void alignImages(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst1, cv::Mat& dst2);
     void correctStereoColor(cv::Mat &leftImage, cv::Mat &rightImage, cv::Mat &leftImageCorrected, cv::Mat &rightImageCorrected);
