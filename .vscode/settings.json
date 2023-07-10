@@ -90,5 +90,6 @@
         "coroutine": "cpp",
         "resumable": "cpp",
         "future": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "C:/Dev/BattleBotsSim/RobotController"
 }

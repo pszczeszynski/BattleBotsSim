@@ -59,6 +59,9 @@ set(SOURCES
     Graphics/Model/Object.cc
     Graphics/Model/OpenGLModel.cc
     Globals.cc
+    VisionPreprocessor.cc
+    RobotControllerGUI.cc
+    RobotConfig.cc
 )
 
 # Create the object files

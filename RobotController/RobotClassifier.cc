@@ -164,8 +164,6 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     cv::Mat histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
     double diffToRobotHist = compareHistograms(histogram, robotCalibrationData.histogram);
     double diffToOpponentHist = compareHistograms(histogram, opponentCalibrationData.histogram);
-    std::cout << "diff to robot: " << diffToRobotHist << std::endl;
-    std::cout << "diff to opponent: " << diffToOpponentHist << std::endl;
 
     double histogramScore = diffToRobotHist - diffToOpponentHist;
 
@@ -202,11 +200,6 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         double distanceToOpponent = cv::norm(opponentTracker.getPosition() - blobs[0].center);
 
         bool firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
-
-        if (firstIsRobot)
-        {
-            std::cout << "this is the robot" << std::endl;
-        }
 
         // draw a circle on the frame
         cv::circle(drawingImage, blobs[0].center, 10, cv::Scalar(0, 255, 0), 2);

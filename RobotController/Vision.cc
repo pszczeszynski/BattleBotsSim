@@ -9,9 +9,7 @@
 #include <opencv2/cudaarithm.hpp>
 #include <opencv2/cudastereo.hpp>
 #include <opencv2/flann.hpp>
-
-#define WIDTH 1280
-#define HEIGHT 720
+#include "Globals.h"
 
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam),
@@ -99,10 +97,7 @@ void Vision::runPipeline()
 {
     overheadCam.getFrame(currFrame);
 
-    // scale to 1280 by 720
-    cv::resize(currFrame, currFrame, cv::Size(WIDTH, HEIGHT));
-
-    convertToBirdsEyeView2d(currFrame, currFrame);
+    birdsEyePreprocessor.Preprocess(currFrame, currFrame);
     drawingImage = currFrame.clone();
 
     // Skip the first frame or if the current frame is the same as the previous frame
@@ -219,36 +214,6 @@ double Vision::GetOpponentAngle()
 {
     return opponentTracker.getAngle();
 }
-
-void Vision::convertToBirdsEyeView2d(cv::Mat &frame, cv::Mat &dst)
-{
-    // Define the four corners of the region of interest (ROI) in the input image
-    cv::Point2f srcPoints[4] = {
-        cv::Point2f(0, 0),                   // Top-left corner
-        cv::Point2f(frame.cols, 0),          // Top-right corner
-        cv::Point2f(frame.cols, frame.rows), // Bottom-right corner
-        cv::Point2f(0, frame.rows)           // Bottom-left corner
-    };
-
-    // Define the dimensions of the bird's-eye view output image
-    int outputWidth = frame.cols;
-    int outputHeight = frame.rows;
-
-    // Define the four corners of the bird's-eye view output image
-    cv::Point2f dstPoints[4] = {
-        cv::Point2f(0, 0),                             // Top-left corner
-        cv::Point2f(outputWidth, 0),                   // Top-right corner
-        cv::Point2f(outputWidth * 0.65, outputHeight), // Bottom-right corner
-        cv::Point2f(outputWidth * 0.35, outputHeight)  // Bottom-left corner
-    };
-
-    // Compute the transformation matrix
-    cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
-
-    // Apply the perspective transformation
-    warpPerspective(frame, dst, transformationMatrix, cv::Size(outputWidth, outputHeight));
-}
-
 
 const cv::Mat& Vision::GetBirdsEyeImage()
 {

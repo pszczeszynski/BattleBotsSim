@@ -9,13 +9,13 @@
 #include "RobotStateParser.h"
 #include "CameraReceiver.h"
 #include "RobotTracker.h"
-#include "OpticalFlow.h"
-#include "PathFinder.h"
 #include "Graphics/GameLoop.h"
 #include <opencv2/cudaarithm.hpp>
 #include <opencv2/cudastereo.hpp>
 #include "RobotClassifier.h"
 #include "Globals.h"
+#include "VisionPreprocessor.h"
+#include "ValueBin.h"
 
 class Vision
 {
@@ -23,7 +23,6 @@ public:
     Vision(ICameraReceiver &overheadCam);
     void locateRobots2d(cv::Mat&, cv::Mat&);
     void runPipeline();
-    void convertToBirdsEyeView2d(cv::Mat& frame, cv::Mat& dst);
     const cv::Mat& GetBirdsEyeImage();
 
     cv::Point2f GetRobotPosition();
@@ -47,4 +46,6 @@ private:
     RobotTracker opponentTracker;
 
     RobotClassifier robotClassifier;
+
+    VisionPreprocessor birdsEyePreprocessor;
 };

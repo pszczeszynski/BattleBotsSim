@@ -92,6 +92,14 @@
         "xlocmon": "cpp",
         "xloctime": "cpp",
         "xtree": "cpp",
-        "complex": "cpp"
-    }
+        "complex": "cpp",
+        "qmainwindow": "cpp",
+        "qpushbutton": "cpp",
+        "qcheckbox": "cpp",
+        "future": "cpp",
+        "queue": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
+    },
+    "cmake.configureOnOpen": true
 }
