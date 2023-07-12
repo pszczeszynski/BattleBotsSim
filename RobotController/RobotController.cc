@@ -28,6 +28,7 @@
 #include "Extrapolator.h"
 
 int argc = 0;
+
 QApplication app(argc, nullptr);
 RobotConfigWindow robotControllerGUI;
 
@@ -45,23 +46,22 @@ int main(int argc, char *argv[])
 
     controllerThread.start();
 
-    std::cout << "somehow got here" << std::endl;
-
     app.exec();
-
 }
 
 RobotController::RobotController()
-    : socket{"11115"}
+    : socket{"11115"},
+    robotTracker{cv::Point2f(0, 0)},
+    opponentTracker{cv::Point2f(10000, 10000)},
 #ifdef ENABLE_VISION
 #ifdef SIMULATION
-      ,overheadCamL_sim{"overheadCamL"}
+      overheadCamL_sim{"overheadCamL"},
     //   ,overheadCamR_sim{"overheadCamR"}
-      ,vision{overheadCamL_sim}
+      vision{overheadCamL_sim, robotTracker, opponentTracker}
 #else
-      ,overheadCamL_real{0}
+      overheadCamL_real{0},
     //   ,overheadCamR_real{1}
-      ,vision{overheadCamL_real} // overheadCamR_real
+      vision{overheadCamL_real, robotTracker, opponentTracker} // overheadCamR_real
 #endif
 #endif
 {
@@ -69,6 +69,7 @@ RobotController::RobotController()
 }
 
 double stickAngle = 0;
+#define ACCELEROMETER_TO_PX_SCALER 37.5
 
 void RobotController::Run()
 {
@@ -90,6 +91,7 @@ void RobotController::Run()
             continue;
         }
         frames ++;
+
         if (frames % 100 == 0)
         {
             std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
@@ -111,8 +113,22 @@ void RobotController::Run()
 #endif
 
         TIMER_START
-        vision.runPipeline();
-        TIMER_PRINT("vision.runPipeline()")
+        bool updated = vision.runPipeline();
+
+
+        robotIMUData.velocity = cv::Point2f(state.robot_velocity.x, -state.robot_velocity.z) * ACCELEROMETER_TO_PX_SCALER;
+        robotIMUData.angle = state.robot_orientation * TO_RAD;
+
+        if (!updated)
+        {
+            TIMER_PRINT("vision.runPipeline() no update")
+
+            robotTracker.UpdateIMUOnly(robotIMUData);
+        }
+        else
+        {
+            TIMER_PRINT("vision.runPipeline() update")
+        }
 
         // char key = cv::waitKey(1);
 #endif
@@ -146,7 +162,10 @@ void RobotController::Run()
 #endif
         TIMER_START
         // cv::imshow("drawing", drawingImage);
-        robotControllerGUI.RefreshFieldImage();
+        if (updated)
+        {
+            robotControllerGUI.RefreshFieldImage();
+        }
         TIMER_PRINT("imshow()")
     }
 }
@@ -216,6 +235,8 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
     currPositionExtrapolator.SetValue(currPos);
     cv::Point2f currPosEx = currPositionExtrapolator.Extrapolate(POSITION_EXTRAPOLATE_MS / 1000.0);
 
+    // override extrapolated pos using the imu velocity
+    currPosEx = currPos + robotIMUData.velocity * POSITION_EXTRAPOLATE_MS / 1000.0;
 
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(100.0 * cos(currAngle), 100.0 * sin(currAngle));
@@ -286,12 +307,12 @@ RobotControllerMessage RobotController::loop(RobotState &state)
     cv::Point2f ourPosition = vision.GetRobotPosition();
     ourPositionExtrapolator.SetValue(ourPosition);
     cv::Point2f ourPositionEx = ourPositionExtrapolator.Extrapolate(POSITION_EXTRAPOLATE_MS / 1000.0);
-    double velocity = norm(ourPositionExtrapolator.GetVelocity());
 
     // opponent pos + angle
     cv::Point2f opponentPos = vision.GetOpponentPosition();
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
+    opponentPosEx = opponentTracker.GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
     double stickAngleRad = stickAngle;//vision.GetOpponentAngle();
 
     // default just to drive to the center

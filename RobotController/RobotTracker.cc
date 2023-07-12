@@ -8,53 +8,6 @@ RobotTracker::RobotTracker(cv::Point2f initialPosition) :
 {
 }
 
-
-cv::Point2f RobotTracker::getExtrapolatedPos()
-{
-    if (!isValid)
-    {
-        return cv::Point2f(0, 0);
-    }
-
-    double timeSinceLastUpdate = lastUpdate.getElapsedTime();
-    return position + velocity * timeSinceLastUpdate;
-}
-
-/**
- * @brief getCostOfUpdating
- * @param blob - the motion blob to potentially update to
- * @return the cost of updating the position to the given position.
-*/
-double RobotTracker::getCostOfUpdating(MotionBlob& blob)
-{
-    if (!isValid)
-    {
-        return 0;
-    }
-
-    double timeSinceLastUpdate = lastUpdate.getElapsedTime();
-    cv::Point2f expected_pos = position + velocity * timeSinceLastUpdate;
-    double positionCost = norm(blob.center - expected_pos);
-
-    positionCost /= 30.0;
-    if (positionCost > 1)
-    {
-        positionCost = 1;
-    }
-
-    double areaCost = abs(blob.rect.area() - lastBlob.rect.area()) / (double) lastBlob.rect.area();
-
-    if (areaCost > 1)
-    {
-        areaCost = 1;
-    }
-    areaCost = 0;
-
-    // return the average of the two costs
-    return (positionCost + areaCost) / 2.0;
-}
-
-
 // the displacement required to update the angle
 #define DIST_BETWEEN_ANG_UPDATES_PX 5
 
@@ -64,67 +17,87 @@ double RobotTracker::getCostOfUpdating(MotionBlob& blob)
 // how fast the robot needs to be moving to update the angle
 #define VELOCITY_THRESH_FOR_ANGLE_UPDATE 50
 
-Angle RobotTracker::getExtrapolatedAngle()
-{
-    double extrap = norm(position - lastPositionWhenUpdatedAngle) / DIST_BETWEEN_ANG_UPDATES_PX;
-    return (angle - prevAngle) * extrap + angle;
-}
-
-void RobotTracker::UpdateAngle(cv::Mat& frame)
+/**
+ * @brief updates the angle of the robot using the velocity
+*/
+void RobotTracker::UpdateAngle()
 {
     static Angle lastAngleRaw(0);
 
+    // if we have travelled a certain distance since the last update
+    // and we are moving fast enough
     if (norm(position - lastPositionWhenUpdatedAngle) >= DIST_BETWEEN_ANG_UPDATES_PX &&
         norm(velocity) > VELOCITY_THRESH_FOR_ANGLE_UPDATE)
     {
-        prevAngle = angle;
         // calcualte the change from the last update
         cv::Point2f delta = position - lastPositionWhenUpdatedAngle;
         // update the angle but only by half the change
         angle = (Angle(atan2(delta.y, delta.x)) - angle) * MOVING_AVERAGE_RATE + angle;
-        lastLastPositionWhenUpdatedAngle = lastPositionWhenUpdatedAngle;
+        // save the last position
         lastPositionWhenUpdatedAngle = position;
     }
 }
 
 /**
- * @brief update
+ * @brief updates with both visual and imu information. this should only be called for our robot (since we have our imu)
+ * However, sometimes we don't have the visual information in which we call UpdateIMUOnly
+*/
+#define VISUAL_INFO_WEIGHT 0.1
+void RobotTracker::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMUData& imuData)
+{
+    // predict the new position using just the velocity
+    cv::Point2f averageVelocityLastUpdate = (velocity + imuData.velocity) / 2;
+    // predict the new position
+    cv::Point2f predictedPosition = position + averageVelocityLastUpdate * lastUpdate.getElapsedTime();
+    // use the blob's center for the visual position
+    cv::Point2f visualPosition = blob.center;
+    // do a weighted average of the predicted position and the visual position to smooth out the noise in the visual position
+    cv::Point2f weightedAveragePosition = predictedPosition * (1 - VISUAL_INFO_WEIGHT) + visualPosition * VISUAL_INFO_WEIGHT;
+    // update using the weighted average
+    update(weightedAveragePosition, imuData.velocity);
+}
+
+
+#define NEW_VELOCITY_WEIGHT 0.1
+/**
+ * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
  * Updates the position of the robot to the given position.
  * @param blob - the MotionBlob to update to
 */
-void RobotTracker::update(MotionBlob& blob, cv::Mat& frame)
+void RobotTracker::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
 {
-    velocity = (blob.center - position) / lastUpdate.getElapsedTime();
-    position = blob.center;
-    lastBlob = blob;
+    // derive velocity using the visual information
+    cv::Point2f visualVelocity = (blob.center - position) / lastUpdate.getElapsedTime();
 
-    // next update our angle
-    UpdateAngle(frame);
+    cv::Point2f weightedAverageVelocity = visualVelocity * NEW_VELOCITY_WEIGHT + velocity * (1 - NEW_VELOCITY_WEIGHT);
+    // use the blob's center for the visual position
+    cv::Point2f visualPosition = blob.center;
+    // update using the visual information
+    update(visualPosition, weightedAverageVelocity);
 
-    // crop frame around newPosition + save
-    const int CROP_SIZE = 75;
-    cv::Rect crop = cv::Rect(position.x - CROP_SIZE / 2, position.y - CROP_SIZE / 2, CROP_SIZE, CROP_SIZE);
+    // update our angle using the velocity
+    UpdateAngle();
+}
 
-    // make sure the crop is within the frame
-    if (crop.x < 0)
-    {
-        crop.x = 0;
-    }
-    if (crop.y < 0)
-    {
-        crop.y = 0;
-    }
-    if (crop.x + crop.width > frame.cols)
-    {
-        crop.width = frame.cols - crop.x;
-    }
-    if (crop.y + crop.height > frame.rows)
-    {
-        crop.height = frame.rows - crop.y;
-    }
+/**
+ * Called when we only have the imu information. This should only be called for our robot (since we have our imu)
+*/
+void RobotTracker::UpdateIMUOnly(RobotIMUData& imuData)
+{
+    // calcualte the average velocity of the last update's frame
+    cv::Point2f averageVelocityLastUpdate = (velocity + imuData.velocity) / 2;
+    // predict the new position
+    cv::Point2f newPosition = position + averageVelocityLastUpdate * lastUpdate.getElapsedTime();
+    // update normally
+    update(newPosition, imuData.velocity);
+}
 
-    // crop the frame
-    croppedFrame = frame(crop);
+void RobotTracker::update(cv::Point2f position, cv::Point2f velocity)
+{
+    // update our velocity and position
+    this->velocity = velocity;
+    this->position = position;
+
     isValid = true;
 
     // mark this as the last update time
@@ -140,103 +113,6 @@ cv::Point2f RobotTracker::getPosition()
     return position;
 }
 
-double RobotTracker::getRotationOfMat(cv::Mat& img, cv::Point2f center)
-{
-    double step = 1; // rotation step in degrees
-    cv::Mat workingImage = img.clone();
-
-    int bestAngle = 0;
-    long int bestSum = 0;
-
-    double curr_angle_deg = angle * TO_DEG;
-    for (double ang = 0; ang < 360; ang += step)
-    {
-        // 1 rotate image
-        cv::Mat rotMat = cv::getRotationMatrix2D(center, ang, 1.0);
-        cv::Mat rotated;
-        cv::warpAffine(workingImage, rotated, rotMat, workingImage.size());
-
-        // reduce along y axis
-        cv::Mat reduced;
-        cv::reduce(rotated, reduced, 1, cv::REDUCE_AVG);
-
-        // reduced is 1xcols
-
-
-        cv::Mat reducedContrast = reduced.clone();
-
-        long int sumAbsDiffLong = 0;
-        for (int i = 1; i < reduced.rows; i++)
-        {
-            // take difference between each row
-            cv::Vec3b diff = reduced.at<cv::Vec3b>(i, 0) - reduced.at<cv::Vec3b>(i - 1, 0); 
-            cv::Vec3b absDiff = cv::Vec3b(abs(diff[0]), abs(diff[1]), abs(diff[2])) * 4;
-            reducedContrast.at<cv::Vec3b>(i, 0) = absDiff;
-            sumAbsDiffLong += absDiff[0] + absDiff[1] + absDiff[2];
-        }
-
-        // make reduced contrast wider
-        cv::Mat reducedContrastWider;
-        cv::resize(reducedContrast, reducedContrastWider, cv::Size(100, reducedContrast.rows), 0, 0, cv::INTER_NEAREST);
-
-        // cvt to 8 bit
-        // reducedContrastWider.convertTo(reducedContrastWider, CV_8U);
-
-        cv::imshow("rotated", rotated);
-        cv::imshow("wide", reducedContrastWider);
-        // break;
-
-        // take sum of reduced contrast
-        if (sumAbsDiffLong > bestSum)
-        {
-            std::cout << "ang: " << ang << " new best sum: " << sumAbsDiffLong << std::endl;
-            bestSum = sumAbsDiffLong;
-            bestAngle = ang;
-        }
-    }
-
-    std::cout << "best angle: " << bestAngle << std::endl;
-
-    return bestAngle * TO_RAD;
-}
-
-double RobotTracker::getRotationBetweenMats(cv::Mat &img1, cv::Mat &img2, cv::Point2f center)
-{
-    cv::Mat gray1, gray2;
-    cv::cvtColor(img1, gray1, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(img2, gray2, cv::COLOR_BGR2GRAY);
-
-    double bestScore = std::numeric_limits<double>::infinity();
-    double bestAngle = 0.0;
-    double step = 1; // rotation step in degrees
-    // cv::Mat bestRotMat;
-
-    
-    double curr_angle_deg = angle * TO_DEG;
-    for (double ang = curr_angle_deg - 90; ang < curr_angle_deg + 90; ang += step)
-    {
-        cv::Mat rotMat = cv::getRotationMatrix2D(center, ang, 1.0);
-        cv::Mat rotated;
-        cv::warpAffine(gray2, rotated, rotMat, gray2.size());
-
-        cv::Mat diff;
-        cv::absdiff(rotated, gray1, diff);
-
-        double score = cv::sum(diff)[0];
-
-        if (score < bestScore)
-        {
-            bestScore = score;
-            bestAngle = ang;
-            // bestRotMat = rotMat.clone();
-        }
-    }
-
-    // lastRotMat = bestRotMat;
-
-    return angle_wrap(bestAngle * TO_RAD);
-}
-
 Angle RobotTracker::getAngle()
 {
     return angle;
@@ -244,10 +120,11 @@ Angle RobotTracker::getAngle()
 
 void RobotTracker::invalidate()
 {
+    velocity = cv::Point2f(0,0);
     isValid = false;
 }
 
-cv::Point2f RobotTracker::getVelocity()
+cv::Point2f RobotTracker::GetVelocity()
 {
     return velocity;
 }

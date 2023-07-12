@@ -35,8 +35,8 @@ public:
 	void SetPathPlanningLines(std::vector<Line> &lines);
 
 	// dimensions of the window
-	const int WIDTH;
-	const int HEIGHT;
+	const int width;
+	const int height;
 	static bool run;
 	static bool backup;
 private:

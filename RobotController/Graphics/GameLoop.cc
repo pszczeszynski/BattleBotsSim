@@ -13,8 +13,8 @@ bool GameLoop::backup = false;
 /**
  * \brief initializes the gameloop object
  */
-GameLoop::GameLoop(int width, int height, Engine::Window *window) : WIDTH(width),
-																	HEIGHT(height),
+GameLoop::GameLoop(int width, int height, Engine::Window *window) : width(width),
+																	height(height),
 																	myWindow(window)
 {
 	// we can only enable this after we initialize
@@ -26,7 +26,7 @@ GameLoop::GameLoop(int width, int height, Engine::Window *window) : WIDTH(width)
 
 	// create a new camera
 	myCamera = new Camera(vec3(0, -15.0f, 5.0f),
-						  vec3(0, 15.0f, -5.0f), WIDTH, HEIGHT);
+						  vec3(0, 15.0f, -5.0f), width, height);
 
 	initPointCloud();
 	initOpponentRobot();

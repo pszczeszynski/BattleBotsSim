@@ -11,6 +11,7 @@
 #endif
 #include <QObject>
 #include <QPixmap>
+#include "RobotTracker.h"
 
 #define SIMULATION
 
@@ -32,6 +33,10 @@ private:
     RobotControllerMessage driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, const RobotState& state, bool chooseNewTarget);
     OpponentProfile p{};
 
+
+    RobotTracker robotTracker;
+    RobotTracker opponentTracker;
+
 ////////// VISION /////////
 #ifdef ENABLE_VISION
     Vision vision;
@@ -43,7 +48,6 @@ private:
 #else
 ////////// REAL ////////
     CameraReceiver overheadCamL_real;
-    CameraReceiver overheadCamR_real;
 #endif
 #endif
 /////////////////////////

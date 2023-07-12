@@ -1,7 +1,7 @@
 #pragma once
 #include "Clock.h"
 
-#define UPDATES_PER_DERIVATIVE_CHANGE 3
+#define WEIGHTED_AVERAGE_SAMPLES 5
 template <typename T>
 class Extrapolator
 {
@@ -16,33 +16,31 @@ public:
     {
         currentValue = newValue;
 
-        if (updatesSinceLastDerivativeChange > UPDATES_PER_DERIVATIVE_CHANGE)
-        {
-            updatesSinceLastDerivativeChange = 0;
-            derivative = T(T(newValue - lastValue) / clock.getElapsedTime());
-            lastValue = newValue;
-            clock.markStart();
-        }
-        updatesSinceLastDerivativeChange++;
+        T newDifference = T(newValue - lastValue);
+        weightedAverageDifference = T(newDifference - weightedAverageDifference) * (1.0 / WEIGHTED_AVERAGE_SAMPLES) + weightedAverageDifference * (1.0 - (1.0 / WEIGHTED_AVERAGE_SAMPLES));
+        lastValue = newValue;
+
+        lastElapsedTime = clock.getElapsedTime();
+        clock.markStart();
 
         return newValue;
     }
 
     T Extrapolate(double time)
     {
-        T extrapolatedValue = currentValue + T(derivative * time);
+        T extrapolatedValue = T(currentValue + T(weightedAverageDifference * (time / lastElapsedTime)));
         return extrapolatedValue;
     }
 
     T GetVelocity()
     {
-        return derivative;
+        return weightedAverageDifference;
     }
 
 private:
-    T derivative;
+    T weightedAverageDifference;
     T lastValue;
     T currentValue;
     Clock clock;
-    int updatesSinceLastDerivativeChange = 0;
+    double lastElapsedTime;
 };

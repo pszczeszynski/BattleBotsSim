@@ -8,7 +8,7 @@ using System.Linq;
 public struct BattleBotState
 {
     // our robot
-    public Vector3 robot_position;
+    public Vector3 robot_velocity;
     public double robot_orientation;
 
     // other robot
@@ -81,7 +81,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
         double actual_rotation = opponent_body.rotation.eulerAngles[1];
         BattleBotState state = new BattleBotState
         {
-            robot_position = robot_body.position,
+            robot_velocity = robot_body.GetComponent<Rigidbody>().velocity,
             robot_orientation = robot_body.rotation.eulerAngles[1],
             opponent_position = opponent_body.position,
             opponent_orientation = input_rotation//actual_rotation

@@ -19,7 +19,6 @@ T convertValue(const std::string& value)
     std::istringstream iss(value);
     T convertedValue;
     iss >> convertedValue;
-    std::cout << "converted value: " << convertedValue << std::endl;
     return convertedValue;
 }
 

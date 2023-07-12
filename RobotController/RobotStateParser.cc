@@ -6,7 +6,7 @@
 RobotState RobotStateParser::parse(const std::string &json_string)
 {
     nlohmann::json json = nlohmann::json::parse(json_string);
-    Point p = {json["robot_position"]["x"], json["robot_position"]["y"], json["robot_position"]["z"]};
+    Point p = {json["robot_velocity"]["x"], json["robot_velocity"]["y"], json["robot_velocity"]["z"]};
     Point p2 = {json["opponent_position"]["x"], json["opponent_position"]["y"], json["opponent_position"]["z"]};
 
     double o = json["robot_orientation"];

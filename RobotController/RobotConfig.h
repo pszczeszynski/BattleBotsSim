@@ -13,6 +13,7 @@
     {                                 \
         #name, save##name, load##name \
     }
+
 extern int TURN_THRESH_1_DEG;
 extern int TURN_THRESH_2_DEG;
 extern int MAX_TURN_POWER_PERCENT;

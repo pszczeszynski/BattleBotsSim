@@ -99,7 +99,8 @@
         "future": "cpp",
         "queue": "cpp",
         "coroutine": "cpp",
-        "resumable": "cpp"
+        "resumable": "cpp",
+        "qmouseevent": "cpp"
     },
     "cmake.configureOnOpen": true
 }

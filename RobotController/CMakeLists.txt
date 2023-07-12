@@ -36,6 +36,8 @@ include_directories( ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${JSON_INCLUDE_
 
 # Define the sources and headers
 set(SOURCES 
+    Globals.cc
+    RobotConfig.cc
     RobotController.cc
     MathUtils.cc
     Vision.cc
@@ -47,21 +49,11 @@ set(SOURCES
     ValueBin.cc
     TrackingUtils.cc
     Timer.cc
-    OpticalFlow.cc
-    CornerTracker.cc
-    Corner.cc
     OpponentProfile.cc
     PathFinder.cc
     RobotClassifier.cc
-    Graphics/GameLoop.cc
-    Graphics/Camera.cc
-    Graphics/Window/Window.cc
-    Graphics/Model/Object.cc
-    Graphics/Model/OpenGLModel.cc
-    Globals.cc
     VisionPreprocessor.cc
     RobotControllerGUI.cc
-    RobotConfig.cc
 )
 
 # Create the object files

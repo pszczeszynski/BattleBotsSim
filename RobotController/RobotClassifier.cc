@@ -184,12 +184,6 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
 */
 void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage)
 {
-    // if there are no blobs, we can't update any trackers
-    if (blobs.empty()) 
-    {
-        return;
-    }
-
     bool updatedUs = false;
     bool updatedOpponent = false;
 
@@ -208,13 +202,13 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         if (firstIsRobot)
         {
             RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
-            robotTracker.update(blobs[0], frame);
+            robotTracker.UpdateVisionAndIMU(blobs[0], frame, robotIMUData);
             updatedUs = true;
         }
         else
         {
             RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
-            opponentTracker.update(blobs[0], frame);
+            opponentTracker.UpdateVisionOnly(blobs[0], frame);
             updatedOpponent = true;
         }
     }
@@ -238,14 +232,14 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         // if the robot blob is close to the robot tracker
         if (norm(robot.center - robotTracker.getPosition()) < MATCHING_DIST_THRESHOLD || requestingRecalibrate)
         {
-            robotTracker.update(robot, frame);
+            robotTracker.UpdateVisionAndIMU(robot, frame, robotIMUData);
             updatedUs = true;
         }
 
         // if the opponent blob is close to the opponent tracker
         if (norm(opponent.center - opponentTracker.getPosition()) < MATCHING_DIST_THRESHOLD || requestingRecalibrate)
         {
-            opponentTracker.update(opponent, frame);
+            opponentTracker.UpdateVisionOnly(opponent, frame);
             updatedOpponent = true;
         }
 

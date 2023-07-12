@@ -8,8 +8,6 @@
 #include <QLineEdit>
 #include "RobotController.h"
 
-QString SAVE_FILE_NAME = "RobotConfig.txt";
-
 // Constants for window layout
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -124,51 +122,51 @@ void addTextInput(QMainWindow* window, const QString& label, QString& value)
 
 RobotConfigWindow::RobotConfigWindow()
 {
-    window.setWindowTitle("Orbitron Hub");
-    window.setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT);
+    setWindowTitle("Orbitron Hub");
+    setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     const int LEFT_COLUMN_X = COLUMN_SPACING;
     const int RIGHT_COLUMN_X = LEFT_COLUMN_X + COLUMN_WIDTH + COLUMN_SPACING;
 
     loadGlobalVariablesFromFile(SAVE_FILE_NAME.toStdString());
 
-    addLabeledSpinBox(&window, "DriveToPos Turn Thresh 1 Deg: ", TURN_THRESH_1_DEG);
-    addLabeledSpinBox(&window, "DriveToPos Turn Thresh 2 Deg: ", TURN_THRESH_2_DEG);
-    addLabeledSpinBox(&window, "DriveToPos Max Turn Power (%): ", MAX_TURN_POWER_PERCENT);
-    addLabeledSpinBox(&window, "DriveToPos Min Turn Power (%): ", MIN_TURN_POWER_PERCENT);
-    addLabeledSpinBox(&window, "DriveToPos Scale Down Movement (%): ", SCALE_DOWN_MOVEMENT_PERCENT);
-    addLabeledSlider(&window, "DriveToPos Angle Extrapolate MS:", ANGLE_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(&window, "DriveToPos Position Extrapolate MS:", POSITION_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(&window, "Master: Orbit Radius:", ORBIT_RADIUS, 0, 300);
-    addLabeledSlider(&window, "Master: Orbit dTheta Degrees:", ORBIT_DTHETA_DEG, 0, 300);
-    addLabeledSlider(&window, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(&window, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
+    addLabeledSpinBox(this, "DriveToPos Turn Thresh 1 Deg: ", TURN_THRESH_1_DEG);
+    addLabeledSpinBox(this, "DriveToPos Turn Thresh 2 Deg: ", TURN_THRESH_2_DEG);
+    addLabeledSpinBox(this, "DriveToPos Max Turn Power (%): ", MAX_TURN_POWER_PERCENT);
+    addLabeledSpinBox(this, "DriveToPos Min Turn Power (%): ", MIN_TURN_POWER_PERCENT);
+    addLabeledSpinBox(this, "DriveToPos Scale Down Movement (%): ", SCALE_DOWN_MOVEMENT_PERCENT);
+    addLabeledSlider(this, "DriveToPos Angle Extrapolate MS:", ANGLE_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(this, "DriveToPos Position Extrapolate MS:", POSITION_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(this, "Master: Orbit Radius:", ORBIT_RADIUS, 0, 300);
+    addLabeledSlider(this, "Master: Orbit dTheta Degrees:", ORBIT_DTHETA_DEG, 0, 300);
+    addLabeledSlider(this, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(this, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
 
-    addToggleButton(&window, "Orbitron Starter", "Start", "Stop", IS_RUNNING);
+    addToggleButton(this, "Orbitron Starter", "Start", "Stop", IS_RUNNING);
 
-    addTextInput(&window, "Save File Name: ", SAVE_FILE_NAME);
+    addTextInput(this, "Save File Name: ", SAVE_FILE_NAME);
 
     // add save button
-    addPushButton(&window, "Save", []()
+    addPushButton(this, "Save", []()
     {
         saveGlobalVariablesToFile(SAVE_FILE_NAME.toStdString());
     });
 
 
     // add switch robots button
-    addPushButton(&window, "Switch Robots", []()
+    addPushButton(this, "Switch Robots", []()
     {
         RobotClassifier::instance->SwitchRobots();
     });
 
     // add calibrate button
-    addPushButton(&window, "Calibrate Robot Images", []()
+    addPushButton(this, "Calibrate Robot Images", []()
     {
         RobotClassifier::instance->RequestRecalibrate();
     });
 
     // Right column: Display OpenCV Mat (passed by reference)
-    imageLabel = new QLabel(&window);
+    imageLabel = new QLabel(this);
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);
 
     std::cout << "got here before" << std::endl;
@@ -180,8 +178,6 @@ RobotConfigWindow::RobotConfigWindow()
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
 
     std::cout << "got here after" << std::endl;
-
-    window.show();
 }
 
 void RobotConfigWindow::RefreshFieldImage()
@@ -199,7 +195,7 @@ void RobotConfigWindow::RefreshFieldImage()
 
 void RobotConfigWindow::ShowGUI()
 {
-    window.show();
+    show();
 }
 
 void RobotConfigWindow::SetApp(QApplication& app)

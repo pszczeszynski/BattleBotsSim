@@ -18,10 +18,11 @@ struct Point
 */
 struct RobotState
 {
-    // position of our robot
-    Point robot_position;
+    // velocity of our robot
+    Point robot_velocity;
     // orientation of our robot
     double robot_orientation;
+
     // position of the opponent's robot
     Point opponent_position;
     // orientation of the opponent's robot

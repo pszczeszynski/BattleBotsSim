@@ -11,11 +11,11 @@
 #include <opencv2/flann.hpp>
 #include "Globals.h"
 
-Vision::Vision(ICameraReceiver &overheadCam)
+Vision::Vision(ICameraReceiver &overheadCam, RobotTracker &robotTracker, RobotTracker &opponentTracker)
     : overheadCam(overheadCam),
-      robotTracker(cv::Point2f(0, 0)),
-      opponentTracker(cv::Point2f(10000, 10000)),
-      robotClassifier(robotTracker, opponentTracker)
+      robotClassifier(robotTracker, opponentTracker),
+      robotTracker(robotTracker),
+      opponentTracker(opponentTracker)
 {
 }
 
@@ -93,30 +93,33 @@ void Vision::DetectRotation(cv::Mat& canny)
 /**
  * This is the 2d version of the pipeline
 */
-void Vision::runPipeline()
+bool Vision::runPipeline()
 {
     overheadCam.getFrame(currFrame);
 
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
-    drawingImage = currFrame.clone();
 
     // Skip the first frame or if the current frame is the same as the previous frame
     if (previousBirdsEye.empty() || areMatsEqual(currFrame, previousBirdsEye))
     {
         previousBirdsEye = currFrame.clone();
-        return;
+        return false;
     }
+
+    drawingImage = currFrame.clone();
 
     // find the opponent
     locateRobots2d(currFrame, previousBirdsEye);
     previousBirdsEye = currFrame.clone();
+
+    return true;
 }
 
 void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = 1200;
+    const float MIN_AREA = pow(frame.cols * 0.037, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -130,7 +133,7 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
-    cv::threshold(grayDiff, thresholdImg, 50, 255, cv::THRESH_BINARY);
+    cv::threshold(grayDiff, thresholdImg, 25, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
