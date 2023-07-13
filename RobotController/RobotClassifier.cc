@@ -219,9 +219,6 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         double secondIsRobot = ClassifyBlob(blobs[1], frame, motionImage);
         double preference = firstIsRobot - secondIsRobot;
 
-        std::cout << "first is robot: " << firstIsRobot << std::endl;
-        std::cout << "second is robot: " << secondIsRobot << std::endl;
-
         MotionBlob& robot = preference <= 0 ? blobs[0] : blobs[1];
         MotionBlob& opponent = preference <= 0 ? blobs[1] : blobs[0];
 

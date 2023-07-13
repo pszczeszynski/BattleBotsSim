@@ -12,8 +12,7 @@
 #include <QObject>
 #include <QPixmap>
 #include "RobotTracker.h"
-
-#define SIMULATION
+#include "RobotLink.h"
 
 class RobotController : public QObject
 {
@@ -29,8 +28,8 @@ private:
 
     void show_opponent_charges(cv::Mat& drawing_image);
 
-    RobotControllerMessage loop(RobotState &state);
-    RobotControllerMessage driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, const RobotState& state, bool chooseNewTarget);
+    DriveCommand loop(RobotMessage &state);
+    DriveCommand driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, bool chooseNewTarget);
     OpponentProfile p{};
 
 
@@ -44,10 +43,12 @@ private:
 ////////// SIMULATION ////////
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;
+    RobotLinkSim robotLink;
     // CameraReceiverSim overheadCamR_sim;
 #else
 ////////// REAL ////////
     CameraReceiver overheadCamL_real;
+    RobotLinkReal robotLink;
 #endif
 #endif
 /////////////////////////

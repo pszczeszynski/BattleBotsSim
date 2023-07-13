@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(RobotController VERSION 0.1.0 LANGUAGES CUDA CXX)
-set(CMAKE_CUDA_ARCHITECTURES 86) # look up the cuda architecture for your gpu. For my RTX 3080 it's 8.6
+project(RobotController VERSION 0.1.0 LANGUAGES CXX)
+# set(CMAKE_CUDA_ARCHITECTURES 86) # look up the cuda architecture for your gpu. For my RTX 3080 it's 8.6
 
 # set C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -13,26 +13,13 @@ cmake_policy(SET CMP0074 NEW)
 list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
 
 find_package( OpenCV REQUIRED )
-find_package( CUDA REQUIRED )
+# find_package( CUDA REQUIRED )
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 qt_standard_project_setup()
 
 
-# Add library paths
-set(GLEW_LIB_PATH ${CMAKE_SOURCE_DIR}/libs/GLEW/lib/Release/x64/)
-link_directories(${GLEW_LIB_PATH})
-set(SFML_LIB_PATH ${CMAKE_SOURCE_DIR}/libs/SFML/lib/)
-link_directories(${SFML_LIB_PATH})
-set(SOIL_LIB_PATH ${CMAKE_SOURCE_DIR}/libs/SOIL/lib/windows/)
-link_directories(${SOIL_LIB_PATH})
-
-# Add include paths
 set(JSON_INCLUDE_PATH "./libs/json/include")
-set(GLEW_INCLUDE_PATH "./libs/GLEW/include")
-set(GLM_INCLUDE_PATH  "./libs/GLM")
-set(SFML_INCLUDE_PATH "./libs/SFML/include")
-
-include_directories( ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${GLEW_INCLUDE_PATH} ${GLM_INCLUDE_PATH} ${SFML_INCLUDE_PATH} )
+include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} )
 
 # Define the sources and headers
 set(SOURCES 
@@ -54,6 +41,7 @@ set(SOURCES
     RobotClassifier.cc
     VisionPreprocessor.cc
     RobotControllerGUI.cc
+    RobotLink.cc
 )
 
 # Create the object files
@@ -65,4 +53,4 @@ set(SOURCES
 # cuda_add_executable(RobotController ${SOURCES})
 add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController ${CUDA_LIBRARIES} ${SFML_LIBRARIES} opencv_world glew32 opengl32 sfml-system sfml-graphics sfml-window Qt6::Widgets)
+target_link_libraries(RobotController opencv_world Qt6::Widgets)

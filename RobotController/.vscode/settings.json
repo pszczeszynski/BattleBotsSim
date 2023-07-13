@@ -100,7 +100,9 @@
         "queue": "cpp",
         "coroutine": "cpp",
         "resumable": "cpp",
-        "qmouseevent": "cpp"
+        "qmouseevent": "cpp",
+        "qthread": "cpp",
+        "qobject": "cpp"
     },
     "cmake.configureOnOpen": true
 }

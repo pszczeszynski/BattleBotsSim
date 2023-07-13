@@ -1,11 +1,12 @@
 #include "RobotController.h"
 #include "ServerSocket.h"
-#include "RobotStateParser.h"
+// #include "RobotStateParser.h"
 #include "MathUtils.h"
 #include <QApplication>
 #include <QMainWindow>
 #include "RobotControllerGUI.h"
 #include "RobotConfig.h"
+#include "RobotLink.h"
 
 #include <QThread>
 
@@ -59,7 +60,7 @@ RobotController::RobotController()
     //   ,overheadCamR_sim{"overheadCamR"}
       vision{overheadCamL_sim, robotTracker, opponentTracker}
 #else
-      overheadCamL_real{0},
+      overheadCamL_real{1},
     //   ,overheadCamR_real{1}
       vision{overheadCamL_real, robotTracker, opponentTracker} // overheadCamR_real
 #endif
@@ -82,14 +83,8 @@ void RobotController::Run()
     // receive until the peer closes the connection
     while (true)
     {
-
-#ifdef SIMULATION
-        // 1. receive state info from unity
-        std::string received = socket.receive();
-        if (received == "")
-        {
-            continue;
-        }
+        // 1. receive state info from the robot
+        RobotMessage message = robotLink.Receive();
         frames ++;
 
         if (frames % 100 == 0)
@@ -99,25 +94,13 @@ void RobotController::Run()
             lastTime.markStart();
         }
 
-        // 2. parse state info
-        RobotState state = RobotStateParser::parse(received);
-#endif
-
-#ifdef ENABLE_VISION
-#ifdef SIMULATION
-        vision.angle = state.robot_orientation * TO_RAD;
-        stickAngle = state.opponent_orientation * TO_RAD;
-        // vision.opponent_angle = state.opponent_orientation * TO_RAD;
-        // vision.position = cv::Point2f(state.robot_position.x + 20, -state.robot_position.z + 13) * 30;
-        // vision.opponent_position = cv::Point2f(state.opponent_position.x + 20, -state.opponent_position.z + 13) * 30;
-#endif
+        vision.angle = message.rotation * TO_RAD;
 
         TIMER_START
-        bool updated = vision.runPipeline();
+        bool updated    = vision.runPipeline();
 
-
-        robotIMUData.velocity = cv::Point2f(state.robot_velocity.x, -state.robot_velocity.z) * ACCELEROMETER_TO_PX_SCALER;
-        robotIMUData.angle = state.robot_orientation * TO_RAD;
+        robotIMUData.velocity = cv::Point2f(message.velocity.x, -message.velocity.z) * ACCELEROMETER_TO_PX_SCALER;
+        robotIMUData.angle = message.rotation * TO_RAD;
 
         if (!updated)
         {
@@ -130,38 +113,23 @@ void RobotController::Run()
             TIMER_PRINT("vision.runPipeline() update")
         }
 
-        // char key = cv::waitKey(1);
-#endif
-
-    
-#ifdef SIMULATION
-
-        //drawingImage = cv::Mat::zeros(720, 1280, CV_8UC3);
         // 3. run our robot controller loop
         TIMER_START
-        RobotControllerMessage response = loop(state);
+        DriveCommand response = loop(message);
         TIMER_PRINT("loop()")
-
-        // check if space pressed
-        // if (key == ' ')
-        // {
-        //     pause = !pause;
-        // }
 
         if (!IS_RUNNING)
         {
-            response.drive_amount = 0;
-            response.turn_amount = 0;
+            response.movement = 0;
+            response.turn = 0;
         }
 
         TIMER_START
-        // send the response back to unity (tell it how much to drive and turn)
-        socket.reply_to_last_sender(RobotStateParser::serialize(response));
-        TIMER_PRINT("Reply to last sender")
+        // send the response to the robot
+        robotLink.Drive(response);
+        TIMER_PRINT("Send to robot")
 
-#endif
         TIMER_START
-        // cv::imshow("drawing", drawingImage);
         if (updated)
         {
             robotControllerGUI.RefreshFieldImage();
@@ -220,7 +188,7 @@ bool danger = false;
  * @param drawingImage The image for drawing debugging information
  * @return The response to send back to Unity
  */
-RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, const RobotState &state, bool chooseNewTarget = false)
+DriveCommand RobotController::driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, bool chooseNewTarget = false)
 {
     static Extrapolator<Angle> currAngleExtrapolator{Angle(0.0)};
     static Extrapolator<cv::Point2f> currPositionExtrapolator{cv::Point2f(0, 0)};
@@ -263,8 +231,8 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
 
     double deltaAngleRad = goToOtherTarget ? deltaAngleRad1 : deltaAngleRad2;
 
-    RobotControllerMessage response{0, 0};
-    response.turn_amount = doubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
+    DriveCommand response{0, 0};
+    response.turn = doubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
                                                 TURN_THRESH_2_DEG * TO_RAD, MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
 
     // thrash angle
@@ -276,15 +244,15 @@ RobotControllerMessage RobotController::driveToPosition(const cv::Point2f currPo
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;//danger ? 0.8 : 0.0;
     // Slow down when far away from the target angle
-    double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn_amount) * scaleDownMovement) * 1.0;
+    double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
 
-    response.drive_amount = goToOtherTarget ? -drive_scale : drive_scale;
+    response.movement = goToOtherTarget ? -drive_scale : drive_scale;
 
     // Draw debugging information
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
 
-    response.drive_amount *= -1;
-    response.turn_amount *= -1;
+    response.movement *= -1;
+    response.turn *= -1;
 
     return response;
 }
@@ -294,10 +262,10 @@ bool timing = false;
 
 /**
  * This is the main robot controller loop. It is called once per frame.
- * @param state The current state of the robot and opponent
+ * @param message The current state of the robot and opponent
  * @return The response to send back to unity
  */
-RobotControllerMessage RobotController::loop(RobotState &state)
+DriveCommand RobotController::loop(RobotMessage &message)
 {
     static Extrapolator<cv::Point2f> ourPositionExtrapolator{cv::Point2f(0,0)};
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
@@ -351,10 +319,10 @@ RobotControllerMessage RobotController::loop(RobotState &state)
     bool allowReverse = false;
 
     // Drive to the opponent position
-    RobotControllerMessage response = driveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, state, allowReverse);
+    DriveCommand response = driveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, allowReverse);
 
-    response.drive_amount *= MASTER_SPEED_SCALE_PERCENT / 100.0;
-    response.turn_amount *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+    response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+    response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
 
     return response;
 }

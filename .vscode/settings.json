@@ -89,7 +89,15 @@
         "condition_variable": "cpp",
         "coroutine": "cpp",
         "resumable": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "*.tcc": "cpp",
+        "bitset": "cpp",
+        "cwctype": "cpp",
+        "memory_resource": "cpp",
+        "string_view": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "cinttypes": "cpp"
     },
     "cmake.sourceDirectory": "C:/Dev/BattleBotsSim/RobotController"
 }

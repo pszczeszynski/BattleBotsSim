@@ -6,8 +6,6 @@
 #include <iostream>
 #include <opencv2/features2d.hpp>
 #include "PathFinder.h"
-#include <opencv2/cudaarithm.hpp>
-#include <opencv2/cudastereo.hpp>
 #include <opencv2/flann.hpp>
 #include "Globals.h"
 
