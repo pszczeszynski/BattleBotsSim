@@ -36,58 +36,6 @@ bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
     return cv::countNonZero(grayDiff) == 0;
 }
 
-void Vision::DetectRotation(cv::Mat& canny)
-{
-    const cv::Point2f robotPosition = GetRobotPosition();
-
-    int CROP_RADIUS = 60;
-    // crop us out
-    cv::Mat cropped = canny(cv::Rect(robotPosition.x - CROP_RADIUS, robotPosition.y - CROP_RADIUS, CROP_RADIUS * 2, CROP_RADIUS * 2));
-
-    cv::imshow("cropped", cropped);
-    // get average angle of canny lines
-    std::vector<cv::Vec4i> lines;
-    cv::HoughLinesP(cropped, lines, 1, CV_PI/180, 10, 3, 0);
-
-
-    cv::Mat linesImage = cv::Mat::zeros(cropped.size(), CV_8UC3);
-    ValueBin rotations(3);
-    // show the vector of lines in the image
-    for( size_t i = 0; i < lines.size(); i++ )
-    {
-        cv::Vec4i l = lines[i];
-        cv::line(linesImage, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]), cv::Scalar(0,255,255), 1, cv::LINE_AA);
-
-        double degrees = TO_DEG * atan2(l[3] - l[1], l[2] - l[0]);
-        while (degrees < 0)
-        {
-            degrees += 180;
-        }
-        if (degrees == 0)
-        {
-            continue;
-        }
-        // take mode pi / 2
-        double mode = fmod(degrees, 180);
-    
-        rotations.AddValue(mode);
-    }
-
-
-    // get mode of rotations
-    double mode = rotations.GetModeValue();
-    // convert to radians
-    double radians = mode * TO_RAD;
-    // draw arrow at middle of cropped
-    cv::Point2f center = cv::Point2f(cropped.cols / 2, cropped.rows / 2);
-    cv::Point2f end = center + cv::Point2f(cos(radians) * 100, sin(radians) * 100);
-    cv::arrowedLine(linesImage, center, end, cv::Scalar(0, 255, 0), 3);
-
-
-    cv::imshow("lines", linesImage);
-}
-
-
 /**
  * This is the 2d version of the pipeline
 */
@@ -97,12 +45,19 @@ bool Vision::runPipeline()
 
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
 
-    // Skip the first frame or if the current frame is the same as the previous frame
-    if (previousBirdsEye.empty() || areMatsEqual(currFrame, previousBirdsEye))
+    if (previousBirdsEye.empty())
     {
         previousBirdsEye = currFrame.clone();
         return false;
     }
+#ifdef SIMULATION
+    // Skip the first frame or if the current frame is the same as the previous frame
+    if (areMatsEqual(currFrame, previousBirdsEye))
+    {
+        previousBirdsEye = currFrame.clone();
+        return false;
+    }
+#endif
 
     drawingImage = currFrame.clone();
 
@@ -136,6 +91,7 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 25, 255, cv::THRESH_BINARY);
+    
 
     // cv::imshow("Motion", thresholdImg);
 

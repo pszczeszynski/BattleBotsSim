@@ -202,7 +202,8 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         if (firstIsRobot)
         {
             RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
-            robotTracker.UpdateVisionAndIMU(blobs[0], frame, robotIMUData);
+            robotTracker.UpdateVisionOnly(blobs[0], frame);
+            // robotTracker.UpdateVisionAndIMU(blobs[0], frame, robotIMUData);
             updatedUs = true;
         }
         else
@@ -229,7 +230,8 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         // if the robot blob is close to the robot tracker
         if (norm(robot.center - robotTracker.getPosition()) < MATCHING_DIST_THRESHOLD || requestingRecalibrate)
         {
-            robotTracker.UpdateVisionAndIMU(robot, frame, robotIMUData);
+            robotTracker.UpdateVisionOnly(robot, frame);
+            // robotTracker.UpdateVisionAndIMU(robot, frame, robotIMUData);
             updatedUs = true;
         }
 

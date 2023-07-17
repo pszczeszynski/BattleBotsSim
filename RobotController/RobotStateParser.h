@@ -2,13 +2,7 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
-
-struct Point
-{
-    double x;
-    double y;
-    double z;
-};
+#include "../Communication/Communication.h"
 
 /**
  * The state of the robot, should match the C# side.

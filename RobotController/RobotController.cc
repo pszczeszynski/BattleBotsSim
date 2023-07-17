@@ -5,18 +5,9 @@
 #include "RobotControllerGUI.h"
 #include "RobotConfig.h"
 #include "RobotLink.h"
-#include <QThread>
 
-// #define ENABLE_TIMERS
-#ifdef ENABLE_TIMERS
-    #define TIMER_INIT Clock c;
-    #define TIMER_START c.markStart();
-    #define TIMER_PRINT(msg) std::cout << msg << " time: " << c.getElapsedTime() << std::endl;
-#else
-    #define TIMER_INIT 
-    #define TIMER_START 
-    #define TIMER_PRINT(msg)
-#endif
+
+#include <QThread>
 
 #ifdef ENABLE_VISION
 #include "Vision.h"
@@ -93,7 +84,7 @@ void RobotController::Run()
         vision.angle = message.rotation * TO_RAD;
 
         TIMER_START
-        bool updated    = vision.runPipeline();
+        bool updated = vision.runPipeline();
 
         robotIMUData.velocity = cv::Point2f(message.velocity.x, -message.velocity.z) * ACCELEROMETER_TO_PX_SCALER;
         robotIMUData.angle = message.rotation * TO_RAD;

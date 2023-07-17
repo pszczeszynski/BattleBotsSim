@@ -3,21 +3,7 @@
 #include "RobotStateParser.h"
 #include "Windows.h"
 #include "ServerSocket.h"
-
-// driver station -> robot
-struct DriveCommand
-{
-    double movement;
-    double turn;
-};
-
-// robot -> driver station
-struct RobotMessage
-{
-    Point accel;
-    Point velocity;
-    double rotation;
-};
+#include "../Communication/Communication.h"
 
 // interface
 class IRobotLink

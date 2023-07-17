@@ -32,7 +32,6 @@ public:
     cv::Point2f GetOpponentPosition();
     double GetOpponentAngle();
 
-    void DetectRotation(cv::Mat& canny);
     bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2);
 
     double angle;
