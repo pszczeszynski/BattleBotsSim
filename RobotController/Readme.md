@@ -75,3 +75,11 @@ Finally hit generate
 Open command prompt and run:
 
 ![Alt text](doc_images/image-9.png)
+
+
+
+Open RobotController dir in vscode
+
+Ctrl + Shift + P -> Cmake Select kit -> Amd64 (or whichever is you)
+
+Then Ctrl + Shift + P -> Cmake Configure

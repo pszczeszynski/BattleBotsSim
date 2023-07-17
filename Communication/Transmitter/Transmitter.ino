@@ -12,7 +12,6 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-#include "../Communication.h"
 
 RF24 radio(14, 10);              // CE, CSN      // Define instance of RF24 object called 'radio' and define pins used
 const byte address[6] = "00001"; // Define address/pipe to use.

@@ -1,32 +1,40 @@
-/*
- * nRF24L01 Receiver Test Software
- *
- * Exercises the nRF24L01 Module.  This code runs on the receiver 'slave' device.
- * Use the nRF24L01_Transmitter_Test software for the transmitting 'master' device
- *
- * This uses the RF24.h library which can be installed from the Arduino IDE
- * Pins used for the SPI interface are determined by the Arduino being used.
- * The other two pins are arbitrary and can be changed if needed.  Redfine them in the RF24
- * statement.  Default shown here is to use pins 7 &
- */
-#include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
-#include "../Communication.h"
+/**
+ * Receiver.ino
+*/
+#include "Communication.h"
+#include "IMU.h"
+#include "Radio.h"
+#include "Motor.h"
 
-RF24 radio(14, 10);              // CE, CSN      // Define instance of RF24 object called 'radio' and define pins used
-const byte address[6] = "000s01"; // Define address/pipe to use. This can be any 5 alphnumeric letters/numbers
+#define SERIAL_BAUD 115200
+
+IMU* imu;
+#define LEFT_MOTOR_PIN 9
+#define RIGHT_MOTOR_PIN 10
+Motor* leftMotor;
+Motor* rightMotor;
+Radio* radio;
+
 //===============================================================================
 //  Initialization
 //===============================================================================
 void setup()
 {
-    Serial.begin(9600);                // Start serial port to display messages on Serial Monitor Window
-    radio.begin();                     // Start instance of the radio object
-    radio.openReadingPipe(0, address); // Setup pipe to read data to the address that was defined
-    radio.openWritingPipe(address);    // Setup pipe to write data to the address that was defined
-    radio.setPALevel(RF24_PA_MAX);     // Set the Power Amplified level to MAX in this case
-    radio.startListening();            // We are going to be the receiver, so we need to start listening
+    // Start serial port to display messages on Serial Monitor Window
+    Serial.begin(SERIAL_BAUD);
+
+    Serial.println("Initializing IMU...");
+    // imu = new IMU();
+    Serial.println("Failed because Matthew made an oopsie!");
+
+    Serial.println("Initializing motors...");
+    leftMotor = new Motor(LEFT_MOTOR_PIN);
+    rightMotor = new Motor(RIGHT_MOTOR_PIN);
+    Serial.println("Success!");
+
+    Serial.println("Initializing radio...");
+    radio = new Radio();
+    Serial.println("Success!");
 }
 
 /**
@@ -34,34 +42,29 @@ void setup()
 */
 void Drive(DriveCommand& command)
 {
-    // print the message to the serial monitor window
-    serial.println("Received drive command movement: " + command.movement + ", turn " + command.turn);
-}
+    // // print the message to the serial monitor window
+    // String print = "";
+    // print += "Received drive command movement: ";
+    // print += command.movement;
+    // print += ", turn: ";
+    // print += command.turn;
+    // Serial.println(print);
 
-/**
- * Gets the acceleration of the robot
-*/
-Point getAccel()
-{
-    Point accel = {0, 0, 0};
+    // compute powers
+    double leftPower = command.movement - command.turn;
+    double rightPower = command.movement + command.turn;
 
-    // get accelerometer data and set accel
+    // normalize
+    double maxPower = max(abs(leftPower), abs(rightPower));
+    if (maxPower > 1)
+    {
+        leftPower /= maxPower;
+        rightPower /= maxPower;
+    }
 
-    return accel;
-}
-
-/**
- * Gets the velocity of the robot
-*/
-Point getVelocity(Point accel)
-{
-    Point v = {0, 0, 0};
-
-    // integrate accel to get velocity
-
-    // save velocity for next time
-
-    return v;
+    // apply powers
+    leftMotor->SetPower(leftPower);
+    rightMotor->SetPower(rightPower);
 }
 
 /**
@@ -72,36 +75,39 @@ RobotMessage update()
     RobotMessage ret {0};
 
     // get accelerometer data and set accel
-    ret.accel = getAccel();
+    ret.accel = {0,0,0};//imu->getAccel();
 
     // now compute velocity
-    ret.velocity = getVelocity(ret.accel);
+    ret.velocity = {0,0,0};//imu->getVelocity(ret.accel);
 
     // get gyro data and set gyro
-    ret.rotation = getRotation();
+    ret.rotation = 0;//imu->getRotation();
 
     return ret;
 }
-
 
 //===============================================================================
 //  Main
 //===============================================================================
 void loop()
 {
-    if (radio.available())
+    if (radio->Available())
     {
         // Read the incoming message 
-        DriveCommand command;
-        radio.read(&command, sizeof(command));
-
+        DriveCommand command = radio->Receive();
+        
         // Drive the robot
         Drive(command);
 
         // Compute robot state
         RobotMessage message = update();
-
         // Send data back to transmitter and driver station
-        radio.write(&message, sizeof(message));
+        radio->Send(message);
     }
+  
+    // if (imu->dataReady())
+    // {
+    //     imu->Update();
+    //     imu->printScaledAGMT();
+    // }
 }
