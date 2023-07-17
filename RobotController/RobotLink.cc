@@ -1,5 +1,4 @@
 #include "RobotLink.h"
-#include <windows.h>
 
 const char *TEENSY_PORT_NAME = "COM4";
 
@@ -75,4 +74,35 @@ RobotLinkReal::~RobotLinkReal()
 {
     // Close the port
     CloseHandle(hPort);
+}
+
+
+/////////////////// SIMULATION //////////////////////
+
+RobotLinkSim::RobotLinkSim()
+    : serverSocket("11115")
+{
+}
+
+void RobotLinkSim::Drive(DriveCommand& command)
+{
+    RobotControllerMessage message = { command.movement, command.turn };
+    serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
+}
+
+RobotMessage RobotLinkSim::Receive()
+{
+    std::string received = "";
+    while (received == "")
+    {
+        received = serverSocket.receive();
+    }
+    RobotState message = RobotStateParser::parse(received);
+    
+    RobotMessage ret {0};
+    ret.accel = Point { message.robot_velocity.x, message.robot_velocity.y, message.robot_velocity.z };
+    ret.rotation = message.robot_orientation;
+
+    // return the message
+    return ret;
 }

@@ -1,8 +1,10 @@
 #pragma once
 #include "ServerSocket.h"
-#include "RobotStateParser.h"
+// #include "RobotStateParser.h"
 #include "Clock.h"
 #include "OpponentProfile.h"
+
+#define SIMULATION
 
 #define ENABLE_VISION
 #ifdef ENABLE_VISION
@@ -22,16 +24,11 @@ public:
 public slots:
     void Run();
 private:
-    ServerSocket socket;
-
     Clock clock;
-
-    void show_opponent_charges(cv::Mat& drawing_image);
 
     DriveCommand loop(RobotMessage &state);
     DriveCommand driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, bool chooseNewTarget);
     OpponentProfile p{};
-
 
     RobotTracker robotTracker;
     RobotTracker opponentTracker;

@@ -1,13 +1,10 @@
 #include "RobotController.h"
-#include "ServerSocket.h"
-// #include "RobotStateParser.h"
 #include "MathUtils.h"
 #include <QApplication>
 #include <QMainWindow>
 #include "RobotControllerGUI.h"
 #include "RobotConfig.h"
 #include "RobotLink.h"
-
 #include <QThread>
 
 // #define ENABLE_TIMERS
@@ -50,8 +47,7 @@ int main(int argc, char *argv[])
     app.exec();
 }
 
-RobotController::RobotController()
-    : socket{"11115"},
+RobotController::RobotController() :
     robotTracker{cv::Point2f(0, 0)},
     opponentTracker{cv::Point2f(10000, 10000)},
 #ifdef ENABLE_VISION
@@ -105,7 +101,6 @@ void RobotController::Run()
         if (!updated)
         {
             TIMER_PRINT("vision.runPipeline() no update")
-
             robotTracker.UpdateIMUOnly(robotIMUData);
         }
         else

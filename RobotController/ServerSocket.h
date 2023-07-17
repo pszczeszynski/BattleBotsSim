@@ -1,10 +1,10 @@
 #pragma once
 
+#include <windows.h>
+
 #pragma comment(lib, "ws2_32.lib")
 
-#include <winsock2.h>
 #include <iostream>
-#include <ws2tcpip.h>
 
 #define DEFAULT_BUFLEN 512
 
@@ -20,11 +20,12 @@ private:
     // Number of bytes actually received
     int recvbuflen = DEFAULT_BUFLEN;
     // The address of the last sender
-    sockaddr_storage last_sender_addr;
+    SOCKADDR last_sender_addr;
     // The length of the last sender's address
-    socklen_t last_sender_addr_len;
+    int last_sender_addr_len;
 
     int setup_receiving_socket();
+
 public:
     std::string receive();
     void reply_to_last_sender(std::string data);

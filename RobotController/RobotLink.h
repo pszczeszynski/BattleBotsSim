@@ -2,6 +2,7 @@
 
 #include "RobotStateParser.h"
 #include "Windows.h"
+#include "ServerSocket.h"
 
 // driver station -> robot
 struct DriveCommand
@@ -33,12 +34,14 @@ private:
 class RobotLinkSim : public IRobotLink
 {
 public:
+    RobotLinkSim();
     virtual void Drive(DriveCommand& command) override;
     virtual RobotMessage Receive() override;
 
 private:
     // socket stuff
     void setup();
+    ServerSocket serverSocket;
 };
 
 /**
