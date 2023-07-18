@@ -15,9 +15,6 @@ Motor* leftMotor;
 Motor* rightMotor;
 Radio* radio;
 
-unsigned long prevTime = 0;
-unsigned long currTime = 0;
-
 //===============================================================================
 //  Initialization
 //===============================================================================
@@ -38,17 +35,6 @@ void setup()
     Serial.println("Initializing radio...");
     radio = new Radio();
     Serial.println("Success!");
-}
-
-/**
- *Updates the time data for the current loop iteration
- */
-int getDt()
-{
-    currTime = millis();
-    int dt = currTime - prevTime;
-    prevTime = currTime;
-    return dt;
 }
 
 /**
@@ -84,7 +70,7 @@ void Drive(DriveCommand& command)
 /**
  * Computes response message of robot state data
 */
-RobotMessage update(int dt)
+RobotMessage update()
 {
     RobotMessage ret {0};
 
@@ -92,14 +78,13 @@ RobotMessage update(int dt)
     ret.accel = {0,0,0};//imu->getAccel();
 
     // now compute velocity
-    ret.velocity = {0,0,0};//imu->getVelocity(ret.accel, dt);
+    ret.velocity = {0,0,0};//imu->getVelocity(ret.accel);
 
     // get gyro data and set gyro
-    ret.rotation = 0;//imu->getRotation(dt);
+    ret.rotation = 0;//imu->getRotation();
 
     return ret;
 }
-
 
 //===============================================================================
 //  Main
@@ -115,8 +100,7 @@ void loop()
         Drive(command);
 
         // Compute robot state
-        int dt = getDt();
-        RobotMessage message = update(dt);
+        RobotMessage message = update();
         // Send data back to transmitter and driver station
         radio->Send(message);
     }
