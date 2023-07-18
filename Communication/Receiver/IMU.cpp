@@ -24,6 +24,8 @@ IMU::IMU()
             initialized = true;
         }
     }
+
+    velocity = {0, 0, 0};
 }
 
 void IMU::Update()
@@ -43,7 +45,11 @@ Point IMU::getAccel()
 {
     Point accel = {0, 0, 0};
 
-    // get accelerometer data and set accel
+    // get (unfiltered) accelerometer data and set accel
+    
+    accel.x = myICM.accX();
+    accel.y = myICM.accY();
+    accel.z = myICM.accZ();
 
     return accel;
 }
@@ -51,15 +57,13 @@ Point IMU::getAccel()
 /**
  * Gets the velocity of the robot
  */
-Point IMU::getVelocity(Point accel)
+Point IMU::getVelocity(Point accel, int dt)
 {
-    Point v = {0, 0, 0};
+    velocity.x += accel.x * dt;
+    velocity.y += accel.y * dt;
+    velocity.z += accel.z * dt;
 
-    // integrate accel to get velocity
-
-    // save velocity for next time
-
-    return v;
+    return velocity;
 }
 
 /**
@@ -69,7 +73,7 @@ double IMU::getRotation()
 {
     double rotation = 0;
 
-    // get gyro data and set gyro
+    rotation = myICM.gyrY();
 
     return rotation;
 }
