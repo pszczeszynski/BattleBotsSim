@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "ICM_20948.h"
+#include "WorkingDir.h"
 #include "Communication.h"
 
 #define WIRE_PORT Wire // Your desired Wire port. 

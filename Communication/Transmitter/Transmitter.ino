@@ -9,6 +9,8 @@
  * The other two pins are arbitrary and can be changed if needed.  Redfine them in the RF24
  * statement.  Default shown here is to use pins 7 & 8
  */
+#include "WorkingDir.h"
+#include COMMUNICATION_HEADER
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
