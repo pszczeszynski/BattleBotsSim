@@ -95,7 +95,7 @@ RobotMessage update(int dt)
     ret.velocity = {0,0,0};//imu->getVelocity(ret.accel, dt);
 
     // get gyro data and set gyro
-    ret.rotation = 0;//imu->getRotation();
+    ret.rotation = 0;//imu->getRotation(dt);
 
     return ret;
 }

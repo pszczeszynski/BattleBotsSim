@@ -18,7 +18,7 @@ public:
     bool dataReady();
     Point getAccel();
     Point getVelocity(Point accel, int dt);
-    double getRotation();
+    double getRotation(int dt);
     void printScaledAGMT();
     void printPaddedInt16b(int16_t val);
     void printRawAGMT(ICM_20948_AGMT_t agmt);
