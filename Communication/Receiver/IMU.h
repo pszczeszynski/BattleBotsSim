@@ -17,8 +17,8 @@ public:
     void Update();
     bool dataReady();
     Point getAccel();
-    Point getVelocity(Point accel);
-    double getRotation();
+    Point getVelocity(Point accel, int dt);
+    double getRotation(int dt);
     void printScaledAGMT();
     void printPaddedInt16b(int16_t val);
     void printRawAGMT(ICM_20948_AGMT_t agmt);
@@ -26,4 +26,5 @@ public:
 
 private:
     ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
+    Point velocity;
 };
