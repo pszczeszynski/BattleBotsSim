@@ -1,9 +1,13 @@
 #pragma once
 
 #include "RobotStateParser.h"
-#include "Windows.h"
+#include "windows.h"
 #include "ServerSocket.h"
 #include "../Communication/Communication.h"
+#include "../Communication/GenericReceiver.h"
+#include <fstream>
+#include <functional>
+#include "Clock.h"
 
 // interface
 class IRobotLink
@@ -30,17 +34,19 @@ private:
     ServerSocket serverSocket;
 };
 
-/**
- * This drives the real robot
-*/
+#define TRANSMITTER_COM_PORT TEXT("COM7")
+
 class RobotLinkReal : public IRobotLink
 {
 public:
     RobotLinkReal();
-    virtual void Drive(DriveCommand& command) override;
+    virtual void Drive(DriveCommand &command) override;
     virtual RobotMessage Receive() override;
     ~RobotLinkReal();
+
 private:
-    // radio stuff
-    HANDLE hPort;
-};  
+    HANDLE comPort;
+    DCB dcbSerialParams;
+    Clock sendingClock;
+    GenericReceiver<RobotMessage> receiver;
+};

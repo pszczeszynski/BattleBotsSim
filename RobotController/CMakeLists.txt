@@ -17,6 +17,7 @@ find_package( OpenCV REQUIRED )
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 qt_standard_project_setup()
 
+add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
 include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} )

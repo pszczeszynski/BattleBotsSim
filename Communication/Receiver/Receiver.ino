@@ -7,7 +7,7 @@
 #include "Radio.h"
 #include "Motor.h"
 
-#define SERIAL_BAUD 115200
+#define SERIAL_BAUD 9600
 
 IMU* imu;
 #define LEFT_MOTOR_PIN 9
@@ -90,7 +90,7 @@ RobotMessage update(int dt)
     RobotMessage ret {0};
 
     // get accelerometer data and set accel
-    ret.accel = {0,0,0};//imu->getAccel();
+    ret.accel = {1,2.5,3.999};//imu->getAccel();
 
     // now compute velocity
     ret.velocity = {0,0,0};//imu->getVelocity(ret.accel, dt);
@@ -107,20 +107,16 @@ RobotMessage update(int dt)
 //===============================================================================
 void loop()
 {
-    if (radio->Available())
-    {
-        // Read the incoming message 
-        DriveCommand command = radio->Receive();
-        
-        // Drive the robot
-        Drive(command);
+    // Read the incoming message 
+    DriveCommand command = radio->Receive();
+    // Drive the robot
+    Drive(command);
 
-        // Compute robot state
-        int dt = getDt();
-        RobotMessage message = update(dt);
-        // Send data back to transmitter and driver station
-        radio->Send(message);
-    }
+    // Compute robot state
+    int dt = getDt();
+    RobotMessage message = update(dt);
+    // Send data back to transmitter and driver station
+    radio->Send(message);
   
     // if (imu->dataReady())
     // {

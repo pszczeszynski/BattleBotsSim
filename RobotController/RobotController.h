@@ -4,7 +4,7 @@
 #include "Clock.h"
 #include "OpponentProfile.h"
 
-#define SIMULATION
+// #define SIMULATION
 
 #define ENABLE_VISION
 #ifdef ENABLE_VISION

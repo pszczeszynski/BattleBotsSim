@@ -9,42 +9,87 @@
  * The other two pins are arbitrary and can be changed if needed.  Redfine them in the RF24
  * statement.  Default shown here is to use pins 7 & 8
  */
-#include "WorkingDir.h"
-#include COMMUNICATION_HEADER
+#include "Communication.h"
 #include <SPI.h>
-#include <nRF24L01.h>
+//#include <nRF24L01.h>
 #include <RF24.h>
+#include <cstring> // for std::memcpy
+#include <EEPROM.h>
 
+#define LED_PORT 16
 RF24 radio(14, 10);              // CE, CSN      // Define instance of RF24 object called 'radio' and define pins used
 const byte address[6] = "00001"; // Define address/pipe to use.
-unsigned long count = 0;         // Use to count the number of messages sent
-char data[10];                   // Create a char array to hold count as a string
 
 //===============================================================================
 //  Initialization
 //===============================================================================
 void setup()
 {
+    // initialize the digital pin as an output.
+    pinMode(LED_PORT, OUTPUT);
+
     Serial.begin(9600);
+    Serial.clear();
     radio.begin();                  // Start instance of the radio object
+    radio.openReadingPipe(0, address); // Setup pipe to read data from the address
     radio.openWritingPipe(address); // Setup pipe to write data to the address that was defined
     radio.setPALevel(RF24_PA_MAX);  // Set the Power Amplified level to MAX in this case
-    radio.stopListening();          // We are going to be the transmitter, so we will stop listening
+    radio.startListening();
+    radio.setAutoAck(false);
 }
 
+GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
+                                             {
+                                            // if there is data available
+                                            if (Serial.available())
+                                            {
+                                                // read the data
+                                                c = Serial.read();
+                                                return true;
+                                            }
+                                            // else return false
+                                            return false; });
+
+void SendDriveCommand(DriveCommand &driveData)
+{
+    // write the data to the radio
+    radio.stopListening();
+    // send start bit
+    // radio.write(&MESSAGE_START_CHAR, sizeof(MESSAGE_START_CHAR));
+    radio.write(&driveData, sizeof(driveData));
+    // send end bit
+    // radio.write(&MESSAGE_END_CHAR, sizeof(MESSAGE_END_CHAR));
+    radio.startListening();
+}
+
+unsigned long lastReceiveTime = 0;
 //===============================================================================
 //  Main
 //===============================================================================
 void loop()
 {
-    if (Serial.available() > 0)
-    {
-        String receivedData = Serial.readStringUntil('\n');
-        // ltoa(receivedData,data, 10);             // Convert the count and put into the char array.
-        char text[30] = "Sending Message: "; // Create our base message.
-        strcat(text, receivedData.c_str());  // Append the count to the base message
+    serialReceiver.update();
 
-        radio.write(&text, sizeof(text));    // Write the char array.
-        Serial.println("It's working");
+    // if there are commands
+    if (serialReceiver.isLatestDataValid())
+    {
+        // write to radio
+        DriveCommand command = serialReceiver.getLatestData();
+        SendDriveCommand(command);
     }
+
+    while (radio.available())
+    {
+        // turn on arduino led
+        digitalWrite(LED_PORT, HIGH);
+
+        // read data from rc
+        RobotMessage message {0};
+        radio.read(&message, sizeof(message));
+
+        Serial.print(MESSAGE_START_CHAR);
+        Serial.write((char*) &message, sizeof(message));
+        Serial.print(MESSAGE_END_CHAR);
+    }
+    digitalWrite(LED_PORT, LOW);
 }

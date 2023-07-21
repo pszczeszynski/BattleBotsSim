@@ -47,7 +47,7 @@ RobotController::RobotController() :
     //   ,overheadCamR_sim{"overheadCamR"}
       vision{overheadCamL_sim, robotTracker, opponentTracker}
 #else
-      overheadCamL_real{1},
+      overheadCamL_real{0},
     //   ,overheadCamR_real{1}
       vision{overheadCamL_real, robotTracker, opponentTracker} // overheadCamR_real
 #endif
@@ -76,7 +76,7 @@ void RobotController::Run()
 
         if (frames % 100 == 0)
         {
-            std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
+            // std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
             frames = 0;
             lastTime.markStart();
         }
@@ -84,7 +84,7 @@ void RobotController::Run()
         vision.angle = message.rotation * TO_RAD;
 
         TIMER_START
-        bool updated = vision.runPipeline();
+        bool updated = false;//vision.runPipeline();
 
         robotIMUData.velocity = cv::Point2f(message.velocity.x, -message.velocity.z) * ACCELEROMETER_TO_PX_SCALER;
         robotIMUData.angle = message.rotation * TO_RAD;

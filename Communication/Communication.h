@@ -2,6 +2,7 @@
 
 #ifndef COMMUNICATION_H
 #define COMMUNICATION_H
+
 /**
  * Communication.h
  * 
@@ -21,6 +22,7 @@ struct DriveCommand
 {
     double movement;
     double turn;
+    bool valid; // should always be true, used to check for blank messages
 };
 
 // robot -> driver station
@@ -30,4 +32,14 @@ struct RobotMessage
     Point velocity;
     double rotation;
 };
+
+// indicates the end of a message. All communciation between devices should end with this
+const char MESSAGE_END_CHAR = '\n';
+
+const char MESSAGE_START_CHAR = '@';
+
+
+
+
+
 #endif

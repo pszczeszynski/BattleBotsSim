@@ -20,7 +20,7 @@ struct RobotIMUData
 extern RobotIMUData robotIMUData;
 
 
-#define ENABLE_TIMERS
+// #define ENABLE_TIMERS
 
 #ifdef ENABLE_TIMERS
     #define TIMER_INIT Clock c;

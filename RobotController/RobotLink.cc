@@ -1,81 +1,121 @@
 #include "RobotLink.h"
+#include "Clock.h"
+#include "../Communication/Communication.h"
 
-const char *TEENSY_PORT_NAME = "COM4";
+RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
+                                          {
+    DWORD dwBytesRead = 0;
+    DWORD dwErrors = 0;
+    COMSTAT comStat;
 
-RobotLinkReal::RobotLinkReal()
-{
-    LPCSTR portNameLPCSTR = TEENSY_PORT_NAME;
-
-    // Open the port
-    HANDLE hPort = CreateFile((LPCWSTR) portNameLPCSTR, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-
-    if (hPort == INVALID_HANDLE_VALUE)
+    // Get and clear current errors on the com port.
+    if (!ClearCommError(comPort, &dwErrors, &comStat))
     {
-        printf("Error opening port\n");
-        return;
+        std::cerr << "Error clearing COM port" << std::endl;
+        return false;
     }
 
-    // Set up the port settings
-    DCB dcb;
-    memset(&dcb, 0, sizeof(DCB));
-    dcb.DCBlength = sizeof(DCB);
-    dcb.BaudRate = CBR_9600;
-    dcb.ByteSize = 8;
-    dcb.StopBits = ONESTOPBIT;
-    dcb.Parity = NOPARITY;
-
-    if (!SetCommState(hPort, &dcb))
+    // If there is nothing to read, return false early.
+    if (comStat.cbInQue == 0)
     {
-        printf("Error setting port state\n");
-        CloseHandle(hPort);
-        return;
+        return false;
     }
-}
 
-void RobotLinkReal::Drive(DriveCommand& command)
-{
-    // 1. serialize
-    std::string byteString(reinterpret_cast<const char*>(&command), sizeof(DriveCommand));
-    const char* serialized_cstr = byteString.c_str();
-    
-    // 2. send message over radio
-    DWORD bytesWritten;
-    if (!WriteFile(hPort, serialized_cstr, strlen(serialized_cstr), &bytesWritten, NULL))
+    // check if there is data to read
+    if(!ReadFile(comPort, &c, 1, &dwBytesRead, NULL))
     {
-        printf("Error writing to port\n");
-        return;
+        std::cerr << "Error reading from COM port" << std::endl;
     }
-}
-
-#define MAX_BUFFER_LENGTH 2048
-RobotMessage RobotLinkReal::Receive()
+    return dwBytesRead > 0; })
 {
-    // Read the response
-    char buffer[MAX_BUFFER_LENGTH];
-    DWORD bytesRead;
-    if (!ReadFile(hPort, buffer, sizeof(buffer), &bytesRead, NULL))
+    sendingClock.markStart();
+    comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (comPort == INVALID_HANDLE_VALUE)
     {
-        printf("Error reading from port\n");
+        std::cerr << "Error opening port: " << TRANSMITTER_COM_PORT << std::endl;
+        return;
     }
     else
     {
-        buffer[bytesRead] = '\0'; // Null terminate the string
-        printf("Received: %s\n", buffer);
+        std::cout << "Transmitter COM Port opened successfully" << std::endl;
     }
 
-    // Retrieve the struct from the string
-    RobotMessage retrievedStruct;
-    std::memcpy(&retrievedStruct, buffer, sizeof(retrievedStruct));
+    dcbSerialParams = {0};
+    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    dcbSerialParams.BaudRate = CBR_9600; // set the baud rate
+    dcbSerialParams.ByteSize = 8;
+    dcbSerialParams.StopBits = ONESTOPBIT;
+    dcbSerialParams.Parity = NOPARITY;
+
+    COMMTIMEOUTS timeouts = {0};
+    timeouts.ReadIntervalTimeout = MAXDWORD;
+    timeouts.ReadTotalTimeoutConstant = 0;
+    timeouts.ReadTotalTimeoutMultiplier = 0;
+    if (!SetCommTimeouts(comPort, &timeouts))
+    {
+        std::cerr << "Error setting COM port timeouts" << std::endl;
+    }
+
+    if (!SetCommState(comPort, &dcbSerialParams))
+    {
+        std::cerr << "Error setting serial port state" << std::endl;
+    }
+}
+
+#define MIN_INTER_SEND_TIME_MS 5
+int i = 0;
+void RobotLinkReal::Drive(DriveCommand &command)
+{
+    if (sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    {
+        return;
+    }
+    sendingClock.markStart();
+
+    command.movement = i;
+    command.valid = true;
+
+    // write start MESSAGE_START_CHAR
+    DWORD dwBytesWritten = 0;
+    char start = MESSAGE_START_CHAR;
+    WriteFile(comPort, &start, sizeof(start), &dwBytesWritten, NULL);
+    // write command
+    WriteFile(comPort, &command, sizeof(command), &dwBytesWritten, NULL);
+    // write start MESSAGE_END_CHAR
+    char end = MESSAGE_END_CHAR;
+    WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
+
+    std::cout << "sending" << i << std::endl;
+    i++;
+}
+
+RobotMessage RobotLinkReal::Receive()
+{
+    if (comPort == INVALID_HANDLE_VALUE)
+    {
+        std::cout << "closed" << std::endl;
+        return RobotMessage{0};
+    }
+
+    receiver.update();
+
+    if (!receiver.isLatestDataValid())
+    {
+        return RobotMessage{0};
+    }
+
+    RobotMessage retrievedStruct = receiver.getLatestData();
+
+    // print accel
+    std::cout << "accel: " << retrievedStruct.accel.x << ", " << retrievedStruct.accel.y << ", " << retrievedStruct.accel.z << std::endl;
 
     return retrievedStruct;
 }
 
 RobotLinkReal::~RobotLinkReal()
 {
-    // Close the port
-    CloseHandle(hPort);
+    CloseHandle(comPort);
 }
-
 
 /////////////////// SIMULATION //////////////////////
 
@@ -84,9 +124,9 @@ RobotLinkSim::RobotLinkSim()
 {
 }
 
-void RobotLinkSim::Drive(DriveCommand& command)
+void RobotLinkSim::Drive(DriveCommand &command)
 {
-    RobotControllerMessage message = { command.movement, command.turn };
+    RobotControllerMessage message = {command.movement, command.turn};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
@@ -98,9 +138,9 @@ RobotMessage RobotLinkSim::Receive()
         received = serverSocket.receive();
     }
     RobotState message = RobotStateParser::parse(received);
-    
-    RobotMessage ret {0};
-    ret.accel = Point { message.robot_velocity.x, message.robot_velocity.y, message.robot_velocity.z };
+
+    RobotMessage ret{0};
+    ret.accel = Point{message.robot_velocity.x, message.robot_velocity.y, message.robot_velocity.z};
     ret.rotation = message.robot_orientation;
 
     // return the message
