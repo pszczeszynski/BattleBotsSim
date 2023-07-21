@@ -36,6 +36,8 @@ void setup()
     radio.setPALevel(RF24_PA_MAX);  // Set the Power Amplified level to MAX in this case
     radio.startListening();
     radio.setAutoAck(false);
+    // set data rate to 1 Mbps
+    radio.setDataRate(RF24_1MBPS);
 }
 
 GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)

@@ -7,6 +7,7 @@ class Radio
 {
 public:
     Radio();
+    void InitRadio();
     void Send(RobotMessage& message);
 
     DriveCommand Receive();
