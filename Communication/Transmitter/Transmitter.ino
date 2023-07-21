@@ -20,6 +20,18 @@
 RF24 radio(14, 10);              // CE, CSN      // Define instance of RF24 object called 'radio' and define pins used
 const byte address[6] = "00001"; // Define address/pipe to use.
 
+
+void InitRadio()
+{
+    radio.begin();                  // Start instance of the radio object
+    radio.openReadingPipe(0, address); // Setup pipe to read data from the address
+    radio.openWritingPipe(address); // Setup pipe to write data to the address that was defined
+    radio.setPALevel(RF24_PA_MAX);  // Set the Power Amplified level to MAX in this case
+    radio.startListening();
+    radio.setAutoAck(false);
+    // set data rate to 1 Mbps
+    radio.setDataRate(RF24_1MBPS);
+}
 //===============================================================================
 //  Initialization
 //===============================================================================
@@ -30,14 +42,7 @@ void setup()
 
     Serial.begin(9600);
     Serial.clear();
-    radio.begin();                  // Start instance of the radio object
-    radio.openReadingPipe(0, address); // Setup pipe to read data from the address
-    radio.openWritingPipe(address); // Setup pipe to write data to the address that was defined
-    radio.setPALevel(RF24_PA_MAX);  // Set the Power Amplified level to MAX in this case
-    radio.startListening();
-    radio.setAutoAck(false);
-    // set data rate to 1 Mbps
-    radio.setDataRate(RF24_1MBPS);
+    InitRadio();
 }
 
 GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
@@ -65,6 +70,8 @@ void SendDriveCommand(DriveCommand &driveData)
 }
 
 unsigned long lastReceiveTime = 0;
+unsigned long lastInitTime = 0;
+int i =0;
 //===============================================================================
 //  Main
 //===============================================================================
@@ -78,6 +85,12 @@ void loop()
         // write to radio
         DriveCommand command = serialReceiver.getLatestData();
         SendDriveCommand(command);
+    }
+
+    if (millis() - lastInitTime > 500)
+    {
+      lastInitTime = millis();
+      InitRadio();
     }
 
     while (radio.available())

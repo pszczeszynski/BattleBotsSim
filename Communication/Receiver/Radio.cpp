@@ -46,7 +46,7 @@ DriveCommand Radio::Receive()
 
 int i = 0;
 unsigned long lastSendTime = 0;
-#define MIN_INTER_SEND_TIME 15
+#define MIN_INTER_SEND_TIME 10
 /**
  * Sends a message from the robot to the driver station
  */
@@ -55,16 +55,6 @@ void Radio::Send(RobotMessage& message)
     unsigned long currTime = millis();
     if (currTime - lastSendTime < MIN_INTER_SEND_TIME)
     {
-        return;
-    }
-
-
-    // check if radio died
-    if (!radio.isChipConnected())
-    {
-        Serial.println("Radio died");
-        InitRadio();
-
         return;
     }
     if (i % 100 == 0)
@@ -88,7 +78,7 @@ void Radio::Send(RobotMessage& message)
     Serial.println(i);
 
     }
-    delay(10);
+    // delay(10);
 }
 
 bool Radio::Available()

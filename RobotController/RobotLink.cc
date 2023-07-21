@@ -62,7 +62,7 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     }
 }
 
-#define MIN_INTER_SEND_TIME_MS 5
+#define MIN_INTER_SEND_TIME_MS 10
 int i = 0;
 void RobotLinkReal::Drive(DriveCommand &command)
 {
