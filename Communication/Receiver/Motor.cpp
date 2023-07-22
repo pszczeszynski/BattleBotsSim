@@ -27,7 +27,7 @@ void Motor::SetPower(double power)
     }
 
     // map the power to the pwm range
-    int pwm = (power * 500.0) + 1500;
+    int pwm = (power * 100.0) + 1500;
 
     //int pwm = map(power, -1, 1, PWM_MIN, PWM_MAX);      <-- Map doesn't work with floats
 
@@ -37,6 +37,8 @@ void Motor::SetPower(double power)
 
     // write the pwm to the motor
     motor.writeMicroseconds(pwm);
+    Serial.println("pwm");
+    Serial.println(pwm);
 
     // save the power for next time
     lastPower = power;

@@ -99,21 +99,21 @@ void Drive(DriveCommand& command)
 /**
  * Computes response message of robot state data
 */
-RobotMessage update(int dt)
-{
-    RobotMessage ret {0};
+// RobotMessage update(int dt)
+// {
+//     RobotMessage ret {0};
 
-    // get accelerometer data and set accel
-    ret.accel = {1,2.5,3.999};//imu->getAccel();
+//     // get accelerometer data and set accel
+//     ret.accel = imu->getAccel(); //{1,2.5,3.999}
 
-    // now compute velocity
-    ret.velocity = {0,0,0};//imu->getVelocity(ret.accel, dt);
+//     // now compute velocity
+//     ret.velocity = imu->getVelocity(ret.accel, dt);   //0,0,0}
 
-    // get gyro data and set gyro
-    ret.rotation = 0;//imu->getRotation(dt);
+//     // get gyro data and set gyro
+//     ret.rotation = imu->getRotation(dt);
 
-    return ret;
-}
+//     return ret;
+// }
 
 
 //===============================================================================
@@ -121,6 +121,7 @@ RobotMessage update(int dt)
 //===============================================================================
 void loop()
 {
+    // Serial.println("got here 1");
     if (radio->Available())
     {
         /*
@@ -134,34 +135,25 @@ void loop()
         // Read the incoming message 
         // Serial.println("Receiving Radio Transmission");
         DriveCommand command = radio->Receive();
-
-        //Test command
-        // DriveCommand test;
-        // test.movement = -1;
-        // test.turn = 0.0;
         
         // Drive the robot
         Drive(command);
-
-        // Compute robot state
-        int dt = getDt();
-        RobotMessage message = update(dt);
-        // Send data back to transmitter and driver station
-        radio->Send(message);
-
     }
-  
-    // Get IMU Readings
+
+    // // Compute robot state
+    // int dt = getDt();
+    // RobotMessage message = update(dt);
+    // // Send data back to transmitter and driver station
+    // radio->Send(message);
+
+    // Serial.println("about to print");
+    // // Get IMU Readings
     // if (imu->dataReady())
     // {
+    //     Serial.println("about to update");
     //     imu->Update();
+    //     Serial.println("updated");
     //     imu->printScaledAGMT();
+    //     Serial.println("finished");
     // }
-
-    //Test
-    // static double power = 1.0;
-    // leftMotor->SetPower(-1);
-    // delay(200); 
-    // power -= 0.025;
-    // if (power< -1) power = 1.0;
 }

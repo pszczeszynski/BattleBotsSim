@@ -178,6 +178,10 @@ RobotConfigWindow::RobotConfigWindow()
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
 
     std::cout << "got here after" << std::endl;
+
+    // Install this object as an event filter on the application object
+    qApp->installEventFilter(this);
+
 }
 
 void RobotConfigWindow::RefreshFieldImage()

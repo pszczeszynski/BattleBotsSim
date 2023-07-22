@@ -1,6 +1,7 @@
 #include "RobotLink.h"
 #include "Clock.h"
 #include "../Communication/Communication.h"
+#include "Globals.h"
 
 RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
                                           {
@@ -62,8 +63,9 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     }
 }
 
+#define DRIVE_SCALE 1.0
+
 #define MIN_INTER_SEND_TIME_MS 10
-double i = -1;
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     if (sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
@@ -71,8 +73,15 @@ void RobotLinkReal::Drive(DriveCommand &command)
         return;
     }
     sendingClock.markStart();
+    // std::cout << "driving with movement: " << command.movement << ", turn: " << command.turn << std::endl;
 
-    command.movement = i;
+    command.movement = std::max(-1.0, std::min(1.0, command.movement));
+    command.turn = std::max(-1.0, std::min(1.0, command.turn));
+
+    // scale down
+    command.movement *= DRIVE_SCALE;
+    command.turn *= DRIVE_SCALE;
+
     command.valid = true;
 
     // write start MESSAGE_START_CHAR
@@ -84,10 +93,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // write start MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
     WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
-
-    std::cout << "sending" << i << std::endl;
-    i += 0.001;
-    if (i > 0.25) i = -1;
 }
 
 RobotMessage RobotLinkReal::Receive()

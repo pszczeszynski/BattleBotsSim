@@ -110,6 +110,12 @@ void RobotController::Run()
             response.turn = 0;
         }
 
+
+        response.movement = 0;
+        response.turn = 0;
+
+        response.movement = wDown - sDown;
+        response.turn = aDown - dDown;
         TIMER_START
         // send the response to the robot
         robotLink.Drive(response);

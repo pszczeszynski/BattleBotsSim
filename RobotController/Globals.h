@@ -32,4 +32,12 @@ extern RobotIMUData robotIMUData;
     #define TIMER_PRINT(msg)
 #endif
 
+extern double movement;
+extern double turn;
+extern bool wDown;
+extern bool aDown;
+extern bool sDown;
+extern bool dDown;
+
+
 #endif

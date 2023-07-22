@@ -20,6 +20,8 @@ void Radio::InitRadio()
 }
 
 bool receivedDriveRecently = false;
+
+unsigned long lastTimeReceivedMessage = 0;
 /**
  * Receives a message from the driver station
  */
@@ -31,12 +33,13 @@ DriveCommand Radio::Receive()
 
     if (!driveData.valid)
     {
+        Serial.println("invalid");
         return driveData;
     }
     receivedDriveRecently = true;
 
-    Serial.print("Received drive command with movement: ");
-    Serial.println(driveData.movement);
+    //Serial.print("Received drive command with movement: ");
+    //Serial.println(driveData.movement);
 
     // TODO: check + handle errors
 
@@ -61,7 +64,6 @@ void Radio::Send(RobotMessage& message)
     {
         // reset radio
         InitRadio();
-
     }
     lastSendTime = currTime;
     //if (!receivedDriveRecently) return;

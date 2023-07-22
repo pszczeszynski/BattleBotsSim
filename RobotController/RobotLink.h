@@ -34,7 +34,7 @@ private:
     ServerSocket serverSocket;
 };
 
-#define TRANSMITTER_COM_PORT TEXT("COM7")
+#define TRANSMITTER_COM_PORT TEXT("COM8")
 
 class RobotLinkReal : public IRobotLink
 {
