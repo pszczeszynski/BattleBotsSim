@@ -73,7 +73,8 @@ double IMU::getRotation(int dt)
 {
     double rotation = 0;
 
-    rotation = myICM.gyrY() * dt / 1000.0;
+    //This won't work
+    rotation = myICM.gyrZ() * dt / 1000.0;
 
     return rotation;
 }

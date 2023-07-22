@@ -63,7 +63,7 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
 }
 
 #define MIN_INTER_SEND_TIME_MS 10
-int i = 0;
+double i = -1;
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     if (sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
@@ -86,7 +86,8 @@ void RobotLinkReal::Drive(DriveCommand &command)
     WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
 
     std::cout << "sending" << i << std::endl;
-    i++;
+    i += 0.001;
+    if (i > 0.25) i = -1;
 }
 
 RobotMessage RobotLinkReal::Receive()

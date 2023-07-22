@@ -11,7 +11,7 @@
 
 IMU* imu;
 #define LEFT_MOTOR_PIN 9
-#define RIGHT_MOTOR_PIN 10
+#define RIGHT_MOTOR_PIN 8
 Motor* leftMotor;
 Motor* rightMotor;
 Radio* radio;
@@ -39,6 +39,18 @@ void setup()
     Serial.println("Initializing radio...");
     radio = new Radio();
     Serial.println("Success!");
+
+    //Explicitly set both motors to 0 before loop
+    leftMotor->SetPower(0); // -1 for One direction, 0 for bidirection
+    rightMotor->SetPower(0);
+
+    // calibration
+    // leftMotor->SetPower(1);
+    // Serial.println("high");
+    // delay(5000);
+    // leftMotor->SetPower(-1);
+    // Serial.println("low");
+    // delay(5000);
 }
 
 /**
@@ -67,7 +79,9 @@ void Drive(DriveCommand& command)
 
     // compute powers
     double leftPower = command.movement - command.turn;
+    // Serial.print("Writing "); Serial.print(leftPower); Serial.println(" to left motor.");
     double rightPower = command.movement + command.turn;
+    // Serial.print("Writing "); Serial.print(rightPower); Serial.println(" to right motor.");
 
     // normalize
     double maxPower = max(abs(leftPower), abs(rightPower));
@@ -107,20 +121,47 @@ RobotMessage update(int dt)
 //===============================================================================
 void loop()
 {
-    // Read the incoming message 
-    DriveCommand command = radio->Receive();
-    // Drive the robot
-    Drive(command);
+    if (radio->Available())
+    {
+        /*
+        IMPORTANT NOTE:
+        The radio will sometimes think it is receiving data when it is clearly not.
+        In that case, movement and turn will be 0.
+        This is fine as long as the ESC supports going in reverse.
+        Otherwise it's bad - the motor will run at half power.
+        */
 
-    // Compute robot state
-    int dt = getDt();
-    RobotMessage message = update(dt);
-    // Send data back to transmitter and driver station
-    radio->Send(message);
+        // Read the incoming message 
+        // Serial.println("Receiving Radio Transmission");
+        DriveCommand command = radio->Receive();
+
+        //Test command
+        // DriveCommand test;
+        // test.movement = -1;
+        // test.turn = 0.0;
+        
+        // Drive the robot
+        Drive(command);
+
+        // Compute robot state
+        int dt = getDt();
+        RobotMessage message = update(dt);
+        // Send data back to transmitter and driver station
+        radio->Send(message);
+
+    }
   
+    // Get IMU Readings
     // if (imu->dataReady())
     // {
     //     imu->Update();
     //     imu->printScaledAGMT();
     // }
+
+    //Test
+    // static double power = 1.0;
+    // leftMotor->SetPower(-1);
+    // delay(200); 
+    // power -= 0.025;
+    // if (power< -1) power = 1.0;
 }
