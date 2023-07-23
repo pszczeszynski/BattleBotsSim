@@ -22,12 +22,17 @@ void Radio::InitRadio()
 bool receivedDriveRecently = false;
 
 unsigned long lastTimeReceivedMessage = 0;
+int i = 0;
+
 /**
  * Receives a message from the driver station
  */
 DriveCommand Radio::Receive()
 {
     DriveCommand driveData {0};
+    i += 1;
+    i %= 500;
+
     // read the data from the radio
     radio.read(&driveData, sizeof(driveData));
 
@@ -38,8 +43,6 @@ DriveCommand Radio::Receive()
     }
     receivedDriveRecently = true;
 
-    //Serial.print("Received drive command with movement: ");
-    //Serial.println(driveData.movement);
 
     // TODO: check + handle errors
 
@@ -47,7 +50,6 @@ DriveCommand Radio::Receive()
     return driveData;
 }
 
-int i = 0;
 unsigned long lastSendTime = 0;
 #define MIN_INTER_SEND_TIME 10
 /**

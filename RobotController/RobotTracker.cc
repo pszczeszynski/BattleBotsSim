@@ -58,7 +58,7 @@ void RobotTracker::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMU
 }
 
 
-#define NEW_VELOCITY_WEIGHT 0.1
+#define NEW_VELOCITY_WEIGHT 1.0
 /**
  * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
  * Updates the position of the robot to the given position.

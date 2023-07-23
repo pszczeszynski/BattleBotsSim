@@ -116,14 +116,16 @@ void Drive(DriveCommand& command)
 // }
 
 
+unsigned long lastReceiveTime = 0;
+#define STOP_ROBOT_TIMEOUT_MS 500
 //===============================================================================
 //  Main
 //===============================================================================
 void loop()
 {
-    // Serial.println("got here 1");
     if (radio->Available())
     {
+        lastReceiveTime = millis();
         /*
         IMPORTANT NOTE:
         The radio will sometimes think it is receiving data when it is clearly not.
@@ -140,6 +142,12 @@ void loop()
         Drive(command);
     }
 
+    if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
+    {
+        DriveCommand command {0, 0};
+        Drive(command);
+    }
+    
     // // Compute robot state
     // int dt = getDt();
     // RobotMessage message = update(dt);

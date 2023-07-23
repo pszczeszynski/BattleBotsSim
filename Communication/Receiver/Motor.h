@@ -10,4 +10,6 @@ public:
     void SetPower(double speed);
 private:
     Servo motor;
+    double lastPower = 0;
+
 };
