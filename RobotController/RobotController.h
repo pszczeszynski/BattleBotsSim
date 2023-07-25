@@ -1,7 +1,6 @@
 #pragma once
 #include "ServerSocket.h"
 #include "Clock.h"
-#include "OpponentProfile.h"
 
 #include "CameraReceiver.h"
 #include "Vision.h"
@@ -20,21 +19,17 @@ public slots:
 private:
     Clock clock;
 
-    DriveCommand loop(RobotMessage &state);
-    DriveCommand driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, bool chooseNewTarget);
-    OpponentProfile p{};
+    DriveCommand OrbitMode(RobotMessage &state);
+    DriveCommand DriveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, bool chooseNewTarget);
 
     RobotTracker robotTracker;
     RobotTracker opponentTracker;
     Vision vision;
 
-////////// SIMULATION ////////
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
-    // CameraReceiverSim overheadCamR_sim;
 #else
-////////// REAL ////////
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
 #endif

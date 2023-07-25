@@ -107,10 +107,10 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
     data.diameter = (blob.rect.width + blob.rect.height) / 2;
     data.histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
 
-    // fill drawingImage with red at (blob.rect masked with motionimage)
+    // fill DRAWING_IMAGE with red at (blob.rect masked with motionimage)
     cv::Mat redImage = cv::Mat::zeros(frame.size(), CV_8UC3);
     redImage.setTo(cv::Scalar(0, 0, 255), motionImage);
-    cv::addWeighted(frame, 1, redImage, 0.5, 0, drawingImage);    
+    cv::addWeighted(frame, 1, redImage, 0.5, 0, DRAWING_IMAGE);    
     
 
     // visualizeHistogram(data.histogram);
@@ -196,7 +196,7 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         bool firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
 
         // draw a circle on the frame
-        cv::circle(drawingImage, blobs[0].center, 10, cv::Scalar(0, 255, 0), 2);
+        cv::circle(DRAWING_IMAGE, blobs[0].center, 10, cv::Scalar(0, 255, 0), 2);
 
         // if greater than 0, it's us => update first robotTracker otherwise update second.
         if (firstIsRobot)

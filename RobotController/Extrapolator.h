@@ -24,7 +24,7 @@ public:
 
         // compute derivative
         T newDerivative = T(newValue - lastValue) / lastElapsedTime;
-        
+
         // if 100ms passes, it is 100% of the new value
         double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
 
@@ -67,7 +67,6 @@ private:
     bool loggingDebugInfo = false;
 };
 
-
 class AngleExtrapolator
 {
 public:
@@ -88,7 +87,7 @@ public:
 
         // compute derivative
         double newDerivative = angle_wrap(newValue - lastValue) / lastElapsedTime;
-        
+
         // if 100ms passes, it is 100% of the new value
         double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
 
@@ -135,7 +134,6 @@ private:
     bool loggingDebugInfo = false;
 };
 
-
 // the state of the robot system
 struct RobotSimState
 {
@@ -145,19 +143,23 @@ struct RobotSimState
     double angle;
 };
 
+/**
+ * @class RobotSimulator
+ * Simulates the robot's movement in many iterations.
+ * This is used to extrapolate the robot's position and angle into the future.
+ */
 class RobotSimulator
 {
 public:
     RobotSimulator()
     {
-
     }
-private:
 
+private:
     /**
      * Simulates the state of the robot for a single step using linear extrapolation
-    */
-    RobotSimState SimulateStep(RobotSimState& initialState, double timeSeconds)
+     */
+    RobotSimState SimulateStep(RobotSimState &initialState, double timeSeconds)
     {
         RobotSimState newState;
 
@@ -165,7 +167,7 @@ private:
         newState.position = initialState.position + initialState.velocity * timeSeconds;
 
         double deltaAngle = initialState.angularVelocity * timeSeconds;
-    
+
         // rotate curr velocity by angular angular deltaAngle
         newState.velocity = rotate_point(initialState.velocity, deltaAngle);
 
@@ -175,9 +177,8 @@ private:
         // compute the new angular velocity
         newState.angularVelocity = initialState.angularVelocity;
 
-
         // draw line from old position to new position
-        cv::line(drawingImage, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
+        cv::line(DRAWING_IMAGE, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
 
         // return the new state
         return newState;
@@ -186,12 +187,12 @@ private:
 public:
     /**
      * Simulates the state of the robot over a given time period
-     * 
+     *
      * @param initialState The initial state of the robot
      * @param timeSeconds The time period to simulate over
      * @param steps The number of steps to simulate (more = more accurate but slower)
-    */
-    RobotSimState Simulate(RobotSimState& initialState, double timeSeconds, int steps)
+     */
+    RobotSimState Simulate(RobotSimState &initialState, double timeSeconds, int steps)
     {
         // start with the initial state
         RobotSimState currentState = initialState;
@@ -202,7 +203,7 @@ public:
             // simulate a single step
             currentState = SimulateStep(currentState, timeSeconds / steps);
         }
-        
+
         // return the final state
         return currentState;
     }

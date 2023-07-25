@@ -7,7 +7,9 @@
 #define WIDTH 480
 #define HEIGHT 480
 
-extern cv::Mat drawingImage;
+// the drawing image is the main image that is displayed on the screen
+// it is set in the vision code and displayed in the main window
+extern cv::Mat DRAWING_IMAGE;
 extern QString SAVE_FILE_NAME;
 
 // TODO: this should not be in globals
@@ -19,6 +21,7 @@ struct RobotIMUData
 
 extern RobotIMUData robotIMUData;
 
+// uncomment below to enable timer printing
 // #define ENABLE_TIMERS
 
 #ifdef ENABLE_TIMERS
@@ -37,6 +40,5 @@ extern bool wDown;
 extern bool aDown;
 extern bool sDown;
 extern bool dDown;
-
 
 #endif

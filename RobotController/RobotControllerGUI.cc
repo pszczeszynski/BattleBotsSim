@@ -170,9 +170,9 @@ RobotConfigWindow::RobotConfigWindow()
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);
 
     // init drawing image
-    drawingImage = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
+    DRAWING_IMAGE = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
     // Load an OpenCV Mat and set it as the image in QLabel
-    QImage image(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
+    QImage image(DRAWING_IMAGE.data, DRAWING_IMAGE.cols, DRAWING_IMAGE.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(image);
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
 
@@ -185,12 +185,12 @@ RobotConfigWindow::RobotConfigWindow()
 
 void RobotConfigWindow::RefreshFieldImage()
 {
-    if (drawingImage.empty())
+    if (DRAWING_IMAGE.empty())
     {
         return;
     }
     
-    QImage imageQt(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
+    QImage imageQt(DRAWING_IMAGE.data, DRAWING_IMAGE.cols, DRAWING_IMAGE.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(imageQt);
     // Update the imageLabel pixmap whenever drawingImage is updated
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));

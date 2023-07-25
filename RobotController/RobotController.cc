@@ -52,8 +52,6 @@ RobotController::RobotController() :
 
 }
 
-double stickAngle = M_PI;
-
 void RobotController::Run()
 {
     TIMER_INIT
@@ -94,7 +92,7 @@ void RobotController::Run()
 
         // 3. run our robot controller loop
         TIMER_START
-        DriveCommand response = loop(message);
+        DriveCommand response = OrbitMode(message);
         TIMER_PRINT("loop()")
 
         if (!IS_RUNNING)
@@ -103,12 +101,14 @@ void RobotController::Run()
             response.turn = 0;
         }
 
-
+#ifndef SIMULATION
         response.movement = 0;
         response.turn = 0;
 
         response.movement = wDown - sDown;
         response.turn = aDown - dDown;
+#endif
+
         TIMER_START
         // send the response to the robot
         robotLink.Drive(response);
@@ -126,15 +126,15 @@ void RobotController::Run()
 /**
  * Uses the error between a currentPos and targetPos
  * and returns a power to drive towards the target at (with 2 thresholds)
- * 
+ *
  * @param error The target position
  * @param threshold1 The first threshold (full power)
  * @param threshold2 The second threshold (min power)
  * @param minPower The minimum power to drive at
-*/
-double doubleThreshToTarget(double error,
-                         double threshold1, double threshold2,
-                         double minPower, double maxPower)
+ */
+static double DoubleThreshToTarget(double error,
+                                   double threshold1, double threshold2,
+                                   double minPower, double maxPower)
 {
     double distance = std::abs(error);
     double ret = 0;
@@ -171,10 +171,9 @@ bool danger = false;
  * Drive the robot to a specified position
  * @param targetPos The target position to drive the robot to
  * @param state The current state of the robot and opponent
- * @param drawingImage The image for drawing debugging information
  * @return The response to send back to Unity
  */
-DriveCommand RobotController::driveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, bool chooseNewTarget = false)
+DriveCommand RobotController::DriveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, bool chooseNewTarget = false)
 {
     static Clock c;
     static bool goToOtherTarget = true;
@@ -200,15 +199,15 @@ DriveCommand RobotController::driveToPosition(const cv::Point2f currPos, const d
 
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(50.0 * cos(currAngle), 50.0 * sin(currAngle));
-    cv::arrowedLine(drawingImage, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
+    cv::arrowedLine(DRAWING_IMAGE, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
     // draw different colored arrow from our position at extrapolated angle
     cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
-    cv::arrowedLine(drawingImage, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
+    cv::arrowedLine(DRAWING_IMAGE, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
 
     // draw our position
-    cv::circle(drawingImage, currPos, 5, cv::Scalar(0,0,255), 2);
+    cv::circle(DRAWING_IMAGE, currPos, 5, cv::Scalar(0,0,255), 2);
     // draw circle with dotted line at extrapolated position
-    cv::circle(drawingImage, currPosEx, 5, cv::Scalar(255,100,0), 1);
+    cv::circle(DRAWING_IMAGE, currPosEx, 5, cv::Scalar(255,100,0), 1);
 
     double angleToTarget1 = atan2(targetPos.y - currPosEx.y, targetPos.x - currPosEx.x);
     double angleToTarget2 = angle_wrap(angleToTarget1 + M_PI);
@@ -224,7 +223,7 @@ DriveCommand RobotController::driveToPosition(const cv::Point2f currPos, const d
     double deltaAngleRad = goToOtherTarget ? deltaAngleRad1 : deltaAngleRad2;
 
     DriveCommand response{0, 0};
-    response.turn = doubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
+    response.turn = DoubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
                                                 TURN_THRESH_2_DEG * TO_RAD, MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
 
     // thrash angle
@@ -241,7 +240,7 @@ DriveCommand RobotController::driveToPosition(const cv::Point2f currPos, const d
     response.movement = goToOtherTarget ? -drive_scale : drive_scale;
 
     // Draw debugging information
-    cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
+    cv::circle(DRAWING_IMAGE, targetPos, 10, cv::Scalar(0, 255, 0), 4);
 
     response.movement *= -1;
     response.turn *= -1;
@@ -253,11 +252,11 @@ Clock runAwayClock;
 bool timing = false;
 
 /**
- * This is the main robot controller loop. It is called once per frame.
- * @param message The current state of the robot and opponent
- * @return The response to send back to unity
+ * OrbitMode
+ * Orbits the robot around the opponent at a fixed distance.
+ * @param message The current state of the robot
  */
-DriveCommand RobotController::loop(RobotMessage &message)
+DriveCommand RobotController::OrbitMode(RobotMessage &message)
 {
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
@@ -269,7 +268,7 @@ DriveCommand RobotController::loop(RobotMessage &message)
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
     opponentPosEx = opponentTracker.GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
-    double stickAngleRad = stickAngle;//vision.GetOpponentAngle();
+    double stickAngleRad = 0; // TODO: get the stick angle from the gamepad
 
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
@@ -280,14 +279,14 @@ DriveCommand RobotController::loop(RobotMessage &message)
 
 
     // draw blue circle around opponent
-    cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
+    cv::circle(DRAWING_IMAGE, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
 
     // draw arrow from opponent position at opponent angle
     cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(vision.GetOpponentAngle()), 100.0 * sin(vision.GetOpponentAngle()));
-    cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+    cv::arrowedLine(DRAWING_IMAGE, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
 
     // draw orange circle around opponent to show evasion radius
-    cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
+    cv::circle(DRAWING_IMAGE, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
 
     bool orbitRight = abs(angle_wrap(stickAngleRad - 0)) < (30 * TO_RAD) && stickAngleRad != 0;
     bool orbitLeft = abs(angle_wrap(stickAngleRad - M_PI)) < (30 * TO_RAD);
@@ -302,12 +301,12 @@ DriveCommand RobotController::loop(RobotMessage &message)
     }
 
     // Draw the point
-    cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
+    cv::circle(DRAWING_IMAGE, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
 
     bool allowReverse = false;
 
     // Drive to the opponent position
-    DriveCommand response = driveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, allowReverse);
+    DriveCommand response = DriveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, allowReverse);
 
     response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;

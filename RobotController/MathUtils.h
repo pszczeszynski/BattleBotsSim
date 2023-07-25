@@ -7,7 +7,7 @@
 #define TO_DEG (180.0 / M_PI)
 
 // TODO: move this to a better place
-double angle_between_points(double x1, double y1, double x2, double y2);
+double AngleBetweenPoints(double x1, double y1, double x2, double y2);
 
 double angle_wrap(double angle);
 

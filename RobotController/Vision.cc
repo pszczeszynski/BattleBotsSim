@@ -41,25 +41,34 @@ bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 */
 bool Vision::runPipeline()
 {
+    // get the current frame from the camera
     overheadCam.getFrame(currFrame);
-
+    // preprocess the frame to get the birds eye view
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
 
+    // if we don't have a previous frame
     if (previousBirdsEye.empty())
     {
+        // set the previous frame to the current frame
         previousBirdsEye = currFrame.clone();
+        // return false since we don't have a previous frame to compare to
         return false;
     }
+
+    // in simulation only, we must check if the current frame is different from the previous frame
 #ifdef SIMULATION
     // Skip the first frame or if the current frame is the same as the previous frame
     if (areMatsEqual(currFrame, previousBirdsEye))
     {
+        // set the previous frame to the current frame
         previousBirdsEye = currFrame.clone();
+        // return false since the current frame is the same as the previous frame
         return false;
     }
 #endif
 
-    drawingImage = currFrame.clone();
+    // clone the current frame to the drawing image
+    DRAWING_IMAGE = currFrame.clone();
 
     // find the opponent
     locateRobots2d(currFrame, previousBirdsEye);
