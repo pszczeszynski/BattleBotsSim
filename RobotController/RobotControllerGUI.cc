@@ -176,8 +176,6 @@ RobotConfigWindow::RobotConfigWindow()
     QPixmap pixmap = QPixmap::fromImage(image);
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
 
-    std::cout << "got here after" << std::endl;
-
     // Install this object as an event filter on the application object
     qApp->installEventFilter(this);
 
@@ -223,4 +221,10 @@ void RobotConfigWindow::SetApp(QApplication& app)
     app.setStyle("Fusion");
 
     this->app = &app;
+}
+
+RobotConfigWindow& RobotConfigWindow::GetInstance()
+{
+    static RobotConfigWindow instance;
+    return instance;
 }

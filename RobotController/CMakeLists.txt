@@ -49,6 +49,7 @@ set(SOURCES
     VisionPreprocessor.cc
     RobotControllerGUI.cc
     RobotLink.cc
+    Gamepad.cc
 )
 
 # Create the object files
@@ -60,4 +61,4 @@ set(SOURCES
 # cuda_add_executable(RobotController ${SOURCES})
 add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController opencv_world Qt6::Widgets)
+target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput)

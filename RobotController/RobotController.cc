@@ -1,27 +1,19 @@
-#include "RobotController.h"
+#include "Extrapolator.h"
+#include "Gamepad.h"
 #include "MathUtils.h"
+#include "RobotConfig.h"
+#include "RobotController.h"
+#include "RobotLink.h"
+#include "Vision.h"
 #include <QApplication>
 #include <QMainWindow>
-#include "RobotControllerGUI.h"
-#include "RobotConfig.h"
-#include "RobotLink.h"
-
-
 #include <QThread>
-
-#include "Vision.h"
 #include <opencv2/core.hpp>
-
-#include "Extrapolator.h"
-
-int argc = 0;
-
-QApplication app(argc, nullptr);
-RobotConfigWindow robotControllerGUI;
 
 int main(int argc, char *argv[])
 {
-    robotControllerGUI.SetApp(app);
+    QApplication app(argc, argv);
+    RobotConfigWindow::GetInstance().SetApp(app);
 
     RobotController rc;
     // Create a separate thread for RobotController
@@ -29,7 +21,7 @@ int main(int argc, char *argv[])
     rc.moveToThread(&controllerThread);
 
     QObject::connect(&controllerThread, &QThread::started, &rc, &RobotController::Run);
-    robotControllerGUI.ShowGUI();
+    RobotConfigWindow::GetInstance().ShowGUI();
 
     controllerThread.start();
 
@@ -39,44 +31,55 @@ int main(int argc, char *argv[])
 RobotController::RobotController() :
     robotTracker{cv::Point2f(0, 0)},
     opponentTracker{cv::Point2f(10000, 10000)},
+    gamepad{0},
 #ifdef SIMULATION
       overheadCamL_sim{"overheadCamL"},
-    //   ,overheadCamR_sim{"overheadCamR"}
       vision{overheadCamL_sim, robotTracker, opponentTracker}
 #else
       overheadCamL_real{1},
-    //   ,overheadCamR_real{1}
-      vision{overheadCamL_real, robotTracker, opponentTracker} // overheadCamR_real
+      vision{overheadCamL_real, robotTracker, opponentTracker}
 #endif
 {
 
 }
 
+#define FPS_PRINT_TIME_SECONDS 5
+static void LogFPS()
+{
+    static int frames = 0;
+    static Clock c;
+    // get the elapsed time
+    double elapsed = c.getElapsedTime();
+
+    // if enough time has passed, print the fps
+    if (elapsed > FPS_PRINT_TIME_SECONDS && frames > 0)
+    {
+        std::cout << "fps: " << frames / elapsed << std::endl;
+        frames = 0;
+        c.markStart();
+    }
+    frames ++;
+}
+
 void RobotController::Run()
 {
     TIMER_INIT
-    std::cout << "running" << std::endl;
     Clock lastTime;
     lastTime.markStart();
 
-    unsigned long frames = 0;
     // receive until the peer closes the connection
     while (true)
     {
-        frames ++;
-        if (frames % 100 == 0)
-        {
-            // std::cout << "fps: " << frames / lastTime.getElapsedTime() << std::endl;
-            frames = 0;
-            lastTime.markStart();
-        }
+        // log the frame rate
+        LogFPS();
 
-        // 1. receive state info from the robot
+        // update the gamepad
+        gamepad.Update();
+
+        // receive state info from the robot
         RobotMessage message = robotLink.Receive();
         robotIMUData.velocity = cv::Point2f(message.velocity.x, message.velocity.y);
         robotIMUData.angle = message.rotation * TO_RAD;
-
-        // std::cout << "robotImuData v: " << robotIMUData.velocity << " a: " << robotIMUData.angle << std::endl;
 
         TIMER_START
         bool updated = vision.runPipeline();
@@ -92,32 +95,18 @@ void RobotController::Run()
 
         // 3. run our robot controller loop
         TIMER_START
-        DriveCommand response = OrbitMode(message);
-        TIMER_PRINT("loop()")
-
-        if (!IS_RUNNING)
-        {
-            response.movement = 0;
-            response.turn = 0;
-        }
-
-#ifndef SIMULATION
-        response.movement = 0;
-        response.turn = 0;
-
-        response.movement = wDown - sDown;
-        response.turn = aDown - dDown;
-#endif
+        DriveCommand response = RobotLogic(message);
+        TIMER_PRINT("RobotLogic")
 
         TIMER_START
         // send the response to the robot
         robotLink.Drive(response);
-        TIMER_PRINT("Send to robot")
+        TIMER_PRINT("Drive")
 
         TIMER_START
         if (updated)
         {
-            robotControllerGUI.RefreshFieldImage();
+            RobotConfigWindow::GetInstance().RefreshFieldImage();
         }
         TIMER_PRINT("imshow()")
     }
@@ -163,9 +152,6 @@ static double DoubleThreshToTarget(double error,
 
     return ret;
 }
-
-bool danger = false;
-
 
 /**
  * Drive the robot to a specified position
@@ -233,7 +219,7 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f currPos, const d
     //     response.turn_amount = 0;
     // }
 
-    double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;//danger ? 0.8 : 0.0;
+    double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
     double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
 
@@ -247,9 +233,6 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f currPos, const d
 
     return response;
 }
-
-Clock runAwayClock;
-bool timing = false;
 
 /**
  * OrbitMode
@@ -268,13 +251,14 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
     opponentPosEx = opponentTracker.GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
-    double stickAngleRad = 0; // TODO: get the stick angle from the gamepad
 
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
 
+    // get the angle from us to the opponent
     cv::Point2f usToOpponent = opponentPosEx - ourPosition;
     double angleToOpponent = atan2(usToOpponent.y, usToOpponent.x);
+    // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
 
@@ -288,8 +272,9 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
     // draw orange circle around opponent to show evasion radius
     cv::circle(DRAWING_IMAGE, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
 
-    bool orbitRight = abs(angle_wrap(stickAngleRad - 0)) < (30 * TO_RAD) && stickAngleRad != 0;
-    bool orbitLeft = abs(angle_wrap(stickAngleRad - M_PI)) < (30 * TO_RAD);
+
+    bool orbitRight = gamepad.GetRightStickY() > 0;
+    bool orbitLeft = gamepad.GetRightStickY() < 0;
 
     if (orbitRight || orbitLeft)
     {
@@ -310,6 +295,39 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
 
     response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+
+    return response;
+}
+
+/**
+ * ManualMode
+ * Allows the user to drive the robot manually
+ * @param message The current state of the robot
+ */
+DriveCommand RobotController::ManualMode(RobotMessage &message)
+{
+    DriveCommand response{0, 0};
+    response.movement = gamepad.GetRightStickY();
+    response.turn = -gamepad.GetLeftStickX();
+
+    return response;
+}
+
+/**
+ * RobotLogic
+ * The main logic for the robot
+ * @param message The current state of the robot
+ */
+DriveCommand RobotController::RobotLogic(RobotMessage &message)
+{
+    DriveCommand response{0, 0};
+    
+    response = ManualMode(message);
+
+    if (gamepad.GetButtonA())
+    {
+        response = OrbitMode(message);
+    }
 
     return response;
 }

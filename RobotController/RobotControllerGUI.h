@@ -17,10 +17,10 @@ class RobotConfigWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    RobotConfigWindow();
     void RefreshFieldImage();
     void ShowGUI();
     void SetApp(QApplication& app);
+    static RobotConfigWindow& GetInstance();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override
@@ -108,6 +108,8 @@ protected:
     }
 
 private:
+    // private ctor since this is a singleton
+    RobotConfigWindow();
 
     class MouseEvents : public QObject
     {

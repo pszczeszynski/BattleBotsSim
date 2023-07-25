@@ -98,7 +98,8 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "cinttypes": "cpp",
-        "qthread": "cpp"
+        "qthread": "cpp",
+        "qkeyevent": "cpp"
     },
     "cmake.sourceDirectory": "C:/Dev/BattleBotsSim/RobotController"
 }

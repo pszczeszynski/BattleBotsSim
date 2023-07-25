@@ -1,6 +1,7 @@
 #pragma once
 #include "Clock.h"
 #include "MathUtils.h"
+#include "Globals.h"
 
 #define TIME_WEIGHT_MS 25
 template <typename T>
