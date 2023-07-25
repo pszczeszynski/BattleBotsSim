@@ -34,10 +34,6 @@ public:
 
     bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2);
 
-    double angle;
-    cv::Point2f position;
-    double opponent_angle;
-    cv::Point2f opponent_position;
 private:
     ICameraReceiver& overheadCam;
     cv::Mat currFrame;

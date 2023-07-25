@@ -4,8 +4,8 @@
 
 #include <opencv2/opencv.hpp>
 
-#define WIDTH 360
-#define HEIGHT 360
+#define WIDTH 480
+#define HEIGHT 480
 
 extern cv::Mat drawingImage;
 extern QString SAVE_FILE_NAME;
@@ -18,7 +18,6 @@ struct RobotIMUData
 };
 
 extern RobotIMUData robotIMUData;
-
 
 // #define ENABLE_TIMERS
 

@@ -57,7 +57,17 @@ cv::Point2f rotate_point(cv::Point2f p, double angle);
 class Angle
 {
 public:
-    explicit Angle(double value = 0.0) : value_(angle_wrap(value)) {}
+    explicit Angle(double value = 0.0, bool wrapAround = true)
+    {
+        if (wrapAround)
+        {
+            value_ = angle_wrap(value);
+        }
+        else
+        {
+            value_ = value;
+        }
+    }
 
     // Overload of operator+
     Angle operator+(const Angle& other) const
@@ -78,7 +88,7 @@ public:
 
     Angle operator/(const double& d) const
     {
-        return Angle(value_ / d);
+        return Angle(value_ / d, false);
     }
 
     // Conversion operator to double

@@ -136,6 +136,8 @@ void RobotLinkSim::Drive(DriveCommand &command)
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
+#define ACCELEROMETER_TO_PX_SCALER 37.5
+
 RobotMessage RobotLinkSim::Receive()
 {
     std::string received = "";
@@ -144,9 +146,12 @@ RobotMessage RobotLinkSim::Receive()
         received = serverSocket.receive();
     }
     RobotState message = RobotStateParser::parse(received);
-
-    RobotMessage ret{0};
-    ret.accel = Point{message.robot_velocity.x, message.robot_velocity.y, message.robot_velocity.z};
+    
+    RobotMessage ret {0};
+    ret.velocity = Point { message.robot_velocity.x, -message.robot_velocity.z, message.robot_velocity.y };
+    ret.velocity.x *= ACCELEROMETER_TO_PX_SCALER;
+    ret.velocity.y *= ACCELEROMETER_TO_PX_SCALER;
+    ret.velocity.z *= ACCELEROMETER_TO_PX_SCALER;
     ret.rotation = message.robot_orientation;
 
     // return the message

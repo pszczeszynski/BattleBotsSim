@@ -27,8 +27,6 @@ protected:
     {
         if (event->button() == Qt::LeftButton)
         {
-            std::cout << "PRESSED AT: " << event->x() << ", " << event->y() << std::endl;
-            std::cout << "image label pos: " << imageLabel->pos().x() << ", " << imageLabel->pos().y() << std::endl;
             // Handle left button press
         }
     }

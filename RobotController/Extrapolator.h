@@ -1,7 +1,8 @@
 #pragma once
 #include "Clock.h"
+#include "MathUtils.h"
 
-#define WEIGHTED_AVERAGE_SAMPLES 5
+#define TIME_WEIGHT_MS 25
 template <typename T>
 class Extrapolator
 {
@@ -14,33 +15,195 @@ public:
 
     T SetValue(T newValue)
     {
+        // save the current value
         currentValue = newValue;
 
-        T newDifference = T(newValue - lastValue);
-        weightedAverageDifference = T(newDifference - weightedAverageDifference) * (1.0 / WEIGHTED_AVERAGE_SAMPLES) + weightedAverageDifference * (1.0 - (1.0 / WEIGHTED_AVERAGE_SAMPLES));
-        lastValue = newValue;
-
+        // start a timer
         lastElapsedTime = clock.getElapsedTime();
         clock.markStart();
+
+        // compute derivative
+        T newDerivative = T(newValue - lastValue) / lastElapsedTime;
+        
+        // if 100ms passes, it is 100% of the new value
+        double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
+
+        // weight the new difference in to the old difference with weight 1 / WEIGHTED_AVERAGE_SAMPLES
+        weightedDerivative = newDerivative * weightFactor + weightedDerivative * (1 - weightFactor);
+
+        // save the last value for next time
+        lastValue = newValue;
 
         return newValue;
     }
 
     T Extrapolate(double time)
     {
-        T extrapolatedValue = T(currentValue + T(weightedAverageDifference * (time / lastElapsedTime)));
+        T extrapolatedValue = T(currentValue + T(weightedDerivative * time));
         return extrapolatedValue;
     }
 
     T GetVelocity()
     {
-        return weightedAverageDifference;
+        return weightedDerivative;
+    }
+
+    void LogDebugInfo()
+    {
+        loggingDebugInfo = true;
+    }
+    void StopLoggingDebugInfo()
+    {
+        loggingDebugInfo = false;
     }
 
 private:
-    T weightedAverageDifference;
+    T weightedDerivative;
     T lastValue;
     T currentValue;
     Clock clock;
     double lastElapsedTime;
+
+    bool loggingDebugInfo = false;
+};
+
+
+class AngleExtrapolator
+{
+public:
+    AngleExtrapolator(double initialValue)
+    {
+        lastValue = initialValue;
+        clock.markStart();
+    }
+
+    double SetValue(double newValue)
+    {
+        // save the current value
+        currentValue = newValue;
+
+        // start a timer
+        lastElapsedTime = clock.getElapsedTime();
+        clock.markStart();
+
+        // compute derivative
+        double newDerivative = angle_wrap(newValue - lastValue) / lastElapsedTime;
+        
+        // if 100ms passes, it is 100% of the new value
+        double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
+
+        // weight the new difference in to the old difference with weight 1 / WEIGHTED_AVERAGE_SAMPLES
+        weightedDerivative = newDerivative * weightFactor + weightedDerivative * (1 - weightFactor);
+
+        // save the last value for next time
+        lastValue = newValue;
+
+        if (loggingDebugInfo)
+        {
+            printf("    Extrapolator: this elapsed time: %f, new derivative deg/s: %f\n", lastElapsedTime, TO_DEG * weightedDerivative);
+        }
+
+        return newValue;
+    }
+
+    double Extrapolate(double time)
+    {
+        return angle_wrap(currentValue + weightedDerivative * time);
+    }
+
+    double GetVelocity()
+    {
+        return weightedDerivative;
+    }
+
+    void LogDebugInfo()
+    {
+        loggingDebugInfo = true;
+    }
+    void StopLoggingDebugInfo()
+    {
+        loggingDebugInfo = false;
+    }
+
+private:
+    double weightedDerivative;
+    double lastValue;
+    double currentValue;
+    Clock clock;
+    double lastElapsedTime;
+
+    bool loggingDebugInfo = false;
+};
+
+
+// the state of the robot system
+struct RobotSimState
+{
+    cv::Point2f velocity;
+    double angularVelocity;
+    cv::Point2f position;
+    double angle;
+};
+
+class RobotSimulator
+{
+public:
+    RobotSimulator()
+    {
+
+    }
+private:
+
+    /**
+     * Simulates the state of the robot for a single step using linear extrapolation
+    */
+    RobotSimState SimulateStep(RobotSimState& initialState, double timeSeconds)
+    {
+        RobotSimState newState;
+
+        // compute the new position
+        newState.position = initialState.position + initialState.velocity * timeSeconds;
+
+        double deltaAngle = initialState.angularVelocity * timeSeconds;
+    
+        // rotate curr velocity by angular angular deltaAngle
+        newState.velocity = rotate_point(initialState.velocity, deltaAngle);
+
+        // compute the new angle
+        newState.angle = angle_wrap(initialState.angle + deltaAngle);
+
+        // compute the new angular velocity
+        newState.angularVelocity = initialState.angularVelocity;
+
+
+        // draw line from old position to new position
+        cv::line(drawingImage, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
+
+        // return the new state
+        return newState;
+    }
+
+public:
+    /**
+     * Simulates the state of the robot over a given time period
+     * 
+     * @param initialState The initial state of the robot
+     * @param timeSeconds The time period to simulate over
+     * @param steps The number of steps to simulate (more = more accurate but slower)
+    */
+    RobotSimState Simulate(RobotSimState& initialState, double timeSeconds, int steps)
+    {
+        // start with the initial state
+        RobotSimState currentState = initialState;
+
+        // for each step
+        for (int i = 0; i < steps; i++)
+        {
+            // simulate a single step
+            currentState = SimulateStep(currentState, timeSeconds / steps);
+        }
+        
+        // return the final state
+        return currentState;
+    }
 };

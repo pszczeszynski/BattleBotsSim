@@ -9,6 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set policy for find_package to use <PackageName>_ROOT variables
 cmake_policy(SET CMP0074 NEW)
 
+# add define for SIMULATION if SIMULATION is an arg
+option(SIMULATION "Build for simulation" OFF)
+if(SIMULATION)
+    add_definitions(-DSIMULATION)
+endif()
+
 # TODO: make this not hardcoded
 list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
 

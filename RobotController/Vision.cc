@@ -72,7 +72,7 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.037, 2);
+    const float MIN_AREA = pow(frame.cols * 0.07, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -159,7 +159,7 @@ cv::Point2f Vision::GetRobotPosition()
 
 double Vision::GetRobotAngle()
 {
-    return angle;
+    return robotIMUData.angle;
 }
 
 cv::Point2f Vision::GetOpponentPosition()

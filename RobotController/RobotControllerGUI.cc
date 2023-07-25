@@ -169,7 +169,6 @@ RobotConfigWindow::RobotConfigWindow()
     imageLabel = new QLabel(this);
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);
 
-    std::cout << "got here before" << std::endl;
     // init drawing image
     drawingImage = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
     // Load an OpenCV Mat and set it as the image in QLabel

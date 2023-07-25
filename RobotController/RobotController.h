@@ -1,16 +1,10 @@
 #pragma once
 #include "ServerSocket.h"
-// #include "RobotStateParser.h"
 #include "Clock.h"
 #include "OpponentProfile.h"
 
-// #define SIMULATION
-
-#define ENABLE_VISION
-#ifdef ENABLE_VISION
 #include "CameraReceiver.h"
 #include "Vision.h"
-#endif
 #include <QObject>
 #include <QPixmap>
 #include "RobotTracker.h"
@@ -32,9 +26,6 @@ private:
 
     RobotTracker robotTracker;
     RobotTracker opponentTracker;
-
-////////// VISION /////////
-#ifdef ENABLE_VISION
     Vision vision;
 
 ////////// SIMULATION ////////
@@ -47,7 +38,5 @@ private:
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
 #endif
-#endif
-/////////////////////////
 
 };
