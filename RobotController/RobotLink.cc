@@ -165,7 +165,7 @@ void RobotLinkSim::Drive(DriveCommand &command)
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
-#define ACCELEROMETER_TO_PX_SCALER 37.5
+#define ACCELEROMETER_TO_PX_SCALER 0.05854 * WIDTH
 
 RobotMessage RobotLinkSim::Receive()
 {
