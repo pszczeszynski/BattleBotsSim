@@ -16,8 +16,11 @@ class RobotConfigWindow : public QMainWindow
 {
     Q_OBJECT
 
-public:
+public slots:
+    // needs to be a slot so it can be called from the robot controller thread
+    // qt will schedule the call to this function so that it is thread safe
     void RefreshFieldImage();
+public:
     void ShowGUI();
     void SetApp(QApplication& app);
     static RobotConfigWindow& GetInstance();

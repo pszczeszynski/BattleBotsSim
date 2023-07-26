@@ -1,5 +1,11 @@
 #include "Clock.h"
 
+Clock::Clock()
+{
+	// initialize the start time
+	startTime = std::chrono::high_resolution_clock::now();
+}
+
 /**
  * \brief
  * Marks the start time for reference

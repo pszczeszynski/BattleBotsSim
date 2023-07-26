@@ -9,6 +9,7 @@
 class Clock
 {
 public:
+	Clock();
 	void markStart();
 	double getElapsedTime();
 private:

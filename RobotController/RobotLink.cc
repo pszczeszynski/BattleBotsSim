@@ -29,15 +29,35 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     }
     return dwBytesRead > 0; })
 {
+    InitComPort();
     sendingClock.markStart();
+}
+
+
+void RobotLinkReal::InitComPort()
+{
+    static int numTries = 0;
+    const int NUM_TRIES_BEFORE_PRINTING_ERROR = 500;
+
     comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (comPort == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Error opening port: " << TRANSMITTER_COM_PORT << std::endl;
+        // increase numTries
+        numTries ++;
+        numTries %= NUM_TRIES_BEFORE_PRINTING_ERROR;
+
+        // if we have tried NUM_TRIES_BEFORE_PRINTING_ERROR times, print error
+        if (numTries % NUM_TRIES_BEFORE_PRINTING_ERROR == 1)
+        {
+            std::cerr << "Error opening port: " << TRANSMITTER_COM_PORT << std::endl;
+        }
+
+        // break out of function
         return;
     }
     else
     {
+        numTries = 0;
         std::cout << "Transmitter COM Port opened successfully" << std::endl;
     }
 
@@ -72,6 +92,14 @@ void RobotLinkReal::Drive(DriveCommand &command)
     {
         return;
     }
+
+    if (comPort == INVALID_HANDLE_VALUE)
+    {
+        // attempt to reopen
+        InitComPort();
+        return;
+    }
+
     sendingClock.markStart();
     // std::cout << "driving with movement: " << command.movement << ", turn: " << command.turn << std::endl;
 
@@ -99,7 +127,8 @@ RobotMessage RobotLinkReal::Receive()
 {
     if (comPort == INVALID_HANDLE_VALUE)
     {
-        std::cout << "closed" << std::endl;
+        // attempt to reopen
+        InitComPort();
         return RobotMessage{0};
     }
 

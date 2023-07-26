@@ -11,10 +11,11 @@ public:
     virtual void getFrame(cv::Mat &output) = 0;
 };
 
-class CameraReceiverSim : public ICameraReceiver {
+class CameraReceiverSim : public ICameraReceiver
+{
 public:
     CameraReceiverSim(std::string fileName, int width = 1280, int height = 720);
-    void getFrame(cv::Mat& output);
+    void getFrame(cv::Mat &output);
     ~CameraReceiverSim();
 
 private:
@@ -28,8 +29,9 @@ class CameraReceiver : public ICameraReceiver
 {
 public:
     CameraReceiver(int cameraIndex);
-    void getFrame(cv::Mat& output);
+    void getFrame(cv::Mat &output);
     ~CameraReceiver();
+
 private:
-    cv::VideoCapture* cap = nullptr;
+    cv::VideoCapture *cap;
 };

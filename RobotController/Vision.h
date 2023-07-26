@@ -25,7 +25,6 @@ public:
     Vision(ICameraReceiver &overheadCam, RobotTracker& robotTracker, RobotTracker& opponentTracker);
     void locateRobots2d(cv::Mat&, cv::Mat&);
     bool runPipeline();
-    const cv::Mat& GetBirdsEyeImage();
 
     cv::Point2f GetRobotPosition();
     double GetRobotAngle();

@@ -45,6 +45,7 @@ public:
     ~RobotLinkReal();
 
 private:
+    void InitComPort();
     HANDLE comPort;
     DCB dcbSerialParams;
     Clock sendingClock;

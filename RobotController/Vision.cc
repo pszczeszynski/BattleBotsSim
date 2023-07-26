@@ -67,8 +67,10 @@ bool Vision::runPipeline()
     }
 #endif
 
+DRAWING_IMAGE_MUTEX.lock();
     // clone the current frame to the drawing image
     DRAWING_IMAGE = currFrame.clone();
+DRAWING_IMAGE_MUTEX.unlock();
 
     // find the opponent
     locateRobots2d(currFrame, previousBirdsEye);
@@ -179,9 +181,4 @@ cv::Point2f Vision::GetOpponentPosition()
 double Vision::GetOpponentAngle()
 {
     return opponentTracker.getAngle();
-}
-
-const cv::Mat& Vision::GetBirdsEyeImage()
-{
-    return previousBirdsEye;
 }

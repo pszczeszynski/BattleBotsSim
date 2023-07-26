@@ -20,6 +20,11 @@ int main(int argc, char *argv[])
     QThread controllerThread;
     rc.moveToThread(&controllerThread);
 
+    // Connect RobotController's signal to RobotConfigWindow's slot
+    QObject::connect(&rc, &RobotController::RefreshFieldImageSignal,
+                     &RobotConfigWindow::GetInstance(), &RobotConfigWindow::RefreshFieldImage,
+                     Qt::QueuedConnection);
+
     QObject::connect(&controllerThread, &QThread::started, &rc, &RobotController::Run);
     RobotConfigWindow::GetInstance().ShowGUI();
 
@@ -106,7 +111,8 @@ void RobotController::Run()
         TIMER_START
         if (updated)
         {
-            RobotConfigWindow::GetInstance().RefreshFieldImage();
+            // refresh the field image
+            emit RefreshFieldImageSignal();
         }
         TIMER_PRINT("imshow()")
     }
@@ -322,6 +328,7 @@ DriveCommand RobotController::RobotLogic(RobotMessage &message)
 {
     DriveCommand response{0, 0};
     
+    DRAWING_IMAGE_MUTEX.lock();
     response = ManualMode(message);
 
     if (gamepad.GetButtonA())
@@ -329,5 +336,6 @@ DriveCommand RobotController::RobotLogic(RobotMessage &message)
         response = OrbitMode(message);
     }
 
+    DRAWING_IMAGE_MUTEX.unlock();
     return response;
 }

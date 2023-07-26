@@ -3,6 +3,7 @@
 #include <QString>
 
 #include <opencv2/opencv.hpp>
+#include <mutex>
 
 #define WIDTH 480
 #define HEIGHT 480
@@ -10,6 +11,8 @@
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window
 extern cv::Mat DRAWING_IMAGE;
+extern std::mutex DRAWING_IMAGE_MUTEX;
+
 extern QString SAVE_FILE_NAME;
 
 // TODO: this should not be in globals

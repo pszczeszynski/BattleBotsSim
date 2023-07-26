@@ -4,7 +4,6 @@
 #include <QLabel>
 #include <QSpinBox>
 #include <QSlider>
-#include <QThread>
 #include <QLineEdit>
 #include "RobotController.h"
 
@@ -181,17 +180,30 @@ RobotConfigWindow::RobotConfigWindow()
 
 }
 
+/**
+ * @brief RobotConfigWindow::RefreshFieldImage
+ * Refreshes the field image in the GUI
+ * This function is called from the robot controller thread
+ * It is scheduled by the RobotController::RefreshFieldImageSignal signal
+*/
 void RobotConfigWindow::RefreshFieldImage()
 {
+    // acquire lock on drawing image
+    DRAWING_IMAGE_MUTEX.lock();
+    // if drawing image is empty, release lock and return
     if (DRAWING_IMAGE.empty())
     {
+        DRAWING_IMAGE_MUTEX.unlock();
         return;
     }
-    
+
+    // otherwise, convert drawing image to QImage and set it as the image in QLabel
     QImage imageQt(DRAWING_IMAGE.data, DRAWING_IMAGE.cols, DRAWING_IMAGE.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(imageQt);
     // Update the imageLabel pixmap whenever drawingImage is updated
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
+    // finally release lock
+    DRAWING_IMAGE_MUTEX.unlock();
 }
 
 void RobotConfigWindow::ShowGUI()

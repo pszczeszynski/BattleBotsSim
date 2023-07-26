@@ -7,17 +7,23 @@
 #include <iostream>
 #include "Globals.h"
 #include "Clock.h"
+#include <stdlib.h>
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
 
-
 CameraReceiver::CameraReceiver(int cameraIndex)
 {
-    // Create a VideoCapture object with the DirectShow string
+    // Disable hardware transforms so it takes less time to initialize
+    putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
+    // Now we can create the video capture
     cap = new cv::VideoCapture(cameraIndex, cv::CAP_DSHOW);
-
-    // enable 60 fps
-    cap->set(cv::CAP_PROP_FPS, 60);
+    // set frame size
+    cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
+    cap->set(cv::CAP_PROP_FRAME_HEIGHT, (int)(HEIGHT * 0.6666666667));
+    // set to 60 fps
+    cap->set(cv::CAP_PROP_FPS, 100000);
+    // disable buffering
+    cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
     // disable auto exposure
     cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
     // disable auto white balance
@@ -27,33 +33,30 @@ CameraReceiver::CameraReceiver(int cameraIndex)
     // set white balance
     cap->set(cv::CAP_PROP_WB_TEMPERATURE, 4500);
 
-    // set resolution
-    cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH * 1.7777778);
-    cap->set(cv::CAP_PROP_FRAME_HEIGHT, HEIGHT);
-    
+    // make camera have no automatic anything
+    cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
+    cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
 
     if (!cap->isOpened())
     {
         std::cout << "Failed to open VideoCapture " << cameraIndex << std::endl;
     }
 }
-
 void CameraReceiver::getFrame(cv::Mat& output)
 {
-TIMER_INIT
-TIMER_START
-    *cap >> output;
-TIMER_PRINT("CameraReceiver::getFrame")
-
-    // print size
-    std::cout << "CameraReceiver::getFrame: " << output.size() << std::endl;
+    TIMER_INIT
+    TIMER_START
+    cap->read(output);
+    cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
+    TIMER_PRINT("CameraReceiver::getFrame")
 }
 
 CameraReceiver::~CameraReceiver()
 {
+    cap->release();
     delete cap;
 }
-
 
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
 CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)

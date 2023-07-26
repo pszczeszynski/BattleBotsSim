@@ -16,6 +16,9 @@ class RobotController : public QObject
     Q_OBJECT
 public:
     RobotController();
+signals:
+    // updates the image of the field in the GUI
+    void RefreshFieldImageSignal();
 public slots:
     void Run();
 private:
