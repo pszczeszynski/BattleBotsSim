@@ -28,7 +28,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
 
     Serial.println("Initializing IMU...");
-    // imu = new IMU();
+    imu = new IMU();
     Serial.println("Failed because Matthew made an oopsie!");
 
     Serial.println("Initializing motors...");
@@ -99,21 +99,23 @@ void Drive(DriveCommand& command)
 /**
  * Computes response message of robot state data
 */
-// RobotMessage update(int dt)
-// {
-//     RobotMessage ret {0};
+RobotMessage update(int dt)
+{
+    RobotMessage ret {0};
 
-//     // get accelerometer data and set accel
-//     ret.accel = imu->getAccel(); //{1,2.5,3.999}
+    // get accelerometer data and set accel
+    ret.accel = imu->getAccel(); //{1,2.5,3.999}
 
-//     // now compute velocity
-//     ret.velocity = imu->getVelocity(ret.accel, dt);   //0,0,0}
+    // now compute velocity
+    ret.velocity = imu->getVelocity(ret.accel, dt);   //0,0,0}
 
-//     // get gyro data and set gyro
-//     ret.rotation = imu->getRotation(dt);
+    // get gyro data and set gyro
+    ret.rotation = imu->getRotation(dt);
 
-//     return ret;
-// }
+    imu->plotData(ret.rotation, ret.velocity.x, ret.accel.x);
+
+    return ret;
+}
 
 
 unsigned long lastReceiveTime = 0;
@@ -147,21 +149,20 @@ void loop()
         DriveCommand command {0, 0};
         Drive(command);
     }
-    
-    // // Compute robot state
-    // int dt = getDt();
-    // RobotMessage message = update(dt);
-    // // Send data back to transmitter and driver station
-    // radio->Send(message);
 
-    // Serial.println("about to print");
-    // // Get IMU Readings
-    // if (imu->dataReady())
-    // {
-    //     Serial.println("about to update");
-    //     imu->Update();
-    //     Serial.println("updated");
-    //     imu->printScaledAGMT();
-    //     Serial.println("finished");
-    // }
+    // Serial.println("about to print IMU");
+    // Get IMU Readings
+    if (imu->dataReady())
+    {
+        // Serial.println("about to update");
+        imu->Update();
+        // Compute robot state
+        int dt = getDt();
+        RobotMessage message = update(dt);
+        // Serial.println("updated");
+        // imu->printScaledAGMT();
+        // Serial.println("finished");
+    }
+      // // Send data back to transmitter and driver station
+    // radio->Send(message);
 }

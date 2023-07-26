@@ -26,6 +26,7 @@ IMU::IMU()
     }
 
     velocity = {0, 0, 0};
+    rotation = 0.0;
 }
 
 void IMU::Update()
@@ -71,12 +72,59 @@ Point IMU::getVelocity(Point accel, int dt)
  */
 double IMU::getRotation(int dt)
 {
-    double rotation = 0;
+    //Has drift
+    // this->rotation += myICM.gyrZ() * dt / 1000.0;
 
-    //This won't work
-    rotation = myICM.gyrZ() * dt / 1000.0;
+    //Use Magnetometer instead. Problem: Range of angles as you rotate is not 0 to +- 180 or pi, as it should be.
+    // this->rotation = atan2(myICM.magX(), myICM.magY());
 
-    return rotation;
+    // Read sensor data from gyroscope and magnetometer
+    float gyroX, gyroY, gyroZ; // Read the gyroscope data (angular velocity)
+    float magX, magY, magZ;   // Read the magnetometer data (magnetic field)
+    float accelX, accelY, accelZ;
+
+    gyroX = myICM.gyrX(); // * DEG_TO_RAD;      // Convert from deg/s to rad/s
+    gyroY = myICM.gyrY(); // * DEG_TO_RAD;
+    gyroZ = myICM.gyrZ(); // * DEG_TO_RAD;
+
+    magX = myICM.magX() / 100.0;      // Convert from micro teslas to Gauss <--Note: NOt sure of this conversion is needed
+    magY = myICM.magY() / 100.0;
+    magZ = myICM.magZ() / 100.0;
+
+    accelX = myICM.accX() * 2000;       // Convert from milli gs to +-2gs
+    accelY = myICM.accY() * 2000;
+    accelZ = myICM.accZ() * 2000;
+
+    // Apply sensor fusion with Madgwick filter
+    filter.update(gyroX, gyroY, gyroZ, accelX, accelY, accelZ, magX, magY, magZ);
+    //Alternative (Still has drift): 
+    // filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
+
+    // Get the yaw (Z-axis) angle from the filter
+    this->rotation = filter.getYaw();
+
+    // // Convert yaw from radians to degrees
+    // rotation = rotation * 180.0 / PI;
+
+    // // Ensure yaw stays within the range of 0 to 360 degrees
+    // if (rotation < 0) {
+    //   rotation += 360.0;
+    // }
+
+
+    return this->rotation;
+}
+
+void IMU::plotData(double orient, double vel, double accel)
+{
+  Serial.print("Orientation:");
+  Serial.print(orient);
+  Serial.print(",");
+  Serial.print("Velocity:");
+  Serial.print(vel);
+  Serial.print(",");
+  Serial.print("Acceleration:");
+  Serial.println(accel);
 }
 
 void IMU::printScaledAGMT()
