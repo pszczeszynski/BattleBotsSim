@@ -158,12 +158,6 @@ RobotConfigWindow::RobotConfigWindow()
         RobotClassifier::instance->SwitchRobots();
     });
 
-    // add calibrate button
-    addPushButton(this, "Calibrate Robot Images", []()
-    {
-        RobotClassifier::instance->RequestRecalibrate();
-    });
-
     // Right column: Display OpenCV Mat (passed by reference)
     imageLabel = new QLabel(this);
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);

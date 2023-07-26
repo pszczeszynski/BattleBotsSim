@@ -8,6 +8,24 @@ RobotTracker::RobotTracker(cv::Point2f initialPosition) :
 {
 }
 
+/**
+ * @brief returns the robot tracker for our robot
+*/
+RobotTracker& RobotTracker::Robot()
+{
+    static RobotTracker robot(cv::Point2f(0,0));
+    return robot;
+}
+
+/**
+ * @brief returns the robot tracker for the opponent
+*/
+RobotTracker& RobotTracker::Opponent()
+{
+    static RobotTracker opponent(cv::Point2f(0,0));
+    return opponent;
+}
+
 // the displacement required to update the angle
 #define DIST_BETWEEN_ANG_UPDATES_PX 5
 
@@ -54,7 +72,7 @@ void RobotTracker::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMU
     // do a weighted average of the predicted position and the visual position to smooth out the noise in the visual position
     cv::Point2f weightedAveragePosition = predictedPosition * (1 - VISUAL_INFO_WEIGHT) + visualPosition * VISUAL_INFO_WEIGHT;
     // update using the weighted average
-    update(weightedAveragePosition, imuData.velocity);
+    Update(weightedAveragePosition, imuData.velocity);
 }
 
 
@@ -73,7 +91,7 @@ void RobotTracker::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
     // use the blob's center for the visual position
     cv::Point2f visualPosition = blob.center;
     // update using the visual information
-    update(visualPosition, weightedAverageVelocity);
+    Update(visualPosition, weightedAverageVelocity);
 
     // update our angle using the velocity
     UpdateAngle();
@@ -89,10 +107,13 @@ void RobotTracker::UpdateIMUOnly(RobotIMUData& imuData)
     // predict the new position
     cv::Point2f newPosition = position + averageVelocityLastUpdate * lastUpdate.getElapsedTime();
     // update normally
-    update(newPosition, imuData.velocity);
+    Update(newPosition, imuData.velocity);
+
+    // set our angle to the imu angle
+    angle = Angle(imuData.angle);
 }
 
-void RobotTracker::update(cv::Point2f position, cv::Point2f velocity)
+void RobotTracker::Update(cv::Point2f position, cv::Point2f velocity)
 {
     // update our velocity and position
     this->velocity = velocity;

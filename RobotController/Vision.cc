@@ -9,11 +9,8 @@
 #include <opencv2/flann.hpp>
 #include "Globals.h"
 
-Vision::Vision(ICameraReceiver &overheadCam, RobotTracker &robotTracker, RobotTracker &opponentTracker)
-    : overheadCam(overheadCam),
-      robotClassifier(robotTracker, opponentTracker),
-      robotTracker(robotTracker),
-      opponentTracker(opponentTracker)
+Vision::Vision(ICameraReceiver &overheadCam)
+    : overheadCam(overheadCam)
 {
 }
 
@@ -39,20 +36,27 @@ bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 /**
  * This is the 2d version of the pipeline
 */
-bool Vision::runPipeline()
+VisionClassification Vision::RunPipeline()
 {
+    VisionClassification ret;
+
     // get the current frame from the camera
     overheadCam.getFrame(currFrame);
     // preprocess the frame to get the birds eye view
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
+
+DRAWING_IMAGE_MUTEX.lock();
+    // clone the current frame to the drawing image
+    DRAWING_IMAGE = currFrame.clone();
+DRAWING_IMAGE_MUTEX.unlock();
 
     // if we don't have a previous frame
     if (previousBirdsEye.empty())
     {
         // set the previous frame to the current frame
         previousBirdsEye = currFrame.clone();
-        // return false since we don't have a previous frame to compare to
-        return false;
+        // return no classification since we don't have a previous frame
+        return ret;
     }
 
     // in simulation only, we must check if the current frame is different from the previous frame
@@ -62,24 +66,20 @@ bool Vision::runPipeline()
     {
         // set the previous frame to the current frame
         previousBirdsEye = currFrame.clone();
-        // return false since the current frame is the same as the previous frame
-        return false;
+        // return no classification
+        return ret;
     }
 #endif
 
-DRAWING_IMAGE_MUTEX.lock();
-    // clone the current frame to the drawing image
-    DRAWING_IMAGE = currFrame.clone();
-DRAWING_IMAGE_MUTEX.unlock();
-
     // find the opponent
-    locateRobots2d(currFrame, previousBirdsEye);
+    ret = LocateRobots2d(currFrame, previousBirdsEye);
     previousBirdsEye = currFrame.clone();
 
-    return true;
+    // return the classification
+    return ret;
 }
 
-void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
+VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
@@ -133,8 +133,8 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
     }
 
     // for each robot, find the EXACT center of the robot by counting the white pixels in the blob and averaging them
-    std::vector<cv::Point2f> robotCenters;
-    std::vector<MotionBlob> motionBlobs;
+    std::vector<MotionBlob> motionBlobs = {};
+
     for (const cv::Rect &rect : potentialRobots)
     {
         // find the average of all the white pixels in the blob
@@ -159,26 +159,6 @@ void Vision::locateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
 
-    // classify the blobs and then update the trackers
-    robotClassifier.Update(motionBlobs, frame, thresholdImg);
-}
-
-cv::Point2f Vision::GetRobotPosition()
-{
-    return robotTracker.getPosition();
-}
-
-double Vision::GetRobotAngle()
-{
-    return robotIMUData.angle;
-}
-
-cv::Point2f Vision::GetOpponentPosition()
-{
-    return opponentTracker.getPosition();
-}
-
-double Vision::GetOpponentAngle()
-{
-    return opponentTracker.getAngle();
+    // classify the blobs and save them for later
+    return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);
 }

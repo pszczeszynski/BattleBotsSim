@@ -50,6 +50,7 @@ set(SOURCES
     RobotControllerGUI.cc
     RobotLink.cc
     Gamepad.cc
+    Mouse.cc
 )
 
 # Create the object files

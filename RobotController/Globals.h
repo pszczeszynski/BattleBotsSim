@@ -1,5 +1,4 @@
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#pragma once
 #include <QString>
 
 #include <opencv2/opencv.hpp>
@@ -35,13 +34,4 @@ extern RobotIMUData robotIMUData;
     #define TIMER_INIT 
     #define TIMER_START 
     #define TIMER_PRINT(msg)
-#endif
-
-extern double movement;
-extern double turn;
-extern bool wDown;
-extern bool aDown;
-extern bool sDown;
-extern bool dDown;
-
 #endif

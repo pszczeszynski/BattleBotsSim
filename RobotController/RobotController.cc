@@ -3,6 +3,7 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
+#include "RobotClassifier.h"
 #include "RobotLink.h"
 #include "Vision.h"
 #include <QApplication>
@@ -33,19 +34,15 @@ int main(int argc, char *argv[])
     app.exec();
 }
 
-RobotController::RobotController() :
-    robotTracker{cv::Point2f(0, 0)},
-    opponentTracker{cv::Point2f(10000, 10000)},
-    gamepad{0},
+RobotController::RobotController() : gamepad{0},
 #ifdef SIMULATION
-      overheadCamL_sim{"overheadCamL"},
-      vision{overheadCamL_sim, robotTracker, opponentTracker}
+                                     overheadCamL_sim{"overheadCamL"},
+                                     vision{overheadCamL_sim}
 #else
-      overheadCamL_real{1},
-      vision{overheadCamL_real, robotTracker, opponentTracker}
+                                     overheadCamL_real{1},
+                                     vision{overheadCamL_real}
 #endif
 {
-
 }
 
 #define FPS_PRINT_TIME_SECONDS 5
@@ -87,16 +84,9 @@ void RobotController::Run()
         robotIMUData.angle = message.rotation * TO_RAD;
 
         TIMER_START
-        bool updated = vision.runPipeline();
-        if (!updated)
-        {
-            TIMER_PRINT("vision.runPipeline() no update")
-            robotTracker.UpdateIMUOnly(robotIMUData);
-        }
-        else
-        {
-            TIMER_PRINT("vision.runPipeline() update")
-        }
+        VisionClassification classification = vision.RunPipeline();
+        UpdateRobotTrackers(classification);
+        TIMER_PRINT("Vision")
 
         // 3. run our robot controller loop
         TIMER_START
@@ -109,12 +99,38 @@ void RobotController::Run()
         TIMER_PRINT("Drive")
 
         TIMER_START
-        if (updated)
-        {
-            // refresh the field image
-            emit RefreshFieldImageSignal();
-        }
+        // refresh the field image
+        emit RefreshFieldImageSignal();
         TIMER_PRINT("imshow()")
+    }
+}
+
+void RobotController::UpdateRobotTrackers(VisionClassification classification)
+{
+    // if vision detected our robot
+    if (classification.GetRobotBlob() != nullptr)
+    {
+        MotionBlob robot = *classification.GetRobotBlob();
+        cv::Mat& frame = *(classification.GetRobotBlob()->frame);
+        RobotTracker::Robot().UpdateVisionAndIMU(robot, frame, robotIMUData);
+    }
+    else
+    {
+        // otherwise just update using the imu
+        RobotTracker::Robot().UpdateIMUOnly(robotIMUData);
+    }
+
+    // if vision detected the opponent
+    if (classification.GetOpponentBlob() != nullptr)
+    {
+        MotionBlob opponent = *classification.GetOpponentBlob();
+        cv::Mat& frame = *(classification.GetOpponentBlob()->frame);
+        RobotTracker::Opponent().UpdateVisionOnly(opponent, frame);
+    }
+    else
+    {
+        // set the opponent to invalid (sets their velocity to 0)
+        RobotTracker::Opponent().invalidate();
     }
 }
 
@@ -161,15 +177,17 @@ static double DoubleThreshToTarget(double error,
 
 /**
  * Drive the robot to a specified position
- * @param targetPos The target position to drive the robot to
- * @param state The current state of the robot and opponent
- * @return The response to send back to Unity
+ * @param targetPos The target position
+ * @param chooseNewTarget Whether to choose a new target
  */
-DriveCommand RobotController::DriveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f &targetPos, bool chooseNewTarget = false)
+DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool chooseNewTarget = false)
 {
     static Clock c;
     static bool goToOtherTarget = true;
     static AngleExtrapolator angleExtrapolator {0};
+
+    cv::Point2f currPos = RobotTracker::Robot().position;
+    double currAngle = RobotTracker::Robot().angle;
 
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
@@ -250,13 +268,13 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     // our pos + angle
-    cv::Point2f ourPosition = vision.GetRobotPosition();
+    cv::Point2f ourPosition = RobotTracker::Robot().getPosition();
 
     // opponent pos + angle
-    cv::Point2f opponentPos = vision.GetOpponentPosition();
+    cv::Point2f opponentPos = RobotTracker::Opponent().getPosition();
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
-    opponentPosEx = opponentTracker.GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
+    opponentPosEx = RobotTracker::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
@@ -272,7 +290,7 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
     cv::circle(DRAWING_IMAGE, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
 
     // draw arrow from opponent position at opponent angle
-    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(vision.GetOpponentAngle()), 100.0 * sin(vision.GetOpponentAngle()));
+    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotTracker::Opponent().angle), 100.0 * sin(RobotTracker::Opponent().angle));
     cv::arrowedLine(DRAWING_IMAGE, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
 
     // draw orange circle around opponent to show evasion radius
@@ -297,7 +315,7 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
     bool allowReverse = false;
 
     // Drive to the opponent position
-    DriveCommand response = DriveToPosition(ourPosition, vision.GetRobotAngle(), targetPoint, allowReverse);
+    DriveCommand response = DriveToPosition(targetPoint, allowReverse);
 
     response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
@@ -326,16 +344,19 @@ DriveCommand RobotController::ManualMode(RobotMessage &message)
  */
 DriveCommand RobotController::RobotLogic(RobotMessage &message)
 {
-    DriveCommand response{0, 0};
     
     DRAWING_IMAGE_MUTEX.lock();
-    response = ManualMode(message);
+    DriveCommand responseManual = ManualMode(message);
+    DriveCommand responseOrbit = OrbitMode(message);
+    DRAWING_IMAGE_MUTEX.unlock();
 
-    if (gamepad.GetButtonA())
+    DriveCommand ret = responseManual;
+
+    if (gamepad.GetLeftBumper())
     {
-        response = OrbitMode(message);
+        ret.turn = responseOrbit.turn;
+        ret.movement = responseManual.movement * responseOrbit.movement;
     }
 
-    DRAWING_IMAGE_MUTEX.unlock();
-    return response;
+    return ret;
 }

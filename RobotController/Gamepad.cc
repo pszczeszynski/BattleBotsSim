@@ -28,6 +28,16 @@ bool Gamepad::GetButtonY()
     return (controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
 }
 
+bool Gamepad::GetLeftBumper()
+{
+    return (controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
+}
+
+bool Gamepad::GetRightBumper()
+{
+    return (controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
+}
+
 #define RANGE 32767.0f
 
 float Gamepad::GetLeftStickX()

@@ -22,14 +22,9 @@
 class Vision
 {
 public:
-    Vision(ICameraReceiver &overheadCam, RobotTracker& robotTracker, RobotTracker& opponentTracker);
-    void locateRobots2d(cv::Mat&, cv::Mat&);
-    bool runPipeline();
-
-    cv::Point2f GetRobotPosition();
-    double GetRobotAngle();
-    cv::Point2f GetOpponentPosition();
-    double GetOpponentAngle();
+    Vision(ICameraReceiver &overheadCam);
+    VisionClassification LocateRobots2d(cv::Mat&, cv::Mat&);
+    VisionClassification RunPipeline();
 
     bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2);
 
@@ -37,9 +32,6 @@ private:
     ICameraReceiver& overheadCam;
     cv::Mat currFrame;
     cv::Mat previousBirdsEye;
-
-    RobotTracker& robotTracker;
-    RobotTracker& opponentTracker;
 
     RobotClassifier robotClassifier;
 

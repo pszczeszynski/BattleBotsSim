@@ -13,6 +13,8 @@ public:
     bool GetButtonB();
     bool GetButtonX();
     bool GetButtonY();
+    bool GetLeftBumper();
+    bool GetRightBumper();
 
     // Stick values, range from -1.0 to 1.0
     float GetLeftStickX();

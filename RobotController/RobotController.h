@@ -27,9 +27,8 @@ private:
     DriveCommand RobotLogic(RobotMessage &state);
     DriveCommand OrbitMode(RobotMessage &state);
     DriveCommand ManualMode(RobotMessage &state);
-    DriveCommand DriveToPosition(const cv::Point2f currPos, const double currAngle, const cv::Point2f& targetPos, bool chooseNewTarget);
-    RobotTracker robotTracker;
-    RobotTracker opponentTracker;
+    DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
+    void UpdateRobotTrackers(VisionClassification classification);
     Vision vision;
     Gamepad gamepad;
 

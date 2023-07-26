@@ -22,10 +22,13 @@ class RobotTracker
 public: 
     RobotTracker(cv::Point2f position);
 
+    static RobotTracker& Robot();
+    static RobotTracker& Opponent();
+
     void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMUData& imuData);
     void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
     void UpdateIMUOnly(RobotIMUData& imuData);
-    void update(cv::Point2f position, cv::Point2f velocity);
+    void Update(cv::Point2f position, cv::Point2f velocity);
 
     void invalidate();
 

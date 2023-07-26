@@ -1,10 +1,10 @@
 #include "RobotClassifier.h"
 #include "Globals.h"
+#include "Mouse.h"
 
 RobotClassifier* RobotClassifier::instance = nullptr;
 
-RobotClassifier::RobotClassifier(RobotTracker& robotTracker, RobotTracker& opponentTracker)
-    : robotTracker(robotTracker), opponentTracker(opponentTracker)
+RobotClassifier::RobotClassifier()
 {
     robotCalibrationData.meanColor = cv::Scalar(0, 0, 100);
     robotCalibrationData.diameter = 50;
@@ -73,14 +73,9 @@ double compareHistograms(const cv::Mat &hist1, const cv::Mat &hist2)
 
 void RobotClassifier::SwitchRobots()
 {
-    cv::Point2f temp = robotTracker.position;
-    robotTracker.position = opponentTracker.position;
-    opponentTracker.position = temp;
-}
-
-void RobotClassifier::RequestRecalibrate()
-{
-    requestingRecalibrate = true;
+    cv::Point2f temp = RobotTracker::Robot().position;
+    RobotTracker::Robot().position = RobotTracker::Opponent().position;
+    RobotTracker::Opponent().position = temp;
 }
 
 cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
@@ -99,10 +94,6 @@ cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame,
 
 void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
 {
-    // if (!requestingRecalibrate)
-    // {
-    //     return;
-    // }
     data.meanColor = GetMeanColorOfBlob(blob, frame, motionImage);
     data.diameter = (blob.rect.width + blob.rect.height) / 2;
     data.histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
@@ -137,61 +128,61 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
 */
 double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
 {
-    // // get mean color
-    // cv::Scalar meanColor = GetMeanColorOfBlob(blob, frame, motionImage);
-
-    // // get abs difference to our mean color
-    // cv::Scalar diffToRobot = cv::Scalar(
-    //     meanColor[0] - robotCalibrationData.meanColor[0],
-    //     meanColor[1] - robotCalibrationData.meanColor[1],
-    //     meanColor[2] - robotCalibrationData.meanColor[2]);
-
-    // // get abs difference to opponent mean color
-    // cv::Scalar diffToOpponent = cv::Scalar(
-    //     meanColor[0] - opponentCalibrationData.meanColor[0],
-    //     meanColor[1] - opponentCalibrationData.meanColor[1],
-    //     meanColor[2] - opponentCalibrationData.meanColor[2]);
-    
-
-    // // get the magnitude of the difference
-    // double diffToRobotMag = cv::norm(diffToRobot);
-    // double diffToOpponentMag = cv::norm(diffToOpponent);
-
-    // std::cout << "diff to robot: " << diffToRobotMag << std::endl;
-    // std::cout << "diff to opponent: " << diffToOpponentMag << std::endl;
-
-
+    // calculate the histogram of the blob
     cv::Mat histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
+    // compare to the histogram of the robot and the opponent
     double diffToRobotHist = compareHistograms(histogram, robotCalibrationData.histogram);
     double diffToOpponentHist = compareHistograms(histogram, opponentCalibrationData.histogram);
 
+    // calculate the overal preference to be the robot
     double histogramScore = diffToRobotHist - diffToOpponentHist;
 
-
     // now let's take their location into account
-    double distanceToRobot = cv::norm(robotTracker.getPosition() - blob.center);
-    double distanceToOpponent = cv::norm(opponentTracker.getPosition() - blob.center);
+    double distanceToRobot = cv::norm(RobotTracker::Robot().getPosition() - blob.center);
+    double distanceToOpponent = cv::norm(RobotTracker::Opponent().getPosition() - blob.center);
 
+    // normalize the distance score
     double distanceScoreNormalized = (distanceToRobot - distanceToOpponent) / (distanceToRobot + distanceToOpponent);
 
+    // weight and sum the scores
     return histogramScore * HISTOGRAM_WEIGHT + distanceScoreNormalized * DISTNACE_WEIGHT;
 }
 
 #define MATCHING_DIST_THRESHOLD 50
+
 /**
- * Updates the robot trackers given 2 candidate motion blobs.
- * Requires a frame and a mask of where the motion is
+ * @brief Classifies the blobs and returns the robot and opponent blobs
+ * @param blobs the blobs to classify
+ * @param frame the latest frame from the camera
+ * @param motionImage a frame with only the motion as white pixels
 */
-void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage)
+VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage)
 {
-    bool updatedUs = false;
-    bool updatedOpponent = false;
+    VisionClassification classificationResult;
+
+    // if the user left clicks
+    if (Mouse::GetInstance().GetLeftDown())
+    {
+        // set the robot to the mouse position
+        RobotTracker::Robot().position = Mouse::GetInstance().GetPos();
+        // don't classify
+        return classificationResult;
+    }
+
+    // if the user right clicks
+    if (Mouse::GetInstance().GetRightDown())
+    {
+        // set the opponent to the mouse position
+        RobotTracker::Opponent().position = Mouse::GetInstance().GetPos();
+        // don't classify
+        return classificationResult;
+    }
 
     // if only one blob
     if (blobs.size() == 1)
     {
-        double distanceToRobot = cv::norm(robotTracker.getPosition() - blobs[0].center);
-        double distanceToOpponent = cv::norm(opponentTracker.getPosition() - blobs[0].center);
+        double distanceToRobot = cv::norm(RobotTracker::Robot().getPosition() - blobs[0].center);
+        double distanceToOpponent = cv::norm(RobotTracker::Opponent().getPosition() - blobs[0].center);
 
         bool firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
 
@@ -202,15 +193,12 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
         if (firstIsRobot)
         {
             RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
-            robotTracker.UpdateVisionOnly(blobs[0], frame);
-            // robotTracker.UpdateVisionAndIMU(blobs[0], frame, robotIMUData);
-            updatedUs = true;
+            classificationResult.SetRobot(blobs[0]);
         }
         else
         {
             RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
-            opponentTracker.UpdateVisionOnly(blobs[0], frame);
-            updatedOpponent = true;
+            classificationResult.SetOpponent(blobs[0]);
         }
     }
     // otherwise have more than 2 blobs, only use the first 2 blobs
@@ -228,29 +216,18 @@ void RobotClassifier::Update(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv:
 
 
         // if the robot blob is close to the robot tracker
-        if (norm(robot.center - robotTracker.getPosition()) < MATCHING_DIST_THRESHOLD || requestingRecalibrate)
+        if (norm(robot.center - RobotTracker::Robot().getPosition()) < MATCHING_DIST_THRESHOLD)
         {
-            robotTracker.UpdateVisionOnly(robot, frame);
-            // robotTracker.UpdateVisionAndIMU(robot, frame, robotIMUData);
-            updatedUs = true;
+            classificationResult.SetRobot(robot);
         }
 
         // if the opponent blob is close to the opponent tracker
-        if (norm(opponent.center - opponentTracker.getPosition()) < MATCHING_DIST_THRESHOLD || requestingRecalibrate)
+        if (norm(opponent.center - RobotTracker::Opponent().getPosition()) < MATCHING_DIST_THRESHOLD)
         {
-            opponentTracker.UpdateVisionOnly(opponent, frame);
-            updatedOpponent = true;
+            classificationResult.SetOpponent(opponent);
         }
-
-        requestingRecalibrate = false;
     }
 
-    if (!updatedUs)
-    {
-        robotTracker.invalidate();
-    }
-    if (!updatedOpponent)
-    {
-        opponentTracker.invalidate();
-    }
+    // return our classification
+    return classificationResult;
 }

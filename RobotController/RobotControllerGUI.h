@@ -11,6 +11,7 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include "Globals.h"
+#include "Mouse.h"
 
 class RobotConfigWindow : public QMainWindow
 {
@@ -26,11 +27,20 @@ public:
     static RobotConfigWindow& GetInstance();
 
 protected:
+    QLabel *imageLabel;
+
     void mousePressEvent(QMouseEvent *event) override
     {
         if (event->button() == Qt::LeftButton)
         {
             // Handle left button press
+            Mouse::GetInstance().SetLeftDown(true);
+        }
+
+        if (event->button() == Qt::RightButton)
+        {
+            // Handle right button press
+            Mouse::GetInstance().SetRightDown(true);
         }
     }
 
@@ -39,75 +49,25 @@ protected:
         if (event->button() == Qt::LeftButton)
         {
             // Handle left button release
+            Mouse::GetInstance().SetLeftDown(false);
         }
-    }
 
-    void mouseDoubleClickEvent(QMouseEvent *event) override
-    {
-        if (event->button() == Qt::LeftButton)
+        if (event->button() == Qt::RightButton)
         {
-            // Handle left button double click
+            // Handle right button release
+            Mouse::GetInstance().SetRightDown(false);
         }
     }
 
     void mouseMoveEvent(QMouseEvent *event) override
     {
-        // Handle mouse move
-    }
+        cv::Point2f imageLabelPos = cv::Point2f(imageLabel->x(), imageLabel->y());
+        cv::Point2f absolutePos = cv::Point2f(event->x(), event->y());
 
-    bool eventFilter(QObject *watched, QEvent *event) override
-    {
-        // We're interested in KeyPress and KeyRelease events
-        if(event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
-        {
-            // Cast the QEvent pointer to a QKeyEvent pointer
-            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+        cv::Point2f relativePos = (absolutePos - imageLabelPos) * (float)DRAWING_IMAGE.rows / imageLabel->height();
 
-            ///// WASD
-
-            // w
-            if(keyEvent->key() == Qt::Key_W)
-            {
-                if(event->type() == QEvent::KeyPress) {
-                    wDown = true;
-                } else {
-                    wDown = false;
-                }
-            }
-
-            // a
-            if(keyEvent->key() == Qt::Key_A)
-            {
-                if(event->type() == QEvent::KeyPress) {
-                    aDown = true;
-                } else {
-                    aDown = false;
-                }
-            }
-
-            // s
-            if(keyEvent->key() == Qt::Key_S)
-            {
-                if(event->type() == QEvent::KeyPress) {
-                    sDown = true;
-                } else {
-                    sDown = false;
-                }
-            }
-
-            // d
-            if(keyEvent->key() == Qt::Key_D)
-            {
-                if(event->type() == QEvent::KeyPress) {
-                    dDown = true;
-                } else {
-                    dDown = false;
-                }
-            }
-        }
-
-        // Call the base class implementation (important!)
-        return QMainWindow::eventFilter(watched, event);
+        // Set position relative to image label
+        Mouse::GetInstance().SetPos(relativePos);
     }
 
 private:
@@ -122,5 +82,4 @@ private:
     };
 
     QApplication *app;
-    QLabel *imageLabel;
 };
