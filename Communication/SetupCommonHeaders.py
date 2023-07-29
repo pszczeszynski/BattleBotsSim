@@ -1,5 +1,5 @@
-# this python script creates a header file called WorkingDir.h in both ./Receiver and ./Transmitter
-# The WorkingDir.h file just includes a #define COMMUNICATION_DIR C:/.../Communication/
+# this python script creates a header file called Communication.h in both ./Receiver and ./Transmitter
+# The Communication.h file just includes a #define COMMUNICATION_DIR C:/.../Communication/
 
 import os
 

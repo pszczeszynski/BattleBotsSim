@@ -3,7 +3,7 @@
 #include "MathUtils.h"
 #include "Globals.h"
 
-#define TIME_WEIGHT_MS 25
+#define TIME_WEIGHT_MS 100
 template <typename T>
 class Extrapolator
 {
@@ -92,6 +92,9 @@ public:
         // if 100ms passes, it is 100% of the new value
         double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
 
+        // enforce a max weight factor of 1
+        weightFactor = std::min(1.0, weightFactor);
+
         // weight the new difference in to the old difference with weight 1 / WEIGHTED_AVERAGE_SAMPLES
         weightedDerivative = newDerivative * weightFactor + weightedDerivative * (1 - weightFactor);
 
@@ -126,9 +129,9 @@ public:
     }
 
 private:
+    double currentValue;
     double weightedDerivative;
     double lastValue;
-    double currentValue;
     Clock clock;
     double lastElapsedTime;
 

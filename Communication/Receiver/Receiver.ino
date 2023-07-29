@@ -1,7 +1,6 @@
 /**
  * Receiver.ino
 */
-#include "WorkingDir.h"
 #include "Communication.h"
 #include "IMU.h"
 #include "Radio.h"
@@ -16,8 +15,8 @@ Motor* leftMotor;
 Motor* rightMotor;
 Radio* radio;
 
-unsigned long prevTime = 0;
-unsigned long currTime = 0;
+double prevTime = 0;
+double currTime = 0;
 
 //===============================================================================
 //  Initialization
@@ -43,23 +42,15 @@ void setup()
     //Explicitly set both motors to 0 before loop
     leftMotor->SetPower(0); // -1 for One direction, 0 for bidirection
     rightMotor->SetPower(0);
-
-    // calibration
-    // leftMotor->SetPower(1);
-    // Serial.println("high");
-    // delay(5000);
-    // leftMotor->SetPower(-1);
-    // Serial.println("low");
-    // delay(5000);
 }
 
 /**
  *Updates the time data for the current loop iteration
  */
-int getDt()
+double getDt()
 {
-    currTime = millis();
-    int dt = currTime - prevTime;
+    currTime = micros() / 1000;
+    double dt = currTime - prevTime;
     prevTime = currTime;
     return dt;
 }
@@ -99,70 +90,65 @@ void Drive(DriveCommand& command)
 /**
  * Computes response message of robot state data
 */
-RobotMessage update(int dt)
+RobotMessage update(double deltaTimeMS)
 {
     RobotMessage ret {0};
 
+    imu->Update(deltaTimeMS);
     // get accelerometer data and set accel
-    ret.accel = imu->getAccel(); //{1,2.5,3.999}
+    ret.accel = imu->getAccel();
 
     // now compute velocity
-    ret.velocity = imu->getVelocity(ret.accel, dt);   //0,0,0}
+    ret.velocity = imu->getVelocity();
 
     // get gyro data and set gyro
-    ret.rotation = imu->getRotation(dt);
-
-    imu->plotData(ret.rotation, ret.velocity.x, ret.accel.x);
+    ret.rotation = imu->getRotation();
 
     return ret;
 }
 
-
 unsigned long lastReceiveTime = 0;
-#define STOP_ROBOT_TIMEOUT_MS 500
+#define STOP_ROBOT_TIMEOUT_MS 250
+
 //===============================================================================
 //  Main
 //===============================================================================
 void loop()
 {
-    if (radio->Available())
+    // if a message is available, receive it
+    if (imu->dataReady())
     {
-        lastReceiveTime = millis();
-        /*
-        IMPORTANT NOTE:
-        The radio will sometimes think it is receiving data when it is clearly not.
-        In that case, movement and turn will be 0.
-        This is fine as long as the ESC supports going in reverse.
-        Otherwise it's bad - the motor will run at half power.
-        */
+        // Get the delta time
+        double dt = getDt();
+        imu->Update(dt);
+        // Compute response message
+        RobotMessage message = update(dt);
 
-        // Read the incoming message 
-        // Serial.println("Receiving Radio Transmission");
-        DriveCommand command = radio->Receive();
-        
-        // Drive the robot
-        Drive(command);
+        // send the message
+        radio->Send(message);
     }
 
+    // if a message is available, receive it
+    if (radio->Available())
+    {
+        // get the message
+        DriveCommand command = radio->Receive();
+
+        Serial.print("Received drive command movement: ");
+        Serial.println(command.movement);
+
+        // apply the message
+        Drive(command);
+
+        // update the last receive time
+        lastReceiveTime = millis();
+    }
+
+    // if haven't received a message in a while, stop the robot
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
         DriveCommand command {0, 0};
         Drive(command);
     }
 
-    // Serial.println("about to print IMU");
-    // Get IMU Readings
-    if (imu->dataReady())
-    {
-        // Serial.println("about to update");
-        imu->Update();
-        // Compute robot state
-        int dt = getDt();
-        RobotMessage message = update(dt);
-        // Serial.println("updated");
-        // imu->printScaledAGMT();
-        // Serial.println("finished");
-    }
-      // // Send data back to transmitter and driver station
-    // radio->Send(message);
 }

@@ -28,9 +28,9 @@ struct DriveCommand
 // robot -> driver station
 struct RobotMessage
 {
+    double rotation;
     Point accel;
     Point velocity;
-    double rotation;
 };
 
 // indicates the end of a message. All communciation between devices should end with this

@@ -97,7 +97,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
-    cv::threshold(grayDiff, thresholdImg, 25, 255, cv::THRESH_BINARY);
+    cv::threshold(grayDiff, thresholdImg, 18, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);

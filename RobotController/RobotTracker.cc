@@ -30,7 +30,7 @@ RobotTracker& RobotTracker::Opponent()
 #define DIST_BETWEEN_ANG_UPDATES_PX 5
 
 // 0 = no change, 1 = full change
-#define MOVING_AVERAGE_RATE 0.5
+#define MOVING_AVERAGE_RATE 1.0
 
 // how fast the robot needs to be moving to update the angle
 #define VELOCITY_THRESH_FOR_ANGLE_UPDATE 50
@@ -38,9 +38,9 @@ RobotTracker& RobotTracker::Opponent()
 /**
  * @brief updates the angle of the robot using the velocity
 */
-void RobotTracker::UpdateAngle()
+Angle RobotTracker::CalcAnglePathTangent()
 {
-    static Angle lastAngleRaw(0);
+    Angle retAngleRad;
 
     // if we have travelled a certain distance since the last update
     // and we are moving fast enough
@@ -50,10 +50,18 @@ void RobotTracker::UpdateAngle()
         // calcualte the change from the last update
         cv::Point2f delta = position - lastPositionWhenUpdatedAngle;
         // update the angle but only by half the change
-        angle = (Angle(atan2(delta.y, delta.x)) - angle) * MOVING_AVERAGE_RATE + angle;
+        retAngleRad = (Angle(atan2(delta.y, delta.x)) - retAngleRad) * MOVING_AVERAGE_RATE + retAngleRad;
         // save the last position
         lastPositionWhenUpdatedAngle = position;
+        // set the flag to true
+        visualAngleValid = true;
     }
+    else
+    {
+        visualAngleValid = false;
+    }
+
+    return retAngleRad;
 }
 
 /**
@@ -61,6 +69,8 @@ void RobotTracker::UpdateAngle()
  * However, sometimes we don't have the visual information in which we call UpdateIMUOnly
 */
 #define VISUAL_INFO_WEIGHT 0.1
+#define NEW_VISUAL_VELOCITY_WEIGHT 1.0
+
 void RobotTracker::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMUData& imuData)
 {
     // predict the new position using just the velocity
@@ -71,12 +81,37 @@ void RobotTracker::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMU
     cv::Point2f visualPosition = blob.center;
     // do a weighted average of the predicted position and the visual position to smooth out the noise in the visual position
     cv::Point2f weightedAveragePosition = predictedPosition * (1 - VISUAL_INFO_WEIGHT) + visualPosition * VISUAL_INFO_WEIGHT;
+
+
+    // visual velocity
+    // derive velocity using the visual information
+    cv::Point2f visualVelocity = (blob.center - position) / lastUpdate.getElapsedTime();
+    cv::Point2f weightedAverageVelocity = visualVelocity * NEW_VISUAL_VELOCITY_WEIGHT + velocity * (1 - NEW_VISUAL_VELOCITY_WEIGHT);
     // update using the weighted average
-    Update(weightedAveragePosition, imuData.velocity);
+    UpdateSetPosAndVel(weightedAveragePosition, weightedAverageVelocity);
+
+
+
+
+
+    // set the angle to the imu angle
+    double angleImu = angle + (Angle(imuData.angle) - Angle(lastIMUAngle));
+    double angleVisual = CalcAnglePathTangent();
+    if (visualAngleValid)
+    {
+        // if we have visual information, use the visual angle
+        angle = Angle(angleImu * (1.0 - VISUAL_INFO_WEIGHT) + angleVisual * VISUAL_INFO_WEIGHT);
+    }
+    else
+    {
+        angle = Angle(angleImu);
+    }
+
+    // save the last angle
+    lastIMUAngle = angleImu;
 }
 
 
-#define NEW_VELOCITY_WEIGHT 1.0
 /**
  * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
  * Updates the position of the robot to the given position.
@@ -87,14 +122,14 @@ void RobotTracker::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
     // derive velocity using the visual information
     cv::Point2f visualVelocity = (blob.center - position) / lastUpdate.getElapsedTime();
 
-    cv::Point2f weightedAverageVelocity = visualVelocity * NEW_VELOCITY_WEIGHT + velocity * (1 - NEW_VELOCITY_WEIGHT);
+    cv::Point2f weightedAverageVelocity = visualVelocity * NEW_VISUAL_VELOCITY_WEIGHT + velocity * (1 - NEW_VISUAL_VELOCITY_WEIGHT);
     // use the blob's center for the visual position
     cv::Point2f visualPosition = blob.center;
     // update using the visual information
-    Update(visualPosition, weightedAverageVelocity);
+    UpdateSetPosAndVel(visualPosition, weightedAverageVelocity);
 
     // update our angle using the velocity
-    UpdateAngle();
+    angle = CalcAnglePathTangent();
 }
 
 /**
@@ -107,13 +142,12 @@ void RobotTracker::UpdateIMUOnly(RobotIMUData& imuData)
     // predict the new position
     cv::Point2f newPosition = position + averageVelocityLastUpdate * lastUpdate.getElapsedTime();
     // update normally
-    Update(newPosition, imuData.velocity);
-
+    UpdateSetPosAndVel(newPosition, imuData.velocity);
     // set our angle to the imu angle
     angle = Angle(imuData.angle);
 }
 
-void RobotTracker::Update(cv::Point2f position, cv::Point2f velocity)
+void RobotTracker::UpdateSetPosAndVel(cv::Point2f position, cv::Point2f velocity)
 {
     // update our velocity and position
     this->velocity = velocity;

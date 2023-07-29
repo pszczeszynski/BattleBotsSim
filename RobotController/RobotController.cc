@@ -68,6 +68,8 @@ void RobotController::Run()
     TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
+    DriveCommand c{0, 0};
+    robotLink.Drive(c);
 
     // receive until the peer closes the connection
     while (true)
@@ -81,7 +83,7 @@ void RobotController::Run()
         // receive state info from the robot
         RobotMessage message = robotLink.Receive();
         robotIMUData.velocity = cv::Point2f(message.velocity.x, message.velocity.y);
-        robotIMUData.angle = message.rotation * TO_RAD;
+        robotIMUData.angle = Angle(message.rotation);
 
         TIMER_START
         VisionClassification classification = vision.RunPipeline();
@@ -195,13 +197,15 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     double deltaTime = c.getElapsedTime();
     c.markStart();
 
-    angleExtrapolator.SetValue(Angle(currAngle));
+    angleExtrapolator.SetValue(currAngle);
 
     RobotSimState currentState;
     currentState.position = currPos;
     currentState.angle = currAngle;
-    currentState.velocity = robotIMUData.velocity;
+    currentState.velocity = RobotTracker::Robot().GetVelocity();
     currentState.angularVelocity = angleExtrapolator.GetVelocity() * 1.5;
+
+    std::cout << "angular velocity deg/s: " << currentState.angularVelocity * TO_DEG << std::endl;
 
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, 50);
     double currAngleEx = exState.angle;

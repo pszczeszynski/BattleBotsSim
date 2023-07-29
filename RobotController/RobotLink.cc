@@ -2,6 +2,7 @@
 #include "Clock.h"
 #include "../Communication/Communication.h"
 #include "Globals.h"
+#include "MathUtils.h"
 
 RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
                                           {
@@ -12,6 +13,8 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     // Get and clear current errors on the com port.
     if (!ClearCommError(comPort, &dwErrors, &comStat))
     {
+        // attempt to reinitialize com port
+        InitComPort();
         std::cerr << "Error clearing COM port" << std::endl;
         return false;
     }
@@ -33,7 +36,6 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     sendingClock.markStart();
 }
 
-
 void RobotLinkReal::InitComPort()
 {
     static int numTries = 0;
@@ -43,7 +45,7 @@ void RobotLinkReal::InitComPort()
     if (comPort == INVALID_HANDLE_VALUE)
     {
         // increase numTries
-        numTries ++;
+        numTries++;
         numTries %= NUM_TRIES_BEFORE_PRINTING_ERROR;
 
         // if we have tried NUM_TRIES_BEFORE_PRINTING_ERROR times, print error
@@ -101,7 +103,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
     }
 
     sendingClock.markStart();
-    // std::cout << "driving with movement: " << command.movement << ", turn: " << command.turn << std::endl;
 
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
@@ -112,12 +113,17 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     command.valid = true;
 
+    std::cout << "driving with movement: " << command.movement << ", turn: " << command.turn << std::endl;
+
     // write start MESSAGE_START_CHAR
     DWORD dwBytesWritten = 0;
     char start = MESSAGE_START_CHAR;
     WriteFile(comPort, &start, sizeof(start), &dwBytesWritten, NULL);
     // write command
     WriteFile(comPort, &command, sizeof(command), &dwBytesWritten, NULL);
+
+    // std::cout << "sending command: " << command.movement << ", " << command.turn << std::endl;
+
     // write start MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
     WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
@@ -134,15 +140,16 @@ RobotMessage RobotLinkReal::Receive()
 
     receiver.update();
 
-    if (!receiver.isLatestDataValid())
+    // wait until we have a valid message
+    while (!receiver.isLatestDataValid())
     {
-        return RobotMessage{0};
+        receiver.update();
     }
 
     RobotMessage retrievedStruct = receiver.getLatestData();
+    retrievedStruct.rotation *= -1; // invert rotation polarity
 
-    // print accel
-    std::cout << "accel: " << retrievedStruct.accel.x << ", " << retrievedStruct.accel.y << ", " << retrievedStruct.accel.z << std::endl;
+    std::cout << "received rotation: " << retrievedStruct.rotation * TO_DEG << std::endl;
 
     return retrievedStruct;
 }
@@ -175,9 +182,9 @@ RobotMessage RobotLinkSim::Receive()
         received = serverSocket.receive();
     }
     RobotState message = RobotStateParser::parse(received);
-    
-    RobotMessage ret {0};
-    ret.velocity = Point { message.robot_velocity.x, -message.robot_velocity.z, message.robot_velocity.y };
+
+    RobotMessage ret{0};
+    ret.velocity = Point{message.robot_velocity.x, -message.robot_velocity.z, message.robot_velocity.y};
     ret.velocity.x *= ACCELEROMETER_TO_PX_SCALER;
     ret.velocity.y *= ACCELEROMETER_TO_PX_SCALER;
     ret.velocity.z *= ACCELEROMETER_TO_PX_SCALER;

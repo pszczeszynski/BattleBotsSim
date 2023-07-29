@@ -24,9 +24,9 @@ const byte address[6] = "00001"; // Define address/pipe to use.
 void InitRadio()
 {
     radio.begin();                  // Start instance of the radio object
-    radio.openReadingPipe(0, address); // Setup pipe to read data from the address
+    radio.openReadingPipe(1, address); // Setup pipe to read data from the address
     radio.openWritingPipe(address); // Setup pipe to write data to the address that was defined
-    radio.setPALevel(RF24_PA_MAX);  // Set the Power Amplified level to MAX in this case
+    radio.setPALevel(RF24_PA_HIGH);  // Set the Power Amplified level to MAX in this case
     radio.startListening();
     radio.setAutoAck(false);
     // set data rate to 1 Mbps
@@ -37,12 +37,14 @@ void InitRadio()
 //===============================================================================
 void setup()
 {
+    Serial.println("Initializing...");
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
 
     Serial.begin(9600);
     Serial.clear();
     InitRadio();
+    Serial.println("Finished initializing");
 }
 
 GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
@@ -59,19 +61,24 @@ GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
 
 void SendDriveCommand(DriveCommand &driveData)
 {
+    unsigned long startTimeMillis = millis();
     // write the data to the radio
     radio.stopListening();
-    // send start bit
-    // radio.write(&MESSAGE_START_CHAR, sizeof(MESSAGE_START_CHAR));
     radio.write(&driveData, sizeof(driveData));
-    // send end bit
-    // radio.write(&MESSAGE_END_CHAR, sizeof(MESSAGE_END_CHAR));
+
+    // while NOT (the transmitting fifo (first arg) is empty (second arg))
+    while (!radio.isFifo(true, true))
+    {
+
+    }
     radio.startListening();
+
+    unsigned long endTimeMillis = millis();
 }
 
 unsigned long lastReceiveTime = 0;
 unsigned long lastInitTime = 0;
-int i =0;
+int i = 0;
 //===============================================================================
 //  Main
 //===============================================================================
@@ -89,22 +96,27 @@ void loop()
 
     if (millis() - lastInitTime > 500)
     {
-      lastInitTime = millis();
-      InitRadio();
+        lastInitTime = millis();
+        InitRadio();
     }
 
-    while (radio.available())
+    bool available = radio.available();
+    // while there is data available to read
+    while (available)
     {
         // turn on arduino led
         digitalWrite(LED_PORT, HIGH);
 
         // read data from rc
         RobotMessage message {0};
-        radio.read(&message, sizeof(message));
+        radio.read(&message, sizeof(RobotMessage));
 
         Serial.print(MESSAGE_START_CHAR);
         Serial.write((char*) &message, sizeof(message));
         Serial.print(MESSAGE_END_CHAR);
+
+        // check available again
+        available = radio.available();
     }
     digitalWrite(LED_PORT, LOW);
 }

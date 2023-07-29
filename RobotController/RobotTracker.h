@@ -28,7 +28,7 @@ public:
     void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame, RobotIMUData& imuData);
     void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
     void UpdateIMUOnly(RobotIMUData& imuData);
-    void Update(cv::Point2f position, cv::Point2f velocity);
+    void UpdateSetPosAndVel(cv::Point2f position, cv::Point2f velocity);
 
     void invalidate();
 
@@ -42,7 +42,9 @@ public:
     cv::Point2f GetVelocity();
 
 private:
-    void UpdateAngle();
+    double lastIMUAngle;
+    Angle CalcAnglePathTangent();
+    bool visualAngleValid = false;
 
     cv::Point2f lastPositionWhenUpdatedAngle; // angle updated based on displacement
 

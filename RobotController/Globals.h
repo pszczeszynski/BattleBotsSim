@@ -4,8 +4,8 @@
 #include <opencv2/opencv.hpp>
 #include <mutex>
 
-#define WIDTH 480
-#define HEIGHT 480
+#define WIDTH 720
+#define HEIGHT 720
 
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window

@@ -7,6 +7,7 @@ IMU::IMU()
     WIRE_PORT.begin();
     WIRE_PORT.setClock(400000);
 
+    // attempt to initialize the imu in a loop until it works
     bool initialized = false;
     while (!initialized)
     {
@@ -16,22 +17,69 @@ IMU::IMU()
         Serial.println(myICM.statusString());
         if (myICM.status != ICM_20948_Stat_Ok)
         {
+            // fail => print the status
             Serial.println("Trying again...");
             delay(500);
         }
         else
         {
+            // success!
             initialized = true;
         }
     }
 
+    // take an initial reading for the z velocity calibration
+    zVelocityCalibration = myICM.gyrZ();
+
+    // initialize the velocity and rotation
     velocity = {0, 0, 0};
     rotation = 0.0;
 }
 
-void IMU::Update()
+// time until the gyro calibration weighted average is 1/2 of the way to the new value
+#define GYRO_CALIBRATE_PERIOD_MS 10000
+// the threshold for the gyro to be considered "stationary"
+#define CALIBRATE_THRESH_RAD 4 * TO_RAD
+
+// time until the accel calibration weighted average is 1/2 of the way to the new value
+#define IMU_CALIBRATE_PERIOD_MS 10000
+// threshold for the accelerometer to be considered "stationary"
+#define CALIBRATE_THRESH_MPSS 0.1
+
+void IMU::Update(double deltaTimeMS)
 {
+    // get the data from the IMU
     myICM.getAGMT();
+
+    /////////////////// GYRO LOGIC ///////////////////
+    double currRotVelZ = myICM.gyrZ() * TO_RAD;
+    double averageVelocityZ = (currRotVelZ + prevRotVelZ) / 2;
+    double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
+
+    if (abs(averageVelocityZ) < CALIBRATE_THRESH_RAD)
+    {
+        zVelocityCalibration = (1 - gyroNewWeight) * zVelocityCalibration + gyroNewWeight * averageVelocityZ;
+    }
+
+    // update the rotation
+    rotation += (averageVelocityZ - zVelocityCalibration) * deltaTimeMS / 1000.0;
+    // update the previous velocity
+    prevRotVelZ = currRotVelZ;
+    ///////////////////////////////////////////////////
+
+    /////////////////// ACCEL LOGIC ///////////////////
+    // get (unfiltered) accelerometer data and set accel
+    acceleration.x = myICM.accX() / (9.81 * 1000);
+    acceleration.y = myICM.accY() / (9.81 * 1000);
+    acceleration.z = myICM.accZ() / (9.81 * 1000);
+    ///////////////////////////////////////////////////
+
+
+    ////////////////// VEL LOGIC //////////////////////
+    velocity.x += acceleration.x /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
+    velocity.y += acceleration.y /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
+    velocity.z += acceleration.z /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
+    ///////////////////////////////////////////////////
 }
 
 bool IMU::dataReady()
@@ -44,87 +92,35 @@ bool IMU::dataReady()
  */
 Point IMU::getAccel()
 {
-    Point accel = {0, 0, 0};
-
-    // get (unfiltered) accelerometer data and set accel
-    
-    accel.x = myICM.accX() / (9.8 * 1000) /* m/s^2 */;
-    accel.y = myICM.accY() / (9.8 * 1000) /* m/s^2 */;
-    accel.z = myICM.accZ() / (9.8 * 1000) /* m/s^2 */;
-
-    return accel;
+    return acceleration;
 }
 
 /**
  * Gets the velocity of the robot
  */
-Point IMU::getVelocity(Point accel, int dt)
+Point IMU::getVelocity()
 {
-    velocity.x += accel.x /* m/s^2 */ * dt / 1000.0 /* s */;
-    velocity.y += accel.y /* m/s^2 */ * dt / 1000.0 /* s */;
-    velocity.z += accel.z /* m/s^2 */ * dt / 1000.0 /* s */;
-
     return velocity;
 }
 
 /**
- * Gets the rotation of the robot
+ * Gets the rotation of the robot in radians
  */
-double IMU::getRotation(int dt)
+double IMU::getRotation()
 {
-    //Has drift
-    // this->rotation += myICM.gyrZ() * dt / 1000.0;
-
-    //Use Magnetometer instead. Problem: Range of angles as you rotate is not 0 to +- 180 or pi, as it should be.
-    // this->rotation = atan2(myICM.magX(), myICM.magY());
-
-    // Read sensor data from gyroscope and magnetometer
-    float gyroX, gyroY, gyroZ; // Read the gyroscope data (angular velocity)
-    float magX, magY, magZ;   // Read the magnetometer data (magnetic field)
-    float accelX, accelY, accelZ;
-
-    gyroX = myICM.gyrX(); // * DEG_TO_RAD;      // Convert from deg/s to rad/s
-    gyroY = myICM.gyrY(); // * DEG_TO_RAD;
-    gyroZ = myICM.gyrZ(); // * DEG_TO_RAD;
-
-    magX = myICM.magX() / 100.0;      // Convert from micro teslas to Gauss <--Note: NOt sure of this conversion is needed
-    magY = myICM.magY() / 100.0;
-    magZ = myICM.magZ() / 100.0;
-
-    accelX = myICM.accX() * 2000;       // Convert from milli gs to +-2gs
-    accelY = myICM.accY() * 2000;
-    accelZ = myICM.accZ() * 2000;
-
-    // Apply sensor fusion with Madgwick filter
-    filter.update(gyroX, gyroY, gyroZ, accelX, accelY, accelZ, magX, magY, magZ);
-    //Alternative (Still has drift): 
-    // filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
-
-    // Get the yaw (Z-axis) angle from the filter
-    this->rotation = filter.getYaw();
-
-    // // Convert yaw from radians to degrees
-    // rotation = rotation * 180.0 / PI;
-
-    // // Ensure yaw stays within the range of 0 to 360 degrees
-    // if (rotation < 0) {
-    //   rotation += 360.0;
-    // }
-
-
-    return this->rotation;
+    return rotation;
 }
 
 void IMU::plotData(double orient, double vel, double accel)
 {
-  Serial.print("Orientation:");
-  Serial.print(orient);
-  Serial.print(",");
-  Serial.print("Velocity:");
-  Serial.print(vel);
-  Serial.print(",");
-  Serial.print("Acceleration:");
-  Serial.println(accel);
+    Serial.print("Orientation:");
+    Serial.print(orient);
+    Serial.print(",");
+    Serial.print("Velocity:");
+    Serial.print(vel);
+    Serial.print(",");
+    Serial.print("Acceleration:");
+    Serial.println(accel);
 }
 
 void IMU::printScaledAGMT()
