@@ -22,6 +22,7 @@ public:
     Point getAccel();
     Point getVelocity();
     double getRotation();
+    double getRotationVelocity();
     void plotData(double orient, double vel, double accel);
     void printScaledAGMT();
     void printPaddedInt16b(int16_t val);
@@ -34,6 +35,8 @@ private:
     Point calibrationAccel;
     Point acceleration;
     double rotation;
+    double avgRotVelZ = 0;
+    double currRotVelZ = 0;
 
     // the following variables are used to calibrate the gyro
     double zVelocityCalibration = 0;

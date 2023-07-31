@@ -29,6 +29,7 @@ struct DriveCommand
 struct RobotMessage
 {
     double rotation;
+    double rotationVelocity;
     Point accel;
     Point velocity;
 };

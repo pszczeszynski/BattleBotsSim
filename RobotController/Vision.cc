@@ -83,7 +83,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.07, 2);
+    const float MIN_AREA = pow(frame.cols * 0.1, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -97,11 +97,11 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
-    cv::threshold(grayDiff, thresholdImg, 18, 255, cv::THRESH_BINARY);
+    cv::threshold(grayDiff, thresholdImg, 20, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
-    cv::threshold(thresholdImg, thresholdImg, 25, 255, cv::THRESH_BINARY);
+    cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
     
 
     // cv::imshow("Motion", thresholdImg);

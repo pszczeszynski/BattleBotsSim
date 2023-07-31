@@ -148,7 +148,7 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     return histogramScore * HISTOGRAM_WEIGHT + distanceScoreNormalized * DISTNACE_WEIGHT;
 }
 
-#define MATCHING_DIST_THRESHOLD 50
+#define MATCHING_DIST_THRESHOLD 50 * WIDTH / 720
 
 /**
  * @brief Classifies the blobs and returns the robot and opponent blobs
@@ -192,13 +192,19 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         // if greater than 0, it's us => update first robotTracker otherwise update second.
         if (firstIsRobot)
         {
-            RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
-            classificationResult.SetRobot(blobs[0]);
+            if (distanceToRobot < MATCHING_DIST_THRESHOLD)
+            {
+                RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
+                classificationResult.SetRobot(blobs[0]);
+            }
         }
         else
         {
-            RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
-            classificationResult.SetOpponent(blobs[0]);
+            if (distanceToOpponent < MATCHING_DIST_THRESHOLD)
+            {
+                RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
+                classificationResult.SetOpponent(blobs[0]);
+            }
         }
     }
     // otherwise have more than 2 blobs, only use the first 2 blobs

@@ -14,15 +14,6 @@ extern std::mutex DRAWING_IMAGE_MUTEX;
 
 extern QString SAVE_FILE_NAME;
 
-// TODO: this should not be in globals
-struct RobotIMUData
-{
-    cv::Point2f velocity;
-    double angle;
-};
-
-extern RobotIMUData robotIMUData;
-
 // uncomment below to enable timer printing
 // #define ENABLE_TIMERS
 

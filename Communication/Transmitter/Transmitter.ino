@@ -11,27 +11,15 @@
  */
 #include "Communication.h"
 #include <SPI.h>
-//#include <nRF24L01.h>
+#include "Radio.h"
 #include <RF24.h>
 #include <cstring> // for std::memcpy
 #include <EEPROM.h>
 
 #define LED_PORT 16
-RF24 radio(14, 10);              // CE, CSN      // Define instance of RF24 object called 'radio' and define pins used
+Radio<DriveCommand, RobotMessage>* radio;
 const byte address[6] = "00001"; // Define address/pipe to use.
 
-
-void InitRadio()
-{
-    radio.begin();                  // Start instance of the radio object
-    radio.openReadingPipe(1, address); // Setup pipe to read data from the address
-    radio.openWritingPipe(address); // Setup pipe to write data to the address that was defined
-    radio.setPALevel(RF24_PA_HIGH);  // Set the Power Amplified level to MAX in this case
-    radio.startListening();
-    radio.setAutoAck(false);
-    // set data rate to 1 Mbps
-    radio.setDataRate(RF24_1MBPS);
-}
 //===============================================================================
 //  Initialization
 //===============================================================================
@@ -41,9 +29,13 @@ void setup()
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
 
-    Serial.begin(9600);
+    Serial.begin(115200);
     Serial.clear();
-    InitRadio();
+    
+    Serial.println("Initializing radio...");
+    radio = new Radio<DriveCommand, RobotMessage>();
+    Serial.println("Success!");
+
     Serial.println("Finished initializing");
 }
 
@@ -59,48 +51,27 @@ GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
                                             // else return false
                                             return false; });
 
-void SendDriveCommand(DriveCommand &driveData)
-{
-    unsigned long startTimeMillis = millis();
-    // write the data to the radio
-    radio.stopListening();
-    radio.write(&driveData, sizeof(driveData));
 
-    // while NOT (the transmitting fifo (first arg) is empty (second arg))
-    while (!radio.isFifo(true, true))
-    {
-
-    }
-    radio.startListening();
-
-    unsigned long endTimeMillis = millis();
-}
-
-unsigned long lastReceiveTime = 0;
-unsigned long lastInitTime = 0;
-int i = 0;
 //===============================================================================
 //  Main
 //===============================================================================
+#define NO_MESSAGE_REINIT_TIME 70
 void loop()
 {
+    static unsigned long lastReceiveTime = 0;
+
     serialReceiver.update();
 
     // if there are commands
     if (serialReceiver.isLatestDataValid())
     {
-        // write to radio
+        // get the latest data from the serial receiver
         DriveCommand command = serialReceiver.getLatestData();
-        SendDriveCommand(command);
+        // send over radio to receiver
+        radio->Send(command);
     }
 
-    if (millis() - lastInitTime > 500)
-    {
-        lastInitTime = millis();
-        InitRadio();
-    }
-
-    bool available = radio.available();
+    bool available = radio->Available();
     // while there is data available to read
     while (available)
     {
@@ -108,15 +79,28 @@ void loop()
         digitalWrite(LED_PORT, HIGH);
 
         // read data from rc
-        RobotMessage message {0};
-        radio.read(&message, sizeof(RobotMessage));
+        RobotMessage message = radio->Receive();
+        lastReceiveTime = millis();
 
+        // print data to serial for driver station
         Serial.print(MESSAGE_START_CHAR);
         Serial.write((char*) &message, sizeof(message));
         Serial.print(MESSAGE_END_CHAR);
 
         // check available again
-        available = radio.available();
+        available = radio->Available();
     }
-    digitalWrite(LED_PORT, LOW);
+
+    // if we had no data, set the led off
+    if (!available)
+    {
+        digitalWrite(LED_PORT, LOW);
+    }
+
+    if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
+    {
+        // Serial.println("ERROR: no messages -> re-init");
+        radio->InitRadio();
+        lastReceiveTime = millis();
+    }
 }

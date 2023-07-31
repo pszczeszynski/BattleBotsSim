@@ -10,12 +10,16 @@
 #include "RobotLink.h"
 #include "RobotControllerGUI.h"
 #include "Gamepad.h"
+#include "../Communication/Communication.h"
 
 class RobotController : public QObject
 {
     Q_OBJECT
 public:
     RobotController();
+    static RobotController& GetInstance();
+
+    RobotMessage& GetLatestMessage();
 signals:
     // updates the image of the field in the GUI
     void RefreshFieldImageSignal();
@@ -24,13 +28,15 @@ public slots:
 private:
     Clock clock;
 
-    DriveCommand RobotLogic(RobotMessage &state);
-    DriveCommand OrbitMode(RobotMessage &state);
-    DriveCommand ManualMode(RobotMessage &state);
+    DriveCommand RobotLogic();
+    DriveCommand OrbitMode();
+    DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
     Vision vision;
     Gamepad gamepad;
+
+    RobotMessage state;
 
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;

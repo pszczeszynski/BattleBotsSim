@@ -65,7 +65,7 @@ void RobotLinkReal::InitComPort()
 
     dcbSerialParams = {0};
     dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-    dcbSerialParams.BaudRate = CBR_9600; // set the baud rate
+    dcbSerialParams.BaudRate = CBR_115200; // set the baud rate
     dcbSerialParams.ByteSize = 8;
     dcbSerialParams.StopBits = ONESTOPBIT;
     dcbSerialParams.Parity = NOPARITY;
@@ -87,7 +87,7 @@ void RobotLinkReal::InitComPort()
 
 #define DRIVE_SCALE 1.0
 
-#define MIN_INTER_SEND_TIME_MS 10
+#define MIN_INTER_SEND_TIME_MS 5
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     if (sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
@@ -113,8 +113,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     command.valid = true;
 
-    std::cout << "driving with movement: " << command.movement << ", turn: " << command.turn << std::endl;
-
     // write start MESSAGE_START_CHAR
     DWORD dwBytesWritten = 0;
     char start = MESSAGE_START_CHAR;
@@ -122,12 +120,18 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // write command
     WriteFile(comPort, &command, sizeof(command), &dwBytesWritten, NULL);
 
-    // std::cout << "sending command: " << command.movement << ", " << command.turn << std::endl;
+    std::cout << "sending command: " << command.movement << ", " << command.turn << std::endl;
 
     // write start MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
     WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
 }
+
+
+int receivedPackets;
+Clock lastReceivedTime;
+
+#define RECEIVE_TIMEOUT_MS 100
 
 RobotMessage RobotLinkReal::Receive()
 {
@@ -140,16 +144,29 @@ RobotMessage RobotLinkReal::Receive()
 
     receiver.update();
 
-    // wait until we have a valid message
-    while (!receiver.isLatestDataValid())
+    // Clock receiveWaitTimer;
+    // receiveWaitTimer.markStart();
+
+    // // wait until we have a valid message
+    // while (!receiver.isLatestDataValid() &&
+    //         receiveWaitTimer.getElapsedTime() * 1000 < RECEIVE_TIMEOUT_MS)
+    // {
+    //     receiver.update();
+    // }
+    RobotMessage retrievedStruct = receiver.getLatestData();
+
+    if (receiver.isLatestDataValid())
     {
-        receiver.update();
+        receivedPackets++;
     }
 
-    RobotMessage retrievedStruct = receiver.getLatestData();
-    retrievedStruct.rotation *= -1; // invert rotation polarity
+    if (receivedPackets > 1000)
+    {
+        // std::cout << "received per second: " << receivedPackets / lastReceivedTime.getElapsedTime() << std::endl;
+        receivedPackets = 0;
+        lastReceivedTime.markStart();
+    }
 
-    std::cout << "received rotation: " << retrievedStruct.rotation * TO_DEG << std::endl;
 
     return retrievedStruct;
 }

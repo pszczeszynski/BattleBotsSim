@@ -16,9 +16,10 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     RobotConfigWindow::GetInstance().SetApp(app);
 
-    RobotController rc;
     // Create a separate thread for RobotController
     QThread controllerThread;
+    // get instance of RobotController
+    RobotController& rc = RobotController::GetInstance();
     rc.moveToThread(&controllerThread);
 
     // Connect RobotController's signal to RobotConfigWindow's slot
@@ -39,10 +40,24 @@ RobotController::RobotController() : gamepad{0},
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{1},
+                                     overheadCamL_real{0},
                                      vision{overheadCamL_real}
 #endif
 {
+}
+
+RobotController& RobotController::GetInstance()
+{
+    static RobotController instance;
+    return instance;
+}
+
+/**
+ * Gets the most recent message from the robot
+*/
+RobotMessage& RobotController::GetLatestMessage()
+{
+    return state;
 }
 
 #define FPS_PRINT_TIME_SECONDS 5
@@ -81,18 +96,16 @@ void RobotController::Run()
         gamepad.Update();
 
         // receive state info from the robot
-        RobotMessage message = robotLink.Receive();
-        robotIMUData.velocity = cv::Point2f(message.velocity.x, message.velocity.y);
-        robotIMUData.angle = Angle(message.rotation);
+        state = robotLink.Receive();
 
         TIMER_START
-        VisionClassification classification = vision.RunPipeline();
-        UpdateRobotTrackers(classification);
+        // VisionClassification classification = vision.RunPipeline();
+        // UpdateRobotTrackers(classification);
         TIMER_PRINT("Vision")
 
         // 3. run our robot controller loop
         TIMER_START
-        DriveCommand response = RobotLogic(message);
+        DriveCommand response = RobotLogic();
         TIMER_PRINT("RobotLogic")
 
         TIMER_START
@@ -102,7 +115,7 @@ void RobotController::Run()
 
         TIMER_START
         // refresh the field image
-        emit RefreshFieldImageSignal();
+        // emit RefreshFieldImageSignal();
         TIMER_PRINT("imshow()")
     }
 }
@@ -114,12 +127,12 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     {
         MotionBlob robot = *classification.GetRobotBlob();
         cv::Mat& frame = *(classification.GetRobotBlob()->frame);
-        RobotTracker::Robot().UpdateVisionAndIMU(robot, frame, robotIMUData);
+        RobotTracker::Robot().UpdateVisionAndIMU(robot, frame);
     }
     else
     {
         // otherwise just update using the imu
-        RobotTracker::Robot().UpdateIMUOnly(robotIMUData);
+        RobotTracker::Robot().UpdateIMUOnly();
     }
 
     // if vision detected the opponent
@@ -186,10 +199,9 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 {
     static Clock c;
     static bool goToOtherTarget = true;
-    static AngleExtrapolator angleExtrapolator {0};
 
-    cv::Point2f currPos = RobotTracker::Robot().position;
-    double currAngle = RobotTracker::Robot().angle;
+    cv::Point2f currPos = RobotTracker::Robot().getPosition();
+    double currAngle = RobotTracker::Robot().getAngle();
 
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
@@ -197,15 +209,11 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     double deltaTime = c.getElapsedTime();
     c.markStart();
 
-    angleExtrapolator.SetValue(currAngle);
-
     RobotSimState currentState;
     currentState.position = currPos;
     currentState.angle = currAngle;
     currentState.velocity = RobotTracker::Robot().GetVelocity();
-    currentState.angularVelocity = angleExtrapolator.GetVelocity() * 1.5;
-
-    std::cout << "angular velocity deg/s: " << currentState.angularVelocity * TO_DEG << std::endl;
+    currentState.angularVelocity = RobotTracker::Robot().GetAngleVelocity();
 
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, 50);
     double currAngleEx = exState.angle;
@@ -214,9 +222,9 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(50.0 * cos(currAngle), 50.0 * sin(currAngle));
     cv::arrowedLine(DRAWING_IMAGE, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
-    // draw different colored arrow from our position at extrapolated angle
-    cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
-    cv::arrowedLine(DRAWING_IMAGE, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
+    // // draw different colored arrow from our position at extrapolated angle
+    // cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
+    // cv::arrowedLine(DRAWING_IMAGE, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
 
     // draw our position
     cv::circle(DRAWING_IMAGE, currPos, 5, cv::Scalar(0,0,255), 2);
@@ -267,7 +275,7 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
  * Orbits the robot around the opponent at a fixed distance.
  * @param message The current state of the robot
  */
-DriveCommand RobotController::OrbitMode(RobotMessage &message)
+DriveCommand RobotController::OrbitMode()
 {
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
@@ -330,9 +338,8 @@ DriveCommand RobotController::OrbitMode(RobotMessage &message)
 /**
  * ManualMode
  * Allows the user to drive the robot manually
- * @param message The current state of the robot
  */
-DriveCommand RobotController::ManualMode(RobotMessage &message)
+DriveCommand RobotController::ManualMode()
 {
     DriveCommand response{0, 0};
     response.movement = gamepad.GetRightStickY();
@@ -344,14 +351,13 @@ DriveCommand RobotController::ManualMode(RobotMessage &message)
 /**
  * RobotLogic
  * The main logic for the robot
- * @param message The current state of the robot
  */
-DriveCommand RobotController::RobotLogic(RobotMessage &message)
+DriveCommand RobotController::RobotLogic()
 {
     
     DRAWING_IMAGE_MUTEX.lock();
-    DriveCommand responseManual = ManualMode(message);
-    DriveCommand responseOrbit = OrbitMode(message);
+    DriveCommand responseManual = ManualMode();
+    DriveCommand responseOrbit = OrbitMode();
     DRAWING_IMAGE_MUTEX.unlock();
 
     DriveCommand ret = responseManual;

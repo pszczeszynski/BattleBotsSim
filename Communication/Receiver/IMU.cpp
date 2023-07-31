@@ -52,17 +52,18 @@ void IMU::Update(double deltaTimeMS)
     myICM.getAGMT();
 
     /////////////////// GYRO LOGIC ///////////////////
-    double currRotVelZ = myICM.gyrZ() * TO_RAD;
-    double averageVelocityZ = (currRotVelZ + prevRotVelZ) / 2;
+    currRotVelZ = -myICM.gyrZ() * TO_RAD;
+    avgRotVelZ = (currRotVelZ + prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
 
-    if (abs(averageVelocityZ) < CALIBRATE_THRESH_RAD)
+    // if the gyro is stationary, calibrate it
+    if (abs(avgRotVelZ) < CALIBRATE_THRESH_RAD)
     {
-        zVelocityCalibration = (1 - gyroNewWeight) * zVelocityCalibration + gyroNewWeight * averageVelocityZ;
+        zVelocityCalibration = (1 - gyroNewWeight) * zVelocityCalibration + gyroNewWeight * avgRotVelZ;
     }
 
     // update the rotation
-    rotation += (averageVelocityZ - zVelocityCalibration) * deltaTimeMS / 1000.0;
+    rotation += (avgRotVelZ - zVelocityCalibration) * deltaTimeMS / 1000.0;
     // update the previous velocity
     prevRotVelZ = currRotVelZ;
     ///////////////////////////////////////////////////
@@ -101,6 +102,14 @@ Point IMU::getAccel()
 Point IMU::getVelocity()
 {
     return velocity;
+}
+
+/**
+ * Gets the rotational velocity of the robot in radians per second
+ */
+double IMU::getRotationVelocity()
+{
+    return currRotVelZ - zVelocityCalibration;
 }
 
 /**

@@ -33,7 +33,7 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
-    Serial.println("Initializing radio");
+    // Serial.println("Initializing radio");
     const byte address[6] = "00001";
     radio.begin();
     radio.openReadingPipe(1, address);
@@ -53,6 +53,7 @@ template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::Send(SendType &message)
 {
     radio.stopListening();
+    Serial.println("Writing robot message");
     radio.write(&message, sizeof(SendType));
 
     // Wait for fifo to be empty
@@ -61,6 +62,7 @@ void Radio<SendType, ReceiveType>::Send(SendType &message)
     {
         // spin
     }
+    Serial.println("Done writing robot message");
     radio.startListening();
 }
 
