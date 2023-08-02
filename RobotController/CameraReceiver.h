@@ -8,14 +8,14 @@
 class ICameraReceiver
 {
 public:
-    virtual void getFrame(cv::Mat &output) = 0;
+    virtual bool GetFrame(cv::Mat &output) = 0;
 };
 
 class CameraReceiverSim : public ICameraReceiver
 {
 public:
     CameraReceiverSim(std::string fileName, int width = 1280, int height = 720);
-    void getFrame(cv::Mat &output);
+    bool GetFrame(cv::Mat &output);
     ~CameraReceiverSim();
 
 private:
@@ -23,13 +23,15 @@ private:
     HANDLE hMapFile;
     HANDLE hMutex;
     LPVOID lpMapAddress;
+
+    cv::Mat _prevFrame;
 };
 
 class CameraReceiver : public ICameraReceiver
 {
 public:
     CameraReceiver(int cameraIndex);
-    void getFrame(cv::Mat &output);
+    bool GetFrame(cv::Mat &output);
     ~CameraReceiver();
 
 private:

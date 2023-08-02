@@ -35,8 +35,8 @@ Vision3d::Vision3d(ICameraReceiver &overheadCamL, ICameraReceiver &overheadCamR)
     stereoSGMMain->setP2(2 * channels * 3 * 3); // increasing makes sort of smoother -> more blobby
 
     // add 2 robot trackers
-    robotTrackers.push_back(RobotTracker(cv::Point2f(0,0)));
-    robotTrackers.push_back(RobotTracker(cv::Point2f(10000, 10000)));
+    robotTrackers.push_back(RobotOdometry(cv::Point2f(0,0)));
+    robotTrackers.push_back(RobotOdometry(cv::Point2f(10000, 10000)));
 
     gameLoopThread = new std::thread([this]()
                                      {
@@ -133,8 +133,8 @@ void Vision3d::convertPointCloudToOverhead(std::vector<cv::Point3f> pointCloud, 
 */
 void Vision3d::runPipeline()
 {
-    overheadCamL.getFrame(currFrameL);
-    overheadCamR.getFrame(currFrameR);
+    overheadCamL.GetFrame(currFrameL);
+    overheadCamR.GetFrame(currFrameR);
 
     std::cout << "currFrameL.size():  " << currFrameL.size() << std::endl;
 

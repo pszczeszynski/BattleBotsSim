@@ -43,13 +43,35 @@ CameraReceiver::CameraReceiver(int cameraIndex)
         std::cout << "Failed to open VideoCapture " << cameraIndex << std::endl;
     }
 }
-void CameraReceiver::getFrame(cv::Mat& output)
+
+/**
+ * Attempts to get a frame from the camera
+ * @param output the output frame
+ * @return true if frame was ready, false otherwise
+ */
+bool CameraReceiver::GetFrame(cv::Mat &output)
 {
     TIMER_INIT
     TIMER_START
-    cap->read(output);
+
+    // check if data
+    if (!cap->grab())
+    {
+        std::cout << "Frame not grabbed" << std::endl;
+        // return FAILURE
+        return false;
+    }
+
+    // get frame now that we know there is data
+    cap->retrieve(output);
+
+    // convert to RGB
     cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
+
     TIMER_PRINT("CameraReceiver::getFrame")
+
+    // return SUCCESS
+    return true;
 }
 
 CameraReceiver::~CameraReceiver()
@@ -61,7 +83,8 @@ CameraReceiver::~CameraReceiver()
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
 CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
 {
-    LPCWSTR sharedFileNameLPCWSTR = std::wstring(sharedFileName.begin(), sharedFileName.end()).c_str();
+    std::wstring sharedFileNameW(sharedFileName.begin(), sharedFileName.end());
+    LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
     // 1. Create shared file
     // Open a handle to the memory-mapped file
     hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameLPCWSTR);
@@ -69,6 +92,13 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
     if (hMapFile == NULL)
     {
         std::cerr << "Could not open memory-mapped file" << std::endl;
+        // get error
+        DWORD err = GetLastError();
+        if (err == 6) // ERROR_INVALID_HANDLE
+        {
+            std::cerr << "ERROR_INVALID_HANDLE" << std::endl;
+        }
+        std::cerr << "Error: " << err << std::endl;
         return;
     }
 
@@ -83,14 +113,46 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
 
     // Create an OpenCV Mat to hold the image data (this points to the shared memory region)
     image = cv::Mat(cv::Size(width, height), CV_8UC4, lpMapAddress);
+    std::cout << "done openning shared file: " << sharedFileName << std::endl;
 }
 
-void CameraReceiverSim::getFrame(cv::Mat& output)
+static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
+{
+    if (mat1.size() != mat2.size() || mat1.type() != mat2.type())
+    {
+        // Mats have different sizes or types
+        return false;
+    }
+
+    // Compute the absolute difference between the current frame and the previous frame
+    cv::Mat diff;
+    cv::absdiff(mat1, mat2, diff);
+
+    // Convert the difference to grayscale
+    cv::Mat grayDiff;
+    cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
+
+    return cv::countNonZero(grayDiff) == 0;
+}
+
+bool CameraReceiverSim::GetFrame(cv::Mat &output)
 {
     // remove alpha
     cv::cvtColor(image, output, cv::COLOR_BGRA2BGR);
     // Flip the image vertically
     cv::flip(output, output, 0);
+
+    // Skip the first frame or if the current frame is the same as the previous frame
+    if (AreMatsEqual(output, _prevFrame))
+    {
+        // set the previous frame to the current frame
+        _prevFrame = output.clone();
+        // return no classification
+        return false;
+    }
+
+    // set the previous frame to the current frame
+    _prevFrame = output.clone();
 }
 
 CameraReceiverSim::~CameraReceiverSim()

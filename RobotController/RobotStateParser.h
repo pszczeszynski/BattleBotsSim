@@ -10,12 +10,14 @@
  * All of the information it needs should be obtained from
  * the vision system.
 */
-struct RobotState
+struct UnityRobotState
 {
     // velocity of our robot
     Point robot_velocity;
     // orientation of our robot
     double robot_orientation;
+    // the rotation velocity of our robot in radians per second
+    double robot_rotation_velocity;
 
     // position of the opponent's robot
     Point opponent_position;
@@ -23,7 +25,10 @@ struct RobotState
     double opponent_orientation;
 };
 
-struct RobotControllerMessage
+/**
+ * Drives the unity robot
+*/
+struct UnityDriveCommand
 {
     double drive_amount;
     double turn_amount;
@@ -32,6 +37,6 @@ struct RobotControllerMessage
 class RobotStateParser
 {
 public:
-    static RobotState parse(const std::string &json_string);
-    static std::string serialize(RobotControllerMessage message);
+    static UnityRobotState parse(const std::string &json_string);
+    static std::string serialize(UnityDriveCommand message);
 };

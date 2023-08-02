@@ -162,12 +162,14 @@ RobotConfigWindow::RobotConfigWindow()
     imageLabel = new QLabel(this);
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);
 
+    SAFE_DRAW
     // init drawing image
-    DRAWING_IMAGE = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
+    drawingImage = cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
     // Load an OpenCV Mat and set it as the image in QLabel
-    QImage image(DRAWING_IMAGE.data, DRAWING_IMAGE.cols, DRAWING_IMAGE.rows, QImage::Format_RGB888);
+    QImage image(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(image);
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
+    END_SAFE_DRAW
 
     // Install this object as an event filter on the application object
     qApp->installEventFilter(this);
@@ -182,22 +184,24 @@ RobotConfigWindow::RobotConfigWindow()
 */
 void RobotConfigWindow::RefreshFieldImage()
 {
-    // acquire lock on drawing image
-    DRAWING_IMAGE_MUTEX.lock();
-    // if drawing image is empty, release lock and return
-    if (DRAWING_IMAGE.empty())
+    // check if drawing image is empty and return if it is
+    bool isEmpty = false;
+    SAFE_DRAW
+    isEmpty = drawingImage.empty();
+    END_SAFE_DRAW
+    if (isEmpty)
     {
-        DRAWING_IMAGE_MUTEX.unlock();
         return;
     }
 
+    SAFE_DRAW
     // otherwise, convert drawing image to QImage and set it as the image in QLabel
-    QImage imageQt(DRAWING_IMAGE.data, DRAWING_IMAGE.cols, DRAWING_IMAGE.rows, QImage::Format_RGB888);
+    QImage imageQt(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(imageQt);
     // Update the imageLabel pixmap whenever drawingImage is updated
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
     // finally release lock
-    DRAWING_IMAGE_MUTEX.unlock();
+    END_SAFE_DRAW
 }
 
 void RobotConfigWindow::ShowGUI()

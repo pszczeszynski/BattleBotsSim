@@ -8,7 +8,7 @@
 #include "MathUtils.h"
 #include "RobotStateParser.h"
 #include "CameraReceiver.h"
-#include "RobotTracker.h"
+#include "RobotOdometry.h"
 #include <opencv2/core/core.hpp>
 
 // #include "Graphics/GameLoop.h"
@@ -25,8 +25,6 @@ public:
     Vision(ICameraReceiver &overheadCam);
     VisionClassification LocateRobots2d(cv::Mat&, cv::Mat&);
     VisionClassification RunPipeline();
-
-    bool areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2);
 
 private:
     ICameraReceiver& overheadCam;

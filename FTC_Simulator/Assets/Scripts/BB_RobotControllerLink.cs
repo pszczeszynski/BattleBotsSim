@@ -10,7 +10,7 @@ public class BB_RobotControllerLink
     private UdpClient robotControllerClient;
     private IPEndPoint robotControllerEP;
     bool hasReceivedMessage = false;
-    private RobotControllerMessage lastRobotControllerMessage;
+    private RobotControllerDriveCommand lastRobotControllerMessage;
 
     public BB_RobotControllerLink(string robotControllerIP = "127.0.0.1",
                                   int robotControllerPort = 11115)
@@ -34,7 +34,7 @@ public class BB_RobotControllerLink
     }
 
     // Receive the latest message
-    public RobotControllerMessage? Receive()
+    public RobotControllerDriveCommand? Receive()
     {
         // THE NUMBER OF LOOPS CANNOT BE INIFINITE since the robot controller only sends one message per frame
         while (robotControllerClient.Available > 0)
@@ -42,7 +42,7 @@ public class BB_RobotControllerLink
             UnityEngine.Debug.Log("got new message!");
             byte[] data = robotControllerClient.Receive(ref robotControllerEP);
             string message = System.Text.Encoding.ASCII.GetString(data);
-            lastRobotControllerMessage = JsonUtility.FromJson<RobotControllerMessage>(message);
+            lastRobotControllerMessage = JsonUtility.FromJson<RobotControllerDriveCommand>(message);
             hasReceivedMessage = true;
         }
 
@@ -62,7 +62,7 @@ public class BB_RobotControllerLink
 }
 
 [System.Serializable]
-public struct RobotControllerMessage
+public struct RobotControllerDriveCommand
 {
     public double drive_amount;
     public double turn_amount;

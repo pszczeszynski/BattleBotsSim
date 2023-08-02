@@ -73,9 +73,11 @@ double compareHistograms(const cv::Mat &hist1, const cv::Mat &hist2)
 
 void RobotClassifier::SwitchRobots()
 {
-    cv::Point2f temp = RobotTracker::Robot().position;
-    RobotTracker::Robot().position = RobotTracker::Opponent().position;
-    RobotTracker::Opponent().position = temp;
+    cv::Point2f savedPos = RobotOdometry::Robot().GetPosition();
+    cv::Point2f savedVel = RobotOdometry::Robot().GetVelocity();
+    // swap the positions and velocities of the robots
+    RobotOdometry::Robot().UpdateForceSetPosAndVel(RobotOdometry::Opponent().GetPosition(), RobotOdometry::Opponent().GetVelocity());
+    RobotOdometry::Opponent().UpdateForceSetPosAndVel(savedPos, savedVel);
 }
 
 cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
@@ -101,7 +103,9 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
     // fill DRAWING_IMAGE with red at (blob.rect masked with motionimage)
     cv::Mat redImage = cv::Mat::zeros(frame.size(), CV_8UC3);
     redImage.setTo(cv::Scalar(0, 0, 255), motionImage);
-    cv::addWeighted(frame, 1, redImage, 0.5, 0, DRAWING_IMAGE);    
+    SAFE_DRAW
+    cv::addWeighted(frame, 1, redImage, 0.5, 0, drawingImage);
+    END_SAFE_DRAW
     
 
     // visualizeHistogram(data.histogram);
@@ -138,8 +142,8 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     double histogramScore = diffToRobotHist - diffToOpponentHist;
 
     // now let's take their location into account
-    double distanceToRobot = cv::norm(RobotTracker::Robot().getPosition() - blob.center);
-    double distanceToOpponent = cv::norm(RobotTracker::Opponent().getPosition() - blob.center);
+    double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blob.center);
+    double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blob.center);
 
     // normalize the distance score
     double distanceScoreNormalized = (distanceToRobot - distanceToOpponent) / (distanceToRobot + distanceToOpponent);
@@ -164,7 +168,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     if (Mouse::GetInstance().GetLeftDown())
     {
         // set the robot to the mouse position
-        RobotTracker::Robot().position = Mouse::GetInstance().GetPos();
+        RobotOdometry::Robot().UpdateForceSetPosAndVel(Mouse::GetInstance().GetPos(), cv::Point2f{0, 0});
         // don't classify
         return classificationResult;
     }
@@ -173,7 +177,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     if (Mouse::GetInstance().GetRightDown())
     {
         // set the opponent to the mouse position
-        RobotTracker::Opponent().position = Mouse::GetInstance().GetPos();
+        RobotOdometry::Opponent().UpdateForceSetPosAndVel(Mouse::GetInstance().GetPos(), cv::Point2f{0, 0});
         // don't classify
         return classificationResult;
     }
@@ -181,13 +185,15 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     // if only one blob
     if (blobs.size() == 1)
     {
-        double distanceToRobot = cv::norm(RobotTracker::Robot().getPosition() - blobs[0].center);
-        double distanceToOpponent = cv::norm(RobotTracker::Opponent().getPosition() - blobs[0].center);
+        double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blobs[0].center);
+        double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blobs[0].center);
 
         bool firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
 
         // draw a circle on the frame
-        cv::circle(DRAWING_IMAGE, blobs[0].center, 10, cv::Scalar(0, 255, 0), 2);
+        SAFE_DRAW
+        cv::circle(drawingImage, blobs[0].center, 10, cv::Scalar(0, 255, 0), 2);
+        END_SAFE_DRAW
 
         // if greater than 0, it's us => update first robotTracker otherwise update second.
         if (firstIsRobot)
@@ -222,13 +228,13 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
 
 
         // if the robot blob is close to the robot tracker
-        if (norm(robot.center - RobotTracker::Robot().getPosition()) < MATCHING_DIST_THRESHOLD)
+        if (norm(robot.center - RobotOdometry::Robot().GetPosition()) < MATCHING_DIST_THRESHOLD)
         {
             classificationResult.SetRobot(robot);
         }
 
         // if the opponent blob is close to the opponent tracker
-        if (norm(opponent.center - RobotTracker::Opponent().getPosition()) < MATCHING_DIST_THRESHOLD)
+        if (norm(opponent.center - RobotOdometry::Opponent().GetPosition()) < MATCHING_DIST_THRESHOLD)
         {
             classificationResult.SetOpponent(opponent);
         }

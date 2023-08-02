@@ -58,3 +58,18 @@ void calculateTangentPoints(const cv::Point2f& center, float radius, const cv::P
     tangent1 = cv::Point2f(center.x + radius * cos(angle1), center.y + radius * sin(angle1));
     tangent2 = cv::Point2f(center.x + radius * cos(angle2), center.y + radius * sin(angle2));
 }
+
+cv::Point2f InterpolatePoints(const cv::Point2f& p1, const cv::Point2f& p2, double ratio)
+{
+    cv::Point2f diff = p2 - p1;
+    return p1 + diff * ratio;
+}
+
+Angle InterpolateAngles(Angle a1, Angle a2, double ratio)
+{
+    // Find the difference between the angles and make sure it's the shortest path
+    double diff = angle_wrap(a2 - a1);
+
+    // Interpolate using the ratio
+    return Angle(a1 + diff * ratio);
+}

@@ -181,8 +181,10 @@ private:
         // compute the new angular velocity
         newState.angularVelocity = initialState.angularVelocity;
 
+        SAFE_DRAW
         // draw line from old position to new position
-        cv::line(DRAWING_IMAGE, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
+        cv::line(drawingImage, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
+        END_SAFE_DRAW
 
         // return the new state
         return newState;

@@ -56,6 +56,8 @@ cv::Point2f Mouse::GetPos()
 void Mouse::DrawCursor()
 {
     lock.lock();
-    cv::circle(DRAWING_IMAGE, pos, 5, cv::Scalar(255, 255, 255), 2);
+    SAFE_DRAW
+    cv::circle(drawingImage, pos, 5, cv::Scalar(255, 255, 255), 2);
+    END_SAFE_DRAW
     lock.unlock();
 }

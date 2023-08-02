@@ -5,15 +5,16 @@ using System.Linq;
 // for now, just send the other robot's position + orientation
 // eventually: send camera images so that robot controller deduces other robot position + orientation
 [System.Serializable]
-public struct BattleBotState
+public struct RobotControllerMessage
 {
     // our robot
     public Vector3 robot_velocity;
-    public double robot_orientation;
+    public double robot_rotation;
+    public double robot_rotation_velocity;
 
     // other robot
     public Vector3 opponent_position;
-    public double opponent_orientation;
+    public double opponent_rotation;
 }
 
 public class Robot_BB_Flipsy : RobotInterface3D
@@ -57,6 +58,10 @@ public class Robot_BB_Flipsy : RobotInterface3D
         _tankDrive = GetComponent<TankDrive>();
     }
 
+
+    // simulated gyro rotation
+    private double gyroRotationRad = 0.0f;
+
     private void RobotControllerUpdate()
     {
         // don't execute this on the client
@@ -64,35 +69,36 @@ public class Robot_BB_Flipsy : RobotInterface3D
 
         ApplyDownForce();
 
-        double input_rotation = Mathf.Atan2(Input.GetAxis("J1Axis2"), Input.GetAxis("J1Axis1")) * 180.0f / Mathf.PI;
 
-        if (Mathf.Abs(Input.GetAxis("J1Axis2")) < 0.1 && Mathf.Abs(Input.GetAxis("J1Axis1")) < 0.1)
-        {
-            input_rotation = 0;
-        }
+        // get the robot's rigidbody
+        Rigidbody rb = robot_body.GetComponent<Rigidbody>();
 
-        input_rotation = -180;
-        // if k is pressed
-        if (Input.GetKey(KeyCode.K))
-        {
-            input_rotation = 0;
-        }
 
-        double actual_rotation = opponent_body.rotation.eulerAngles[1];
-        BattleBotState state = new BattleBotState
+        double robot_rotation = robot_body.rotation.eulerAngles[1];
+        double robot_rotation_velocity = rb.angularVelocity.y;
+
+        const float GYRO_NOISE_PERCENTAGE = 0.5f;
+        // add noise to the robot rotation to simulate gyro drift
+        double robotRotationWithNoise = Random.Range(1.0f - GYRO_NOISE_PERCENTAGE, 1.0f + GYRO_NOISE_PERCENTAGE * 0.7f) * robot_rotation_velocity;
+        // integrate the gyro velocity to get the gyro rotation
+        gyroRotationRad += Time.deltaTime * robotRotationWithNoise;
+
+        // create a message to send to the robot controller
+        RobotControllerMessage rcMessage = new RobotControllerMessage
         {
-            robot_velocity = robot_body.GetComponent<Rigidbody>().velocity,
-            robot_orientation = robot_body.rotation.eulerAngles[1],
+            robot_velocity = rb.velocity,
+            robot_rotation = gyroRotationRad,
+            robot_rotation_velocity = robotRotationWithNoise,
             opponent_position = opponent_body.position,
-            opponent_orientation = input_rotation//actual_rotation
+            opponent_rotation = opponent_body.rotation.eulerAngles[1]
         };
 
         // send the robot controller the current state
-        string message = JsonUtility.ToJson(state);
+        string message = JsonUtility.ToJson(rcMessage);
         _robotControllerLink.SendMessage(message);
 
         // receive latest control input from the robot controller
-        RobotControllerMessage? input = _robotControllerLink.Receive();
+        RobotControllerDriveCommand? input = _robotControllerLink.Receive();
  
 
         // movement with w and s

@@ -64,7 +64,10 @@ protected:
         cv::Point2f imageLabelPos = cv::Point2f(imageLabel->x(), imageLabel->y());
         cv::Point2f absolutePos = cv::Point2f(event->x(), event->y());
 
-        cv::Point2f relativePos = (absolutePos - imageLabelPos) * (float)DRAWING_IMAGE.rows / imageLabel->height();
+        cv::Point2f relativePos;
+        SAFE_DRAW
+        relativePos = (absolutePos - imageLabelPos) * (float)drawingImage.rows / imageLabel->height();
+        END_SAFE_DRAW
 
         // Set position relative to image label
         Mouse::GetInstance().SetPos(relativePos);

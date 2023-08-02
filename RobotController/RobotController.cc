@@ -83,8 +83,12 @@ void RobotController::Run()
     TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
+
+    // For real robot, send a stop drive command to start
+#ifndef SIMULATION
     DriveCommand c{0, 0};
     robotLink.Drive(c);
+#endif
 
     // receive until the peer closes the connection
     while (true)
@@ -99,8 +103,8 @@ void RobotController::Run()
         state = robotLink.Receive();
 
         TIMER_START
-        // VisionClassification classification = vision.RunPipeline();
-        // UpdateRobotTrackers(classification);
+        VisionClassification classification = vision.RunPipeline();
+        UpdateRobotTrackers(classification);
         TIMER_PRINT("Vision")
 
         // 3. run our robot controller loop
@@ -115,7 +119,7 @@ void RobotController::Run()
 
         TIMER_START
         // refresh the field image
-        // emit RefreshFieldImageSignal();
+        emit RefreshFieldImageSignal();
         TIMER_PRINT("imshow()")
     }
 }
@@ -127,12 +131,12 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     {
         MotionBlob robot = *classification.GetRobotBlob();
         cv::Mat& frame = *(classification.GetRobotBlob()->frame);
-        RobotTracker::Robot().UpdateVisionAndIMU(robot, frame);
+        RobotOdometry::Robot().UpdateVisionAndIMU(robot, frame);
     }
     else
     {
         // otherwise just update using the imu
-        RobotTracker::Robot().UpdateIMUOnly();
+        RobotOdometry::Robot().UpdateIMUOnly();
     }
 
     // if vision detected the opponent
@@ -140,12 +144,12 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     {
         MotionBlob opponent = *classification.GetOpponentBlob();
         cv::Mat& frame = *(classification.GetOpponentBlob()->frame);
-        RobotTracker::Opponent().UpdateVisionOnly(opponent, frame);
+        RobotOdometry::Opponent().UpdateVisionOnly(opponent, frame);
     }
     else
     {
         // set the opponent to invalid (sets their velocity to 0)
-        RobotTracker::Opponent().invalidate();
+        RobotOdometry::Opponent().Invalidate();
     }
 }
 
@@ -200,8 +204,8 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     static Clock c;
     static bool goToOtherTarget = true;
 
-    cv::Point2f currPos = RobotTracker::Robot().getPosition();
-    double currAngle = RobotTracker::Robot().getAngle();
+    cv::Point2f currPos = RobotOdometry::Robot().GetPosition();
+    double currAngle = RobotOdometry::Robot().GetAngle();
 
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
@@ -212,8 +216,8 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     RobotSimState currentState;
     currentState.position = currPos;
     currentState.angle = currAngle;
-    currentState.velocity = RobotTracker::Robot().GetVelocity();
-    currentState.angularVelocity = RobotTracker::Robot().GetAngleVelocity();
+    currentState.velocity = RobotOdometry::Robot().GetVelocity();
+    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity();
 
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, 50);
     double currAngleEx = exState.angle;
@@ -221,15 +225,19 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(50.0 * cos(currAngle), 50.0 * sin(currAngle));
-    cv::arrowedLine(DRAWING_IMAGE, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
+
+    SAFE_DRAW
+    cv::arrowedLine(drawingImage, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
+    // draw our position
+    cv::circle(drawingImage, currPos, 5, cv::Scalar(0,0,255), 2);
+    // draw circle with dotted line at extrapolated position
+    cv::circle(drawingImage, currPosEx, 5, cv::Scalar(255,100,0), 1);
+    END_SAFE_DRAW
+
     // // draw different colored arrow from our position at extrapolated angle
     // cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
     // cv::arrowedLine(DRAWING_IMAGE, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
 
-    // draw our position
-    cv::circle(DRAWING_IMAGE, currPos, 5, cv::Scalar(0,0,255), 2);
-    // draw circle with dotted line at extrapolated position
-    cv::circle(DRAWING_IMAGE, currPosEx, 5, cv::Scalar(255,100,0), 1);
 
     double angleToTarget1 = atan2(targetPos.y - currPosEx.y, targetPos.x - currPosEx.x);
     double angleToTarget2 = angle_wrap(angleToTarget1 + M_PI);
@@ -262,7 +270,9 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     response.movement = goToOtherTarget ? -drive_scale : drive_scale;
 
     // Draw debugging information
-    cv::circle(DRAWING_IMAGE, targetPos, 10, cv::Scalar(0, 255, 0), 4);
+    SAFE_DRAW
+    cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
+    END_SAFE_DRAW
 
     response.movement *= -1;
     response.turn *= -1;
@@ -280,13 +290,13 @@ DriveCommand RobotController::OrbitMode()
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     // our pos + angle
-    cv::Point2f ourPosition = RobotTracker::Robot().getPosition();
+    cv::Point2f ourPosition = RobotOdometry::Robot().GetPosition();
 
     // opponent pos + angle
-    cv::Point2f opponentPos = RobotTracker::Opponent().getPosition();
+    cv::Point2f opponentPos = RobotOdometry::Opponent().GetPosition();
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
-    opponentPosEx = RobotTracker::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
+    opponentPosEx = RobotOdometry::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
     // default just to drive to the center
     cv::Point2f targetPoint = opponentPosEx;
@@ -298,16 +308,15 @@ DriveCommand RobotController::OrbitMode()
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
 
+    SAFE_DRAW
     // draw blue circle around opponent
-    cv::circle(DRAWING_IMAGE, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
-
+    cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
     // draw arrow from opponent position at opponent angle
-    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotTracker::Opponent().angle), 100.0 * sin(RobotTracker::Opponent().angle));
-    cv::arrowedLine(DRAWING_IMAGE, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
-
+    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
+    cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
     // draw orange circle around opponent to show evasion radius
-    cv::circle(DRAWING_IMAGE, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
-
+    cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
+    END_SAFE_DRAW
 
     bool orbitRight = gamepad.GetRightStickY() > 0;
     bool orbitLeft = gamepad.GetRightStickY() < 0;
@@ -321,8 +330,10 @@ DriveCommand RobotController::OrbitMode()
         targetPoint = opponentPosEx - cv::Point2f(cos(evasionAngle), sin(evasionAngle)) * ORBIT_RADIUS;
     }
 
+    SAFE_DRAW
     // Draw the point
-    cv::circle(DRAWING_IMAGE, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
+    cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
+    END_SAFE_DRAW
 
     bool allowReverse = false;
 
@@ -354,11 +365,8 @@ DriveCommand RobotController::ManualMode()
  */
 DriveCommand RobotController::RobotLogic()
 {
-    
-    DRAWING_IMAGE_MUTEX.lock();
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = OrbitMode();
-    DRAWING_IMAGE_MUTEX.unlock();
 
     DriveCommand ret = responseManual;
 

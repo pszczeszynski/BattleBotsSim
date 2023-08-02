@@ -39,7 +39,7 @@ set(SOURCES
     ServerSocket.cc
     RobotStateParser.cc
     Clock.cc
-    RobotTracker.cc
+    RobotOdometry.cc
     ValueBin.cc
     TrackingUtils.cc
     Timer.cc

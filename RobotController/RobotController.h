@@ -6,7 +6,7 @@
 #include "Vision.h"
 #include <QObject>
 #include <QPixmap>
-#include "RobotTracker.h"
+#include "RobotOdometry.h"
 #include "RobotLink.h"
 #include "RobotControllerGUI.h"
 #include "Gamepad.h"

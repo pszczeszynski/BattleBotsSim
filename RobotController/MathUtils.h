@@ -15,6 +15,8 @@ cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad);
 
 void calculateTangentPoints(const cv::Point2f& center, float radius, const cv::Point2f& externalPoint, cv::Point2f& tangent1, cv::Point2f& tangent2);
 
+cv::Point2f InterpolatePoints(const cv::Point2f& p1, const cv::Point2f& p2, double ratio);
+
 class Point2f
 {
 public:
@@ -97,4 +99,7 @@ public:
 private:
     double value_;
 };
+
+
+Angle InterpolateAngles(Angle a1, Angle a2, double ratio);
 

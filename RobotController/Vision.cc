@@ -14,24 +14,6 @@ Vision::Vision(ICameraReceiver &overheadCam)
 {
 }
 
-bool Vision::areMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
-{
-    if (mat1.size() != mat2.size() || mat1.type() != mat2.type())
-    {
-        // Mats have different sizes or types
-        return false;
-    }
-
-    // Compute the absolute difference between the current frame and the previous frame
-    cv::Mat diff;
-    cv::absdiff(mat1, mat2, diff);
-
-    // Convert the difference to grayscale
-    cv::Mat grayDiff;
-    cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
-
-    return cv::countNonZero(grayDiff) == 0;
-}
 
 /**
  * This is the 2d version of the pipeline
@@ -41,14 +23,14 @@ VisionClassification Vision::RunPipeline()
     VisionClassification ret;
 
     // get the current frame from the camera
-    overheadCam.getFrame(currFrame);
+    overheadCam.GetFrame(currFrame);
     // preprocess the frame to get the birds eye view
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
 
-DRAWING_IMAGE_MUTEX.lock();
+    SAFE_DRAW
     // clone the current frame to the drawing image
-    DRAWING_IMAGE = currFrame.clone();
-DRAWING_IMAGE_MUTEX.unlock();
+    drawingImage = currFrame.clone();
+    END_SAFE_DRAW
 
     // if we don't have a previous frame
     if (previousBirdsEye.empty())
@@ -58,18 +40,6 @@ DRAWING_IMAGE_MUTEX.unlock();
         // return no classification since we don't have a previous frame
         return ret;
     }
-
-    // in simulation only, we must check if the current frame is different from the previous frame
-#ifdef SIMULATION
-    // Skip the first frame or if the current frame is the same as the previous frame
-    if (areMatsEqual(currFrame, previousBirdsEye))
-    {
-        // set the previous frame to the current frame
-        previousBirdsEye = currFrame.clone();
-        // return no classification
-        return ret;
-    }
-#endif
 
     // find the opponent
     ret = LocateRobots2d(currFrame, previousBirdsEye);
