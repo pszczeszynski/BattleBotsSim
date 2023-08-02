@@ -54,6 +54,7 @@ private:
 
     Angle CalcAnglePathTangent();
     bool _visualAngleValid = false;
+    Clock _lastVisualAngleValidClock;
 
     cv::Point2f _lastPositionWhenUpdatedAngle; // angle updated based on displacement
 

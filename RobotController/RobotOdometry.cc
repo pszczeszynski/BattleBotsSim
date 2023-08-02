@@ -27,6 +27,29 @@ RobotOdometry& RobotOdometry::Opponent()
     static RobotOdometry opponent(cv::Point2f(0,0));
     return opponent;
 }
+static cv::Point2f GetImuVelocity()
+{
+    // get latest message
+    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
+    // get angular velocity from imu
+    return cv::Point2f(robotMessage.velocity.x, robotMessage.velocity.z);
+}
+
+static double GetImuAngleRad()
+{
+    // get latest message
+    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
+    // get angular velocity from imu
+    return robotMessage.rotation;
+}
+
+static double GetImuAngleVelocityRadPerSec()
+{
+    // get latest message
+    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
+    // get angular velocity from imu
+    return robotMessage.rotationVelocity;
+}
 
 // the displacement required to update the angle
 #define DIST_BETWEEN_ANG_UPDATES_PX 0
@@ -38,7 +61,7 @@ RobotOdometry& RobotOdometry::Opponent()
 #define VELOCITY_THRESH_FOR_ANGLE_UPDATE 100 * WIDTH / 720.0
 
 // max rotational speed to update the angle radians per second
-#define MAX_ROTATION_SPEED_TO_ALIGN 60 * TO_RAD
+#define MAX_ROTATION_SPEED_TO_ALIGN 250 * TO_RAD
 
 /**
  * @brief updates the angle of the robot using the velocity
@@ -49,7 +72,6 @@ Angle RobotOdometry::CalcAnglePathTangent()
 
     double posDiff = norm(_position - _lastPositionWhenUpdatedAngle);
     double velNorm = norm(_lastVelocity);
-    std::cout << "velNorm: " << velNorm << std::endl;
 
     // if (velNorm < VELOCITY_THRESH_FOR_ANGLE_UPDATE)
     // {
@@ -78,10 +100,16 @@ Angle RobotOdometry::CalcAnglePathTangent()
         // update the angle but only by half the change
         retAngleRad = Angle(atan2(delta.y, delta.x));
 
-        // if (Angle(retAngleRad + M_PI - angle) < Angle(retAngleRad - angle))
-        // {
-        //     retAngleRad = Angle(retAngleRad + M_PI);
-        // }
+        // if the angle is closer to 180 degrees to the last angle
+        if (abs(Angle(retAngleRad + M_PI - _angle)) < abs(Angle(retAngleRad - _angle)))
+        {
+            // add 180 degrees to the angle
+            retAngleRad = Angle(retAngleRad + M_PI);
+        }
+
+        // add half the change in angle from the imu in the last update (since we calculated the angle at the midpoint)
+        retAngleRad = retAngleRad + Angle(_lastVisualAngleValidClock.getElapsedTime() / 2 * GetImuAngleVelocityRadPerSec());
+        _lastVisualAngleValidClock.markStart();
 
         // save the last position
         _lastPositionWhenUpdatedAngle = _position;
@@ -96,29 +124,7 @@ Angle RobotOdometry::CalcAnglePathTangent()
     return retAngleRad;
 }
 
-static cv::Point2f GetImuVelocity()
-{
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get angular velocity from imu
-    return cv::Point2f(robotMessage.velocity.x, robotMessage.velocity.z);
-}
 
-static double GetImuAngleRad()
-{
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get angular velocity from imu
-    return robotMessage.rotation;
-}
-
-static double GetImuAngleVelocityRadPerSec()
-{
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get angular velocity from imu
-    return robotMessage.rotationVelocity;
-}
 
 /**
  * Predicts the current position of the robot using the velocity from last update and curr update
