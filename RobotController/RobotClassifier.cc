@@ -165,7 +165,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     VisionClassification classificationResult;
 
     // if the user left clicks
-    if (Mouse::GetInstance().GetLeftDown() && pDown)
+    if (!nearCorner && Mouse::GetInstance().GetLeftDown())
     {
         // set the robot to the mouse position
         RobotOdometry::Robot().UpdateForceSetPosAndVel(Mouse::GetInstance().GetPos(), cv::Point2f{0, 0});

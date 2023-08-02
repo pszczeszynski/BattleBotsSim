@@ -29,12 +29,12 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
     cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
 
     // If the user left clicks and holds down shift near one of the corners
-    if (Mouse::GetInstance().GetLeftDown())
+    if (nearCorner && Mouse::GetInstance().GetLeftDown())
     {
         // Check each corner
         for (int i = 0; i < 4; i++)
         {
-            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE && shiftDown))
+            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE))
             {
                 // Don't restrict adjustment once you start adjusting
                 if (!down[i]) down[i] = true;
@@ -67,18 +67,24 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
     SAFE_DRAW
     cv::circle(drawingImage, _mousePosLast, 3, cv::Scalar(0, 255, 0), 2);
     END_SAFE_DRAW
-
+    
+    bool outside = true;
     for (int i = 0; i < 4; i++)
     {
         SAFE_DRAW
         if (cv::norm(dstPoints[i] - currMousePos) < CLOSE)
         {
             cv::circle(drawingImage, dstPoints[i], CLOSE * 1.5, cv::Scalar(255, 100, 255), 2);
+            nearCorner = true;
+            outside = false;
         }
         else
         {
             cv::circle(drawingImage, dstPoints[i], CLOSE, cv::Scalar(255, 0, 255), 2);
+            if (down[i]) outside = false;
         }
         END_SAFE_DRAW
     }
+
+    if (outside) nearCorner = false;
 }

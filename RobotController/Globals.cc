@@ -7,3 +7,4 @@ ProtectedMat P_DRAWING_IMAGE = ProtectedMat(cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC
 bool shiftDown = false;
 bool aDown = false;
 bool pDown = false;
+bool nearCorner = false;
