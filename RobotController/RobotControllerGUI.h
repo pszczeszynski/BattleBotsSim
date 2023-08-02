@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <QLabel>
+#include <QVBoxLayout>  // Include the QVBoxLayout header
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QLineEdit>
@@ -71,6 +72,49 @@ protected:
 
         // Set position relative to image label
         Mouse::GetInstance().SetPos(relativePos);
+    }
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        // We're interested in KeyPress and KeyRelease events
+        if(event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
+        {
+            // Cast the QEvent pointer to a QKeyEvent pointer
+            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+
+            // Shift
+            if(keyEvent->key() == Qt::Key_Shift)
+            {
+                if(event->type() == QEvent::KeyPress) {
+                    shiftDown = true;
+                } else {
+                    shiftDown = false;
+                }
+            }
+
+            // A
+            if(keyEvent->key() == Qt::Key_A)
+            {
+                if(event->type() == QEvent::KeyPress) {
+                    aDown = true;
+                } else {
+                    aDown = false;
+                }
+            }
+
+            // P
+            if(keyEvent->key() == Qt::Key_P)
+            {
+                if(event->type() == QEvent::KeyPress) {
+                    pDown = true;
+                } else {
+                    pDown = false;
+                }
+            }
+        }
+
+        // Call the base class implementation (important!)
+        return QMainWindow::eventFilter(watched, event);
     }
 
 private:

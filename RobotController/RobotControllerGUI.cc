@@ -122,6 +122,7 @@ void addTextInput(QMainWindow* window, const QString& label, QString& value)
 RobotConfigWindow::RobotConfigWindow()
 {
     setWindowTitle("Orbitron Hub");
+    setWindowFlags(windowFlags() | Qt::WindowMinimizeButtonHint);
     setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     const int LEFT_COLUMN_X = COLUMN_SPACING;
@@ -158,6 +159,7 @@ RobotConfigWindow::RobotConfigWindow()
         RobotClassifier::instance->SwitchRobots();
     });
 
+
     // Right column: Display OpenCV Mat (passed by reference)
     imageLabel = new QLabel(this);
     imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_WIDTH - RIGHT_COLUMN_X - COLUMN_SPACING, WINDOW_HEIGHT - 20);
@@ -173,6 +175,11 @@ RobotConfigWindow::RobotConfigWindow()
 
     // Install this object as an event filter on the application object
     qApp->installEventFilter(this);
+
+
+    // enable tracking the mouse even when it isn't pressed
+    setMouseTracking(true);
+    imageLabel->setMouseTracking(true);
 
 }
 
