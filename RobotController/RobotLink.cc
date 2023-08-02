@@ -4,14 +4,16 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
+#define TRANSMITTER_COM_PORT TEXT("COM6")
+
+RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
                                           {
     DWORD dwBytesRead = 0;
     DWORD dwErrors = 0;
     COMSTAT comStat;
 
     // Get and clear current errors on the com port.
-    if (!ClearCommError(comPort, &dwErrors, &comStat))
+    if (!ClearCommError(_comPort, &dwErrors, &comStat))
     {
         // attempt to reinitialize com port
         InitComPort();
@@ -26,14 +28,14 @@ RobotLinkReal::RobotLinkReal() : receiver(200, [this](char &c)
     }
 
     // check if there is data to read
-    if(!ReadFile(comPort, &c, 1, &dwBytesRead, NULL))
+    if(!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
     {
         std::cerr << "Error reading from COM port" << std::endl;
     }
     return dwBytesRead > 0; })
 {
     InitComPort();
-    sendingClock.markStart();
+    _sendingClock.markStart();
 }
 
 void RobotLinkReal::InitComPort()
@@ -41,8 +43,8 @@ void RobotLinkReal::InitComPort()
     static int numTries = 0;
     const int NUM_TRIES_BEFORE_PRINTING_ERROR = 500;
 
-    comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (comPort == INVALID_HANDLE_VALUE)
+    _comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (_comPort == INVALID_HANDLE_VALUE)
     {
         // increase numTries
         numTries++;
@@ -63,23 +65,23 @@ void RobotLinkReal::InitComPort()
         std::cout << "Transmitter COM Port opened successfully" << std::endl;
     }
 
-    dcbSerialParams = {0};
-    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-    dcbSerialParams.BaudRate = CBR_115200; // set the baud rate
-    dcbSerialParams.ByteSize = 8;
-    dcbSerialParams.StopBits = ONESTOPBIT;
-    dcbSerialParams.Parity = NOPARITY;
+    _dcbSerialParams = {0};
+    _dcbSerialParams.DCBlength = sizeof(_dcbSerialParams);
+    _dcbSerialParams.BaudRate = CBR_115200; // set the baud rate
+    _dcbSerialParams.ByteSize = 8;
+    _dcbSerialParams.StopBits = ONESTOPBIT;
+    _dcbSerialParams.Parity = NOPARITY;
 
     COMMTIMEOUTS timeouts = {0};
     timeouts.ReadIntervalTimeout = MAXDWORD;
     timeouts.ReadTotalTimeoutConstant = 0;
     timeouts.ReadTotalTimeoutMultiplier = 0;
-    if (!SetCommTimeouts(comPort, &timeouts))
+    if (!SetCommTimeouts(_comPort, &timeouts))
     {
         std::cerr << "Error setting COM port timeouts" << std::endl;
     }
 
-    if (!SetCommState(comPort, &dcbSerialParams))
+    if (!SetCommState(_comPort, &_dcbSerialParams))
     {
         std::cerr << "Error setting serial port state" << std::endl;
     }
@@ -90,19 +92,19 @@ void RobotLinkReal::InitComPort()
 #define MIN_INTER_SEND_TIME_MS 5
 void RobotLinkReal::Drive(DriveCommand &command)
 {
-    if (sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
         return;
     }
 
-    if (comPort == INVALID_HANDLE_VALUE)
+    if (_comPort == INVALID_HANDLE_VALUE)
     {
         // attempt to reopen
         InitComPort();
         return;
     }
 
-    sendingClock.markStart();
+    _sendingClock.markStart();
 
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
@@ -116,64 +118,77 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // write start MESSAGE_START_CHAR
     DWORD dwBytesWritten = 0;
     char start = MESSAGE_START_CHAR;
-    WriteFile(comPort, &start, sizeof(start), &dwBytesWritten, NULL);
+    WriteFile(_comPort, &start, sizeof(start), &dwBytesWritten, NULL);
     // write command
-    WriteFile(comPort, &command, sizeof(command), &dwBytesWritten, NULL);
-
-    std::cout << "sending command: " << command.movement << ", " << command.turn << std::endl;
+    WriteFile(_comPort, &command, sizeof(command), &dwBytesWritten, NULL);
 
     // write start MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
-    WriteFile(comPort, &end, sizeof(end), &dwBytesWritten, NULL);
+    WriteFile(_comPort, &end, sizeof(end), &dwBytesWritten, NULL);
 }
 
 
-int receivedPackets;
-Clock lastReceivedTime;
 
 #define RECEIVE_TIMEOUT_MS 100
 
 RobotMessage RobotLinkReal::Receive()
 {
-    if (comPort == INVALID_HANDLE_VALUE)
+    if (_comPort == INVALID_HANDLE_VALUE)
     {
+        SAFE_DRAW
+        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0));
+        END_SAFE_DRAW
+
         // attempt to reopen
         InitComPort();
         return RobotMessage{0};
     }
 
-    receiver.update();
+    _receiver.update();
 
-    // Clock receiveWaitTimer;
-    // receiveWaitTimer.markStart();
+    RobotMessage retrievedStruct = _receiver.getLatestData();
 
-    // // wait until we have a valid message
-    // while (!receiver.isLatestDataValid() &&
-    //         receiveWaitTimer.getElapsedTime() * 1000 < RECEIVE_TIMEOUT_MS)
-    // {
-    //     receiver.update();
-    // }
-    RobotMessage retrievedStruct = receiver.getLatestData();
-
-    if (receiver.isLatestDataValid())
+    // if latest data is valid
+    if (_receiver.isLatestDataValid())
     {
-        receivedPackets++;
+        // mark that we have received a packet
+        _receivedPackets++;
+        _lastReceivedTimer.markStart();
+        _receiveFPS = _receivedPackets / _fpsTimer.getElapsedTime();
     }
 
-    if (receivedPackets > 1000)
+    // if we have not received a packet in a while
+    if (_fpsTimer.getElapsedTime() > 1)
     {
-        // std::cout << "received per second: " << receivedPackets / lastReceivedTime.getElapsedTime() << std::endl;
-        receivedPackets = 0;
-        lastReceivedTime.markStart();
+        _receivedPackets = 0;
+        _fpsTimer.markStart();
     }
 
+    SAFE_DRAW
+    cv::putText(drawingImage, "Packets/Sec: " + std::to_string(_receiveFPS),
+        cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.9), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255));
+    END_SAFE_DRAW
+
+    if (_lastReceivedTimer.getElapsedTime() * 1000 < 50)
+    {
+        SAFE_DRAW
+        cv::putText(drawingImage, "Connected", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+        END_SAFE_DRAW
+    }
+    else
+    {
+        SAFE_DRAW
+        cv::putText(drawingImage, "Disconnected", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0));
+        END_SAFE_DRAW
+        _receiveFPS = 0;
+    }
 
     return retrievedStruct;
 }
 
 RobotLinkReal::~RobotLinkReal()
 {
-    CloseHandle(comPort);
+    CloseHandle(_comPort);
 }
 
 /////////////////// SIMULATION //////////////////////

@@ -12,8 +12,32 @@
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam)
 {
+    // // create the processing thread in a loop
+    // processingThread = std::thread([&]()
+    //                                {
+    //     while (true)
+    //     {
+    //         // run the pipeline
+    //         VisionClassification classification = RunPipeline();
+
+    //         // save the classification
+    //         _classificationMutex.lock();
+    //         _cassification = classification;
+    //         _classificationMutex.unlock();
+    //     } });
 }
 
+VisionClassification Vision::GetLatestClassification()
+{
+    // lock the mutex
+    _classificationMutex.lock();
+    // get the classification
+    VisionClassification classification = _cassification;
+    // unlock the mutex
+    _classificationMutex.unlock();
+    // return the classification
+    return classification;
+}
 
 /**
  * This is the 2d version of the pipeline
@@ -23,27 +47,38 @@ VisionClassification Vision::RunPipeline()
     VisionClassification ret;
 
     // get the current frame from the camera
-    overheadCam.GetFrame(currFrame);
+    bool hadFrame = overheadCam.GetFrame(currFrame);
+    // if we didn't get a frame, return no classification
+    if (!hadFrame)
+    {
+        return ret;
+    }
+
     // preprocess the frame to get the birds eye view
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
-
-    SAFE_DRAW
-    // clone the current frame to the drawing image
-    drawingImage = currFrame.clone();
-    END_SAFE_DRAW
 
     // if we don't have a previous frame
     if (previousBirdsEye.empty())
     {
         // set the previous frame to the current frame
         previousBirdsEye = currFrame.clone();
+        _prevFrameTimer.markStart();
+        // set the flag that we had a new image
+        ret.SetHadNewImage();
         // return no classification since we don't have a previous frame
         return ret;
     }
 
     // find the opponent
     ret = LocateRobots2d(currFrame, previousBirdsEye);
-    previousBirdsEye = currFrame.clone();
+    if (ret.GetRobotBlob() != nullptr || ret.GetOpponentBlob() != nullptr || _prevFrameTimer.getElapsedTime() > 0.3)
+    {
+        // save the current frame as the previous frame
+        previousBirdsEye = currFrame.clone();
+        _prevFrameTimer.markStart();
+    }
+    // set the flag that we had a new image
+    ret.SetHadNewImage();
 
     // return the classification
     return ret;

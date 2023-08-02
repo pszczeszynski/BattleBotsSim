@@ -34,8 +34,6 @@ private:
     ServerSocket serverSocket;
 };
 
-#define TRANSMITTER_COM_PORT TEXT("COM7")
-
 class RobotLinkReal : public IRobotLink
 {
 public:
@@ -46,8 +44,14 @@ public:
 
 private:
     void InitComPort();
-    HANDLE comPort;
-    DCB dcbSerialParams;
-    Clock sendingClock;
-    GenericReceiver<RobotMessage> receiver;
+    HANDLE _comPort;
+    DCB _dcbSerialParams;
+    Clock _sendingClock;
+    GenericReceiver<RobotMessage> _receiver;
+
+
+    int _receivedPackets;
+    int _receiveFPS;
+    Clock _fpsTimer;
+    Clock _lastReceivedTimer;
 };

@@ -8,31 +8,29 @@ VisionPreprocessor::VisionPreprocessor()
     // Define the four corners of the bird's-eye view output image
     dstPoints[0] = cv::Point2f(0, 0);                             // Top-left corner
     dstPoints[1] = cv::Point2f(WIDTH, 0);                  // Top-right corner
-    dstPoints[2] = cv::Point2f(WIDTH, HEIGHT - 100); // Bottom-right corner
-    dstPoints[3] = cv::Point2f(0, HEIGHT - 100);  // Bottom-left corner
+    dstPoints[2] = cv::Point2f(WIDTH, HEIGHT); // Bottom-right corner
+    dstPoints[3] = cv::Point2f(0, HEIGHT);  // Bottom-left corner
 
     first = true;
 }
 
+
 void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
 {
-    // std::cout << "frame cols " << frame.cols << std::endl;
-    // std::cout << "frame rows " << frame.rows << std::endl;
 
     if (first)
     {
         // Define the four corners of the region of interest (ROI) in the input image
-        srcPoints[0] = cv::Point2f(frame.cols * 0.25, frame.rows * 0.03);                             // Top-left corner
-        srcPoints[1] = cv::Point2f(frame.cols * 0.75, frame.rows * 0.03);                  // Top-right corner
-        srcPoints[2] = cv::Point2f(frame.cols * 1.2, frame.rows); // Bottom-right corner
-        srcPoints[3] = cv::Point2f(-frame.cols * 0.3, frame.rows);  // Bottom-left corner
+        srcPoints[0] = cv::Point2f(frame.cols * 0.25, frame.rows * 0.03); // Top-left corner
+        srcPoints[1] = cv::Point2f(frame.cols * 0.75, frame.rows * 0.03); // Top-right corner
+        srcPoints[2] = cv::Point2f(frame.cols * 1.2, frame.rows);         // Bottom-right corner
+        srcPoints[3] = cv::Point2f(-frame.cols * 0.3, frame.rows);        // Bottom-left corner
     }
+    cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
 
     // If the user left clicks and holds down shift near one of the corners
     if (Mouse::GetInstance().GetLeftDown())
     {
-        cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
-
         // Check each corner
         for (int i = 0; i < 4; i++)
         {
@@ -42,12 +40,10 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
                 if (!down[i]) down[i] = true;
 
                 srcPoints[i] -= currMousePos - _mousePosLast;
-                // std::cout << i << std::endl;
                 first = false;
                 break;
             }
         }
-        
     }
     else
     {
@@ -56,10 +52,6 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
 
     _mousePosLast = Mouse::GetInstance().GetPos();
 
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     std::cout << srcPoints[i].x << " " << srcPoints[i].y << std::endl;
-    // }
 
     // Compute the transformation matrix
     cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
@@ -67,17 +59,26 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
     // Apply the perspective transformation
     warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT));
 
+    SAFE_DRAW
+    // clone the current frame to the drawing image
+    drawingImage = dst.clone();
+    END_SAFE_DRAW
 
     SAFE_DRAW
-    cv::circle(dst, _mousePosLast, 3, cv::Scalar(0, 255, 0), 2);
+    cv::circle(drawingImage, _mousePosLast, 3, cv::Scalar(0, 255, 0), 2);
     END_SAFE_DRAW
 
     for (int i = 0; i < 4; i++)
     {
         SAFE_DRAW
-        cv::circle(dst, dstPoints[i], 3, cv::Scalar(255, 0, 255), 2);
+        if (cv::norm(dstPoints[i] - currMousePos) < CLOSE)
+        {
+            cv::circle(drawingImage, dstPoints[i], CLOSE * 1.5, cv::Scalar(255, 100, 255), 2);
+        }
+        else
+        {
+            cv::circle(drawingImage, dstPoints[i], CLOSE, cv::Scalar(255, 0, 255), 2);
+        }
         END_SAFE_DRAW
     }
-
-
 }

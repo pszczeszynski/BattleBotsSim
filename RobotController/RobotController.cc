@@ -40,7 +40,7 @@ RobotController::RobotController() : gamepad{0},
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{0},
+                                     overheadCamL_real{1},
                                      vision{overheadCamL_real}
 #endif
 {
@@ -99,13 +99,13 @@ void RobotController::Run()
         // update the gamepad
         gamepad.Update();
 
-        // receive state info from the robot
-        state = robotLink.Receive();
-
         TIMER_START
         VisionClassification classification = vision.RunPipeline();
         UpdateRobotTrackers(classification);
         TIMER_PRINT("Vision")
+
+        // receive state info from the robot
+        state = robotLink.Receive();
 
         // 3. run our robot controller loop
         TIMER_START
@@ -117,10 +117,13 @@ void RobotController::Run()
         robotLink.Drive(response);
         TIMER_PRINT("Drive")
 
-        TIMER_START
-        // refresh the field image
-        emit RefreshFieldImageSignal();
-        TIMER_PRINT("imshow()")
+        if (classification.GetHadNewImage())
+        {
+            TIMER_START
+            // refresh the field image
+            emit RefreshFieldImageSignal();
+            TIMER_PRINT("imshow()")
+        }
     }
 }
 

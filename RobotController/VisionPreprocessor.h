@@ -13,6 +13,7 @@ class VisionPreprocessor
 public:
     VisionPreprocessor();
     void Preprocess(cv::Mat& frame, cv::Mat& dst);
+private:
     cv::Point2f dstPoints[4];
     cv::Point2f srcPoints[4];
     bool first;

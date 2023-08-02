@@ -23,10 +23,12 @@ class Vision
 {
 public:
     Vision(ICameraReceiver &overheadCam);
-    VisionClassification LocateRobots2d(cv::Mat&, cv::Mat&);
+    VisionClassification GetLatestClassification();
     VisionClassification RunPipeline();
 
 private:
+    VisionClassification LocateRobots2d(cv::Mat&, cv::Mat&);
+
     ICameraReceiver& overheadCam;
     cv::Mat currFrame;
     cv::Mat previousBirdsEye;
@@ -34,4 +36,9 @@ private:
     RobotClassifier robotClassifier;
 
     VisionPreprocessor birdsEyePreprocessor;
+    std::thread processingThread;
+
+    std::mutex _classificationMutex;
+    VisionClassification _cassification;
+    Clock _prevFrameTimer;
 };

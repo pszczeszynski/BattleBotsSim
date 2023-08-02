@@ -16,32 +16,50 @@ CameraReceiver::CameraReceiver(int cameraIndex)
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
     // Now we can create the video capture
-    cap = new cv::VideoCapture(cameraIndex, cv::CAP_DSHOW);
+    _cap = new cv::VideoCapture(cameraIndex, cv::CAP_ANY);
     // set frame size
-    cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
-    cap->set(cv::CAP_PROP_FRAME_HEIGHT, (int)(HEIGHT * 0.6666666667));
+    _cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
+    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, (int)(HEIGHT * 0.6666666667));
     // set to 60 fps
-    cap->set(cv::CAP_PROP_FPS, 100000);
+    _cap->set(cv::CAP_PROP_FPS, 100000);
     // disable buffering
-    cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
+    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
     // disable auto exposure
-    cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
     // disable auto white balance
-    cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
+    _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
     // set exposure
-    cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
+    _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
     // set white balance
-    cap->set(cv::CAP_PROP_WB_TEMPERATURE, 4500);
+    _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 4500);
 
     // make camera have no automatic anything
-    cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
-    cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
-    cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
+    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
+    _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
 
-    if (!cap->isOpened())
+    if (!_cap->isOpened())
     {
         std::cout << "Failed to open VideoCapture " << cameraIndex << std::endl;
     }
+
+    _captureThread = std::thread([this]() {
+        while (true)
+        {
+            // temporary frame
+            cv::Mat frame;
+            // wait for a frame
+            _cap->read(frame);
+            // lock the mutex
+            _frameMutex.lock();
+            // convert to RGB
+            cv::cvtColor(frame, _frame, cv::COLOR_BGR2RGB);
+            // increase _framesReady
+            _framesReady ++;
+            // unlock the mutex
+            _frameMutex.unlock();
+        }
+    });
 }
 
 /**
@@ -54,19 +72,18 @@ bool CameraReceiver::GetFrame(cv::Mat &output)
     TIMER_INIT
     TIMER_START
 
-    // check if data
-    if (!cap->grab())
+    _frameMutex.lock();
+    // if no frames are ready, return false
+    if (_framesReady <= 0)
     {
-        std::cout << "Frame not grabbed" << std::endl;
-        // return FAILURE
+        _frameMutex.unlock();
         return false;
     }
 
-    // get frame now that we know there is data
-    cap->retrieve(output);
-
-    // convert to RGB
-    cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
+    // otherwise copy the frame
+    _frame.copyTo(output);
+    _framesReady = 0;
+    _frameMutex.unlock();
 
     TIMER_PRINT("CameraReceiver::getFrame")
 
@@ -76,8 +93,8 @@ bool CameraReceiver::GetFrame(cv::Mat &output)
 
 CameraReceiver::~CameraReceiver()
 {
-    cap->release();
-    delete cap;
+    _cap->release();
+    delete _cap;
 }
 
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////

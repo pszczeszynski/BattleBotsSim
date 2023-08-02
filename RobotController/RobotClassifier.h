@@ -20,6 +20,7 @@ struct VisionClassification
     {
         robotValid = false;
         opponentValid = false;
+        hadNewImage = false;
     }
 
     void SetRobot(MotionBlob& robot)
@@ -52,9 +53,20 @@ struct VisionClassification
         return &opponent;
     }
 
+    void SetHadNewImage()
+    {
+        hadNewImage = true;
+    }
+
+    bool GetHadNewImage()
+    {
+        return hadNewImage;
+    }
+
 private:
     bool robotValid;
     bool opponentValid;
+    bool hadNewImage;
     MotionBlob robot;
     MotionBlob opponent;
 };

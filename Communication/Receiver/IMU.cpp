@@ -27,6 +27,15 @@ IMU::IMU()
             initialized = true;
         }
     }
+    // set dps
+    ICM_20948_fss_t FSS;
+    FSS.a = gpm4;   // (ICM_20948_ACCEL_CONFIG_FS_SEL_e)
+    FSS.g = dps500; // (ICM_20948_GYRO_CONFIG_1_FS_SEL_e)
+    ICM_20948_Status_e retval = myICM.setFullScale((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), FSS);
+    if (retval != ICM_20948_Stat_Ok)
+    {
+        Serial.println("Failed to set max accel for the IMU");
+    }
 
     // take an initial reading for the z velocity calibration
     zVelocityCalibration = myICM.gyrZ();

@@ -99,12 +99,12 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
     data.meanColor = GetMeanColorOfBlob(blob, frame, motionImage);
     data.diameter = (blob.rect.width + blob.rect.height) / 2;
     data.histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
-
+    
     // fill DRAWING_IMAGE with red at (blob.rect masked with motionimage)
     cv::Mat redImage = cv::Mat::zeros(frame.size(), CV_8UC3);
     redImage.setTo(cv::Scalar(0, 0, 255), motionImage);
     SAFE_DRAW
-    cv::addWeighted(frame, 1, redImage, 0.5, 0, drawingImage);
+    cv::addWeighted(drawingImage, 1, redImage, 0.5, 0, drawingImage);
     END_SAFE_DRAW
     
 
@@ -152,7 +152,7 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     return histogramScore * HISTOGRAM_WEIGHT + distanceScoreNormalized * DISTNACE_WEIGHT;
 }
 
-#define MATCHING_DIST_THRESHOLD 50 * WIDTH / 720
+#define MATCHING_DIST_THRESHOLD 100 * WIDTH / 720
 
 /**
  * @brief Classifies the blobs and returns the robot and opponent blobs

@@ -4,6 +4,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <windows.h>
+#include <thread>
 
 class ICameraReceiver
 {
@@ -35,5 +36,10 @@ public:
     ~CameraReceiver();
 
 private:
-    cv::VideoCapture *cap;
+    std::thread _captureThread;
+    std::mutex _frameMutex;
+    cv::Mat _frame;
+    long int _framesReady;
+
+    cv::VideoCapture *_cap;
 };
