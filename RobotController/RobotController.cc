@@ -100,7 +100,7 @@ void RobotController::Run()
         gamepad.Update();
 
         TIMER_START
-        VisionClassification classification = vision.RunPipeline();
+        VisionClassification classification = vision.ConsumeLatestClassification();
         UpdateRobotTrackers(classification);
         TIMER_PRINT("Vision")
 
@@ -117,13 +117,20 @@ void RobotController::Run()
         robotLink.Drive(response);
         TIMER_PRINT("Drive")
 
+        DRAWING_IMAGE_MUTEX.lock();
+
         if (classification.GetHadNewImage())
         {
+            // mark that we can't draw again until we get a new image
             TIMER_START
             // refresh the field image
             emit RefreshFieldImageSignal();
             TIMER_PRINT("imshow()")
+
+            CAN_DRAW = false;
         }
+
+        DRAWING_IMAGE_MUTEX.unlock();
     }
 }
 
@@ -220,7 +227,7 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     currentState.position = currPos;
     currentState.angle = currAngle;
     currentState.velocity = RobotOdometry::Robot().GetVelocity();
-    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity();
+    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * ANGLE_EXTRAPOLATE_MS / POSITION_EXTRAPOLATE_MS;
 
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, 50);
     double currAngleEx = exState.angle;
@@ -235,11 +242,13 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     cv::circle(drawingImage, currPos, 5, cv::Scalar(0,0,255), 2);
     // draw circle with dotted line at extrapolated position
     cv::circle(drawingImage, currPosEx, 5, cv::Scalar(255,100,0), 1);
+
+    // draw different colored arrow from our position at extrapolated angle
+    cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
+    cv::arrowedLine(drawingImage, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
+
     END_SAFE_DRAW
 
-    // // draw different colored arrow from our position at extrapolated angle
-    // cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
-    // cv::arrowedLine(DRAWING_IMAGE, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
 
 
     double angleToTarget1 = atan2(targetPos.y - currPosEx.y, targetPos.x - currPosEx.x);
@@ -371,12 +380,19 @@ DriveCommand RobotController::RobotLogic()
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = OrbitMode();
 
+
     DriveCommand ret = responseManual;
 
     if (gamepad.GetLeftBumper())
     {
         ret.turn = responseOrbit.turn;
         ret.movement = responseManual.movement * responseOrbit.movement;
+    }
+
+    if (gamepad.GetRightBumper())
+    {
+        DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
+        ret.turn = responseGoToPoint.turn;
     }
 
     return ret;

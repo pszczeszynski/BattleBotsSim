@@ -89,7 +89,7 @@ void RobotLinkReal::InitComPort()
 
 #define DRIVE_SCALE 1.0
 
-#define MIN_INTER_SEND_TIME_MS 5
+#define MIN_INTER_SEND_TIME_MS 3
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)

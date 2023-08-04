@@ -173,7 +173,7 @@ private:
         double deltaAngle = initialState.angularVelocity * timeSeconds;
 
         // rotate curr velocity by angular angular deltaAngle
-        newState.velocity = rotate_point(initialState.velocity, deltaAngle);
+        newState.velocity = initialState.velocity;//rotate_point(initialState.velocity, deltaAngle);
 
         // compute the new angle
         newState.angle = angle_wrap(initialState.angle + deltaAngle);
