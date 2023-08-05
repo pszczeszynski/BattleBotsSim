@@ -350,6 +350,23 @@ public class RobotInterface3D : MonoBehaviour {
                 wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
             }
         }
+        if (DriveTrain == "Tank 4-Wheel")
+        {
+            if (wheelBL && wheelBR && wheelTL && wheelTR)
+            {
+                // The wheel that is supplied initial power is the Back wheels if 4-wheel drive
+                // Will prevent side-way motion in the driven wheel. All others are omni-wheels.
+
+                wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+                wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+                wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+                wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+            }
+        }
         else if (DriveTrain == "6-Wheel Tank")
         {
             // The wheel that is supplied initial power is the Back wheels if 4-wheel drive, center wheel if 6-wheel drive.
@@ -864,7 +881,6 @@ public class RobotInterface3D : MonoBehaviour {
 
         // Finally, calculate events to make Robot programming easier
         gamepad1_a_changed = gamepad1_a != gamepad1_a_previous;
-        UnityEngine.Debug.Log("gamepad1_a_changed: " + gamepad1_a_changed);
         something_changed |= gamepad1_a_changed;
         gamepad1_b_changed = gamepad1_b != gamepad1_b_previous;
         something_changed |= gamepad1_b_changed;
@@ -2523,7 +2539,6 @@ public class RobotInterface3D : MonoBehaviour {
     float logtime = 0f;
     private void Update()
     {
-        UnityEngine.Debug.Log("in update()");
         if (doinit)
         {
             myRobotID = gameObject.GetComponent<RobotID>();
@@ -2535,7 +2550,6 @@ public class RobotInterface3D : MonoBehaviour {
         ClearHingeList();
         ClearSlideList();
 
-        UnityEngine.Debug.Log("about to inputschanges");
         // Mark what control bits changed (for easy access in Update_Robot()
         InputsChanges();
 

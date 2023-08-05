@@ -35,9 +35,11 @@ public class CameraCapture : MonoBehaviour
         // Create a memory-mapped view accessor to write to the memory-mapped file
         accessor = mmf.CreateViewAccessor();
     }
+
+
     void Update()
     {
-        UnityEngine.Debug.Log("Streaming FPS:" + 1.0f / Time.deltaTime);
+        // UnityEngine.Debug.Log("Streaming FPS:" + 1.0f / Time.deltaTime);
         // ApplicationManager applicationManager = FindObjectOfType<ApplicationManager>();
         // // move MainCamera to this location
         // applicationManager.MainCamera.transform.position = transform.position;
