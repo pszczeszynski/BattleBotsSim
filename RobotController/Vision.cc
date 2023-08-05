@@ -12,29 +12,47 @@
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam)
 {
-    // // create the processing thread in a loop
-    // processingThread = std::thread([&]()
-    //                                {
-    //     while (true)
-    //     {
-    //         // run the pipeline
-    //         VisionClassification classification = RunPipeline();
+    // create the processing thread in a loop
+    processingThread = std::thread([&]()
+                                   {
+        // holds the data of the current frame
+        cv::Mat currFrame;
+        while (true)
+        {
+            // get the current frame from the camera
+            bool hadFrame = overheadCam.GetFrame(currFrame);
+            // if we didn't get a frame, return no classification
+            if (!hadFrame)
+            {
+                continue; // try to get a frame again
+            }
 
-    //         // save the classification
-    //         _classificationMutex.lock();
-    //         _cassification = classification;
-    //         _classificationMutex.unlock();
-    //     } });
+            // run the pipeline
+            VisionClassification classification = RunPipeline(currFrame);
+
+            // save the classification
+            _classificationMutex.lock();
+            _classification = classification;
+            _classificationMutex.unlock();
+        } });
 }
 
-VisionClassification Vision::GetLatestClassification()
+/**
+ * Consumes the latest classification
+ * Will reset the stored classification to no classification
+ * @return the latest classification
+*/
+VisionClassification Vision::ConsumeLatestClassification()
 {
     // lock the mutex
     _classificationMutex.lock();
     // get the classification
-    VisionClassification classification = _cassification;
+    VisionClassification classification = _classification;
+    // reset the classification
+    _classification = VisionClassification();
     // unlock the mutex
     _classificationMutex.unlock();
+
     // return the classification
     return classification;
 }
@@ -42,17 +60,11 @@ VisionClassification Vision::GetLatestClassification()
 /**
  * This is the 2d version of the pipeline
 */
-VisionClassification Vision::RunPipeline()
+VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
 {
     VisionClassification ret;
 
-    // get the current frame from the camera
-    bool hadFrame = overheadCam.GetFrame(currFrame);
-    // if we didn't get a frame, return no classification
-    if (!hadFrame)
-    {
-        return ret;
-    }
+    ret.SetHadNewImage();
 
     // preprocess the frame to get the birds eye view
     birdsEyePreprocessor.Preprocess(currFrame, currFrame);
@@ -100,9 +112,11 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     cv::Mat grayDiff;
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
+    const int LOW_THRESHOLD = 10;
+
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
-    cv::threshold(grayDiff, thresholdImg, 20, 255, cv::THRESH_BINARY);
+    cv::threshold(grayDiff, thresholdImg, LOW_THRESHOLD, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);

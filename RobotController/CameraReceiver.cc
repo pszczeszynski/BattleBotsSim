@@ -43,6 +43,7 @@ CameraReceiver::CameraReceiver(int cameraIndex)
         std::cout << "Failed to open VideoCapture " << cameraIndex << std::endl;
     }
 
+    // create a thread to capture frames
     _captureThread = std::thread([this]() {
         while (true)
         {
@@ -50,10 +51,12 @@ CameraReceiver::CameraReceiver(int cameraIndex)
             cv::Mat frame;
             // wait for a frame
             _cap->read(frame);
+            // convert to RGB
+            cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
             // lock the mutex
             _frameMutex.lock();
-            // convert to RGB
-            cv::cvtColor(frame, _frame, cv::COLOR_BGR2RGB);
+            // flip image
+            cv::flip(frame, _frame, -1);
             // increase _framesReady
             _framesReady ++;
             // unlock the mutex

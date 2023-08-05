@@ -62,4 +62,9 @@ private:
     double _angleVelocity;
 
     Clock _lastUpdateClock;
+    Clock _lastVelocityCalcClock;
+
+
+    #define VISUAL_VELOCITY_HISTORY_SIZE 10
+    std::deque<cv::Point2f> _visualVelocities;
 };

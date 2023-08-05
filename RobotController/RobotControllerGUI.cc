@@ -10,7 +10,7 @@
 // Constants for window layout
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
-const int COLUMN_WIDTH = WINDOW_WIDTH / 4;
+const int COLUMN_WIDTH = WINDOW_WIDTH / 5;
 const int COLUMN_SPACING = 20;
 const int LABEL_HEIGHT = 30;
 const int SPINBOX_HEIGHT = 30;
@@ -18,35 +18,58 @@ const int SLIDER_HEIGHT = 30;
 
 const int widgetVerticalMargin = 10; // Margin between the label and the spin box or slider
 const int widgetHorizontalMargin = 10; // Margin between the window border and the widgets
-int nextWidgetY = widgetVerticalMargin; // Vertical position of the next widget
+int nextWidgetYLeft = widgetVerticalMargin; // Vertical position of the next widget on the left side
+int nextWidgetYRight = widgetVerticalMargin; // Vertical position of the next widget on the right side
 
+const int rightSideX = WINDOW_WIDTH - COLUMN_WIDTH - widgetHorizontalMargin - 20;
 
-// Helper function to add a labeled spin box
-void addLabeledSpinBox(QMainWindow* window, const QString& label, int& value)
+/**
+ * @brief addLabeledSpinBox
+ * @param window The window to add the spin box to
+ * @param label The label to display above to the spin box
+ * @param value The value to display in the spin box
+ * @param left Whether to place the spin box on the left or right side of the window
+*/
+void addLabeledSpinBox(QMainWindow* window, const QString& label, int& value, bool left = true)
 {
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
     QLabel* spinBoxLabel = new QLabel(label, window);
-    spinBoxLabel->setGeometry(widgetHorizontalMargin, nextWidgetY, COLUMN_WIDTH, LABEL_HEIGHT);
+    spinBoxLabel->setGeometry(x, y, COLUMN_WIDTH, LABEL_HEIGHT);
 
     QSpinBox* spinBox = new QSpinBox(window);
-    spinBox->setGeometry(widgetHorizontalMargin, nextWidgetY + LABEL_HEIGHT, COLUMN_WIDTH, SPINBOX_HEIGHT);
+    spinBox->setGeometry(x, y + LABEL_HEIGHT, COLUMN_WIDTH, SPINBOX_HEIGHT);
     spinBox->setRange(0, 10000);
     spinBox->setValue(value);  // Set the initial value
+    // When the spin box value changes, update the value variable
     QObject::connect(spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [&](int newValue)
-    {
-        value = newValue;
-    });
+                     { value = newValue; });
 
-    nextWidgetY += LABEL_HEIGHT + SPINBOX_HEIGHT + widgetVerticalMargin; // Increase the vertical position for the next widget
+    int shiftAmount = LABEL_HEIGHT + SPINBOX_HEIGHT + widgetVerticalMargin;
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight = shiftAmount;
+    }
 }
 
 // Helper function to add a labeled slider
-void addLabeledSlider(QMainWindow* window, const QString& label, int& value, int minValue, int maxValue)
+void addLabeledSlider(QMainWindow* window, const QString& label, int& value, int minValue, int maxValue, bool left = true)
 {
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
     QLabel* sliderLabel = new QLabel(label, window);
-    sliderLabel->setGeometry(widgetHorizontalMargin, nextWidgetY, COLUMN_WIDTH, LABEL_HEIGHT);
+    sliderLabel->setGeometry(x, y, COLUMN_WIDTH, LABEL_HEIGHT);
 
     QSlider* slider = new QSlider(Qt::Horizontal, window);
-    slider->setGeometry(widgetHorizontalMargin, nextWidgetY + LABEL_HEIGHT, COLUMN_WIDTH, SLIDER_HEIGHT);
+    slider->setGeometry(x, y + LABEL_HEIGHT, COLUMN_WIDTH, SLIDER_HEIGHT);
     slider->setRange(minValue, maxValue);
     slider->setValue(value);  // Set the initial value
     QObject::connect(slider, &QSlider::valueChanged, [&](int newValue)
@@ -54,18 +77,31 @@ void addLabeledSlider(QMainWindow* window, const QString& label, int& value, int
         value = newValue;
     });
 
-    nextWidgetY += LABEL_HEIGHT + SLIDER_HEIGHT + widgetVerticalMargin; // Increase the vertical position for the next widget
+    int shiftAmount = LABEL_HEIGHT + SLIDER_HEIGHT + widgetVerticalMargin;
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight = shiftAmount;
+    }
 }
 
 const int BUTTON_HEIGHT = 30;
 // Helper function to add a toggle button
-void addToggleButton(QMainWindow* window, const QString& topLabel, const QString& labelDisabled, const QString& labelEnabled, bool& value)
+void addToggleButton(QMainWindow* window, const QString& topLabel, const QString& labelDisabled, const QString& labelEnabled, bool& value, bool left = true)
 {
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
     QLabel* topLabelWidget = new QLabel(topLabel, window);
-    topLabelWidget->setGeometry(widgetHorizontalMargin, nextWidgetY, COLUMN_WIDTH, LABEL_HEIGHT);
+    topLabelWidget->setGeometry(x, y, COLUMN_WIDTH, LABEL_HEIGHT);
 
     QPushButton* toggleButton = new QPushButton(labelDisabled, window);
-    toggleButton->setGeometry(widgetHorizontalMargin, nextWidgetY + LABEL_HEIGHT, COLUMN_WIDTH, BUTTON_HEIGHT);
+    toggleButton->setGeometry(x, y + LABEL_HEIGHT, COLUMN_WIDTH, BUTTON_HEIGHT);
     toggleButton->setText(value ? labelEnabled : labelDisabled);  // Set the initial text
 
     // Create dynamic memory for the captured variables
@@ -89,34 +125,71 @@ void addToggleButton(QMainWindow* window, const QString& topLabel, const QString
     // Connect the button clicked signal to the toggleButtonState function
     QObject::connect(toggleButton, &QPushButton::clicked, toggleButtonState);
 
-    nextWidgetY += LABEL_HEIGHT + BUTTON_HEIGHT + widgetVerticalMargin; // Increase the vertical position for the next widget
+    int shiftAmount = LABEL_HEIGHT + BUTTON_HEIGHT + widgetVerticalMargin;
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight = shiftAmount;
+    }
 }
 
-void addPushButton(QMainWindow* window, const QString& label, std::function<void()> callback)
+void addPushButton(QMainWindow* window, const QString& label, std::function<void()> callback, bool left = true)
 {
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
     QPushButton* pushButton = new QPushButton(label, window);
-    pushButton->setGeometry(widgetHorizontalMargin, nextWidgetY, COLUMN_WIDTH, BUTTON_HEIGHT);
+    pushButton->setGeometry(x, y, COLUMN_WIDTH, BUTTON_HEIGHT);
 
     // Connect the button clicked signal to the callback function
     QObject::connect(pushButton, &QPushButton::clicked, callback);
 
-    nextWidgetY += BUTTON_HEIGHT + widgetVerticalMargin; // Increase the vertical position for the next widget
+
+    int shiftAmount = BUTTON_HEIGHT + widgetVerticalMargin;
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight = shiftAmount;
+    }
 }
 
-void addTextInput(QMainWindow* window, const QString& label, QString& value)
+void addTextInput(QMainWindow* window, const QString& label, QString& value, bool left = true)
 {
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
     QLabel* textInputLabel = new QLabel(label, window);
-    textInputLabel->setGeometry(widgetHorizontalMargin, nextWidgetY, COLUMN_WIDTH, LABEL_HEIGHT);
+    textInputLabel->setGeometry(x, y, COLUMN_WIDTH, LABEL_HEIGHT);
 
     QLineEdit* textInput = new QLineEdit(window);
-    textInput->setGeometry(widgetHorizontalMargin, nextWidgetY + LABEL_HEIGHT, COLUMN_WIDTH, SPINBOX_HEIGHT);
+    textInput->setGeometry(x, y + LABEL_HEIGHT, COLUMN_WIDTH, SPINBOX_HEIGHT);
     textInput->setText(value);  // Set the initial value
     QObject::connect(textInput, &QLineEdit::textChanged, [&](const QString& newValue)
     {
         value = newValue;
     });
 
-    nextWidgetY += LABEL_HEIGHT + SPINBOX_HEIGHT + widgetVerticalMargin; // Increase the vertical position for the next widget
+    int shiftAmount = LABEL_HEIGHT + SPINBOX_HEIGHT + widgetVerticalMargin * 2;
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight = shiftAmount;
+    }
 }
 
 RobotConfigWindow::RobotConfigWindow()
@@ -142,15 +215,13 @@ RobotConfigWindow::RobotConfigWindow()
     addLabeledSlider(this, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
 
-    addToggleButton(this, "Orbitron Starter", "Start", "Stop", IS_RUNNING);
-
-    addTextInput(this, "Save File Name: ", SAVE_FILE_NAME);
+    addTextInput(this, "Save File Name: ", SAVE_FILE_NAME, true);
 
     // add save button
     addPushButton(this, "Save", []()
     {
         saveGlobalVariablesToFile(SAVE_FILE_NAME.toStdString());
-    });
+    }, true);
 
 
     // add switch robots button
@@ -191,24 +262,26 @@ RobotConfigWindow::RobotConfigWindow()
 */
 void RobotConfigWindow::RefreshFieldImage()
 {
+    cv::Mat drawingImage;
+    DRAWING_IMAGE_MUTEX.lock();
+    drawingImage = P_DRAWING_IMAGE.clone();
+    CAN_DRAW = true;
+    DRAWING_IMAGE_MUTEX.unlock();
+
+
     // check if drawing image is empty and return if it is
     bool isEmpty = false;
-    SAFE_DRAW
     isEmpty = drawingImage.empty();
-    END_SAFE_DRAW
     if (isEmpty)
     {
         return;
     }
 
-    SAFE_DRAW
     // otherwise, convert drawing image to QImage and set it as the image in QLabel
     QImage imageQt(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(imageQt);
     // Update the imageLabel pixmap whenever drawingImage is updated
     imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
-    // finally release lock
-    END_SAFE_DRAW
 }
 
 void RobotConfigWindow::ShowGUI()

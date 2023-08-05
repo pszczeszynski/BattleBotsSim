@@ -17,7 +17,6 @@ VisionPreprocessor::VisionPreprocessor()
 
 void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
 {
-
     if (first)
     {
         // Define the four corners of the region of interest (ROI) in the input image
@@ -39,7 +38,7 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
                 // Don't restrict adjustment once you start adjusting
                 if (!down[i]) down[i] = true;
 
-                srcPoints[i] -= currMousePos - _mousePosLast;
+                // srcPoints[i] -= currMousePos - _mousePosLast;
                 first = false;
                 break;
             }
@@ -60,8 +59,7 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
     warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT));
 
     SAFE_DRAW
-    // clone the current frame to the drawing image
-    drawingImage = dst.clone();
+    dst.copyTo(P_DRAWING_IMAGE);
     END_SAFE_DRAW
 
     SAFE_DRAW
