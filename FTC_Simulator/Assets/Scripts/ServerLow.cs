@@ -3263,7 +3263,6 @@ public class ServerLow : MonoBehaviour
 
             // Basic Movement
             controller.gamepad1_right_stick_y = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
-            UnityEngine.Debug.Log("WRONG somehow we are setting gampead1_right_stick_x from client input receive");
             controller.gamepad1_right_stick_x = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
             controller.gamepad1_left_stick_x = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
             controller.gamepad1_left_stick_y = float.Parse(MyUtils.GetSplitSpan(splitData, splitIndexes, id++));
