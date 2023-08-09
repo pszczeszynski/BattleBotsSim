@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include "ICM_20948.h"
 #include "Communication.h"
-#include <MadgwickAHRS.h>
 
 #define WIRE_PORT Wire // Your desired Wire port. 
 #define AD0_VAL 0x69
@@ -30,17 +29,18 @@ public:
     void printFormattedFloat(float val, uint8_t leading, uint8_t decimals);
 
 private:
+    void _updateGyro(double deltaTimeMS);
+    void _updateAccelerometer(double deltaTimeMS);
+
     ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
-    Point velocity;
-    Point calibrationAccel;
-    Point acceleration;
-    double rotation;
-    double avgRotVelZ = 0;
-    double currRotVelZ = 0;
+    Point _velocity;
+    Point _calibrationAccel;
+    Point _currAcceleration;
+    Point _prevAcceleration;
+    double _rotation;
+    double _currRotVelZ = 0;
 
     // the following variables are used to calibrate the gyro
-    double zVelocityCalibration = 0;
-    double prevRotVelZ = 0;
-
-    Madgwick filter; // Create a Madgwick filter object
+    double _calibrationRotVelZ = 0;
+    double _prevRotVelZ = 0;
 };

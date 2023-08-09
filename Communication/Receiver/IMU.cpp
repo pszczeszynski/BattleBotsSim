@@ -38,11 +38,7 @@ IMU::IMU()
     }
 
     // take an initial reading for the z velocity calibration
-    zVelocityCalibration = myICM.gyrZ();
-
-    // initialize the velocity and rotation
-    velocity = {0, 0, 0};
-    rotation = 0.0;
+    _calibrationRotVelZ = myICM.gyrZ();
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
@@ -53,43 +49,74 @@ IMU::IMU()
 // time until the accel calibration weighted average is 1/2 of the way to the new value
 #define IMU_CALIBRATE_PERIOD_MS 10000
 // threshold for the accelerometer to be considered "stationary"
-#define CALIBRATE_THRESH_MPSS 0.1
+#define CALIBRATE_THRESH_MPSS 1
+
+void IMU::_updateGyro(double deltaTimeMS)
+{
+    _currRotVelZ = -myICM.gyrZ() * TO_RAD;
+    double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;
+    double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
+
+    // if the gyro is stationary, calibrate it
+    if (abs(avgRotVelZ) < CALIBRATE_THRESH_RAD)
+    {
+        _calibrationRotVelZ = (1 - gyroNewWeight) * _calibrationRotVelZ + gyroNewWeight * avgRotVelZ;
+    }
+
+    // update the rotation
+    _rotation += (avgRotVelZ - _calibrationRotVelZ) * deltaTimeMS / 1000.0;
+    // update the previous velocity
+    _prevRotVelZ = _currRotVelZ;
+}
+
+static double magnitude(Point p)
+{
+    return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+}
+
+#define VELOCITY_BLEAD_PERIOD_MS 10000
+void IMU::_updateAccelerometer(double deltaTimeMS)
+{ 
+    // get (unfiltered) accelerometer data and set accel
+    _currAcceleration.x = myICM.accX() / (9.81 * 10);
+    _currAcceleration.y = myICM.accY() / (9.81 * 10);
+    _currAcceleration.z = myICM.accZ() / (9.81 * 10) - 9.81;
+    Point avgAccel = (_currAcceleration + _prevAcceleration) / 2;
+    double accelNewWeight = deltaTimeMS / IMU_CALIBRATE_PERIOD_MS;
+
+    // if the accelerometer is stationary, calibrate it
+    if (magnitude(avgAccel) < CALIBRATE_THRESH_MPSS)
+    {
+        // move the calibration value towards the new value
+        _calibrationAccel = _calibrationAccel * (1 - accelNewWeight) + avgAccel * accelNewWeight;
+
+        // force the velocity to be 0
+        _velocity = Point{0, 0, 0};
+    }
+    else
+    {
+        // update the velocity
+        _velocity += (avgAccel - _calibrationAccel) * deltaTimeMS / 1000.0;
+
+        // slowly blead off the velocity to 0 even when we are moving
+        double bleadWeight = deltaTimeMS / VELOCITY_BLEAD_PERIOD_MS;
+        _velocity = _velocity * (1 - bleadWeight);
+    }
+
+    // update the previous acceleration
+    _prevAcceleration = _currAcceleration;
+}
 
 void IMU::Update(double deltaTimeMS)
 {
     // get the data from the IMU
     myICM.getAGMT();
 
-    /////////////////// GYRO LOGIC ///////////////////
-    currRotVelZ = -myICM.gyrZ() * TO_RAD;
-    avgRotVelZ = (currRotVelZ + prevRotVelZ) / 2;
-    double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
+    // 1. update the gyro
+    _updateGyro(deltaTimeMS);
 
-    // if the gyro is stationary, calibrate it
-    if (abs(avgRotVelZ) < CALIBRATE_THRESH_RAD)
-    {
-        zVelocityCalibration = (1 - gyroNewWeight) * zVelocityCalibration + gyroNewWeight * avgRotVelZ;
-    }
-
-    // update the rotation
-    rotation += (avgRotVelZ - zVelocityCalibration) * deltaTimeMS / 1000.0;
-    // update the previous velocity
-    prevRotVelZ = currRotVelZ;
-    ///////////////////////////////////////////////////
-
-    /////////////////// ACCEL LOGIC ///////////////////
-    // get (unfiltered) accelerometer data and set accel
-    acceleration.x = myICM.accX() / (9.81 * 1000);
-    acceleration.y = myICM.accY() / (9.81 * 1000);
-    acceleration.z = myICM.accZ() / (9.81 * 1000);
-    ///////////////////////////////////////////////////
-
-
-    ////////////////// VEL LOGIC //////////////////////
-    velocity.x += acceleration.x /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
-    velocity.y += acceleration.y /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
-    velocity.z += acceleration.z /* m/s^2 */ * deltaTimeMS / 1000.0 /* s */;
-    ///////////////////////////////////////////////////
+    // 2. update the accelerometer
+    _updateAccelerometer(deltaTimeMS);
 }
 
 bool IMU::dataReady()
@@ -102,7 +129,7 @@ bool IMU::dataReady()
  */
 Point IMU::getAccel()
 {
-    return acceleration;
+    return _currAcceleration - _calibrationAccel;
 }
 
 /**
@@ -110,7 +137,7 @@ Point IMU::getAccel()
  */
 Point IMU::getVelocity()
 {
-    return velocity;
+    return _velocity;
 }
 
 /**
@@ -118,7 +145,7 @@ Point IMU::getVelocity()
  */
 double IMU::getRotationVelocity()
 {
-    return currRotVelZ - zVelocityCalibration;
+    return _currRotVelZ - _calibrationRotVelZ;
 }
 
 /**
@@ -126,7 +153,7 @@ double IMU::getRotationVelocity()
  */
 double IMU::getRotation()
 {
-    return rotation;
+    return _rotation;
 }
 
 void IMU::plotData(double orient, double vel, double accel)

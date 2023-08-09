@@ -6,7 +6,7 @@
  * Radio.h
  * 
  * This is used for both the transmitter and the receiver, and thus
- * shoudl be the same on both. PLease don't change just one.
+ * should be the same on both. Please don't change just one.
 */
 
 template <typename SendType, typename ReceiveType>
