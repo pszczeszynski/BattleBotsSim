@@ -162,15 +162,13 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
         RobotOdometry::Opponent().Invalidate();
     }
 
-    
+    // if the user presses the left mouse button with shift
     if (Mouse::GetInstance().GetLeftDown() && shiftDown)
     {
         cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
-        cv::Point2f robotPos = RobotOdometry::Opponent().GetPosition();
+        cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
         double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-        RobotOdometry::Opponent().UpdateForceSetAngle(newAngle);               //(0.0001 * (rightDown-leftDown));
-        // std::cout << "Angle " << (double) RobotOdometry::Opponent().GetAngle() << std::endl;
-
+        RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
     }
 }
 

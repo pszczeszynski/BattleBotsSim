@@ -2,16 +2,14 @@
 #include <cmath>
 // for map
 
-
-
 Motor::Motor(int pwmPin)
 {
     motor.attach(pwmPin);
 }
 
-//Ask Ben about fwd/bkwd
-#define PWM_MIN 1400
-#define PWM_MAX 1600
+// Ask Ben about fwd/bkwd
+#define PWM_MIN 1450
+#define PWM_MAX 1550
 #define SIG 0.01
 
 void Motor::SetPower(double power)
@@ -23,9 +21,16 @@ void Motor::SetPower(double power)
     }
 
     // map the power to the pwm range
-    int pwm = (power * 200.0) + 1500;
+    int pwm = (power * (PWM_MAX - PWM_MIN) / 2) + (PWM_MAX + PWM_MIN) / 2;
+    if (pwm > PWM_MAX)
+    {
+        pwm = PWM_MAX;
+    }
+    else if (pwm < PWM_MIN)
+    {
+        pwm = PWM_MIN;
+    }
 
-    // write the pwm to the motor
     motor.writeMicroseconds(pwm);
     Serial.println("pwm");
     Serial.println(pwm);

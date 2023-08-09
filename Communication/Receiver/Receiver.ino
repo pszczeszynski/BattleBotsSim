@@ -95,6 +95,25 @@ RobotMessage Update()
     // now compute velocity
     ret.velocity = imu->getVelocity();
 
+
+#ifdef PRINT_VELOCITY_ACCEL
+    // print on serial
+    Serial.print("Accel: ");
+    Serial.print(ret.accel.x);
+    Serial.print(", ");
+    Serial.print(ret.accel.y);
+    Serial.print(", ");
+    Serial.print(ret.accel.z);
+
+    Serial.print(" | Velocity: ");
+    Serial.print(ret.velocity.x);
+    Serial.print(", ");
+    Serial.print(ret.velocity.y);
+    Serial.print(", ");
+    Serial.print(ret.velocity.z);
+    Serial.println("");
+#endif
+
     // get gyro data and set gyro
     ret.rotation = imu->getRotation();
 

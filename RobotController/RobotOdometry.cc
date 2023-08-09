@@ -90,7 +90,6 @@ Angle RobotOdometry::CalcAnglePathTangent()
         _visualAngleValid = false;
         return retAngleRad;
     }
-    std::cout << "posDiff: " << posDiff << std::endl;
     
     // if we have travelled a certain distance since the last update
     // and we are moving fast enough
@@ -316,13 +315,10 @@ void RobotOdometry::PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle a
 
     // draw the velocity as a bar
     SAFE_DRAW
-    // draw at bottom left of the screen
-    cv::rectangle(drawingImage, cv::Rect(20, drawingImage.rows - 20, 20, cv::norm(_lastVelocity)), cv::Scalar(255, 0, 0), -1);
-
     // put text for the velocity
     std::stringstream ss;
     ss << "Vel: " << cv::norm(_lastVelocity);
-    cv::putText(drawingImage, ss.str(), cv::Point(10, drawingImage.rows - 10), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+    cv::putText(drawingImage, ss.str(), cv::Point(50, drawingImage.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
     END_SAFE_DRAW
 }
 

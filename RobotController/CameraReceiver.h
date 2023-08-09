@@ -20,10 +20,10 @@ public:
     ~CameraReceiverSim();
 
 private:
-    cv::Mat image;
-    HANDLE hMapFile;
-    HANDLE hMutex;
-    LPVOID lpMapAddress;
+    cv::Mat _image;
+    HANDLE _hMapFile;
+    HANDLE _hMutex;
+    LPVOID _lpMapAddress;
 
     cv::Mat _prevFrame;
 };
@@ -36,10 +36,14 @@ public:
     ~CameraReceiver();
 
 private:
+    bool _InitializeCamera();
+    void _CaptureFrame();
+
     std::thread _captureThread;
     std::mutex _frameMutex;
     cv::Mat _frame;
     long int _framesReady;
+    int _cameraIndex;
 
     cv::VideoCapture *_cap;
 };

@@ -6,14 +6,13 @@ const int CLOSE = 20;
 VisionPreprocessor::VisionPreprocessor()
 {
     // Define the four corners of the bird's-eye view output image
-    dstPoints[0] = cv::Point2f(0, 0);                             // Top-left corner
-    dstPoints[1] = cv::Point2f(WIDTH, 0);                  // Top-right corner
+    dstPoints[0] = cv::Point2f(0, 0);          // Top-left corner
+    dstPoints[1] = cv::Point2f(WIDTH, 0);      // Top-right corner
     dstPoints[2] = cv::Point2f(WIDTH, HEIGHT); // Bottom-right corner
-    dstPoints[3] = cv::Point2f(0, HEIGHT);  // Bottom-left corner
+    dstPoints[3] = cv::Point2f(0, HEIGHT);     // Bottom-left corner
 
     first = true;
 }
-
 
 void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
 {

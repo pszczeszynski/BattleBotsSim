@@ -4,7 +4,7 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-#define TRANSMITTER_COM_PORT TEXT("COM6")
+#define TRANSMITTER_COM_PORT TEXT("COM7")
 
 RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
                                           {
@@ -41,7 +41,7 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
 void RobotLinkReal::InitComPort()
 {
     static int numTries = 0;
-    const int NUM_TRIES_BEFORE_PRINTING_ERROR = 500;
+    const int NUM_TRIES_BEFORE_PRINTING_ERROR = 5000;
 
     _comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (_comPort == INVALID_HANDLE_VALUE)
@@ -87,16 +87,16 @@ void RobotLinkReal::InitComPort()
     }
 }
 
-#define DRIVE_SCALE 1.0
-
 #define MIN_INTER_SEND_TIME_MS 3
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    // if we have sent a packet too recently, return
     if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
         return;
     }
 
+    // if com port is invalid, attempt to reopen
     if (_comPort == INVALID_HANDLE_VALUE)
     {
         // attempt to reopen
@@ -104,25 +104,52 @@ void RobotLinkReal::Drive(DriveCommand &command)
         return;
     }
 
-    _sendingClock.markStart();
+    // if there are errors on the com port, attempt to reopen
+    DWORD dwErrors = 0;
+    COMSTAT comStat;
+    if (!ClearCommError(_comPort, &dwErrors, &comStat))
+    {
+        // Handle the error with ClearCommError itself
+        DWORD dwError = GetLastError();
+        std::cerr << "ERROR: can't getting errors from COM port" << std::endl;
+    }
+    else
+    {
+        if (dwErrors & CE_BREAK)
+            std::cout << "ERROR: The hardware detected a break condition.\n";
+        if (dwErrors & CE_FRAME)
+            std::cout << "ERROR: The hardware detected a framing error.\n";
+        if (dwErrors & CE_OVERRUN)
+            std::cout << "ERROR: A character-buffer overrun has occurred.\n";
+        if (dwErrors & CE_RXOVER)
+            std::cout << "ERROR: An input buffer overflow has occurred.\n";
+        if (dwErrors & CE_RXPARITY)
+            std::cout << "ERROR: The hardware detected a parity error.\n";
+    }
 
+    if (dwErrors != 0)
+    {
+        // attempt to reopen
+        InitComPort();
+        return;
+    }
+
+    _sendingClock.markStart();
+    // force command to be between -1 and 1
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
-
-    // scale down
-    command.movement *= DRIVE_SCALE;
-    command.turn *= DRIVE_SCALE;
-
+    // set valid to true
     command.valid = true;
 
-    // write start MESSAGE_START_CHAR
+    // write MESSAGE_START_CHAR
     DWORD dwBytesWritten = 0;
     char start = MESSAGE_START_CHAR;
     WriteFile(_comPort, &start, sizeof(start), &dwBytesWritten, NULL);
+
     // write command
     WriteFile(_comPort, &command, sizeof(command), &dwBytesWritten, NULL);
 
-    // write start MESSAGE_END_CHAR
+    // write MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
     WriteFile(_comPort, &end, sizeof(end), &dwBytesWritten, NULL);
 }
@@ -136,7 +163,7 @@ RobotMessage RobotLinkReal::Receive()
     if (_comPort == INVALID_HANDLE_VALUE)
     {
         SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0));
+        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
         END_SAFE_DRAW
 
         // attempt to reopen
@@ -182,6 +209,13 @@ RobotMessage RobotLinkReal::Receive()
         END_SAFE_DRAW
         _receiveFPS = 0;
     }
+
+    // draw the current velocity using a line radially (x and y)
+    SAFE_DRAW
+    cv::line(drawingImage, cv::Point(drawingImage.cols / 2, drawingImage.rows / 2),
+        cv::Point(drawingImage.cols / 2 + retrievedStruct.velocity.x * 100, drawingImage.rows / 2 + retrievedStruct.velocity.y * 100),
+        cv::Scalar(0, 255, 0), 2);
+    END_SAFE_DRAW
 
     return retrievedStruct;
 }
