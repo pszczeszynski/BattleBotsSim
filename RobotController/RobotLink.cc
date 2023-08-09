@@ -6,6 +6,9 @@
 
 #define TRANSMITTER_COM_PORT TEXT("COM7")
 
+#define COM_READ_TIMEOUT_MS 500
+#define COM_WRITE_TIMEOUT_MS 500
+
 RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
                                           {
     DWORD dwBytesRead = 0;
@@ -43,6 +46,9 @@ void RobotLinkReal::InitComPort()
     static int numTries = 0;
     const int NUM_TRIES_BEFORE_PRINTING_ERROR = 5000;
 
+    // check if open
+    CloseHandle(_comPort);
+
     _comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (_comPort == INVALID_HANDLE_VALUE)
     {
@@ -53,7 +59,7 @@ void RobotLinkReal::InitComPort()
         // if we have tried NUM_TRIES_BEFORE_PRINTING_ERROR times, print error
         if (numTries % NUM_TRIES_BEFORE_PRINTING_ERROR == 1)
         {
-            std::cerr << "Error opening port: " << TRANSMITTER_COM_PORT << std::endl;
+            std::cerr << "ERROR: can't open comport" << std::endl;
         }
 
         // break out of function
@@ -74,8 +80,11 @@ void RobotLinkReal::InitComPort()
 
     COMMTIMEOUTS timeouts = {0};
     timeouts.ReadIntervalTimeout = MAXDWORD;
-    timeouts.ReadTotalTimeoutConstant = 0;
+    timeouts.ReadTotalTimeoutConstant = COM_READ_TIMEOUT_MS;
     timeouts.ReadTotalTimeoutMultiplier = 0;
+    timeouts.WriteTotalTimeoutMultiplier = 0;
+    timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
+
     if (!SetCommTimeouts(_comPort, &timeouts))
     {
         std::cerr << "Error setting COM port timeouts" << std::endl;
@@ -141,20 +150,44 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // set valid to true
     command.valid = true;
 
-    // write MESSAGE_START_CHAR
+    std::cout << "writing message" << std::endl;
+    // Write MESSAGE_START_CHAR
     DWORD dwBytesWritten = 0;
     char start = MESSAGE_START_CHAR;
-    WriteFile(_comPort, &start, sizeof(start), &dwBytesWritten, NULL);
+    if (!WriteFile(_comPort, &start, sizeof(start), &dwBytesWritten, NULL))
+    {
+        std::cerr << "Failed to write MESSAGE_START_CHAR" << std::endl;
+        SAFE_DRAW
+        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+        END_SAFE_DRAW
+        InitComPort();
+        return;
+    }
 
-    // write command
-    WriteFile(_comPort, &command, sizeof(command), &dwBytesWritten, NULL);
+    // Write command
+    if (!WriteFile(_comPort, &command, sizeof(command), &dwBytesWritten, NULL))
+    {
+        std::cerr << "Failed to write command" << std::endl;
+        SAFE_DRAW
+        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+        END_SAFE_DRAW
+        InitComPort();
+        return;
+    }
 
-    // write MESSAGE_END_CHAR
+    // Write MESSAGE_END_CHAR
     char end = MESSAGE_END_CHAR;
-    WriteFile(_comPort, &end, sizeof(end), &dwBytesWritten, NULL);
+    if (!WriteFile(_comPort, &end, sizeof(end), &dwBytesWritten, NULL))
+    {
+        std::cerr << "Failed to write MESSAGE_END_CHAR" << std::endl;
+        SAFE_DRAW
+        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+        END_SAFE_DRAW
+        InitComPort();
+        return;
+    }
+    std::cout << "done writing message" << std::endl;
 }
-
-
 
 #define RECEIVE_TIMEOUT_MS 100
 
