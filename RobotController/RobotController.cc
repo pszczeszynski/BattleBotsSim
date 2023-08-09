@@ -161,6 +161,17 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
         // set the opponent to invalid (sets their velocity to 0)
         RobotOdometry::Opponent().Invalidate();
     }
+
+    
+    if (Mouse::GetInstance().GetLeftDown() && shiftDown)
+    {
+        cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
+        cv::Point2f robotPos = RobotOdometry::Opponent().GetPosition();
+        double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
+        RobotOdometry::Opponent().UpdateForceSetAngle(newAngle);               //(0.0001 * (rightDown-leftDown));
+        // std::cout << "Angle " << (double) RobotOdometry::Opponent().GetAngle() << std::endl;
+
+    }
 }
 
 /**

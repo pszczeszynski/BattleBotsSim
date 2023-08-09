@@ -237,6 +237,20 @@ void RobotOdometry::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
 
 
 /**
+ * Allows artificially setting the angle of the robot
+ * This is mainly used for manual recalibration.
+ * 
+ * @return the new angle
+*/
+double RobotOdometry::UpdateForceSetAngle(double newAngle)
+{
+    // Set angle to new manual angle value
+    _angle = Angle(newAngle);
+    return _angle;
+}
+
+
+/**
  * Tracks the change in the imu angle
  * Should be called every time we update using an imu
  * 

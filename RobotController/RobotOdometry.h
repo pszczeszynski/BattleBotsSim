@@ -26,6 +26,7 @@ public:
     static RobotOdometry& Opponent();
 
     void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
+    double UpdateForceSetAngle(double newAngle);
     void UpdateIMUOnly();
     void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
 

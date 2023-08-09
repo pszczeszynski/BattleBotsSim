@@ -32,8 +32,8 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
         currMousePos = _mousePosLast;
     }
 
-    // If the user left clicks near one of the corners
-    if (Mouse::GetInstance().GetLeftDown())
+    // If the user left clicks near one of the corners and shift is not pressed
+    if (!shiftDown && Mouse::GetInstance().GetLeftDown())
     {
         std::cout << "Mouse " << currMousePos.x << " " << currMousePos.y << std::endl;
         std::cout << "Down " << down[0] << " " << down[1] << " " << down[2] << " " << down[3] << std::endl;
