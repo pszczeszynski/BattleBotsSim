@@ -164,20 +164,21 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
 {
     VisionClassification classificationResult;
 
+    cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
     // if the user left clicks
-    if (!nearCorner && Mouse::GetInstance().GetLeftDown())
+    if (!nearCorner && Mouse::GetInstance().GetLeftDown() && currMousePos.x >= 0 && currMousePos.x <= WIDTH && currMousePos.y >= 0 && currMousePos.y <= HEIGHT)
     {
         // set the robot to the mouse position
-        RobotOdometry::Robot().UpdateForceSetPosAndVel(Mouse::GetInstance().GetPos(), cv::Point2f{0, 0});
+        RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
         // don't classify
         return classificationResult;
     }
 
     // if the user right clicks
-    if (Mouse::GetInstance().GetRightDown())
+    if (Mouse::GetInstance().GetRightDown() && currMousePos.x >= 0 && currMousePos.x <= WIDTH && currMousePos.y >= 0 && currMousePos.y <= HEIGHT)
     {
         // set the opponent to the mouse position
-        RobotOdometry::Opponent().UpdateForceSetPosAndVel(Mouse::GetInstance().GetPos(), cv::Point2f{0, 0});
+        RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
         // don't classify
         return classificationResult;
     }

@@ -25,20 +25,31 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
         srcPoints[2] = cv::Point2f(frame.cols * 1.2, frame.rows);         // Bottom-right corner
         srcPoints[3] = cv::Point2f(-frame.cols * 0.3, frame.rows);        // Bottom-left corner
     }
+    
     cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
-
-    // If the user left clicks and holds down shift near one of the corners
-    if (nearCorner && Mouse::GetInstance().GetLeftDown())
+    if (currMousePos == cv::Point2f(0, 0)) 
     {
+        currMousePos = _mousePosLast;
+    }
+
+    // If the user left clicks near one of the corners
+    if (Mouse::GetInstance().GetLeftDown())
+    {
+        std::cout << "Mouse " << currMousePos.x << " " << currMousePos.y << std::endl;
+        std::cout << "Down " << down[0] << " " << down[1] << " " << down[2] << " " << down[3] << std::endl;
+
         // Check each corner
         for (int i = 0; i < 4; i++)
         {
-            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE))
+            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE && currMousePos.x >= dstPoints[0].x && currMousePos.x <= dstPoints[2].x && currMousePos.y >= dstPoints[0].y && currMousePos.y <= dstPoints[2].y) )
             {
                 // Don't restrict adjustment once you start adjusting
-                if (!down[i]) down[i] = true;
+                if (!down[i]) 
+                {
+                    down[i] = true;
+                }
 
-                // srcPoints[i] -= currMousePos - _mousePosLast;
+                srcPoints[i] -= currMousePos - _mousePosLast;
                 first = false;
                 break;
             }
@@ -49,9 +60,8 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
         for (int i = 0; i < 4; i++) down[i] = false;
     }
 
-    _mousePosLast = Mouse::GetInstance().GetPos();
-
-
+    if (Mouse::GetInstance().GetPos() != cv::Point2f(0, 0)) _mousePosLast = Mouse::GetInstance().GetPos();
+    
     // Compute the transformation matrix
     cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
 
