@@ -368,3 +368,8 @@ double RobotOdometry::GetAngleVelocity()
 {
     return _angleVelocity;
 }
+
+void RobotOdometry::InvertAngle()
+{
+    _angle = Angle(_angle + M_PI);
+}

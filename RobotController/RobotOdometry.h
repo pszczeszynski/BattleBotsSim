@@ -42,6 +42,8 @@ public:
     cv::Point2f GetVelocity();
     double GetAngleVelocity();
 
+    void InvertAngle();
+
 private:
     void PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
 
