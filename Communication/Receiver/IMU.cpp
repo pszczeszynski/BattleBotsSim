@@ -74,6 +74,10 @@ static double magnitude(Point p)
     return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
+
+// time until we reset the velocity to 0 if the accelerometer is stationary
+#define RESET_VELOCITY_NO_ACCEL_TIME_MS 50
+
 #define VELOCITY_BLEAD_PERIOD_MS 10000
 void IMU::_updateAccelerometer(double deltaTimeMS)
 { 
@@ -90,11 +94,18 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
         // move the calibration value towards the new value
         _calibrationAccel = _calibrationAccel * (1 - accelNewWeight) + avgAccel * accelNewWeight;
 
-        // force the velocity to be 0
-        _velocity = Point{0, 0, 0};
+        // if the accelerometer has been stationary for a while, reset the velocity
+        if (millis() - _lastAccelerateTimeMS > RESET_VELOCITY_NO_ACCEL_TIME_MS)
+        {
+            // if the accelerometer has been stationary for a while, reset the velocity
+            _velocity = Point{0, 0, 0};
+        }
     }
     else
     {
+        // if the accelerometer is not stationary, update the last time we accelerated
+        _lastAccelerateTimeMS = millis();
+
         // update the velocity
         _velocity += (avgAccel - _calibrationAccel) * deltaTimeMS / 1000.0;
 
@@ -107,8 +118,32 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
     _prevAcceleration = _currAcceleration;
 }
 
-void IMU::Update(double deltaTimeMS)
+double currTime = 0;
+double prevTime = 0;
+
+/**
+ *Updates the time data for the current loop iteration
+ */
+double getDt()
 {
+    currTime = micros() / 1000;
+    double dt = currTime - prevTime;
+    prevTime = currTime;
+    return dt;
+}
+
+void IMU::Update()
+{
+    // compute the time since the last update
+    double currTimeMS = micros() / 1000;
+    double deltaTimeMS = currTimeMS - _prevTimeMS;
+
+    // if the time is too small, don't update
+    if (deltaTimeMS < 1)
+    {
+        return;
+    }
+
     // get the data from the IMU
     myICM.getAGMT();
 
@@ -117,6 +152,8 @@ void IMU::Update(double deltaTimeMS)
 
     // 2. update the accelerometer
     _updateAccelerometer(deltaTimeMS);
+
+    _prevTimeMS = currTimeMS;
 }
 
 bool IMU::dataReady()

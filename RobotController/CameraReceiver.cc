@@ -113,6 +113,17 @@ void CameraReceiver::_CaptureFrame()
 bool CameraReceiver::_InitializeCamera()
 {
     std::cout << "Initializing Camera..." << std::endl;
+
+    // check if camera is already initialized
+    if (_cap != nullptr)
+    {
+        // release the camera
+        _cap->release();
+        // delete the camera
+        delete _cap;
+        _cap = nullptr;
+    }
+
     // Now we can create the video capture
     _cap = new cv::VideoCapture(_cameraIndex, cv::CAP_ANY);
 

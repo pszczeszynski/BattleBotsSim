@@ -45,5 +45,5 @@ private:
     long int _framesReady;
     int _cameraIndex;
 
-    cv::VideoCapture *_cap;
+    cv::VideoCapture *_cap = nullptr;
 };

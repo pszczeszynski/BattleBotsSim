@@ -3,6 +3,7 @@
 */
 #include "Motor.h"
 #include "Communication.h"
+#define VERBOSE_RADIO
 #include "Radio.h"
 #include "IMU.h"
 
@@ -14,9 +15,6 @@ IMU* imu;
 Motor* leftMotor;
 Motor* rightMotor;
 Radio<RobotMessage, DriveCommand>* radio;
-
-double prevTime = 0;
-double currTime = 0;
 
 //===============================================================================
 //  Initialization
@@ -44,16 +42,6 @@ void setup()
     rightMotor->SetPower(0);
 }
 
-/**
- *Updates the time data for the current loop iteration
- */
-double getDt()
-{
-    currTime = micros() / 1000;
-    double dt = currTime - prevTime;
-    prevTime = currTime;
-    return dt;
-}
 
 /**
  * Applys the drive command to the robot
@@ -84,10 +72,8 @@ RobotMessage Update()
 {
     RobotMessage ret {0};
 
-    // get the time since the last update
-    double deltaTimeMS = getDt();
     // call update for imu
-    imu->Update(deltaTimeMS);
+    imu->Update();
   
     // get accelerometer data and set accel
     Point accel = imu->getAccel();
@@ -165,6 +151,9 @@ void WaitForRadioData()
             // break because we must move on
             break;
         }
+
+        // call update for imu
+        imu->Update();
     }
 }
 

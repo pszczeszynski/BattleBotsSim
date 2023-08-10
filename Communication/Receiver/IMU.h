@@ -16,7 +16,7 @@ class IMU
 {
 public:
     IMU();
-    void Update(double dt);
+    void Update();
     bool dataReady();
     Point getAccel();
     Point getVelocity();
@@ -43,4 +43,8 @@ private:
     // the following variables are used to calibrate the gyro
     double _calibrationRotVelZ = 0;
     double _prevRotVelZ = 0;
+
+    unsigned long _lastAccelerateTimeMS = 0;
+
+    double _prevTimeMS = 0;
 };
