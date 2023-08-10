@@ -90,10 +90,14 @@ RobotMessage Update()
     imu->Update(deltaTimeMS);
   
     // get accelerometer data and set accel
-    ret.accel = imu->getAccel();
-
+    Point accel = imu->getAccel();
+    ret.accelX = accel.x;
+    ret.accelY = accel.y;
+ 
     // now compute velocity
-    ret.velocity = imu->getVelocity();
+    Point velocity = imu->getVelocity();
+    ret.velocityX = velocity.x;
+    ret.velocityY = velocity.y;
 
 
 #ifdef PRINT_VELOCITY_ACCEL

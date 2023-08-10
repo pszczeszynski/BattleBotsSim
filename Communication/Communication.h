@@ -64,10 +64,12 @@ struct DriveCommand
 struct RobotMessage
 {
     bool valid;
-    double rotation;
-    double rotationVelocity;
-    Point accel;
-    Point velocity;
+    float rotation;
+    float rotationVelocity;
+    float accelX;
+    float accelY;
+    float velocityX;
+    float velocityY;
 };
 
 // indicates the end of a message. All communciation between devices should end with this

@@ -68,23 +68,26 @@ void Radio<SendType, ReceiveType>::Send(SendType &message)
         // error check
         if (millis() - currentTime > SEND_FIFO_TIMEOUT_MS)
         {
+#ifdef VERBOSE_RADIO
             Serial.println("Radio fifo failed to clear");
+#endif
             // reinit
             InitRadio();
             break;
         }
     }
 
+    // if the radio has failed
     if (radio.failureDetected)
     {
+#ifdef VERBOSE_RADIO
         Serial.println("Radio hardware failure detected");
+#endif
         // reinit
         InitRadio();
+        // reset failure flag
         radio.failureDetected = false;
     }
-
-    // check for hardware fault
-
 
     radio.startListening();
 }

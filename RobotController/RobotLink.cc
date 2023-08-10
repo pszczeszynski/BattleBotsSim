@@ -245,7 +245,7 @@ RobotMessage RobotLinkReal::Receive()
     // draw the current velocity using a line radially (x and y)
     SAFE_DRAW
     cv::line(drawingImage, cv::Point(drawingImage.cols / 2, drawingImage.rows / 2),
-        cv::Point(drawingImage.cols / 2 + retrievedStruct.velocity.x * 100, drawingImage.rows / 2 + retrievedStruct.velocity.y * 100),
+        cv::Point(drawingImage.cols / 2 + retrievedStruct.velocityX * 100, drawingImage.rows / 2 + retrievedStruct.velocityY * 100),
         cv::Scalar(0, 255, 0), 2);
     END_SAFE_DRAW
 
@@ -282,11 +282,10 @@ RobotMessage RobotLinkSim::Receive()
     UnityRobotState message = RobotStateParser::parse(received);
 
     RobotMessage ret{0};
-    // unity uses different coordinate system, swap it to be same as imu
-    ret.velocity = Point{message.robot_velocity.x, message.robot_velocity.y, -message.robot_velocity.z};
-    ret.velocity.x *= ACCELEROMETER_TO_PX_SCALER;
-    ret.velocity.y *= ACCELEROMETER_TO_PX_SCALER;
-    ret.velocity.z *= ACCELEROMETER_TO_PX_SCALER;
+    ret.velocityX = message.robot_velocity.x;
+    ret.velocityY = message.robot_velocity.y;
+    ret.velocityX *= ACCELEROMETER_TO_PX_SCALER;
+    ret.velocityY *= ACCELEROMETER_TO_PX_SCALER;
     ret.rotation = message.robot_orientation;
     ret.rotationVelocity = message.robot_rotation_velocity;
 
