@@ -44,7 +44,8 @@ public:
 
 private:
     void _WriteSerialMessage(const char *message, int messageLength);
-    void InitComPort();
+    void _InitComPort();
+
     HANDLE _comPort;
     DCB _dcbSerialParams;
     Clock _sendingClock;

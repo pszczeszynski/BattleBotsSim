@@ -35,8 +35,8 @@ cv::Point2f RobotOdometry::GetImuVelocity()
 {
     // get latest message
     RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get velocity from imu
-    cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
+    // get velocity from imu (invert y because top left is 0,0)
+    cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, -robotMessage.velocityY);
     // convert to field relative
     cv::Point2f imuFieldRelative = rotate_point(imuRobotRelative, _angle);
     // return the rotated velocity

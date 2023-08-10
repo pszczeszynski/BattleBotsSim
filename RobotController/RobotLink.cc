@@ -19,7 +19,7 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
     if (!ClearCommError(_comPort, &dwErrors, &comStat))
     {
         // attempt to reinitialize com port
-        InitComPort();
+        _InitComPort();
         std::cerr << "Error clearing COM port" << std::endl;
         return false;
     }
@@ -37,11 +37,11 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
     }
     return dwBytesRead > 0; })
 {
-    InitComPort();
+    _InitComPort();
     _sendingClock.markStart();
 }
 
-void RobotLinkReal::InitComPort()
+void RobotLinkReal::_InitComPort()
 {
     static int numTries = 0;
     const int NUM_TRIES_BEFORE_PRINTING_ERROR = 5000;
@@ -124,7 +124,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
     if (_comPort == INVALID_HANDLE_VALUE)
     {
         // attempt to reopen
-        InitComPort();
+        _InitComPort();
         return;
     }
 
@@ -154,7 +154,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
     if (dwErrors != 0)
     {
         // attempt to reopen
-        InitComPort();
+        _InitComPort();
         return;
     }
 
@@ -183,7 +183,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
         SAFE_DRAW
         cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
         END_SAFE_DRAW
-        InitComPort();
+        _InitComPort();
         return;
     }
 }
@@ -199,7 +199,7 @@ RobotMessage RobotLinkReal::Receive()
         END_SAFE_DRAW
 
         // attempt to reopen
-        InitComPort();
+        _InitComPort();
         return RobotMessage{0};
     }
 
