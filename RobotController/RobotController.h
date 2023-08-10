@@ -11,6 +11,7 @@
 #include "RobotControllerGUI.h"
 #include "Gamepad.h"
 #include "../Communication/Communication.h"
+#include "Extrapolator.h"
 
 class RobotController : public QObject
 {
@@ -37,6 +38,7 @@ private:
     Gamepad gamepad;
 
     RobotMessage state;
+    RobotSimState exState;
 
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;

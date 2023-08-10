@@ -112,7 +112,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     cv::Mat grayDiff;
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
-    const int LOW_THRESHOLD = 10;
+    const int LOW_THRESHOLD = 20;
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;

@@ -17,6 +17,8 @@ void calculateTangentPoints(const cv::Point2f& center, float radius, const cv::P
 
 cv::Point2f InterpolatePoints(const cv::Point2f& p1, const cv::Point2f& p2, double ratio);
 
+std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Point2f center2, float r2);
+
 class Point2f
 {
 public:

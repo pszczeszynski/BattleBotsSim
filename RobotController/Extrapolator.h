@@ -93,7 +93,7 @@ public:
         double weightFactor = (lastElapsedTime * 1000 / TIME_WEIGHT_MS);
 
         // enforce a max weight factor of 1
-        weightFactor = std::min(1.0, weightFactor);
+        weightFactor = weightFactor <= 1 ? weightFactor : 1;
 
         // weight the new difference in to the old difference with weight 1 / WEIGHTED_AVERAGE_SAMPLES
         weightedDerivative = newDerivative * weightFactor + weightedDerivative * (1 - weightFactor);

@@ -211,6 +211,7 @@ RobotConfigWindow::RobotConfigWindow()
     addLabeledSlider(this, "DriveToPos Angle Extrapolate MS:", ANGLE_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "DriveToPos Position Extrapolate MS:", POSITION_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "Master: Orbit Radius:", ORBIT_RADIUS, 0, 300);
+    addLabeledSlider(this, "Master: PP Radius:", PURE_PURSUIT_RADIUS, 0, 300);
     addLabeledSlider(this, "Master: Orbit dTheta Degrees:", ORBIT_DTHETA_DEG, 0, 300);
     addLabeledSlider(this, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);

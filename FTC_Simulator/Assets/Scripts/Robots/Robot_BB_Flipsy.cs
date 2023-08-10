@@ -77,9 +77,9 @@ public class Robot_BB_Flipsy : RobotInterface3D
         double robot_rotation = robot_body.rotation.eulerAngles[1];
         double robot_rotation_velocity = rb.angularVelocity.y;
 
-        const float GYRO_NOISE_PERCENTAGE = 0.5f;
+        const float GYRO_NOISE_PERCENTAGE = 0.2f;
         // add noise to the robot rotation to simulate gyro drift
-        double robotRotationWithNoise = Random.Range(1.0f - GYRO_NOISE_PERCENTAGE, 1.0f + GYRO_NOISE_PERCENTAGE * 0.7f) * robot_rotation_velocity;
+        double robotRotationWithNoise = Random.Range(1.0f - GYRO_NOISE_PERCENTAGE, 1.0f + GYRO_NOISE_PERCENTAGE) * robot_rotation_velocity;
         // integrate the gyro velocity to get the gyro rotation
         gyroRotationRad += Time.deltaTime * robotRotationWithNoise;
 

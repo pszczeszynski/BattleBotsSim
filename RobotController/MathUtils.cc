@@ -73,3 +73,37 @@ Angle InterpolateAngles(Angle a1, Angle a2, double ratio)
     // Interpolate using the ratio
     return Angle(a1 + diff * ratio);
 }
+
+std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Point2f center2, float r2)
+{
+    std::vector<cv::Point2f> intersections;
+
+    float x1 = center1.x, y1 = center1.y;
+    float x2 = center2.x, y2 = center2.y;
+
+    // Compute the distance between the centers of the circles
+    float dist = cv::norm(center1 - center2);
+
+    // Check if there's no solution
+    if (dist > r1 + r2 || dist < std::abs(r1 - r2) || (dist == 0 && r1 == r2))
+    {
+        return intersections; // Return an empty vector
+    }
+
+    // Compute a, b, and c
+    float a = (r1 * r1 - r2 * r2 + dist * dist) / (2 * dist);
+    float h = std::sqrt(r1 * r1 - a * a);
+    float cx2 = x1 + a * (x2 - x1) / dist;
+    float cy2 = y1 + a * (y2 - y1) / dist;
+
+    // Compute the intersection points
+    float ix1 = cx2 + h * (y2 - y1) / dist;
+    float iy1 = cy2 - h * (x2 - x1) / dist;
+    float ix2 = cx2 - h * (y2 - y1) / dist;
+    float iy2 = cy2 + h * (x2 - x1) / dist;
+
+    intersections.emplace_back(ix1, iy1);
+    intersections.emplace_back(ix2, iy2);
+
+    return intersections;
+}
