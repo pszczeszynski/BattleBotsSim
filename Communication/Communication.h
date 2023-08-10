@@ -63,6 +63,7 @@ struct DriveCommand
 // robot -> driver station
 struct RobotMessage
 {
+    bool valid;
     double rotation;
     double rotationVelocity;
     Point accel;
@@ -73,9 +74,6 @@ struct RobotMessage
 const char MESSAGE_END_CHAR = '\n';
 
 const char MESSAGE_START_CHAR = '@';
-
-
-
 
 
 #endif

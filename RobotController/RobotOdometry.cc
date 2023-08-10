@@ -32,7 +32,7 @@ static cv::Point2f GetImuVelocity()
     // get latest message
     RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
     // get angular velocity from imu
-    return cv::Point2f(robotMessage.velocity.x, robotMessage.velocity.z);
+    return cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
 }
 
 static double GetImuAngleRad()

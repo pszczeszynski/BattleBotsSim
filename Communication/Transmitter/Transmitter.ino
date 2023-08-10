@@ -75,17 +75,21 @@ void loop()
     // while there is data available to read
     while (available)
     {
-        // turn on arduino led
-        digitalWrite(LED_PORT, HIGH);
-
         // read data from rc
         RobotMessage message = radio->Receive();
-        lastReceiveTime = millis();
 
-        // print data to serial for driver station
-        Serial.print(MESSAGE_START_CHAR);
-        Serial.write((char*) &message, sizeof(message));
-        Serial.print(MESSAGE_END_CHAR);
+        if (message.valid)
+        {
+            // turn on arduino led
+            digitalWrite(LED_PORT, HIGH);
+
+            lastReceiveTime = millis();
+
+            // print data to serial for driver station
+            Serial.print(MESSAGE_START_CHAR);
+            Serial.write((char*) &message, sizeof(message));
+            Serial.print(MESSAGE_END_CHAR);
+        }
 
         // check available again
         available = radio->Available();

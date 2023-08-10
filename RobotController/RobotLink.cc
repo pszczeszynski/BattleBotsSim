@@ -6,8 +6,8 @@
 
 #define TRANSMITTER_COM_PORT TEXT("COM7")
 
-#define COM_READ_TIMEOUT_MS 500
-#define COM_WRITE_TIMEOUT_MS 500
+#define COM_READ_TIMEOUT_MS 100
+#define COM_WRITE_TIMEOUT_MS 100
 
 RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
                                           {
@@ -46,7 +46,7 @@ void RobotLinkReal::InitComPort()
     static int numTries = 0;
     const int NUM_TRIES_BEFORE_PRINTING_ERROR = 5000;
 
-    // check if open
+    // close it if it is open
     CloseHandle(_comPort);
 
     _comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -93,6 +93,21 @@ void RobotLinkReal::InitComPort()
     if (!SetCommState(_comPort, &_dcbSerialParams))
     {
         std::cerr << "Error setting serial port state" << std::endl;
+    }
+}
+
+/**
+ * Writes a message to the serial port.
+ * @param message The message to write.
+ * @param messageLength The length of the message to write.
+ * @throws std::runtime_error if the message could not be written.
+*/
+void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
+{
+    DWORD dwBytesWritten = 0;
+    if (!WriteFile(_comPort, message, messageLength, &dwBytesWritten, NULL))
+    {
+        throw std::runtime_error("Failed to write message");
     }
 }
 
@@ -150,43 +165,27 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // set valid to true
     command.valid = true;
 
-    std::cout << "writing message" << std::endl;
-    // Write MESSAGE_START_CHAR
-    DWORD dwBytesWritten = 0;
-    char start = MESSAGE_START_CHAR;
-    if (!WriteFile(_comPort, &start, sizeof(start), &dwBytesWritten, NULL))
+    // now write the message
+    try
     {
-        std::cerr << "Failed to write MESSAGE_START_CHAR" << std::endl;
+        // Write MESSAGE_START_CHAR
+        char start = MESSAGE_START_CHAR;
+        _WriteSerialMessage((char *)&start, sizeof(start));
+        // Write command
+        _WriteSerialMessage((char *)&command, sizeof(command));
+        // Write MESSAGE_END_CHAR
+        char end = MESSAGE_END_CHAR;
+        _WriteSerialMessage((char *)&end, sizeof(end));
+    }
+    catch (std::exception &e)
+    {
+        std::cerr << "Failed to write command: " << e.what() << std::endl;
         SAFE_DRAW
         cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
         END_SAFE_DRAW
         InitComPort();
         return;
     }
-
-    // Write command
-    if (!WriteFile(_comPort, &command, sizeof(command), &dwBytesWritten, NULL))
-    {
-        std::cerr << "Failed to write command" << std::endl;
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
-        InitComPort();
-        return;
-    }
-
-    // Write MESSAGE_END_CHAR
-    char end = MESSAGE_END_CHAR;
-    if (!WriteFile(_comPort, &end, sizeof(end), &dwBytesWritten, NULL))
-    {
-        std::cerr << "Failed to write MESSAGE_END_CHAR" << std::endl;
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
-        InitComPort();
-        return;
-    }
-    std::cout << "done writing message" << std::endl;
 }
 
 #define RECEIVE_TIMEOUT_MS 100

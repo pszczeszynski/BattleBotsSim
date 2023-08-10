@@ -120,6 +120,8 @@ RobotMessage Update()
     // calculate rotation velocity
     ret.rotationVelocity = imu->getRotationVelocity();
 
+    ret.valid = true;
+
     return ret;
 }
 

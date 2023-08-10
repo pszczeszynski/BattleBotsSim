@@ -20,6 +20,7 @@ public:
     ReceiveType Receive();
 
     bool Available();
+
 private:
     RF24 radio{14, 10};
 };
@@ -46,6 +47,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
 
 unsigned long lastTimeReceivedMessage = 0;
 
+#define SEND_FIFO_TIMEOUT_MS 100
 /**
  * Receives a message from the driver station
  */
@@ -55,19 +57,44 @@ void Radio<SendType, ReceiveType>::Send(SendType &message)
     radio.stopListening();
     radio.write(&message, sizeof(SendType));
 
+    // check time
+    unsigned long currentTime = millis();
     // Wait for fifo to be empty
     // while NOT (the transmitting fifo (first arg) is empty (second arg))
     while (!radio.isFifo(true, true))
     {
         // spin
+
+        // error check
+        if (millis() - currentTime > SEND_FIFO_TIMEOUT_MS)
+        {
+            Serial.println("Radio fifo failed to clear");
+            // reinit
+            InitRadio();
+            break;
+        }
     }
-      radio.startListening();
+
+    if (radio.failureDetected)
+    {
+        Serial.println("Radio hardware failure detected");
+        // reinit
+        InitRadio();
+        radio.failureDetected = false;
+    }
+
+    // check for hardware fault
+
+
+    radio.startListening();
 }
 
 template <typename SendType, typename ReceiveType>
 ReceiveType Radio<SendType, ReceiveType>::Receive()
 {
     ReceiveType receiveMessage;
+    // initialize to 0
+    memset(&receiveMessage, 0, sizeof(ReceiveType));
 
     if (radio.available())
     {

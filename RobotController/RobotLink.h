@@ -43,6 +43,7 @@ public:
     ~RobotLinkReal();
 
 private:
+    void _WriteSerialMessage(const char *message, int messageLength);
     void InitComPort();
     HANDLE _comPort;
     DCB _dcbSerialParams;

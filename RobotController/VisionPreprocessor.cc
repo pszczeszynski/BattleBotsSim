@@ -34,16 +34,17 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst)
     // If the user left clicks near one of the corners and shift is not pressed
     if (!shiftDown && Mouse::GetInstance().GetLeftDown())
     {
-        std::cout << "Mouse " << currMousePos.x << " " << currMousePos.y << std::endl;
-        std::cout << "Down " << down[0] << " " << down[1] << " " << down[2] << " " << down[3] << std::endl;
-
         // Check each corner
         for (int i = 0; i < 4; i++)
         {
-            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE && currMousePos.x >= dstPoints[0].x && currMousePos.x <= dstPoints[2].x && currMousePos.y >= dstPoints[0].y && currMousePos.y <= dstPoints[2].y) )
+            if (down[i] || (cv::norm(dstPoints[i] - currMousePos) < CLOSE &&
+                            currMousePos.x >= dstPoints[0].x &&
+                            currMousePos.x <= dstPoints[2].x &&
+                            currMousePos.y >= dstPoints[0].y &&
+                            currMousePos.y <= dstPoints[2].y))
             {
                 // Don't restrict adjustment once you start adjusting
-                if (!down[i]) 
+                if (!down[i])
                 {
                     down[i] = true;
                 }
