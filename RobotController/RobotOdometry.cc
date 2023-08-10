@@ -27,12 +27,20 @@ RobotOdometry& RobotOdometry::Opponent()
     static RobotOdometry opponent(cv::Point2f(0,0));
     return opponent;
 }
-static cv::Point2f GetImuVelocity()
+
+/**
+ * Returns the velocity reported by the imu sensor, but rotated by our angle
+*/
+cv::Point2f RobotOdometry::GetImuVelocity()
 {
     // get latest message
     RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get angular velocity from imu
-    return cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
+    // get velocity from imu
+    cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
+    // convert to field relative
+    cv::Point2f imuFieldRelative = rotate_point(imuRobotRelative, _angle);
+    // return the rotated velocity
+    return imuFieldRelative;
 }
 
 static double GetImuAngleRad()
@@ -180,7 +188,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     }
 
     // update using the weighted average
-    PostUpdate(fusedPos, smoothedVisualVelocity, Angle(fusedAngle));
+    PostUpdate(fusedPos, GetImuVelocity(), Angle(fusedAngle));
 }
 
 /**
@@ -205,7 +213,7 @@ void RobotOdometry::UpdateIMUOnly()
     Angle angle = Angle(UpdateAndGetIMUAngle());
 
     // update normally
-    PostUpdate(_position, _lastVelocity, angle); // _position, imuVelocity
+    PostUpdate(_position, imuVelocity, angle);
 }
 
 /**
