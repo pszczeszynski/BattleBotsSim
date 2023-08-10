@@ -4,7 +4,7 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-#define TRANSMITTER_COM_PORT TEXT("COM7")
+#define TRANSMITTER_COM_PORT TEXT("COM6")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -111,7 +111,7 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
     }
 }
 
-#define MIN_INTER_SEND_TIME_MS 3
+#define MIN_INTER_SEND_TIME_MS 4
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     // if we have sent a packet too recently, return

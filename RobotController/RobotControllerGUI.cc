@@ -9,7 +9,7 @@
 
 // Constants for window layout
 const int WINDOW_WIDTH = 1920;
-const int WINDOW_HEIGHT = 1080;
+const int WINDOW_HEIGHT = 1015;
 const int COLUMN_WIDTH = WINDOW_WIDTH / 5;
 const int COLUMN_SPACING = 20;
 const int LABEL_HEIGHT = 30;
