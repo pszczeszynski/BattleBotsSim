@@ -4,7 +4,7 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-#define TRANSMITTER_COM_PORT TEXT("COM6")
+#define TRANSMITTER_COM_PORT TEXT("COM7")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -114,6 +114,11 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 #define MIN_INTER_SEND_TIME_MS 4
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    // swap movement and turn
+    command.movement *= -1;
+    double temp = command.movement;
+    command.movement = command.turn;
+    command.turn = temp;
     // if we have sent a packet too recently, return
     if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
@@ -241,13 +246,6 @@ RobotMessage RobotLinkReal::Receive()
         END_SAFE_DRAW
         _receiveFPS = 0;
     }
-
-    // draw the current velocity using a line radially (x and y)
-    SAFE_DRAW
-    cv::line(drawingImage, cv::Point(drawingImage.cols / 2, drawingImage.rows / 2),
-        cv::Point(drawingImage.cols / 2 + retrievedStruct.velocityX * 100, drawingImage.rows / 2 + retrievedStruct.velocityY * 100),
-        cv::Scalar(0, 255, 0), 2);
-    END_SAFE_DRAW
 
     return retrievedStruct;
 }

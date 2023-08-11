@@ -85,6 +85,24 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
     _currAcceleration.x = myICM.accX() / (9.81 * 10);
     _currAcceleration.y = myICM.accY() / (9.81 * 10);
     _currAcceleration.z = myICM.accZ() / (9.81 * 10) - 9.81;
+
+
+    /////////////// ROTATE ACCELERATION BY GYRO //////////////////
+    double cosRotation = cos(_rotation);
+    double sinRotation = sin(_rotation);
+    double rotatedX = _currAcceleration.x * cosRotation - _currAcceleration.y * sinRotation;
+    double rotatedY = _currAcceleration.x * sinRotation + _currAcceleration.y * cosRotation;
+
+    _currAcceleration.x = rotatedX;
+    _currAcceleration.y = rotatedY;
+    //////////////////////////////////////////////////////
+
+    Serial.print("rotatedAcceleration: ");
+    Serial.print(rotatedX);
+    Serial.print(", ");
+    Serial.println(rotatedY);
+
+
     Point avgAccel = (_currAcceleration + _prevAcceleration) / 2;
     double accelNewWeight = deltaTimeMS / IMU_CALIBRATE_PERIOD_MS;
 

@@ -28,20 +28,6 @@ RobotOdometry& RobotOdometry::Opponent()
     return opponent;
 }
 
-/**
- * Returns the velocity reported by the imu sensor, but rotated by our angle
-*/
-cv::Point2f RobotOdometry::GetImuVelocity()
-{
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-    // get velocity from imu (invert y because top left is 0,0)
-    cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, -robotMessage.velocityY);
-    // convert to field relative
-    cv::Point2f imuFieldRelative = rotate_point(imuRobotRelative, _angle);
-    // return the rotated velocity
-    return imuFieldRelative;
-}
 
 static double GetImuAngleRad()
 {
@@ -51,6 +37,43 @@ static double GetImuAngleRad()
     return robotMessage.rotation;
 }
 
+/**
+ * Returns the velocity reported by the imu sensor, but rotated by our angle
+*/
+cv::Point2f RobotOdometry::GetImuVelocity()
+{
+    // get latest message
+    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
+
+    cv::Point2f accelRobotRelative = cv::Point2f(robotMessage.accelX, robotMessage.accelY);
+    #define FIELD_LENGTH_METERS 14.63
+    accelRobotRelative *= WIDTH / FIELD_LENGTH_METERS;
+
+    // convert to field relative
+    cv::Point2f accelFieldRelative = rotate_point(accelRobotRelative, _angle + M_PI);
+    
+    cv::Point2f newVelocity = _lastVelocity + accelFieldRelative * _lastAccelIntegrateClock.getElapsedTime();
+
+    _lastAccelIntegrateClock.markStart();
+    return newVelocity;
+
+
+    // // get velocity from imu (invert y because top left is 0,0)
+    // cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
+
+    // #define FIELD_LENGTH_METERS 14.63
+    // imuRobotRelative *= WIDTH / FIELD_LENGTH_METERS;
+
+    // double imuAngle = GetImuAngleRad();
+    // double ourAngle = _angle;
+
+    // double angleDifferenceRad = angle_wrap(ourAngle - imuAngle);
+
+    // // convert to field relative
+    // cv::Point2f imuFieldRelative = rotate_point(imuRobotRelative, -angleDifferenceRad);
+    // // return the rotated velocity
+    // return imuFieldRelative;
+}
 static double GetImuAngleVelocityRadPerSec()
 {
     // get latest message

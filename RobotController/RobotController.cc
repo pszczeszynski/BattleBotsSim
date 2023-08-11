@@ -413,6 +413,17 @@ DriveCommand RobotController::ManualMode()
     return response;
 }
 
+void DrawVelocity()
+{
+    // draw the current velocity using a line radially (x and y)
+    SAFE_DRAW
+    cv::line(drawingImage, cv::Point(drawingImage.cols / 2, drawingImage.rows / 2),
+             cv::Point(drawingImage.cols / 2 + RobotOdometry::Robot().GetVelocity().x,
+                       drawingImage.rows / 2 + RobotOdometry::Robot().GetVelocity().y),
+             cv::Scalar(0, 255, 0), 2);
+    END_SAFE_DRAW
+}
+
 /**
  * RobotLogic
  * The main logic for the robot
@@ -447,6 +458,8 @@ DriveCommand RobotController::RobotLogic()
         DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
         ret.turn = responseGoToPoint.turn;
     }
+
+    DrawVelocity();
 
     return ret;
 }

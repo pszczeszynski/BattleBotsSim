@@ -10,8 +10,8 @@
 #define SERIAL_BAUD 9600
 
 IMU* imu;
-#define LEFT_MOTOR_PIN 0
-#define RIGHT_MOTOR_PIN 37
+#define LEFT_MOTOR_PIN 8
+#define RIGHT_MOTOR_PIN 9
 Motor* leftMotor;
 Motor* rightMotor;
 Radio<RobotMessage, DriveCommand>* radio;

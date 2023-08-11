@@ -68,6 +68,8 @@ private:
     Clock _lastUpdateClock;
     Clock _lastVelocityCalcClock;
 
+    Clock _lastAccelIntegrateClock;
+
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
