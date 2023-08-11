@@ -258,6 +258,7 @@ RobotConfigWindow::RobotConfigWindow()
     setMouseTracking(true);
     imageLabel->setMouseTracking(true);
 
+    Input::GetInstance().SetImageLabel(imageLabel);
 }
 
 /**
@@ -324,3 +325,32 @@ RobotConfigWindow& RobotConfigWindow::GetInstance()
     static RobotConfigWindow instance;
     return instance;
 }
+
+QLabel* RobotConfigWindow::GetImageLabel()
+{
+    return imageLabel;
+}
+
+// events
+void RobotConfigWindow::mousePressEvent(QMouseEvent *event)
+{
+    Input::GetInstance().UpdateMousePress(event);
+}
+
+void RobotConfigWindow::mouseReleaseEvent(QMouseEvent *event)
+{
+    Input::GetInstance().UpdateMouseRelease(event);
+}
+
+void RobotConfigWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    Input::GetInstance().UpdateMouseMove(event);
+}
+
+bool RobotConfigWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    Input::GetInstance().UpdateEventFilter(watched, event);
+    return QMainWindow::eventFilter(watched, event);
+}
+
+

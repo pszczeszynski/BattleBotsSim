@@ -1,4 +1,4 @@
-#include "Gamepad.h"
+#include "Input/Gamepad.h"
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
@@ -116,6 +116,9 @@ void RobotController::Run()
         robotLink.Drive(response);
         TIMER_PRINT("Drive")
 
+        // 4. update the GUI
+        GuiLogic();
+
         DRAWING_IMAGE_MUTEX.lock();
 
         if (classification.GetHadNewImage())
@@ -159,15 +162,6 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     {
         // set the opponent to invalid (sets their velocity to 0)
         RobotOdometry::Opponent().Invalidate();
-    }
-
-    // if the user presses the left mouse button with shift
-    if (Mouse::GetInstance().GetLeftDown() && shiftDown)
-    {
-        cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
-        cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
-        double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-        RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
     }
 }
 
@@ -462,4 +456,116 @@ DriveCommand RobotController::RobotLogic()
     DrawVelocity();
 
     return ret;
+}
+
+void RobotController::GuiLogic()
+{
+    static int cornerToAdjust = -1;
+    static bool nearCorner = false;
+    static cv::Point2f mousePosLast = cv::Point2f(0, 0);
+    static cv::Point2f cornerHandles[4] = {cv::Point2f(0, 0),
+                                            cv::Point2f(WIDTH, 0),
+                                            cv::Point2f(WIDTH, HEIGHT),
+                                            cv::Point2f(0, HEIGHT)};
+
+    const double CORNER_DIST_THRESH = 20.0;
+
+    Input &input = Input::GetInstance();
+    // get the curr mouse position
+    cv::Point2f currMousePos = input.GetMousePosition();
+
+    // ignore if the mouse is outside the image
+    if (!input.IsMouseOverImage())
+    {
+        return;
+    }
+
+    // if the user isn't pressing shift
+    if (!input.IsKeyPressed(Qt::Key_Shift))
+    {
+        // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
+        if (!nearCorner && input.IsLeftMousePressed())
+        {
+            // set the robot to the mouse position
+            RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+        }
+
+        // if the user right clicks
+        if (input.IsRightMousePressed())
+        {
+            // set the opponent to the mouse position
+            RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+        }
+
+        // corner adjustment
+
+        // If the user left clicks near one of the corners
+        if (input.IsLeftMousePressed())
+        {
+            if (cornerToAdjust == -1)
+            {
+                // Check each corner
+                for (int i = 0; i < 4; i++)
+                {
+                    // if the user is near a corner
+                    if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
+                    {
+                        // set the corner to adjust
+                        cornerToAdjust = i;
+                        break;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // otherwise set the corner to adjust to -1
+            cornerToAdjust = -1;
+        }
+
+        // if the user is adjusting a corner
+        if (cornerToAdjust != -1)
+        {
+            // move the corner
+            vision.GetPreprocessor().MoveSourcePoint(cornerToAdjust, currMousePos - mousePosLast);
+        }
+    }
+    else // else the user is pressing shift
+    {
+        // if the user presses the left mouse button with shift
+        if (input.IsLeftMousePressed())
+        {
+            // set the robot angle
+            cv::Point2f currMousePos = input.GetMousePosition();
+            cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
+            double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
+            RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
+        }
+    }
+
+    // SAFE_DRAW
+    // cv::circle(drawingImage, mousePosLast, 3, cv::Scalar(0, 255, 0), 2);
+    // END_SAFE_DRAW
+
+    // bool outside = true;
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     SAFE_DRAW
+    //     if (cv::norm(dstPoints[i] - currMousePos) < CLOSE)
+    //     {
+    //         cv::circle(drawingImage, dstPoints[i], CLOSE * 1.5, cv::Scalar(255, 100, 255), 2);
+    //         nearCorner = true;
+    //         outside = false;
+    //     }
+    //     else
+    //     {
+    //         cv::circle(drawingImage, dstPoints[i], CLOSE, cv::Scalar(255, 0, 255), 2);
+    //         if (down[i]) outside = false;
+    //     }
+    //     END_SAFE_DRAW
+    // }
+
+
+    // save the last mouse position
+    mousePosLast = currMousePos;
 }

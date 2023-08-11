@@ -1,6 +1,6 @@
 #include "RobotClassifier.h"
 #include "Globals.h"
-#include "Mouse.h"
+#include "Input/Input.h"
 
 RobotClassifier* RobotClassifier::instance = nullptr;
 
@@ -163,25 +163,6 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
 VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage)
 {
     VisionClassification classificationResult;
-
-    cv::Point2f currMousePos = Mouse::GetInstance().GetPos();
-    // if the user left clicks
-    if (!nearCorner && !shiftDown && Mouse::GetInstance().GetLeftDown() && currMousePos.x >= 0 && currMousePos.x <= WIDTH && currMousePos.y >= 0 && currMousePos.y <= HEIGHT)
-    {
-        // set the robot to the mouse position
-        RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
-        // don't classify
-        return classificationResult;
-    }
-
-    // if the user right clicks
-    if (Mouse::GetInstance().GetRightDown() && currMousePos.x >= 0 && currMousePos.x <= WIDTH && currMousePos.y >= 0 && currMousePos.y <= HEIGHT)
-    {
-        // set the opponent to the mouse position
-        RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
-        // don't classify
-        return classificationResult;
-    }
 
     // if only one blob
     if (blobs.size() == 1)

@@ -49,8 +49,8 @@ set(SOURCES
     VisionPreprocessor.cc
     RobotControllerGUI.cc
     RobotLink.cc
-    Gamepad.cc
-    Mouse.cc
+    Input/Gamepad.cc
+    Input/Input.cc
 )
 
 # Create the object files

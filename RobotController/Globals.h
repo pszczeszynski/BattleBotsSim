@@ -20,12 +20,6 @@ extern std::mutex DRAWING_IMAGE_MUTEX;
 
 extern QString SAVE_FILE_NAME;
 
-
-extern bool shiftDown;
-extern bool aDown;
-extern bool pDown;
-extern bool nearCorner;
-
 // uncomment below to enable timer printing
 // #define ENABLE_TIMERS
 

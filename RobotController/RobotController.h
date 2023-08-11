@@ -9,7 +9,7 @@
 #include "RobotOdometry.h"
 #include "RobotLink.h"
 #include "RobotControllerGUI.h"
-#include "Gamepad.h"
+#include "Input/Gamepad.h"
 #include "../Communication/Communication.h"
 #include "Extrapolator.h"
 
@@ -34,6 +34,9 @@ private:
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
+
+    void GuiLogic();
+
     Vision vision;
     Gamepad gamepad;
 

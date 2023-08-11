@@ -8,8 +8,8 @@ Motor::Motor(int pwmPin)
 }
 
 // Ask Ben about fwd/bkwd
-#define PWM_MIN 1300
-#define PWM_MAX 1700
+#define PWM_MIN 1450
+#define PWM_MAX 1550
 #define SIG 0.01
 
 void Motor::SetPower(double power)

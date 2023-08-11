@@ -181,3 +181,8 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     // classify the blobs and save them for later
     return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);
 }
+
+VisionPreprocessor& Vision::GetPreprocessor()
+{
+    return birdsEyePreprocessor;
+}

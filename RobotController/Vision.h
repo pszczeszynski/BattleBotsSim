@@ -24,6 +24,7 @@ class Vision
 public:
     Vision(ICameraReceiver &overheadCam);
     VisionClassification ConsumeLatestClassification();
+    VisionPreprocessor& GetPreprocessor();
 
 private:
     VisionClassification LocateRobots2d(cv::Mat&, cv::Mat&);
