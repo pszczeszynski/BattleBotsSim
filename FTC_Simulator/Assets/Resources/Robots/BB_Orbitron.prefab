@@ -622,6 +622,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef2a87e24cdcb8b4baf59eaefc2384c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  use_new_algorithm: 1
+  rotation_wheel_angle: 20
+  orth_torque_scaler: 10
+  friction_static: 15
+  friction_speed: 0.1
+  friction_speed_torque: 0
+  friction_extrax: 2
   deleted: 0
   wheelTL: {fileID: 1481101271354528}
   wheelTR: {fileID: 1513895556740696}
@@ -633,7 +640,6 @@ MonoBehaviour:
   rot_inertia_scaler: 0.8
   rot_inertia_scale_only_body: 1
   turning_overide: 0
-  friction_extrax: 2
   valid_DriveTrains:
   - Tank
   - Mecanum
@@ -717,15 +723,18 @@ MonoBehaviour:
   max_speed: 20
   max_speed_lock: 0
   max_speed_corr: 128.8
-  max_acceleration: 30
+  max_acceleration: 50
   max_acceleration_lock: 0
   max_torque: 1000
   turn_scale: 1
   turn_scale_lock: 0
+  turn_priority: 0
   straffing_friction_scaler: 1.5
   default_regen_breaking: 0.25
   TL_current: {x: 0, y: 0, z: 0}
+  TR_current: {x: 0, y: 0, z: 0}
   TL_goaly: {x: 0, y: 0, z: 0}
+  TR_goaly: {x: 0, y: 0, z: 0}
   ML_torque_multiplier: 1
   MR_torque_multiplier: 1
   wheel_dir_TL: {x: 1, y: 0, z: 0}
@@ -752,7 +761,9 @@ MonoBehaviour:
   ortho3_vel_br: {x: 0, y: 0, z: 0}
   ortho3_vel_ml: {x: 0, y: 0, z: 0}
   ortho3_vel_mr: {x: 0, y: 0, z: 0}
+  net_dir_target: {x: 0, y: 0, z: 0}
   stick_multiplier: 1
+  target_movement: {x: 0, y: 0, z: 0}
   time1: 0
   lastacc:
   - 0

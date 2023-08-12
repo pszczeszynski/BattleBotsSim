@@ -21,7 +21,21 @@ public class RobotInterface3D : MonoBehaviour {
     private bool DEBUG = false;
     private bool DEBUG_COG = false;
 
-    private bool use_new_algorithm = false;
+    [Header("New Wheel Alg Settings")]
+    public bool use_new_algorithm = false;
+    public float rotation_wheel_angle = 45f; // Depending on how far away the wheels are from center, this dictates the rotation angle you want to use.
+                                             // Set to 0 if yoy want to rely on slippage.
+
+    public float orth_torque_scaler = 2f;
+
+    public float friction_static = 0.1f;
+    public float friction_speed = 0.1f;
+    public float friction_speed_torque = 0.1f;
+
+    [Header("Old Wheel Alg Settings")]
+    public float friction_extrax = 1f;
+
+    [Header("Joints")]
 
     public bool deleted = false; // When set true, this item has been marked for deletion
 
@@ -48,12 +62,13 @@ public class RobotInterface3D : MonoBehaviour {
     private ConfigurableJoint wheelMR_joint;
     private Rigidbody wheelMR_body;
 
+    [Header("General settings")]
     public Vector3 centerOfMass; // Sets the center of mass
     public float rot_inertia_scaler = 1f; // scales the rotational inertia 
     public bool rot_inertia_scale_only_body = true;  // if true, only scale body
     private float max_speed_multiplier = 1000f; // This is a clamp that prevents the wheels from reaching past this multiplier, not sure we ever need this (I think it was used to clamp wild oscialltions during stability issues)
     public float turning_overide = 0f; // This variable forces the robot to turn in place. Can be used by derived Robots to help control movement.
-    public float friction_extrax = 1f;
+    
 
     public List<string> valid_DriveTrains = new List<string>() { "Tank", "Mecanum" };
 
@@ -218,6 +233,7 @@ public class RobotInterface3D : MonoBehaviour {
                                        float new_total_weight = -1f,
                                        string new_DriveTrain = "",
                                        float new_turn_scale = -1f,
+                                       float new_turn_priority = -1f,
                                        int new_field_centric = -1,
                                        int new_active_breaking = -1,
                                        int new_tank_control = -1)
@@ -258,6 +274,8 @@ public class RobotInterface3D : MonoBehaviour {
         {
             turn_scale = (new_turn_scale < 0f) ? GLOBALS.turning_scaler : new_turn_scale;
         }
+
+        turn_priority = (new_turn_priority < 0f) ? GLOBALS.turning_priority : new_turn_priority;
 
         if (!fieldcentric_lock)
         {
@@ -352,19 +370,22 @@ public class RobotInterface3D : MonoBehaviour {
         }
         if (DriveTrain == "Tank 4-Wheel")
         {
+            // For tank 4-wheel we will use mecanum wheel type control
+            // The best way to simulate the slight flexibility of rubber that allow turning without slipping is
+            // to just use mecanum wheel type movement (just don't allow strafing).
             if (wheelBL && wheelBR && wheelTL && wheelTR)
             {
                 // The wheel that is supplied initial power is the Back wheels if 4-wheel drive
                 // Will prevent side-way motion in the driven wheel. All others are omni-wheels.
 
-                wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-                wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
-                wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-                wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
-                wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-                wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
-                wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-                wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+                wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
             }
         }
         else if (DriveTrain == "6-Wheel Tank")
@@ -399,10 +420,15 @@ public class RobotInterface3D : MonoBehaviour {
         }
         else
         {
+            // Macanum type wheel control: all angle movements are ok
             wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
             wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
             wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
             wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+            wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+            wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+            wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+            wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
         }
 
 
@@ -956,6 +982,7 @@ public class RobotInterface3D : MonoBehaviour {
     [Tooltip("Allows turnign to be faster/slower")]
     public float turn_scale = 1f;               // Allow turning to be at different speed (mecanum or joytstick comfort)
     public bool turn_scale_lock = false;
+    public float turn_priority = 0f;
 
     // Spring dampening is actually the force of the motor drive (inversily proportional to the max speed)
     private float friction_torque_scaler = 1;       // The torque required to get the desired friciton forces. We calculate it based on weight in code below.
@@ -976,7 +1003,9 @@ public class RobotInterface3D : MonoBehaviour {
     private Vector3 straffing_vec = new Vector3(0, 0, 1f);
 
     public Vector3 TL_current;
+    public Vector3 TR_current;
     public Vector3 TL_goaly;
+    public Vector3 TR_goaly;
 
     // Used to transform angular velocity from the real-world space to one that would be applied 
     // to the wheel springs.
@@ -1009,6 +1038,7 @@ public class RobotInterface3D : MonoBehaviour {
     public float MR_torque_multiplier = 1f;
     private void ApplyWheelSpringForces(Vector3 TL_goal, Vector3 TR_goal, Vector3 BL_goal, Vector3 BR_goal)
     {
+
         if (!rb_body || !rb_body.gameObject.activeSelf) { return; }
 
         // Clear old sound data
@@ -1040,7 +1070,8 @@ public class RobotInterface3D : MonoBehaviour {
         }
 
         TL_current = TL_curr;
-        TL_goaly = TL_goal;
+        TR_current = TR_curr;
+
 
         // Set the max torques
         float TL_torque = max_torque;
@@ -1359,8 +1390,11 @@ public class RobotInterface3D : MonoBehaviour {
     public Vector3 ortho3_vel_mr;
 
     //private void ApplyWheelSpringForces_new(Vector3 TL_goal, Vector3 TR_goal, Vector3 BL_goal, Vector3 BR_goal)
+    public Vector3 net_dir_target;
+
     private void ApplyWheelSpringForces_new(Vector3 dir_target)
     {
+        net_dir_target = dir_target;
         // ******************************************
         // Work in progress: not ready to be used
         // looking at improving/cleaning up spring forces. However, fighting with unity apply-force issues is making this into a project
@@ -1394,107 +1428,111 @@ public class RobotInterface3D : MonoBehaviour {
         float BR_torque = 0;
         float ML_torque = 0;
         float MR_torque = 0;
-        float rootscaler = 1 / Mathf.Sqrt(2);
 
-        bool ortho_locked_top = false;
-        bool ortho_locked_mid = false;
-        bool ortho_locked_bot = false;
+        // "Mecanum", "Swerve", Tank 4-wheel,  etc..
+        // First apply forward 
+        target_tl.x = dir_target.y;
+        target_tr.x = dir_target.y;
+        target_bl.x = dir_target.y;
+        target_br.x = dir_target.y;
 
+        // Apply Straffing (if there is any)
+        target_tl.z = dir_target.x;
+        target_tr.z = dir_target.x;
+        target_bl.z = dir_target.x;
+        target_br.z = dir_target.x;
+
+        // Apply rotation
+        float forward_scaler = Mathf.Cos(Mathf.Deg2Rad*rotation_wheel_angle);
+        float sideways_scaler = Mathf.Sin(Mathf.Deg2Rad*rotation_wheel_angle);
+
+        target_tl.x += forward_scaler * dir_target.z;
+        target_tl.z += -1f * sideways_scaler * dir_target.z;
+
+        target_tr.x += -1f * forward_scaler * dir_target.z;
+        target_tr.z += -1f * sideways_scaler * dir_target.z;
+
+        target_br.x += -1f * forward_scaler * dir_target.z;
+        target_br.z += sideways_scaler * dir_target.z;
+
+        target_bl.x += forward_scaler * dir_target.z;
+        target_bl.z += sideways_scaler * dir_target.z;
+
+        TL_torque = max_torque;
+        TR_torque = max_torque;
+        BL_torque = max_torque;
+        BR_torque = max_torque;
 
         switch (DriveTrain )
         {
             case "Tank":
-                // This has driven back wheels, omni fron wheels
-                // The back wheels has angular motion constrained around only x-axis, thus don't try to cancel orthogonal forces
-                target_bl.x = dir_target.z * turn_scale + dir_target.y;
-                target_br.x = 1f * dir_target.z * turn_scale + dir_target.y;
-                wheel_dir_TL = Vector3.zero;
-                wheel_dir_TR = Vector3.zero;
-
                 // Double toruqe on 2 wheels since max_torque assumes 4 wheels
                 BL_torque = 2f * max_torque;
                 BR_torque = 2f * max_torque;
+                TL_torque = 0f;
+                TR_torque = 0f;
 
-                // Mark bottom are locked
-                ortho_locked_bot = true;
                 break;
-
+       
             case "6-Wheel Tank":
-                target_ml.x = dir_target.z * turn_scale + dir_target.y;
-                target_mr.x = -1f * dir_target.z * turn_scale + dir_target.y;
-                // Front and back wheels become omni wheels
-                //wheel_dir_TL = Vector3.zero;
-                //wheel_dir_TR = Vector3.zero;
-                //wheel_dir_BL = Vector3.zero;
-                //wheel_dir_BR = Vector3.zero;
-                wheel_dir_ML.x = 1f;
-                wheel_dir_MR.x = 1f;
-
                 // Double toruqe on 2 wheels since max_torque assumes 4 wheels
                 ML_torque = 2f * max_torque;
                 MR_torque = 2f * max_torque;
-
-                ortho_locked_mid = true;
-                break;
-
-            default: // "Mecanum", "Swerve", etc..
-                     // First apply forward 
-                target_tl.x = dir_target.y;
-                target_tr.x = dir_target.y;
-                target_bl.x = dir_target.y;
-                target_br.x = dir_target.y;
-
-                // Apply Straffing (if there is any)
-                target_tl.z = dir_target.x;
-                target_tr.z = dir_target.x;
-                target_bl.z = dir_target.x;
-                target_br.z = dir_target.x;
-
-                // Apply rotation
-                // For this rotation in place would be all wheres going 45Degrees around center. Thus
-                // Apply rotation force as a 45 Degree rotational force who's magnitude is 1/sqrt(2) in the individual domains (Net magnitude of 1)
-                
-                target_tl.x += rootscaler * dir_target.z;
-                target_tl.z += -1f * rootscaler * dir_target.z;
-
-                target_tr.x += -1f * rootscaler * dir_target.z;
-                target_tr.z += -1f * rootscaler * dir_target.z;
-
-                target_br.x += -1f * rootscaler * dir_target.z;
-                target_br.z += rootscaler * dir_target.z;
-
-                target_bl.x += rootscaler * dir_target.z;
-                target_bl.z += rootscaler * dir_target.z;
-
-                // Targets point in direction of wheels.
-                // If 0 magnitude, remember old position
-                if( target_tl.magnitude != 0f) { wheel_dir_TL = target_tl.normalized; }
-                if (target_tr.magnitude != 0f) { wheel_dir_TR = target_tr.normalized; }
-                if (target_bl.magnitude != 0f) { wheel_dir_BL = target_bl.normalized; }
-                if (target_br.magnitude != 0f) { wheel_dir_BR = target_br.normalized; }
-
-                TL_torque = max_torque;
-                TR_torque = max_torque;
-                BL_torque = max_torque;
-                BR_torque = max_torque;
+                TL_torque = 0f;
+                TR_torque = 0f;
+                BL_torque = 0f;
+                BR_torque = 0f;
 
                 break;
+
         }
 
         // ****************************************
         // Limit max powers
-
+        /*
         // Now limit the wheels power: we can limit each individual, or scale all together.
         bool limit_power_individually = true;
 
         if (limit_power_individually)
         {
+            // When turning priority is 0, we just limit the powers of all the wheels.
+            // Then turning priority is 1, we preserve the delta power (no greater then 2f).
+            float top_delta = target_tl.x - target_tr.x;
+            float bot_delta = target_bl.x - target_br.x;
+
+            if (top_delta > 2f)     { top_delta = 2f; }
+            if (top_delta < -2f)    { top_delta = -2f; }
+            if (bot_delta > 2f)     { bot_delta = 2f; }
+            if (bot_delta < -2f)    { bot_delta = -2f; }
+
+            // Normalize all motors
             if (target_tl.magnitude > 1f) { target_tl.Normalize(); }
             if (target_tr.magnitude > 1f) { target_tr.Normalize(); }
             if (target_bl.magnitude > 1f) { target_bl.Normalize(); }
             if (target_br.magnitude > 1f) { target_br.Normalize(); }
             if (target_ml.magnitude > 1f) { target_ml.Normalize(); }
             if (target_mr.magnitude > 1f) { target_mr.Normalize(); }
+
+            float new_top_delta = target_tl.x - target_tr.x;
+            float new_bot_delta = target_bl.x - target_br.x;
+
+            // Calculate actual delta toi be used
+            float final_top_delta = top_delta * turn_priority + (1 - turn_priority) * new_top_delta;
+            float final_bot_delta = bot_delta * turn_priority + (1 - turn_priority) * new_bot_delta;
+            
+            if( target_tl.magnitude >= 1f) { target_tr.x = target_tl.x - final_top_delta; }
+            if (target_tr.magnitude >= 1f) { target_tl.x = target_tr.x + final_top_delta; }
+            if (target_bl.magnitude >= 1f) { target_br.x = target_bl.x - final_bot_delta; }
+            if (target_br.magnitude >= 1f) { target_bl.x = target_br.x + final_bot_delta; }
+
+            // Normalize one more time just in case
+            if (target_tl.magnitude > 1f) { target_tl.Normalize(); }
+            if (target_tr.magnitude > 1f) { target_tr.Normalize(); }
+            if (target_bl.magnitude > 1f) { target_bl.Normalize(); }
+            if (target_br.magnitude > 1f) { target_br.Normalize(); }
+            if (target_ml.magnitude > 1f) { target_ml.Normalize(); }
+            if (target_mr.magnitude > 1f) { target_mr.Normalize(); }
+
         }
         else
         {
@@ -1517,6 +1555,8 @@ public class RobotInterface3D : MonoBehaviour {
             target_ml *= correct_for_excessive_speed;
             target_mr *= correct_for_excessive_speed;
         }
+        */
+
 
         // ************************************
         // Get final target velocity
@@ -1527,17 +1567,14 @@ public class RobotInterface3D : MonoBehaviour {
          targetv_ml = max_speed_corr * target_ml;
          targetv_mr = max_speed_corr * target_mr;
 
-       
-        // Make X the drive, all others hugelly resistive to change
-        // TBD: Apply non regenerative option
+        
         
         xdriveTL = wheelTL_joint.angularXDrive;
         xdriveTL.positionDamper = TL_torque;
         wheelTL_joint.angularXDrive = xdriveTL;
 
         yzdriveTL = wheelTL_joint.angularYZDrive;
-        yzdriveTL.positionDamper = (ortho_locked_top) ? 0 : max_torque;
-        yzdriveTL.positionSpring = (ortho_locked_top) ? 9000 : 0;
+        yzdriveTL.positionDamper = orth_torque_scaler*TL_torque;
         wheelTL_joint.angularYZDrive = yzdriveTL;
 
         xdriveTR = wheelTR_joint.angularXDrive;
@@ -1545,8 +1582,7 @@ public class RobotInterface3D : MonoBehaviour {
         wheelTR_joint.angularXDrive = xdriveTR;
 
         yzdriveTR = wheelTR_joint.angularYZDrive;
-        yzdriveTR.positionDamper = (ortho_locked_top) ? 0 : max_torque;
-        yzdriveTR.positionSpring = (ortho_locked_top) ? 9000 : 0;
+        yzdriveTR.positionDamper = orth_torque_scaler*TR_torque;
         wheelTR_joint.angularYZDrive = yzdriveTR;
 
         xdriveBL = wheelBL_joint.angularXDrive;
@@ -1554,8 +1590,7 @@ public class RobotInterface3D : MonoBehaviour {
         wheelBL_joint.angularXDrive = xdriveBL;
 
         yzdriveBL = wheelBL_joint.angularYZDrive;
-        yzdriveBL.positionDamper = (ortho_locked_bot) ? 0 : max_torque;
-        yzdriveBL.positionSpring = (ortho_locked_bot) ? 9000 : 0;
+        yzdriveBL.positionDamper = orth_torque_scaler*BL_torque;
         wheelBL_joint.angularYZDrive = yzdriveBL;
 
         xdriveBR = wheelBR_joint.angularXDrive;
@@ -1563,8 +1598,7 @@ public class RobotInterface3D : MonoBehaviour {
         wheelBR_joint.angularXDrive = xdriveBR;
 
         yzdriveBR = wheelBR_joint.angularYZDrive;
-        yzdriveBR.positionDamper = (ortho_locked_bot) ? 0 : max_torque;
-        yzdriveBR.positionSpring = (ortho_locked_bot) ? 9000 : 0;
+        yzdriveBR.positionDamper = orth_torque_scaler*BR_torque;
         wheelBR_joint.angularYZDrive = yzdriveBR;
 
         wheelTL_joint.targetAngularVelocity = targetv_tl;
@@ -1579,8 +1613,7 @@ public class RobotInterface3D : MonoBehaviour {
             wheelML_joint.angularXDrive = xdriveML;
 
             yzdriveML = wheelML_joint.angularYZDrive;
-            yzdriveML.positionDamper = (ortho_locked_bot) ? 0 : max_torque;
-            yzdriveML.positionSpring = (ortho_locked_bot) ? 9000 : 0;
+            yzdriveML.positionDamper = ML_torque;
             wheelML_joint.angularYZDrive = yzdriveML;
 
             xdriveMR = wheelMR_joint.angularXDrive;
@@ -1588,8 +1621,7 @@ public class RobotInterface3D : MonoBehaviour {
             wheelMR_joint.angularXDrive = xdriveMR;
 
             yzdriveMR = wheelMR_joint.angularYZDrive;
-            yzdriveMR.positionDamper = (ortho_locked_bot) ? 0 : max_torque;
-            yzdriveMR.positionSpring = (ortho_locked_bot) ? 9000 : 0;
+            yzdriveMR.positionDamper = MR_torque;
             wheelMR_joint.angularYZDrive = yzdriveMR;
 
             wheelML_joint.targetAngularVelocity = targetv_ml;
@@ -1599,6 +1631,7 @@ public class RobotInterface3D : MonoBehaviour {
         // **********************************************************
         // For orthogonal direction, apply breaking force if not omni-wheel
         // Compare to actual velocities
+        /*
         TL_curr = TransformWorldVelToWheelVel(wheelTL);
         TR_curr = TransformWorldVelToWheelVel(wheelTR);
         BL_curr = TransformWorldVelToWheelVel(wheelBL);
@@ -1640,268 +1673,13 @@ public class RobotInterface3D : MonoBehaviour {
         if (!ortho_locked_bot && wheel_dir_BR.magnitude > 0f) { wheelBR_body.AddTorque(rb_body.transform.TransformDirection(ortho3_vel_br) * max_torque * -1f, ForceMode.Force); }
         if (!ortho_locked_mid && wheel_dir_ML.magnitude > 0f) { wheelML_body.AddTorque(rb_body.transform.TransformDirection(ortho3_vel_ml) * max_torque * -1f, ForceMode.Force); }
         if (!ortho_locked_mid && wheel_dir_MR.magnitude > 0f) { wheelMR_body.AddTorque(rb_body.transform.TransformDirection(ortho3_vel_mr) * max_torque * -1f, ForceMode.Force); }
-        
+        */
 
 
 
         // **********************************************************
         // Next need to apply friction forces:
-        // TBD
-        // TBD
-        // TBD
-
-
-
-
-
-
-
-
-
-
-
-
-
-        return;
-
         /*
-
-
-
-        // Apply torques
-
-
-
-
-
-
-
-        // Determine if we should be adding regenerative breaking 
-        // ******** Measurement of robot behavior on field shows this breaking looks like a fixed force, thus it's less likelly caused
-        // ******** by regeneration, but more by the powerloss in the gears??? Not sure at this point, but will follow lab measurement
-        //
-        // Some more explanation: The rev hub controls the motors as a half-bridge - what this means is that it can easily add power to the
-        // wheel, but reducing power is poor UNLESS it switches into "reverse direction" mode. Thus if you just reduce forward power it will
-        // coast into the new speed at a ~25% regenerative braking, but if you apply even a little bit of reverse direction power, it now switches
-        // mode and will be using full motor power to reduce speed.
-        //
-        // This is too complicated given our wheels are modeled as a sphere rotating in 2 dimensions. Will simplify this to as follows:
-        // 1) If magnitude is reduced, we will coast
-        // 2) If the difference in Vectors is more than 10% higher than original (e.g. we reversed direction), then apply full motor power
-        // Do keep in mind that the "goal" versus actual speed attained are different because of friction forces
-        float TL_regen = 0;
-        if (!activebreaking && (TL_goal.magnitude < 0.9f * TL_curr.magnitude) && ((TL_goal - TL_curr).magnitude < 1.1f * TL_curr.magnitude))  // If decelerating, rely on friction forces only (no motor spring)
-        {
-            TL_regen = default_regen_breaking;
-            TL_torque = 0f;
-        }
-
-        float TR_regen = 0;
-        if (!activebreaking && (TR_goal.magnitude < 0.9f * TR_curr.magnitude) && ((TR_goal - TR_curr).magnitude < 1.1f * TR_curr.magnitude))
-        {
-            TR_regen = default_regen_breaking;
-            TR_torque = 0f;
-        }
-
-        float BL_regen = 0;
-        if (!activebreaking && (BL_goal.magnitude < 0.9f * BL_curr.magnitude) && ((BL_goal - BL_curr).magnitude < 1.1f * BL_curr.magnitude))
-        {
-            BL_regen = default_regen_breaking;
-            BL_torque = 0;
-        }
-
-        float BR_regen = 0;
-        if (!activebreaking && (BR_goal.magnitude < 0.9f * BR_curr.magnitude) && ((BR_goal - BR_curr).magnitude < 1.1f * BR_curr.magnitude))
-        {
-            BR_regen = default_regen_breaking;
-            BR_torque = 0;
-        }
-
-
-        if (DriveTrain == "Tank")
-        {
-            // Make sure final goals are off
-            TL_goal.x = 0; TL_goal.y = 0; TL_goal.z = 0;
-            TR_goal.x = 0; TR_goal.y = 0; TR_goal.z = 0;
-
-            TL_torque = 0f;
-            TR_torque = 0f;
-            TL_regen = 0f;
-            TR_regen = 0f;
-
-            // Double the BL/BR torques since all 4 motors are on those wheels
-            BL_torque *= 2f;
-            BR_torque *= 2f;
-        }
-
-        Vector3 ML_goal = new Vector3();
-        Vector3 MR_goal = new Vector3();
-        float ML_regen = 0;
-        float MR_regen = 0;
-        ML_torque_multiplier = 1f;
-        MR_torque_multiplier = 1f;
-
-
-        if (DriveTrain == "6-Wheel Tank")
-        {
-            TL_goal.y = 0; TL_goal.z = 0;
-            TR_goal.y = 0; TR_goal.z = 0;
-            BL_goal.y = 0; BL_goal.z = 0;
-            BR_goal.y = 0; BR_goal.z = 0;
-
-            TL_goal.x = BL_goal.x;
-            TR_goal.x = BR_goal.x;
-
-
-            // Assign ML goals to be average top top/bottom
-            ML_goal = (TL_goal + BL_goal) / 2f;
-            MR_goal = (TR_goal + BR_goal) / 2f;
-
-            // Use the average for T/B torques for middle
-            TL_torque *= 1f; // Used to be 0.666f for all)
-            BL_torque *= 1f;
-            TR_torque *= 1f;
-            BR_torque *= 1f;
-
-            ML_torque = (TL_torque + BL_torque) / 2f;
-            MR_torque = (TR_torque + BR_torque) / 2f;
-
-            // Apply breaking if necessary
-            if (!activebreaking && (ML_goal.magnitude < 0.9f * ML_curr.magnitude) && ((ML_goal - ML_curr).magnitude < 1.1f * ML_curr.magnitude))
-            {
-                ML_regen = default_regen_breaking;
-                ML_torque = 0;
-            }
-
-            if (!activebreaking && (MR_goal.magnitude < 0.9f * MR_curr.magnitude) && ((MR_goal - MR_curr).magnitude < 1.1f * MR_curr.magnitude))
-            {
-                MR_regen = default_regen_breaking;
-                MR_torque = 0;
-            }
-
-
-
-            // Finally if the speed of the wheel is small and we are trying to make it go, increase the torques
-            if ((TL_goal.magnitude > 0.2f * max_speed_corr) && (TL_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                TL_torque *= 1f + (1 - TL_curr.magnitude / (0.05f * max_speed_corr));
-            }
-
-            if ((TR_goal.magnitude > 0.2f * max_speed_corr) && (TR_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                TR_torque *= 1f + (1 - TR_curr.magnitude / (0.05f * max_speed_corr));
-            }
-
-            if ((ML_goal.magnitude > 0.2f * max_speed_corr) && (ML_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                ML_torque *= 1f + (1 - ML_curr.magnitude / (0.05f * max_speed_corr));
-            }
-
-            if ((MR_goal.magnitude > 0.2f * max_speed_corr) && (MR_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                MR_torque *= 1f + (1 - MR_curr.magnitude / (0.05f * max_speed_corr));
-            }
-
-            if ((BL_goal.magnitude > 0.2f * max_speed_corr) && (BL_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                BL_torque *= 1f + (1 - BL_curr.magnitude / (0.05f * max_speed_corr));
-            }
-
-            if ((BR_goal.magnitude > 0.2f * max_speed_corr) && (BR_curr.magnitude < 0.05f * max_speed_corr))
-            {
-                BR_torque *= 1f + (1 - BR_curr.magnitude / (0.05f * max_speed_corr));
-            }
-        }
-
-        if (DriveTrain == "Mecanum")
-        {
-            // With mecanum wheels we need to reduce the speed applied at 45 degrees
-            // May want to increase the torque (since mecanums have higher torque at 45 degrees)
-            // Vector3.Angle is a positiove only value between 0 and 180 returning the smallest of the number;
-            // Since we want the function to repeat every 90 degrees, we need to multiply angle by 4 when taking the Sin of it
-            float TL_diag_scalar = (float)Math.Abs(Math.Cos(2f * Vector3.Angle(TL_goal, diagonal_rotation) * 3.1415926f / 180f));
-            float TR_diag_scalar = (float)Math.Abs(Math.Cos(2f * Vector3.Angle(TR_goal, diagonal_rotation) * 3.1415926f / 180f));
-            float BL_diag_scalar = (float)Math.Abs(Math.Cos(2f * Vector3.Angle(BL_goal, diagonal_rotation) * 3.1415926f / 180f));
-            float BR_diag_scalar = (float)Math.Abs(Math.Cos(2f * Vector3.Angle(BR_goal, diagonal_rotation) * 3.1415926f / 180f));
-
-            // reduce top speeds by how close we are to the diagonal
-            TL_goal *= 1f / (1f + 0.7f * TL_diag_scalar);
-            TR_goal *= 1f / (1f + 0.7f * TR_diag_scalar);
-            BL_goal *= 1f / (1f + 0.7f * BL_diag_scalar);
-            BR_goal *= 1f / (1f + 0.7f * BR_diag_scalar);
-
-            // Next increase torque based on how much we reduce the speed by
-            // Since our target velocity was reduced, increasing the torque only offsets the acc/decc to be back to normal,
-            // but our applied torque at the lower speed needs to be higher than the previous full speed. Thus we need to square the torque increase.
-            TL_torque *= (float)Math.Pow(1f + 0.7f * TL_diag_scalar, 2f);
-            TR_torque *= (float)Math.Pow(1f + 0.7f * TR_diag_scalar, 2f);
-            BL_torque *= (float)Math.Pow(1f + 0.7f * BL_diag_scalar, 2f);
-            BR_torque *= (float)Math.Pow(1f + 0.7f * BR_diag_scalar, 2f);
-        }
-
-        // NOTE: the positionDamper is a force that is proportional to speed, which is exactly what motors do,
-        // Thus we are using the positionDamper as the motor driver.
-        // From unity manual: force = PositionSpring * (target position - position) + PositionDamper * (targetVelocity - velocity)
-        // So we want PositionDamper to be the torque
-        xdriveTL = wheelTL_joint.angularXDrive;
-        xdriveTL.positionDamper = TL_torque;
-        wheelTL_joint.angularXDrive = xdriveTL;
-
-        yzdriveTL = wheelTL_joint.angularYZDrive;
-        yzdriveTL.positionDamper = TL_torque;
-        wheelTL_joint.angularYZDrive = yzdriveTL;
-
-        xdriveTR = wheelTR_joint.angularXDrive;
-        xdriveTR.positionDamper = TR_torque;
-        wheelTR_joint.angularXDrive = xdriveTR;
-
-        yzdriveTR = wheelTR_joint.angularYZDrive;
-        yzdriveTR.positionDamper = TR_torque;
-        wheelTR_joint.angularYZDrive = yzdriveTR;
-
-        xdriveBL = wheelBL_joint.angularXDrive;
-        xdriveBL.positionDamper = BL_torque;
-        wheelBL_joint.angularXDrive = xdriveBL;
-
-        yzdriveBL = wheelBL_joint.angularYZDrive;
-        yzdriveBL.positionDamper = BL_torque;
-        wheelBL_joint.angularYZDrive = yzdriveBL;
-
-        xdriveBR = wheelBR_joint.angularXDrive;
-        xdriveBR.positionDamper = BR_torque;
-        wheelBR_joint.angularXDrive = xdriveBR;
-
-        yzdriveBR = wheelBR_joint.angularYZDrive;
-        yzdriveBR.positionDamper = BR_torque;
-        wheelBR_joint.angularYZDrive = yzdriveBR;
-
-        wheelTL_joint.targetAngularVelocity = TL_goal;
-        wheelTR_joint.targetAngularVelocity = TR_goal;
-        wheelBL_joint.targetAngularVelocity = BL_goal;
-        wheelBR_joint.targetAngularVelocity = BR_goal;
-
-        if (DriveTrain == "6-Wheel Tank")
-        {
-            xdriveML = wheelML_joint.angularXDrive;
-            xdriveML.positionDamper = ML_torque;
-            wheelML_joint.angularXDrive = xdriveML;
-
-            yzdriveML = wheelML_joint.angularYZDrive;
-            yzdriveML.positionDamper = ML_torque;
-            wheelML_joint.angularYZDrive = yzdriveML;
-
-            xdriveMR = wheelMR_joint.angularXDrive;
-            xdriveMR.positionDamper = MR_torque;
-            wheelMR_joint.angularXDrive = xdriveMR;
-
-            yzdriveMR = wheelMR_joint.angularYZDrive;
-            yzdriveMR.positionDamper = MR_torque;
-            wheelMR_joint.angularYZDrive = yzdriveMR;
-
-            wheelML_joint.targetAngularVelocity = ML_goal;
-            wheelMR_joint.targetAngularVelocity = MR_goal;
-        }
-
 
 
         //** SOUND CALCULATIONS *
@@ -1910,42 +1688,24 @@ public class RobotInterface3D : MonoBehaviour {
         averageVelocityMagnitude = (TL_curr.magnitude + TR_curr.magnitude +
                 BL_curr.magnitude + BR_curr.magnitude) / 4f / max_speed_corr;
         // **********************
+        */
 
-        // Now apply friction forces
-        // friction_torque tries to apply a force that reduces speed of the robot by a fixed ft/s^2 regardless of weight
-        // In general, straffing exhibits a much higher friction. 
-        // First just add general friction against all dimensions
-        wheelTL_body.AddTorque(-wheelTL_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + TL_regen * max_acceleration));
-        wheelBL_body.AddTorque(-wheelBL_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + BL_regen * max_acceleration));
-        wheelTR_body.AddTorque(-wheelTR_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + TR_regen * max_acceleration));
-        wheelBR_body.AddTorque(-wheelBR_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + BR_regen * max_acceleration));
+
+    // We want to apply constant friction, proportional friction and also friction proportional to motor torque
+
+        wheelTL_body.AddTorque(-wheelTL_body.angularVelocity.normalized * (friction_static + (friction_speed+ friction_speed_torque*TL_torque) * wheelTL_body.angularVelocity.magnitude));
+        wheelBL_body.AddTorque(-wheelBL_body.angularVelocity.normalized *(friction_static + (friction_speed + friction_speed_torque * BL_torque) * wheelBL_body.angularVelocity.magnitude));
+        wheelTR_body.AddTorque(-wheelTR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * TR_torque) * wheelTR_body.angularVelocity.magnitude));
+        wheelBR_body.AddTorque(-wheelBR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * BR_torque) * wheelBR_body.angularVelocity.magnitude));
 
         if (wheelML_body && wheelMR_body && DriveTrain == "6-Wheel Tank")
         {
-            wheelML_body.AddTorque(-wheelML_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + ML_regen * max_acceleration));
-            wheelMR_body.AddTorque(-wheelMR_body.angularVelocity.normalized * friction_torque_scaler * friction_extrax * (GLOBALS.friction + MR_regen * max_acceleration));
-        }
-
-        // Next add friction against straffing 
-        // z-axis is going forward, thus rotation around x-axis is the direction of rotation
-        // Also need to consider rb_body may be rotated..
-        if (DriveTrain == "Mecanum")
-        {
-            Vector3 friction_strafe = new Vector3(-1f * rb_body.transform.InverseTransformDirection(wheelTL_body.angularVelocity).x, 0, 0);
-            wheelTL_body.AddTorque(rb_body.transform.TransformDirection(friction_strafe.normalized) * straffing_friction_scaler * GLOBALS.friction * friction_torque_scaler * friction_extrax);
-
-            friction_strafe = new Vector3(-1f * rb_body.transform.InverseTransformDirection(wheelTR_body.angularVelocity).x, 0, 0);
-            wheelTR_body.AddTorque(rb_body.transform.TransformDirection(friction_strafe.normalized) * straffing_friction_scaler * GLOBALS.friction * friction_torque_scaler * friction_extrax);
-
-            friction_strafe = new Vector3(-1f * rb_body.transform.InverseTransformDirection(wheelBR_body.angularVelocity).x, 0, 0);
-            wheelBR_body.AddTorque(rb_body.transform.TransformDirection(friction_strafe.normalized) * straffing_friction_scaler * GLOBALS.friction * friction_torque_scaler * friction_extrax);
-
-            friction_strafe = new Vector3(-1f * rb_body.transform.InverseTransformDirection(wheelBL_body.angularVelocity).x, 0, 0);
-            wheelBL_body.AddTorque(rb_body.transform.TransformDirection(friction_strafe.normalized) * straffing_friction_scaler * GLOBALS.friction * friction_torque_scaler * friction_extrax);
+            wheelML_body.AddTorque(-wheelML_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * ML_torque) * wheelML_body.angularVelocity.magnitude));
+            wheelMR_body.AddTorque(-wheelMR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * MR_torque) * wheelMR_body.angularVelocity.magnitude));
         }
         return;
 
-        */
+    
     }
 
 
@@ -2133,7 +1893,7 @@ public class RobotInterface3D : MonoBehaviour {
     // If tank control is enabled, then
     // gamepad1_left_stick_y = left wheel
     // gamepad1_right_stick_y = right wheel
-
+    public Vector3 target_movement;
 
     // Update movement determines desired direction of movement relative to body position wanted by used, corrected for any system settings
     // It then passes it to the ApplySpringForces function that applies the correct forces given the drive system used
@@ -2170,7 +1930,7 @@ public class RobotInterface3D : MonoBehaviour {
         // z = rotation (clockwise I believe)
         // Actualy joystick has left be -1f, right be 1f, up is -1f, down is 1f. These two are in opposite direction
         // of how we are representing it, thus multiply these be -1f;
-        Vector3 target_movement = new Vector3(0, 0, 0);
+        target_movement = new Vector3(0, 0, 0);
 
         target_movement.x = -1f*igamepad1_left_stick_x;
         if (tankcontrol)
@@ -2218,7 +1978,7 @@ public class RobotInterface3D : MonoBehaviour {
         //
 
         // Strip straffing information if we have tank drivetrain
-        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank")
+        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank" || DriveTrain == "Tank 4-Wheel")
         {
             target_movement.x = 0f;
         }
@@ -2384,7 +2144,7 @@ public class RobotInterface3D : MonoBehaviour {
 
 
         // If the movement is restricted to tank drive, than remove sideways (y) component
-        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank")
+        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank" || DriveTrain == "Tank 4-Wheel")
         {
             movement_speed = Math.Abs(Math.Cos(movement_angle) * movement_speed);
 
@@ -2435,10 +2195,17 @@ public class RobotInterface3D : MonoBehaviour {
         // Add the rotational force to the vecotrs
         // So how should the wheels turn? Ideally each wheel goes 45 degrees: 1/root(2) in x, 1/root(2) in z
         // Unless it's tank drive, then it just goes forward/backwards
-        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank")
+        if (DriveTrain == "Tank" || DriveTrain == "6-Wheel Tank" )
         {
             rotationWorld_BR = new Vector3(-1f * rotation_target * turn_scale, 0, 0);
             rotationWorld_BL = new Vector3(rotation_target * turn_scale, 0, 0);
+        }
+        else if (DriveTrain == "Tank 4-Wheel")
+        {
+            rotationWorld_BR = new Vector3(-1f * rotation_target * turn_scale, 0, 0);
+            rotationWorld_BL = new Vector3(rotation_target * turn_scale, 0, 0);
+            rotationWorld_TR = new Vector3(-1f * rotation_target * turn_scale, 0, 0);
+            rotationWorld_TL = new Vector3(rotation_target * turn_scale, 0, 0);
         }
         else
         {
@@ -2496,6 +2263,8 @@ public class RobotInterface3D : MonoBehaviour {
         Vector3 BL_goal = forceBL * max_speed_corr + minspeed;
         Vector3 BR_goal = forceBR * max_speed_corr + minspeed;
 
+        TL_goaly = TL_goal;
+        TR_goaly = TR_goal;
 
         ApplyWheelSpringForces(TL_goal, TR_goal, BL_goal, BR_goal);
         return;

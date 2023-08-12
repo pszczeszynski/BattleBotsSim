@@ -207,6 +207,7 @@ public static class GLOBALS
     public static float weight = 15f;
     public static float motor_count = 4f;
     public static float turning_scaler = 1f; // % speed reduction for rotation/turning to help eaier control of robot
+    public static float turning_priority = 0f; // When forward + turning exceeds max motor power, this is the weighing factor for turning
     public static bool fieldcentric = false;
     public static bool activebreaking = true;
     public static bool tankcontrol = false;
@@ -511,6 +512,7 @@ public class Settings : MonoBehaviour
         if (PlayerPrefs.HasKey("WheelDiameter")) { GLOBALS.wheel_diameter = PlayerPrefs.GetFloat("WheelDiameter"); }
         if (PlayerPrefs.HasKey("Weight")) { GLOBALS.weight = PlayerPrefs.GetFloat("Weight"); }
         if (PlayerPrefs.HasKey("turningScaler")) { GLOBALS.turning_scaler = PlayerPrefs.GetFloat("turningScaler"); }
+        if (PlayerPrefs.HasKey("turningPriority")) { GLOBALS.turning_priority = PlayerPrefs.GetFloat("turningPriority"); }
         if (PlayerPrefs.HasKey("fieldcentric")) { GLOBALS.fieldcentric = PlayerPrefs.GetInt("fieldcentric") == 1; }
         if (PlayerPrefs.HasKey("activebreaking")) { GLOBALS.activebreaking = PlayerPrefs.GetInt("activebreaking") == 1; }
         if (PlayerPrefs.HasKey("tankcontrol")) { GLOBALS.tankcontrol = PlayerPrefs.GetInt("tankcontrol") == 1; }
@@ -717,6 +719,7 @@ public class Settings : MonoBehaviour
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/Weight").GetComponent<InputField>().text = GLOBALS.weight.ToString();
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed").GetComponent<Slider>().value = GLOBALS.turning_scaler;
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed2").GetComponent<InputField>().text = (GLOBALS.turning_scaler*100f).ToString();
+            drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningPriority").GetComponent<InputField>().text = (GLOBALS.turning_priority * 100f).ToString();
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/FieldCentric").GetComponent<Toggle>().isOn = GLOBALS.fieldcentric;
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/ActiveBreaking").GetComponent<Toggle>().isOn = GLOBALS.activebreaking;
             drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TankControl").GetComponent<Toggle>().isOn = GLOBALS.tankcontrol;
@@ -904,6 +907,7 @@ public class Settings : MonoBehaviour
         PlayerPrefs.SetFloat("WheelDiameter", GLOBALS.wheel_diameter);
         PlayerPrefs.SetFloat("Weight", GLOBALS.weight);
         PlayerPrefs.SetFloat("turningScaler", GLOBALS.turning_scaler);
+        PlayerPrefs.SetFloat("turningPriority", GLOBALS.turning_priority);
         PlayerPrefs.SetInt("fieldcentric", (GLOBALS.fieldcentric) ? 1 : 0);
         PlayerPrefs.SetInt("activebreaking", (GLOBALS.activebreaking) ? 1 : 0);
         PlayerPrefs.SetInt("tankcontrol", (GLOBALS.tankcontrol) ? 1 : 0);
@@ -1143,8 +1147,8 @@ public class Settings : MonoBehaviour
             GLOBALS.gear_ratio = float.Parse(drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/GearRatio").GetComponent<InputField>().text);
             GLOBALS.wheel_diameter = float.Parse(drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/wheelDiameter").GetComponent<InputField>().text);
             GLOBALS.weight = float.Parse(drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/Weight").GetComponent<InputField>().text);
-            GLOBALS.turning_scaler = drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed").GetComponent<Slider>().value;
-            drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed2").GetComponent<InputField>().text = (GLOBALS.turning_scaler * 100f).ToString();
+            GLOBALS.turning_scaler = float.Parse(drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed2").GetComponent<InputField>().text)/100f;
+            GLOBALS.turning_priority = float.Parse(drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningPriority").GetComponent<InputField>().text)/100f;
             GLOBALS.fieldcentric = drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/FieldCentric").GetComponent<Toggle>().isOn;
             GLOBALS.activebreaking = drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/ActiveBreaking").GetComponent<Toggle>().isOn;
             GLOBALS.tankcontrol = drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TankControl").GetComponent<Toggle>().isOn;
@@ -1389,6 +1393,22 @@ public class Settings : MonoBehaviour
 
         drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed2").GetComponent<InputField>().text = (GLOBALS.turning_scaler * 100f).ToString();
         drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningSpeed").GetComponent<Slider>().value = GLOBALS.turning_scaler;
+    }
+
+    public void OnTurningPriorityChanged(string newvalue)
+    {
+        GLOBALS.turning_priority = float.Parse(newvalue) / 100f;
+        if (GLOBALS.turning_priority < 0f)
+        {
+            GLOBALS.turning_priority = 0f;
+        }
+
+        if (GLOBALS.turning_priority > 1f)
+        {
+            GLOBALS.turning_priority = 1f;
+        }
+
+        drivetrainOptionsPanel.transform.Find("Panel/Settings Drivetrain/TurningPriority").GetComponent<InputField>().text = (GLOBALS.turning_priority * 100f).ToString();
     }
 
     public int UpdateRobotSkins() // Returns index of the skin assigned

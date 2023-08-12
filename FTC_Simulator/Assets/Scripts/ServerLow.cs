@@ -3070,6 +3070,7 @@ public class ServerLow : MonoBehaviour
         public float acceleration = 0f;
         public float weight = 0f;
         public float turning_scaler = 0f;
+        public float turning_priority = 0f;
         public bool fieldcentric = false;
         public bool activebreaking = false;
         public bool tankcontrol = false;
@@ -3375,20 +3376,22 @@ public class ServerLow : MonoBehaviour
         }
 
         // Extract connection information
-        String playerName = MyUtils.GetSplitString( data, data_splits, 1);
-        String password = MyUtils.GetSplitString(data, data_splits, 2);
-        String startfield = MyUtils.GetSplitString(data, data_splits, 3);
-        String RobotModel = MyUtils.GetSplitString(data, data_splits, 4);
-        String gamename = MyUtils.GetSplitString(data, data_splits, 5);
-        String clientversion = MyUtils.GetSplitString(data, data_splits, 6);
-        String DriveTrain = MyUtils.GetSplitString(data, data_splits, 7);
-        String speed = MyUtils.GetSplitString(data, data_splits, 8);
-        String acceleration = MyUtils.GetSplitString(data, data_splits, 9);
-        String weight = MyUtils.GetSplitString(data, data_splits, 10);
-        String turning_scaler = MyUtils.GetSplitString(data, data_splits, 11);
-        String fieldcentric = MyUtils.GetSplitString(data, data_splits, 12);
-        String activebreaking = MyUtils.GetSplitString(data, data_splits, 13);
-        String tankcontrol = MyUtils.GetSplitString(data, data_splits, 14);
+        int index = 1;
+        String playerName = MyUtils.GetSplitString( data, data_splits, index++);
+        String password = MyUtils.GetSplitString(data, data_splits, index++);
+        String startfield = MyUtils.GetSplitString(data, data_splits, index++);
+        String RobotModel = MyUtils.GetSplitString(data, data_splits, index++);
+        String gamename = MyUtils.GetSplitString(data, data_splits, index++);
+        String clientversion = MyUtils.GetSplitString(data, data_splits, index++);
+        String DriveTrain = MyUtils.GetSplitString(data, data_splits, index++);
+        String speed = MyUtils.GetSplitString(data, data_splits, index++);
+        String acceleration = MyUtils.GetSplitString(data, data_splits, index++);
+        String weight = MyUtils.GetSplitString(data, data_splits, index++);
+        String turning_scaler = MyUtils.GetSplitString(data, data_splits, index++);
+        String turning_priority = MyUtils.GetSplitString(data, data_splits, index++);
+        String fieldcentric = MyUtils.GetSplitString(data, data_splits, index++);
+        String activebreaking = MyUtils.GetSplitString(data, data_splits, index++);
+        String tankcontrol = MyUtils.GetSplitString(data, data_splits, index++);
         String skins = "0";
         bool isAdmin = false;
 
@@ -3530,6 +3533,7 @@ public class ServerLow : MonoBehaviour
         float.TryParse(acceleration, out newclient.acceleration);
         float.TryParse(weight, out newclient.weight);
         float.TryParse(turning_scaler, out newclient.turning_scaler);
+        float.TryParse(turning_priority, out newclient.turning_priority);
         bool.TryParse(fieldcentric, out newclient.fieldcentric);
         bool.TryParse(activebreaking, out newclient.activebreaking);
         bool.TryParse(tankcontrol, out newclient.tankcontrol);
@@ -3625,7 +3629,7 @@ public class ServerLow : MonoBehaviour
 
         // Set the drive-train
         client.robot = robot_instance.GetComponent<RobotInterface3D>();
-        client.robot.SetUserParameters(client.speed, client.acceleration, client.weight, client.DriveTrain, client.turning_scaler, 
+        client.robot.SetUserParameters(client.speed, client.acceleration, client.weight, client.DriveTrain, client.turning_scaler, client.turning_priority,
                                             (client.fieldcentric) ? 1:0, (client.activebreaking) ? 1:0, (client.tankcontrol) ? 1:0);
         client.robot.SetName(client.name);
 

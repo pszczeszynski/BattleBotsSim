@@ -1110,6 +1110,7 @@ public class ClientLow : MonoBehaviour
                         GLOBALS.acceleration + GLOBALS.SEPARATOR1 +
                         GLOBALS.weight + GLOBALS.SEPARATOR1 +
                         GLOBALS.turning_scaler + GLOBALS.SEPARATOR1 +
+                        GLOBALS.turning_priority + GLOBALS.SEPARATOR1 +
                         GLOBALS.fieldcentric + GLOBALS.SEPARATOR1 +
                         GLOBALS.activebreaking + GLOBALS.SEPARATOR1 +
                         GLOBALS.tankcontrol + GLOBALS.SEPARATOR1 +
