@@ -9,6 +9,7 @@ public class RigidBodyInit : MonoBehaviour
     public int solver_iterations = 0;
     public int solver_velocity_iterations = 0;
     public float sleep_threshold = 0f;
+    public bool zero_com = false;
     public Vector3 center_of_mass = new Vector3(0, 0, 0);
     public Vector3 inertia_tensor = new Vector3(0, 0, 0);
     public float scale_inertia = 1f; // Increase/Decreases moment of innertia
@@ -63,7 +64,11 @@ public class RigidBodyInit : MonoBehaviour
             {
                 myrb.centerOfMass = center_of_mass;
                 comWasChanged = true;
-
+            }
+            else if(zero_com)
+            {
+                myrb.centerOfMass = Vector3.zero;
+                comWasChanged = true;
             }
 
             if (inertia_tensor != Vector3.zero)
