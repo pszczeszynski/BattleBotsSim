@@ -31,7 +31,7 @@ Transform:
   m_GameObject: {fileID: 1215017156185574}
   m_LocalRotation: {x: 0.00086753955, y: 0.7069931, z: 0.0005700168, w: 0.7072198}
   m_LocalPosition: {x: -0.334, y: -0.027, z: -0.611}
-  m_LocalScale: {x: 0.30573788, y: 0.32612047, z: 0.32612053}
+  m_LocalScale: {x: 0.31, y: 0.31, z: 0.31}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4257398091625050}
@@ -140,6 +140,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!153 &4582550112775143302
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -267,7 +269,7 @@ Transform:
   m_GameObject: {fileID: 1481101271354528}
   m_LocalRotation: {x: 0.00086753955, y: 0.7069931, z: 0.0005700168, w: 0.7072198}
   m_LocalPosition: {x: 0.335, y: -0.027, z: 0.602}
-  m_LocalScale: {x: 0.29997593, y: 0.31997436, z: 0.31997445}
+  m_LocalScale: {x: 0.31, y: 0.31, z: 0.31}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4257398091625050}
@@ -376,6 +378,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!153 &1094521075451227261
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -622,10 +626,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef2a87e24cdcb8b4baf59eaefc2384c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG: 0
+  DEBUG_COG: 0
   use_new_algorithm: 1
   rotation_wheel_angle: 20
-  orth_torque_scaler: 10
+  orth_torque_scaler: 4
   friction_static: 15
+  friction_static_torque: 0
   friction_speed: 0.1
   friction_speed_torque: 0
   friction_extrax: 2
@@ -723,9 +730,9 @@ MonoBehaviour:
   max_speed: 20
   max_speed_lock: 0
   max_speed_corr: 128.8
-  max_acceleration: 50
+  max_acceleration: 75
   max_acceleration_lock: 0
-  max_torque: 1000
+  max_torque: 1400
   turn_scale: 1
   turn_scale_lock: 0
   turn_priority: 0
@@ -826,7 +833,7 @@ Transform:
   m_GameObject: {fileID: 1513895556740696}
   m_LocalRotation: {x: 0.00086753955, y: 0.7069931, z: 0.0005700168, w: 0.7072198}
   m_LocalPosition: {x: 0.335, y: -0.027, z: -0.608}
-  m_LocalScale: {x: 0.29997593, y: 0.31997436, z: 0.31997445}
+  m_LocalScale: {x: 0.31, y: 0.31, z: 0.31}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4257398091625050}
@@ -935,6 +942,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!153 &5260282235554825974
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -1142,7 +1151,7 @@ Transform:
   m_GameObject: {fileID: 1842225650053024}
   m_LocalRotation: {x: 0.00086753955, y: 0.7069931, z: 0.0005700168, w: 0.7072198}
   m_LocalPosition: {x: -0.334, y: -0.027, z: 0.608}
-  m_LocalScale: {x: 0.30573788, y: 0.32612047, z: 0.32612053}
+  m_LocalScale: {x: 0.31, y: 0.31, z: 0.31}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4257398091625050}
@@ -1251,6 +1260,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!153 &2206364894185295037
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -7945,18 +7956,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29b3f1ab27a83224084d0a86dc679544, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  max_angular_velocity: 2000
+  max_angular_velocity: 9000
   max_depenetration_velocity: 0
   solver_iterations: 0
   solver_velocity_iterations: 0
   sleep_threshold: 0
-  center_of_mass: {x: 0, y: 0, z: 0.0001}
+  center_of_mass: {x: 0, y: 0, z: 0}
   inertia_tensor: {x: 0, y: 0, z: 0}
   scale_inertia: 1.5
   final_center_of_mass: {x: 0, y: 0, z: 0}
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!59 &4810279835153507652
 HingeJoint:
   m_ObjectHideFlags: 0
@@ -9182,6 +9195,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!1 &2346383202219270338
 GameObject:
   m_ObjectHideFlags: 0
@@ -9789,6 +9804,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!1 &2576250521186560661
 GameObject:
   m_ObjectHideFlags: 0
@@ -11766,6 +11783,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!1 &3314276526175354701
 GameObject:
   m_ObjectHideFlags: 0
@@ -19483,6 +19502,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!114 &6199233746160890687
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28952,6 +28973,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!1 &8045786901142452585
 GameObject:
   m_ObjectHideFlags: 0
@@ -30634,18 +30657,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29b3f1ab27a83224084d0a86dc679544, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  max_angular_velocity: 2000
+  max_angular_velocity: 9000
   max_depenetration_velocity: 0
   solver_iterations: 0
   solver_velocity_iterations: 0
   sleep_threshold: 0
-  center_of_mass: {x: 0, y: 0, z: 0.0001}
+  center_of_mass: {x: 0, y: 0, z: 0}
   inertia_tensor: {x: 0, y: 0, z: 0}
-  scale_inertia: 1.5
+  scale_inertia: 1.2
   final_center_of_mass: {x: 0, y: 0, z: 0}
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!59 &7785581238097139422
 HingeJoint:
   m_ObjectHideFlags: 0
@@ -31941,6 +31966,8 @@ MonoBehaviour:
   final_inertia_tensor: {x: 0, y: 0, z: 0}
   comWasChanged: 0
   itWasChanged: 0
+  colliders_to_ignore: []
+  initialized: 0
 --- !u!1 &8753778494460905994
 GameObject:
   m_ObjectHideFlags: 0

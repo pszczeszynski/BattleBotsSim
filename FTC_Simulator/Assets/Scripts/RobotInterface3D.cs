@@ -18,8 +18,8 @@ using Debug = UnityEngine.Debug;
 
 public class RobotInterface3D : MonoBehaviour {
 
-    private bool DEBUG = false;
-    private bool DEBUG_COG = false;
+    public bool DEBUG = false;
+    public bool DEBUG_COG = false;
 
     [Header("New Wheel Alg Settings")]
     public bool use_new_algorithm = false;
@@ -29,6 +29,7 @@ public class RobotInterface3D : MonoBehaviour {
     public float orth_torque_scaler = 2f;
 
     public float friction_static = 0.1f;
+    public float friction_static_torque = 0f;
     public float friction_speed = 0.1f;
     public float friction_speed_torque = 0.1f;
 
@@ -1463,6 +1464,7 @@ public class RobotInterface3D : MonoBehaviour {
         BL_torque = max_torque;
         BR_torque = max_torque;
 
+
         switch (DriveTrain )
         {
             case "Tank":
@@ -1471,6 +1473,7 @@ public class RobotInterface3D : MonoBehaviour {
                 BR_torque = 2f * max_torque;
                 TL_torque = 0f;
                 TR_torque = 0f;
+   
 
                 break;
        
@@ -1693,15 +1696,15 @@ public class RobotInterface3D : MonoBehaviour {
 
     // We want to apply constant friction, proportional friction and also friction proportional to motor torque
 
-        wheelTL_body.AddTorque(-wheelTL_body.angularVelocity.normalized * (friction_static + (friction_speed+ friction_speed_torque*TL_torque) * wheelTL_body.angularVelocity.magnitude));
-        wheelBL_body.AddTorque(-wheelBL_body.angularVelocity.normalized *(friction_static + (friction_speed + friction_speed_torque * BL_torque) * wheelBL_body.angularVelocity.magnitude));
-        wheelTR_body.AddTorque(-wheelTR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * TR_torque) * wheelTR_body.angularVelocity.magnitude));
-        wheelBR_body.AddTorque(-wheelBR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * BR_torque) * wheelBR_body.angularVelocity.magnitude));
+        wheelTL_body.AddTorque(-wheelTL_body.angularVelocity.normalized * (friction_static + friction_static_torque* TL_torque  + (friction_speed+ friction_speed_torque*TL_torque) * wheelTL_body.angularVelocity.magnitude));
+        wheelBL_body.AddTorque(-wheelBL_body.angularVelocity.normalized *(friction_static + friction_static_torque * BL_torque + (friction_speed + friction_speed_torque * BL_torque) * wheelBL_body.angularVelocity.magnitude));
+        wheelTR_body.AddTorque(-wheelTR_body.angularVelocity.normalized * (friction_static + friction_static_torque * TR_torque + (friction_speed + friction_speed_torque * TR_torque) * wheelTR_body.angularVelocity.magnitude));
+        wheelBR_body.AddTorque(-wheelBR_body.angularVelocity.normalized * (friction_static + friction_static_torque * BR_torque + (friction_speed + friction_speed_torque * BR_torque) * wheelBR_body.angularVelocity.magnitude));
 
         if (wheelML_body && wheelMR_body && DriveTrain == "6-Wheel Tank")
         {
-            wheelML_body.AddTorque(-wheelML_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * ML_torque) * wheelML_body.angularVelocity.magnitude));
-            wheelMR_body.AddTorque(-wheelMR_body.angularVelocity.normalized * (friction_static + (friction_speed + friction_speed_torque * MR_torque) * wheelMR_body.angularVelocity.magnitude));
+            wheelML_body.AddTorque(-wheelML_body.angularVelocity.normalized * (friction_static + friction_static_torque * ML_torque + (friction_speed + friction_speed_torque * ML_torque) * wheelML_body.angularVelocity.magnitude));
+            wheelMR_body.AddTorque(-wheelMR_body.angularVelocity.normalized * (friction_static + friction_static_torque * MR_torque + (friction_speed + friction_speed_torque * MR_torque) * wheelMR_body.angularVelocity.magnitude));
         }
         return;
 
@@ -2345,15 +2348,15 @@ public class RobotInterface3D : MonoBehaviour {
                 CoG += (currbody.centerOfMass + currbody.transform.position) * currbody.mass / total_weight;
             }
 
+            Vector3 delta_vector1 = new Vector3(0.2f, 0.2f, 0.2f);
+            Vector3 delta_vector2 = new Vector3(-0.2f, 0.2f, 0.2f);
+            Vector3 delta_vector3 = new Vector3(0.2f, 0.2f, -0.2f);
 
-            Debug.DrawLine(CoG, CoG + new Vector3(0.1f, 0.1f, 0.1f));
-            Debug.DrawLine(CoG, CoG - new Vector3(0.1f, 0.1f, 0.1f));
-
-            Debug.DrawLine(CoG, CoG + new Vector3(0.1f, -0.1f, 0.1f));
-            Debug.DrawLine(CoG, CoG - new Vector3(0.1f, -0.1f, 0.1f));
-            Debug.DrawLine(CoG, CoG + new Vector3(0.1f, 0.1f, -0.1f));
-            Debug.DrawLine(CoG, CoG - new Vector3(0.1f, 0.1f, -0.1f));
-
+            Debug.DrawLine(CoG- delta_vector1, CoG + delta_vector1, Color.white, 0.2f);
+            Debug.DrawLine(CoG - delta_vector2, CoG + delta_vector2, Color.white, 0.2f);
+            Debug.DrawLine(CoG - delta_vector3, CoG + delta_vector3, Color.white, 0.2f);
+            Debug.DrawLine(Vector3.zero, CoG, Color.white, 0.2f);
+    
 
         }
         if (DEBUG)

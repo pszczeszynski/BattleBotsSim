@@ -17,7 +17,10 @@ public class RigidBodyInit : MonoBehaviour
     public bool comWasChanged = false;
     public bool itWasChanged = false;
 
-    bool initialized = false;
+    public Collider[] colliders_to_ignore;
+
+
+    public bool initialized = false;
 
     // Do this on initialization so that this takes precedence over any start function
     void Update()
@@ -78,6 +81,17 @@ public class RigidBodyInit : MonoBehaviour
 
             final_center_of_mass = myrb.centerOfMass;
             final_inertia_tensor = myrb.inertiaTensor;
+
+            // Get all of our colliders
+            Collider[] myColliders = GetComponentsInChildren<Collider>();
+
+            foreach (Collider me in myColliders)
+            {
+                foreach (Collider curr_collider in colliders_to_ignore)
+                {
+                    Physics.IgnoreCollision(me, curr_collider);
+                }
+            }
         }
     }
 

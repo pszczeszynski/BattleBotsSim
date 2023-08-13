@@ -77,34 +77,51 @@ public class Robot_BB_Orbitron : RobotInterface3D
 
         if( !spinners_on && (spinner1.motor.targetVelocity !=0) )
         {
-            JointMotor motor = spinner1.motor;
-            motor.targetVelocity = 0f;
-            spinner1.motor = motor;
+            if (spinner1)
+            {
+                JointMotor motor = spinner1.motor;
+                motor.targetVelocity = 0f;
+                spinner1.motor = motor;
+            }
 
-            motor = spinner2.motor;
-            motor.targetVelocity = 0f;
-            spinner2.motor = motor;
+            if (spinner2)
+            {
+                JointMotor motor = spinner2.motor;
+                motor.targetVelocity = 0f;
+                spinner2.motor = motor;
+            }
+
         }
 
         if( spinners_on && (spinner1.motor.targetVelocity == 0) )
         {
-            JointMotor motor = spinner1.motor;
-            motor.targetVelocity = spinner_speed;
-            spinner1.motor = motor;
+            if (spinner1)
+            {
+                JointMotor motor = spinner1.motor;
+                motor.targetVelocity = spinner_speed;
+                spinner1.motor = motor;
+            }
 
-            motor = spinner2.motor;
-            motor.targetVelocity = spinner_speed;
-            spinner2.motor = motor;
-        }  
+            if (spinner2)
+            {
+                JointMotor motor = spinner2.motor;
+                motor.targetVelocity = spinner_speed;
+                spinner2.motor = motor;
+            }
+        }
 
-        if ( gamepad1_a)
+        if (arm)
         {
-            MoveHinge(arm, arm_max, arm_speed);
+            if (gamepad1_a)
+            {
+                MoveHinge(arm, arm_max, arm_speed);
+            }
+            else
+            {
+                MoveHinge(arm, arm_min, arm_speed);
+            }
         }
-        else
-        {
-            MoveHinge(arm, arm_min, arm_speed);
-        }
+
 
         if( gamepad1_dpad_down)
         {

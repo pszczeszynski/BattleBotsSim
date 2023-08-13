@@ -3396,14 +3396,14 @@ public class ServerLow : MonoBehaviour
         bool isAdmin = false;
 
 
-        if(data_splits.Count >= 16)
+        if(data_splits.Count > index)
         {
-            skins = MyUtils.GetSplitString(data, data_splits, 15);
+            skins = MyUtils.GetSplitString(data, data_splits, index++);
         }
         String robotskins = "";
-        if (data_splits.Count >= 17)
+        if (data_splits.Count > index)
         {
-            robotskins = MyUtils.GetSplitString(data, data_splits, 16);
+            robotskins = MyUtils.GetSplitString(data, data_splits, index++);
         }
 
         // Check password

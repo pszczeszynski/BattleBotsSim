@@ -486,7 +486,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 0.5
-  m_Text: Bot Royale
+  m_Text: BattleBots
 --- !u!222 &23990812
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -8158,6 +8158,8 @@ MonoBehaviour:
     - m_Text: BB_Endgame
       m_Image: {fileID: 0}
     - m_Text: BB_Orbitron
+      m_Image: {fileID: 0}
+    - m_Text: BB_RoundHouse
       m_Image: {fileID: 0}
   m_OnValueChanged:
     m_PersistentCalls:
