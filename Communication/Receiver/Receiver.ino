@@ -6,19 +6,19 @@
 #define VERBOSE_RADIO
 #include "Radio.h"
 #include "IMU.h"
+#include "Vesc.h"
 
 #define SERIAL_BAUD 9600
 
-IMU *imu;
-#define LEFT_MOTOR_PIN 0
-#define RIGHT_MOTOR_PIN 37
-#define FRONT_WEAPON_MOTOR_PIN 38
-#define BACK_WEAPON_MOTOR_PIN 39
-Motor *leftMotor;
-Motor *rightMotor;
-Motor *frontWeaponMotor;
-Motor *backWeaponMotor;
-Radio<RobotMessage, DriveCommand> *radio;
+IMU* imu;
+
+#define LEFT_MOTOR_CAN_ID 1
+#define RIGHT_MOTOR_CAN_ID 3
+#define FRONT_WEAPON_CAN_ID 2
+#define BACK_WEAPON_CAN_ID 4
+
+VESC* vesc;
+Radio<RobotMessage, DriveCommand>* radio;
 
 //===============================================================================
 //  Initialization
@@ -32,22 +32,16 @@ void setup()
     imu = new IMU();
     Serial.println("Failed because Matthew made an oopsie!");
 
-    Serial.println("Initializing motors...");
-    leftMotor = new Motor(LEFT_MOTOR_PIN);
-    rightMotor = new Motor(RIGHT_MOTOR_PIN);
-    frontWeaponMotor = new Motor(FRONT_WEAPON_MOTOR_PIN);
-    backWeaponMotor = new Motor(BACK_WEAPON_MOTOR_PIN);
+    Serial.println("Initializing Canbus motors...");
+    vesc = new VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
     Serial.println("Success!");
 
     Serial.println("Initializing radio...");
     radio = new Radio<RobotMessage, DriveCommand>();
     Serial.println("Success!");
 
-    // Explicitly set both motors to 0 before loop
-    leftMotor->SetPower(0); // -1 for One direction, 0 for bidirection
-    rightMotor->SetPower(0);
-    frontWeaponMotor->SetPower(0);
-    backWeaponMotor->SetPower(0);
+    vesc->Drive(0, 0);
+    vesc->DriveWeapons(0, 0);
 }
 
 /**
@@ -68,8 +62,7 @@ void Drive(DriveCommand &command)
     }
 
     // apply powers
-    leftMotor->SetPower(leftPower);
-    rightMotor->SetPower(rightPower);
+    vesc->Drive(leftPower, rightPower);
 }
 
 /**
@@ -199,8 +192,14 @@ void DriveWithLatestMessage()
     // if haven't received a message in a while, stop the robot
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
-        DriveCommand command{0, 0};
+        DriveCommand command{0};
+        command.movement = 0;
+        command.turn = 0;
+        command.frontWeaponPower = 0;
+        command.backWeaponPower = 0;
+        command.valid = true;
         Drive(command);
+        DriveWeapons(command);
     }
 }
 

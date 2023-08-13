@@ -4,7 +4,7 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
-#define TRANSMITTER_COM_PORT TEXT("COM7")
+#define TRANSMITTER_COM_PORT TEXT("COM8")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100

@@ -427,12 +427,25 @@ void RobotController::UpdateSpinnerPowers()
         _frontWeaponPower -= deltaTimeS / SECONDS_UNTIL_FULL_POWER;
     }
 
+    // if x pressed
+    if (gamepad.GetButtonX())
+    {
+        // invert powers
+        _backWeaponPower += deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    }
+
+    // if y pressed
+    if (gamepad.GetButtonY())
+    {
+        // invert powers
+        _backWeaponPower -= deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    }
+
     // force weapon powers to be between 0 and 1
     if (_frontWeaponPower > 1) { _frontWeaponPower = 1; }
     if (_frontWeaponPower < 0) { _frontWeaponPower = 0; }
-
-    // set back weapon power to front weapon power
-    _backWeaponPower = _frontWeaponPower;
+    if (_backWeaponPower > 1) { _backWeaponPower = 1; }
+    if (_backWeaponPower < 0) { _backWeaponPower = 0; }
 }
 
 
