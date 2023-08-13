@@ -15,7 +15,7 @@ Motor::Motor(int pwmPin)
 void Motor::SetPower(double power)
 {
     // if the power is the same as last time, don't do anything
-    if (abs(power - lastPower) < SIG)
+    if (abs(power - lastPower) < SIG && !(power == 0 && lastPower != 0))
     {
         return;
     }

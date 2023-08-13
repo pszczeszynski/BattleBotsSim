@@ -1,11 +1,15 @@
 #include "RobotControllerGUI.h"
 #include "RobotClassifier.h"
+#include "RobotController.h"
 #include <QPushButton>
 #include <QLabel>
 #include <QSpinBox>
 #include <QSlider>
 #include <QLineEdit>
-#include "RobotController.h"
+#include <QProgressBar>
+#include <QLabel>
+#include <QPalette>
+#include <QTimer>
 
 // Constants for window layout
 const int WINDOW_WIDTH = 1920;
@@ -21,7 +25,7 @@ const int widgetHorizontalMargin = 10; // Margin between the window border and t
 int nextWidgetYLeft = widgetVerticalMargin; // Vertical position of the next widget on the left side
 int nextWidgetYRight = widgetVerticalMargin; // Vertical position of the next widget on the right side
 
-const int rightSideX = WINDOW_WIDTH - COLUMN_WIDTH - widgetHorizontalMargin - 20;
+const int rightSideX = WINDOW_WIDTH - COLUMN_WIDTH - widgetHorizontalMargin - 50;
 
 /**
  * @brief addLabeledSpinBox
@@ -192,6 +196,71 @@ void addTextInput(QMainWindow* window, const QString& label, QString& value, boo
     }
 }
 
+const int RPM_WIDGET_HEIGHT = LABEL_HEIGHT * 2;
+const int RPM_WIDGET_WIDTH = COLUMN_WIDTH * 0.9;
+const int MAX_RPM = 4000;
+void addRpmWidget(QMainWindow *window, QString labelString, float &targetRpm, float &currentRpm, bool left = true)
+{
+    int x = left ? widgetHorizontalMargin : rightSideX;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
+    QLabel *label = new QLabel(labelString, window);
+    label->setGeometry(x, y, RPM_WIDGET_WIDTH, LABEL_HEIGHT);
+
+    TargetRpmProgressBar  *rpmProgressBar = new TargetRpmProgressBar(window);
+    rpmProgressBar->setGeometry(x, y + LABEL_HEIGHT, RPM_WIDGET_WIDTH, RPM_WIDGET_HEIGHT - LABEL_HEIGHT);
+    rpmProgressBar->setRange(0, MAX_RPM);
+    rpmProgressBar->setValue(currentRpm * MAX_RPM);
+    rpmProgressBar->SetTargetRpm(targetRpm);
+    // make it show the format RPM: value instead of just the value
+    rpmProgressBar->setFormat(QString("RPM: %1").arg(currentRpm));
+
+    QPalette palette = rpmProgressBar->palette();
+    if (currentRpm < targetRpm * 0.9)
+    {
+        palette.setColor(QPalette::Highlight, Qt::red);
+    }
+    else
+    {
+        palette.setColor(QPalette::Highlight, Qt::green);
+    }
+    rpmProgressBar->setPalette(palette);
+
+    auto updateRpmWidget = [label, rpmProgressBar, &targetRpm, &currentRpm]()
+    {
+        rpmProgressBar->setValue(currentRpm * MAX_RPM);
+        rpmProgressBar->SetTargetRpm(targetRpm * MAX_RPM);
+
+        QPalette palette = rpmProgressBar->palette();
+        if (currentRpm < targetRpm)
+        {
+            palette.setColor(QPalette::Highlight, Qt::red);
+        }
+        else
+        {
+            palette.setColor(QPalette::Highlight, Qt::green);
+        }
+        rpmProgressBar->setPalette(palette);
+    };
+
+    int shiftAmount = RPM_WIDGET_HEIGHT + widgetVerticalMargin * 2;
+
+    // make it update every 100ms
+    QTimer *timer = new QTimer(window);
+    QObject::connect(timer, &QTimer::timeout, updateRpmWidget);
+    timer->start(15);
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight += shiftAmount;
+    }
+}
+
 RobotConfigWindow::RobotConfigWindow()
 {
     setWindowTitle("Orbitron Hub");
@@ -232,14 +301,19 @@ RobotConfigWindow::RobotConfigWindow()
     });
 
 
+    // Middle column: Display OpenCV Mat (passed by reference)
+    _imageLabel = new QLabel(this);
+    _imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_HEIGHT - 20, WINDOW_HEIGHT - 20);
+
+
+    // right column buttons
     addPushButton(this, "Angle Invert", []()
     {
         RobotOdometry::Robot().InvertAngle();
     }, false);
 
-    // Right column: Display OpenCV Mat (passed by reference)
-    imageLabel = new QLabel(this);
-    imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_HEIGHT - 20, WINDOW_HEIGHT - 20);
+    addRpmWidget(this, QString("Front Weapon"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
+    addRpmWidget(this, QString("Rear Weapon"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
 
     SAFE_DRAW
     // init drawing image
@@ -247,7 +321,7 @@ RobotConfigWindow::RobotConfigWindow()
     // Load an OpenCV Mat and set it as the image in QLabel
     QImage image(drawingImage.data, WIDTH, HEIGHT, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(image);
-    imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
+    _imageLabel->setPixmap(pixmap.scaled(_imageLabel->size(), Qt::KeepAspectRatio));
     END_SAFE_DRAW
 
     // Install this object as an event filter on the application object
@@ -256,9 +330,9 @@ RobotConfigWindow::RobotConfigWindow()
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);
-    imageLabel->setMouseTracking(true);
+    _imageLabel->setMouseTracking(true);
 
-    Input::GetInstance().SetImageLabel(imageLabel);
+    Input::GetInstance().SetImageLabel(_imageLabel);
 }
 
 /**
@@ -288,7 +362,7 @@ void RobotConfigWindow::RefreshFieldImage()
     QImage imageQt(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(imageQt);
     // Update the imageLabel pixmap whenever drawingImage is updated
-    imageLabel->setPixmap(pixmap.scaled(imageLabel->size(), Qt::KeepAspectRatio));
+    _imageLabel->setPixmap(pixmap.scaled(_imageLabel->size(), Qt::KeepAspectRatio));
 }
 
 void RobotConfigWindow::ShowGUI()
@@ -328,7 +402,7 @@ RobotConfigWindow& RobotConfigWindow::GetInstance()
 
 QLabel* RobotConfigWindow::GetImageLabel()
 {
-    return imageLabel;
+    return _imageLabel;
 }
 
 // events

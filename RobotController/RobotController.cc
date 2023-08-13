@@ -393,16 +393,61 @@ DriveCommand RobotController::OrbitMode()
     return response;
 }
 
+#define SECONDS_UNTIL_FULL_POWER 2.0
+void RobotController::UpdateSpinnerPowers()
+{
+    static Clock updateTimer;
+
+    // get the delta time
+    double deltaTimeS = updateTimer.getElapsedTime();
+    // mark the start of the update
+    updateTimer.markStart();
+    // reset the delta time if it is too large
+    if (deltaTimeS > 10)
+    {
+        deltaTimeS = 0;
+    }
+
+    // if a pressed
+    if (gamepad.GetButtonA())
+    {
+        // invert powers
+        _frontWeaponPower += deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    }
+
+    // if b pressed
+    if (gamepad.GetButtonB())
+    {
+        // invert powers
+        _frontWeaponPower -= deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    }
+
+    // force weapon powers to be between 0 and 1
+    if (_frontWeaponPower > 1) { _frontWeaponPower = 1; }
+    if (_frontWeaponPower < 0) { _frontWeaponPower = 0; }
+
+    // set back weapon power to front weapon power
+    _backWeaponPower = _frontWeaponPower;
+}
+
+
 /**
  * ManualMode
  * Allows the user to drive the robot manually
  */
 DriveCommand RobotController::ManualMode()
 {
+    // drive the robot with the gamepad
     DriveCommand response{0, 0};
     response.movement = gamepad.GetRightStickY();
     response.turn = -gamepad.GetLeftStickX();
 
+    // update the spinner powers
+    UpdateSpinnerPowers();
+
+    // apply weapon powers
+    response.frontWeaponPower = _frontWeaponPower;
+    response.backWeaponPower = _backWeaponPower;
 
     return response;
 }
@@ -568,4 +613,14 @@ void RobotController::GuiLogic()
 
     // save the last mouse position
     mousePosLast = currMousePos;
+}
+
+float& RobotController::GetFrontWeaponTargetPowerRef()
+{
+    return _frontWeaponPower;
+}
+
+float& RobotController::GetBackWeaponTargetPowerRef()
+{
+    return _backWeaponPower;
 }

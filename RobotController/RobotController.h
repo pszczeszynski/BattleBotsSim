@@ -21,19 +21,22 @@ public:
     static RobotController& GetInstance();
 
     RobotMessage& GetLatestMessage();
+
+    float& GetFrontWeaponTargetPowerRef();
+    float& GetBackWeaponTargetPowerRef();
 signals:
     // updates the image of the field in the GUI
     void RefreshFieldImageSignal();
 public slots:
     void Run();
 private:
-    Clock clock;
 
     DriveCommand RobotLogic();
     DriveCommand OrbitMode();
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
+    void UpdateSpinnerPowers();
 
     void GuiLogic();
 
@@ -50,4 +53,7 @@ private:
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
 #endif
+
+    float _frontWeaponPower = 0;
+    float _backWeaponPower = 0;
 };

@@ -1,6 +1,6 @@
 /**
  * Receiver.ino
-*/
+ */
 #include "Motor.h"
 #include "Communication.h"
 #define VERBOSE_RADIO
@@ -9,12 +9,16 @@
 
 #define SERIAL_BAUD 9600
 
-IMU* imu;
+IMU *imu;
 #define LEFT_MOTOR_PIN 0
 #define RIGHT_MOTOR_PIN 37
-Motor* leftMotor;
-Motor* rightMotor;
-Radio<RobotMessage, DriveCommand>* radio;
+#define FRONT_WEAPON_MOTOR_PIN 38
+#define BACK_WEAPON_MOTOR_PIN 39
+Motor *leftMotor;
+Motor *rightMotor;
+Motor *frontWeaponMotor;
+Motor *backWeaponMotor;
+Radio<RobotMessage, DriveCommand> *radio;
 
 //===============================================================================
 //  Initialization
@@ -31,22 +35,25 @@ void setup()
     Serial.println("Initializing motors...");
     leftMotor = new Motor(LEFT_MOTOR_PIN);
     rightMotor = new Motor(RIGHT_MOTOR_PIN);
+    frontWeaponMotor = new Motor(FRONT_WEAPON_MOTOR_PIN);
+    backWeaponMotor = new Motor(BACK_WEAPON_MOTOR_PIN);
     Serial.println("Success!");
 
     Serial.println("Initializing radio...");
     radio = new Radio<RobotMessage, DriveCommand>();
     Serial.println("Success!");
 
-    //Explicitly set both motors to 0 before loop
+    // Explicitly set both motors to 0 before loop
     leftMotor->SetPower(0); // -1 for One direction, 0 for bidirection
     rightMotor->SetPower(0);
+    frontWeaponMotor->SetPower(0);
+    backWeaponMotor->SetPower(0);
 }
-
 
 /**
  * Applys the drive command to the robot
-*/
-void Drive(DriveCommand& command)
+ */
+void Drive(DriveCommand &command)
 {
     // compute powers
     double leftPower = command.movement - command.turn;
@@ -66,25 +73,33 @@ void Drive(DriveCommand& command)
 }
 
 /**
- * Computes response message of robot state data
+ * Applys the weapon command to the robot
 */
+void DriveWeapons(DriveCommand &command)
+{
+    frontWeaponMotor->SetPower(command.frontWeaponPower);
+    backWeaponMotor->SetPower(command.backWeaponPower);
+}
+
+/**
+ * Computes response message of robot state data
+ */
 RobotMessage Update()
 {
-    RobotMessage ret {0};
+    RobotMessage ret{0};
 
     // call update for imu
     imu->Update();
-  
+
     // get accelerometer data and set accel
     Point accel = imu->getAccel();
     ret.accelX = accel.x;
     ret.accelY = accel.y;
- 
+
     // now compute velocity
     Point velocity = imu->getVelocity();
     ret.velocityX = velocity.x;
     ret.velocityY = velocity.y;
-
 
 #ifdef PRINT_VELOCITY_ACCEL
     // print on serial
@@ -115,15 +130,10 @@ RobotMessage Update()
     return ret;
 }
 
-
-
-
-
-
 /**
  * Waits for a radio packet to be available
  * Times out after 50 ms
-*/
+ */
 #define RECEIVE_TIMEOUT_MS 50
 void WaitForRadioData()
 {
@@ -140,7 +150,7 @@ void WaitForRadioData()
             Serial.println("ERROR: receive timeout");
 
             // increment counter
-            TIMEOUT_COUNT ++;
+            TIMEOUT_COUNT++;
 
             if (TIMEOUT_COUNT % 10 == 0)
             {
@@ -157,11 +167,10 @@ void WaitForRadioData()
     }
 }
 
-
 /**
  * Checks if there is a message and then calls drive
  * There is a watchdog timer that auto stops after 250 ms
-*/
+ */
 unsigned long lastReceiveTime = 0;
 #define STOP_ROBOT_TIMEOUT_MS 250
 void DriveWithLatestMessage()
@@ -176,10 +185,12 @@ void DriveWithLatestMessage()
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);
         }
-        numMessagesReceived ++;
+        numMessagesReceived++;
 
         // drive with message
         Drive(command);
+
+        DriveWeapons(command);
 
         // update the last receive time
         lastReceiveTime = millis();
@@ -188,12 +199,10 @@ void DriveWithLatestMessage()
     // if haven't received a message in a while, stop the robot
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
-        DriveCommand command {0, 0};
+        DriveCommand command{0, 0};
         Drive(command);
     }
 }
-
-
 
 //===============================================================================
 //  Main

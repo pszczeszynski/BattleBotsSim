@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/Users/PeterS/Documents/Arduino/libraries/SparkFun_9DoF_IMU_Breakout_-_ICM_20948_-_Arduino_Library/src",
+                "C:/Users/PeterS/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino",
             ],
             "defines": [
                 "_DEBUG",

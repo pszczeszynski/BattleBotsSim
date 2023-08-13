@@ -11,6 +11,8 @@
 #include "RobotConfig.h"
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QProgressBar>
+#include <QPainter>
 #include "Globals.h"
 #include "Input/Input.h"
 
@@ -29,8 +31,7 @@ public:
     QLabel *GetImageLabel();
     
 protected:
-    QLabel *imageLabel;
-
+    // qt event handlers
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -40,5 +41,34 @@ private:
     // private ctor since this is a singleton
     RobotConfigWindow();
 
+    QLabel *_imageLabel;
     QApplication *app;
+};
+
+class TargetRpmProgressBar : public QProgressBar
+{
+    Q_OBJECT
+
+public:
+    TargetRpmProgressBar(QWidget *parent = nullptr) : QProgressBar(parent), targetRpm(0) {}
+
+    void SetTargetRpm(float value)
+    {
+        targetRpm = value;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        QProgressBar::paintEvent(event);
+        int targetX = (targetRpm / maximum()) * width();
+        QPainter painter(this);
+        QPen pen(Qt::magenta, 3); // Adjust the color and width as needed
+        painter.setPen(pen);
+        painter.drawLine(targetX, 0, targetX, height());
+    }
+
+private:
+    float targetRpm;
 };

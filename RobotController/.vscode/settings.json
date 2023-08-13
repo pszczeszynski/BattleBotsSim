@@ -105,7 +105,8 @@
         "qobject": "cpp",
         "qapplication": "cpp",
         "*.rh": "cpp",
-        "qmap": "cpp"
+        "qmap": "cpp",
+        "qpalette": "cpp"
     },
     "cmake.configureOnOpen": true,
     "workbench.colorCustomizations": {
