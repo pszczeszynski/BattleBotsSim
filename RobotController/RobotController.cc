@@ -506,7 +506,6 @@ DriveCommand RobotController::RobotLogic()
 void RobotController::GuiLogic()
 {
     static int cornerToAdjust = -1;
-    static bool nearCorner = false;
     static cv::Point2f mousePosLast = cv::Point2f(0, 0);
     static cv::Point2f cornerHandles[4] = {cv::Point2f(0, 0),
                                             cv::Point2f(WIDTH, 0),
@@ -519,29 +518,9 @@ void RobotController::GuiLogic()
     // get the curr mouse position
     cv::Point2f currMousePos = input.GetMousePosition();
 
-    // ignore if the mouse is outside the image
-    if (!input.IsMouseOverImage())
-    {
-        return;
-    }
-
     // if the user isn't pressing shift
     if (!input.IsKeyPressed(Qt::Key_Shift))
     {
-        // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
-        if (!nearCorner && input.IsLeftMousePressed())
-        {
-            // set the robot to the mouse position
-            RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
-        }
-
-        // if the user right clicks
-        if (input.IsRightMousePressed())
-        {
-            // set the opponent to the mouse position
-            RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
-        }
-
         // corner adjustment
 
         // If the user left clicks near one of the corners
@@ -568,11 +547,45 @@ void RobotController::GuiLogic()
             cornerToAdjust = -1;
         }
 
-        // if the user is adjusting a corner
-        if (cornerToAdjust != -1)
+        // adjust the corner
+        cv::Point2f adjustment = mousePosLast - currMousePos;
+
+        if (cornerToAdjust == 0)
         {
-            // move the corner
-            vision.GetPreprocessor().MoveSourcePoint(cornerToAdjust, currMousePos - mousePosLast);
+            preprocess_tl_x += adjustment.x;
+            preprocess_tl_y += adjustment.y;
+        }
+        else if (cornerToAdjust == 1)
+        {
+            preprocess_tr_x += adjustment.x;
+            preprocess_tr_y += adjustment.y;
+        }
+        else if (cornerToAdjust == 2)
+        {
+            preprocess_br_x += adjustment.x;
+            preprocess_br_y += adjustment.y;
+        }
+        else if (cornerToAdjust == 3)
+        {
+            preprocess_bl_x += adjustment.x;
+            preprocess_bl_y += adjustment.y;
+        }
+        else
+        {
+            // robot tracker calibration
+            // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
+            if (input.IsLeftMousePressed())
+            {
+                // set the robot to the mouse position
+                RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+            }
+
+            // if the user right clicks
+            if (input.IsRightMousePressed())
+            {
+                // set the opponent to the mouse position
+                RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+            }
         }
     }
     else // else the user is pressing shift
@@ -592,24 +605,19 @@ void RobotController::GuiLogic()
     // cv::circle(drawingImage, mousePosLast, 3, cv::Scalar(0, 255, 0), 2);
     // END_SAFE_DRAW
 
-    // bool outside = true;
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     SAFE_DRAW
-    //     if (cv::norm(dstPoints[i] - currMousePos) < CLOSE)
-    //     {
-    //         cv::circle(drawingImage, dstPoints[i], CLOSE * 1.5, cv::Scalar(255, 100, 255), 2);
-    //         nearCorner = true;
-    //         outside = false;
-    //     }
-    //     else
-    //     {
-    //         cv::circle(drawingImage, dstPoints[i], CLOSE, cv::Scalar(255, 0, 255), 2);
-    //         if (down[i]) outside = false;
-    //     }
-    //     END_SAFE_DRAW
-    // }
-
+    for (int i = 0; i < 4; i++)
+    {
+        SAFE_DRAW
+        if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
+        {
+            cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
+        }
+        else
+        {
+            cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
+        }
+        END_SAFE_DRAW
+    }
 
     // save the last mouse position
     mousePosLast = currMousePos;

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include "Globals.h"
 
 #define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
     extern type name;                                    \
@@ -26,6 +27,15 @@ extern int ORBIT_RADIUS;
 extern int PURE_PURSUIT_RADIUS;
 extern int ORBIT_DTHETA_DEG;
 extern int MASTER_SPEED_SCALE_PERCENT;
+extern int preprocess_tl_x;
+extern int preprocess_tl_y;
+extern int preprocess_tr_x;
+extern int preprocess_tr_y;
+extern int preprocess_bl_x;
+extern int preprocess_bl_y;
+extern int preprocess_br_x;
+extern int preprocess_br_y;
+
 
 
 template <typename T>
