@@ -306,14 +306,19 @@ RobotConfigWindow::RobotConfigWindow()
     _imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_HEIGHT - 20, WINDOW_HEIGHT - 20);
 
 
-    // right column buttons
+    // Right column: IMU widget
+    // imu widget
+    _imuWidget = new IMUWidget(this);
+    _imuWidget->setGeometry(rightSideX, nextWidgetYRight, COLUMN_WIDTH, COLUMN_WIDTH);
+    nextWidgetYRight += COLUMN_WIDTH + widgetVerticalMargin;
+
+    addRpmWidget(this, QString("Front Weapon"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
+    addRpmWidget(this, QString("Rear Weapon"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
+
     addPushButton(this, "Angle Invert", []()
     {
         RobotOdometry::Robot().InvertAngle();
     }, false);
-
-    addRpmWidget(this, QString("Front Weapon"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
-    addRpmWidget(this, QString("Rear Weapon"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
 
     SAFE_DRAW
     // init drawing image

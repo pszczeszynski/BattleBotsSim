@@ -51,6 +51,7 @@ set(SOURCES
     RobotLink.cc
     Input/Gamepad.cc
     Input/Input.cc
+    UIWidgets/IMUWidget.cc
 )
 
 # Create the object files

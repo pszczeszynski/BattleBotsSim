@@ -512,6 +512,9 @@ void RobotController::GuiLogic()
                                             cv::Point2f(WIDTH, HEIGHT),
                                             cv::Point2f(0, HEIGHT)};
 
+    // 1. update imu display
+    IMUWidget::GetInstance().Update();
+
     const double CORNER_DIST_THRESH = 20.0;
 
     Input &input = Input::GetInstance();

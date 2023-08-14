@@ -15,6 +15,7 @@
 #include <QPainter>
 #include "Globals.h"
 #include "Input/Input.h"
+#include "UIWidgets/IMUWidget.h"
 
 class RobotConfigWindow : public QMainWindow
 {
@@ -43,6 +44,7 @@ private:
 
     QLabel *_imageLabel;
     QApplication *app;
+    IMUWidget *_imuWidget;
 };
 
 class TargetRpmProgressBar : public QProgressBar
