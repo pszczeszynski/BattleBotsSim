@@ -114,25 +114,25 @@ void DualSense::Update()
 
 bool DualSense::GetButtonA()
 {
-    if (_initialized) return (_inState.buttonsB & DS5W_ISTATE_BTX_CROSS);
+    if (_initialized) return (_inState.buttonsAndDpad & DS5W_ISTATE_BTX_CROSS);
     return false;
 }
 
 bool DualSense::GetButtonB()
 {
-    if (_initialized) return (_inState.buttonsB & DS5W_ISTATE_BTX_CIRCLE);
+    if (_initialized) return (_inState.buttonsAndDpad & DS5W_ISTATE_BTX_CIRCLE);
     return false;
 }
 
 bool DualSense::GetButtonX()
 {
-    if (_initialized) return (_inState.buttonsB & DS5W_ISTATE_BTX_SQUARE);
+    if (_initialized) return (_inState.buttonsAndDpad & DS5W_ISTATE_BTX_SQUARE);
     return false;
 }
 
 bool DualSense::GetButtonY()
 {
-    if (_initialized) return (_inState.buttonsB & DS5W_ISTATE_BTX_TRIANGLE);
+    if (_initialized) return (_inState.buttonsAndDpad & DS5W_ISTATE_BTX_TRIANGLE);
     return false;
 }
 
