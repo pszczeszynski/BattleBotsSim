@@ -18,3 +18,4 @@ To Set Up the Teensys with all their communication and IMU Shenanigans, there ar
     - Go to the repository, click clone, then download as ZIP
     - In the Arduino IDE, go to Sketch > Include Library > Add .ZIP Library, then select the ZIP folder you just downloaded
     - Now you can include "ICM_20948.h" in your sketches and read from the IMU.
+    

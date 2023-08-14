@@ -9,10 +9,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set policy for find_package to use <PackageName>_ROOT variables
 cmake_policy(SET CMP0074 NEW)
 
+# # Set the directory you want to add to the PATH
+# set(MY_DIRECTORY "${CMAKE_SOURCE_DIR}/libs/DS5W/")
+
+# # Add the directory to the PATH using an environment variable
+# set(ENV{PATH} "${MY_DIRECTORY};$ENV{PATH}")
+
+# # Print the updated PATH for verification (optional)
+# message("Updated PATH: $ENV{PATH}")
+
 # add define for SIMULATION if SIMULATION is an arg
 option(SIMULATION "Build for simulation" OFF)
 if(SIMULATION)
     add_definitions(-DSIMULATION)
+endif()
+
+# add define for XBOX if XBOX is an arg
+option(XBOX "Build for xbox controller" OFF)
+if(XBOX)
+    add_definitions(-DXBOX)
 endif()
 
 # TODO: make this not hardcoded
@@ -63,4 +78,11 @@ set(SOURCES
 # cuda_add_executable(RobotController ${SOURCES})
 add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput)
+target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib)
+
+
+add_custom_command(TARGET RobotController POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.dll
+        $<TARGET_FILE_DIR:RobotController>
+)

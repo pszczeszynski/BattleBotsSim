@@ -34,14 +34,19 @@ int main(int argc, char *argv[])
     app.exec();
 }
 
-RobotController::RobotController() : gamepad{0},
+RobotController::RobotController() :
+#ifdef XBOX
+                                    gamepad{0},
+#endif
+
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{1},
+                                     overheadCamL_real{0},
                                      vision{overheadCamL_real}
 #endif
+
 {
 }
 

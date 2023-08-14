@@ -80,6 +80,8 @@ Open command prompt and run:
 
 Open RobotController dir in vscode
 
+Make sure you have the Cmake Tools Extension installed
+
 Ctrl + Shift + P -> Cmake Select kit -> Amd64 (or whichever is you)
 
 Then Ctrl + Shift + P -> Cmake Configure

@@ -40,8 +40,11 @@ private:
 
     void GuiLogic();
 
-    Vision vision;
-    Gamepad gamepad;
+#ifdef XBOX
+    XBox gamepad;
+#else
+    DualSense gamepad;
+#endif
 
     RobotMessage state;
     RobotSimState exState;
@@ -53,6 +56,8 @@ private:
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
 #endif
+
+    Vision vision;
 
     float _frontWeaponPower = 0;
     float _backWeaponPower = 0;
