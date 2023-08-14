@@ -91,7 +91,7 @@ void VESC::_SetMotorPower(float power, int motorIndex)
     long frame_id = 0x00000000;
 
     CAN_message_t message;
-    int dutyCycle = 10000 * power;
+    int dutyCycle = 100000 * power;
     message.id = frame_id | ids[motorIndex];
     message.len = 4;
     message.flags.extended = 1;
@@ -110,6 +110,9 @@ void VESC::Drive(float leftPower, float rightPower)
 {
     _SetMotorPower(leftPower, l_drive);
     _SetMotorPower(rightPower, r_drive);
+
+    Serial.print("Driving with leftPower: ");
+    Serial.println(leftPower);
 }
 
 void VESC::DriveWeapons(float frontPower, float backPower)

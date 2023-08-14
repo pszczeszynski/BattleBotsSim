@@ -1,5 +1,5 @@
 #pragma once
-#define CAN_RATE 125000 // must match vec set can rate
+#define CAN_RATE 500000 // must match vec set can rate
 #include <FlexCAN_T4.h>
 
 class VESC

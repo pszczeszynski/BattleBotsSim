@@ -1,19 +1,22 @@
 /**
  * Receiver.ino
  */
-#include "Motor.h"
+// #include "Motor.h"
+
+
 #include "Communication.h"
+#include "Vesc.h"
+
 #define VERBOSE_RADIO
 #include "Radio.h"
 #include "IMU.h"
-#include "Vesc.h"
 
 #define SERIAL_BAUD 9600
 
 IMU* imu;
 
-#define LEFT_MOTOR_CAN_ID 1
-#define RIGHT_MOTOR_CAN_ID 3
+#define LEFT_MOTOR_CAN_ID 3
+#define RIGHT_MOTOR_CAN_ID 1
 #define FRONT_WEAPON_CAN_ID 2
 #define BACK_WEAPON_CAN_ID 4
 
@@ -29,7 +32,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
 
     Serial.println("Initializing IMU...");
-    imu = new IMU();
+    // imu = new IMU();
     Serial.println("Failed because Matthew made an oopsie!");
 
     Serial.println("Initializing Canbus motors...");
@@ -70,8 +73,7 @@ void Drive(DriveCommand &command)
 */
 void DriveWeapons(DriveCommand &command)
 {
-    frontWeaponMotor->SetPower(command.frontWeaponPower);
-    backWeaponMotor->SetPower(command.backWeaponPower);
+    vesc->DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
 }
 
 /**
@@ -82,17 +84,17 @@ RobotMessage Update()
     RobotMessage ret{0};
 
     // call update for imu
-    imu->Update();
+    // imu->Update();
 
     // get accelerometer data and set accel
-    Point accel = imu->getAccel();
-    ret.accelX = accel.x;
-    ret.accelY = accel.y;
+    // Point accel = imu->getAccel();
+    // ret.accelX = accel.x;
+    // ret.accelY = accel.y;
 
-    // now compute velocity
-    Point velocity = imu->getVelocity();
-    ret.velocityX = velocity.x;
-    ret.velocityY = velocity.y;
+    // // now compute velocity
+    // Point velocity = imu->getVelocity();
+    // ret.velocityX = velocity.x;
+    // ret.velocityY = velocity.y;
 
 #ifdef PRINT_VELOCITY_ACCEL
     // print on serial
@@ -112,11 +114,11 @@ RobotMessage Update()
     Serial.println("");
 #endif
 
-    // get gyro data and set gyro
-    ret.rotation = imu->getRotation();
+    // // get gyro data and set gyro
+    // ret.rotation = imu->getRotation();
 
-    // calculate rotation velocity
-    ret.rotationVelocity = imu->getRotationVelocity();
+    // // calculate rotation velocity
+    // ret.rotationVelocity = imu->getRotationVelocity();
 
     ret.valid = true;
 
@@ -155,8 +157,8 @@ void WaitForRadioData()
             break;
         }
 
-        // call update for imu
-        imu->Update();
+        // // call update for imu
+        // imu->Update();
     }
 }
 
