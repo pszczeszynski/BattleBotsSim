@@ -390,9 +390,15 @@ RobotControllerGUI::RobotControllerGUI()
         return QString(connected ? "CONNECTED" : "DISCONNECTED");
     }, false, 100, COLUMN_WIDTH / 3, 0);
 
+    addAutoUpdatingLabel(this, [this]()
+    {
+        return QString("Send packets/sec: " + QString::number(RobotController::GetInstance().GetRobotLink().sendClock.getFPS()));
+    }, false, 100, COLUMN_WIDTH / 3, 0);
+
+
     addAutoUpdatingLabel(this, []()
     {
-        return QString("Packets/sec: " + QString::number(RobotController::GetInstance().GetRobotLink().receiveClock.getFPS()));
+        return QString("Recv Packets/sec: " + QString::number(RobotController::GetInstance().GetRobotLink().receiveClock.getFPS()));
     }, false, 100, COLUMN_WIDTH / 3, COLUMN_WIDTH / 3);
 
 
@@ -416,7 +422,6 @@ RobotControllerGUI::RobotControllerGUI()
     {
         return QString("Display fps: " + QString::number(_displayImageClock.getFPS()));
     }, false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
-
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);

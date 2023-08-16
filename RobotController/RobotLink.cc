@@ -19,7 +19,7 @@ RobotMessage IRobotLink::Receive()
 }
 
 
-#define TRANSMITTER_COM_PORT TEXT("COM8")
+#define TRANSMITTER_COM_PORT TEXT("COM6")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -126,7 +126,7 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
     }
 }
 
-#define MIN_INTER_SEND_TIME_MS 4
+#define MIN_INTER_SEND_TIME_MS 5
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     // swap movement and turn
@@ -196,6 +196,8 @@ void RobotLinkReal::Drive(DriveCommand &command)
         // Write MESSAGE_END_CHAR
         char end = MESSAGE_END_CHAR;
         _WriteSerialMessage((char *)&end, sizeof(end));
+
+        sendClock.markStart();
     }
     catch (std::exception &e)
     {
@@ -230,40 +232,9 @@ RobotMessage RobotLinkReal::Receive()
     // if latest data is valid
     if (_receiver.isLatestDataValid())
     {
-        // mark that we have received a packet
-        _receivedPackets++;
-        _lastReceivedTimer.markStart();
-        _receiveFPS = _receivedPackets / _fpsTimer.getElapsedTime();
+        // call super method to update clock
+        IRobotLink::Receive();
     }
-
-    // if we have not received a packet in a while
-    if (_fpsTimer.getElapsedTime() > 1)
-    {
-        _receivedPackets = 0;
-        _fpsTimer.markStart();
-    }
-
-    SAFE_DRAW
-    cv::putText(drawingImage, "Packets/Sec: " + std::to_string(_receiveFPS),
-        cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.9), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255));
-    END_SAFE_DRAW
-
-    if (_lastReceivedTimer.getElapsedTime() * 1000 < 50)
-    {
-        SAFE_DRAW
-        cv::putText(drawingImage, "Connected", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
-        END_SAFE_DRAW
-    }
-    else
-    {
-        SAFE_DRAW
-        cv::putText(drawingImage, "Disconnected", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0));
-        END_SAFE_DRAW
-        _receiveFPS = 0;
-    }
-
-    // call super method to update clock
-    IRobotLink::Receive();
 
     return retrievedStruct;
 }

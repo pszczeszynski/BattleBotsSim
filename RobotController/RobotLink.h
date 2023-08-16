@@ -51,10 +51,4 @@ private:
     DCB _dcbSerialParams;
     Clock _sendingClock;
     GenericReceiver<RobotMessage> _receiver;
-
-
-    int _receivedPackets;
-    int _receiveFPS;
-    Clock _fpsTimer;
-    Clock _lastReceivedTimer;
 };

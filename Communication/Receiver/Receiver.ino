@@ -32,7 +32,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
 
     Serial.println("Initializing IMU...");
-    // imu = new IMU();
+    imu = new IMU();
     Serial.println("Failed because Matthew made an oopsie!");
 
     Serial.println("Initializing Canbus motors...");
@@ -84,17 +84,17 @@ RobotMessage Update()
     RobotMessage ret{0};
 
     // call update for imu
-    // imu->Update();
+    imu->Update();
 
     // get accelerometer data and set accel
-    // Point accel = imu->getAccel();
-    // ret.accelX = accel.x;
-    // ret.accelY = accel.y;
+    Point accel = imu->getAccel();
+    ret.accelX = accel.x;
+    ret.accelY = accel.y;
 
-    // // now compute velocity
-    // Point velocity = imu->getVelocity();
-    // ret.velocityX = velocity.x;
-    // ret.velocityY = velocity.y;
+    // now compute velocity
+    Point velocity = imu->getVelocity();
+    ret.velocityX = velocity.x;
+    ret.velocityY = velocity.y;
 
 #ifdef PRINT_VELOCITY_ACCEL
     // print on serial
@@ -114,11 +114,11 @@ RobotMessage Update()
     Serial.println("");
 #endif
 
-    // // get gyro data and set gyro
-    // ret.rotation = imu->getRotation();
+    // get gyro data and set gyro
+    ret.rotation = imu->getRotation();
 
-    // // calculate rotation velocity
-    // ret.rotationVelocity = imu->getRotationVelocity();
+    // calculate rotation velocity
+    ret.rotationVelocity = imu->getRotationVelocity();
 
     ret.valid = true;
 
@@ -157,8 +157,8 @@ void WaitForRadioData()
             break;
         }
 
-        // // call update for imu
-        // imu->Update();
+        // call update for imu
+        imu->Update();
     }
 }
 
