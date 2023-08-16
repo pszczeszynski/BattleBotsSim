@@ -269,10 +269,6 @@ RobotMessage RobotLinkSim::Receive()
     UnityRobotState message = RobotStateParser::parse(received);
 
     RobotMessage ret{0};
-    ret.velocityX = message.robot_velocity.x;
-    ret.velocityY = message.robot_velocity.y;
-    ret.velocityX *= ACCELEROMETER_TO_PX_SCALER;
-    ret.velocityY *= ACCELEROMETER_TO_PX_SCALER;
     ret.rotation = message.robot_orientation;
     ret.rotationVelocity = message.robot_rotation_velocity;
 

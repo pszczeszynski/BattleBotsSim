@@ -423,6 +423,34 @@ RobotControllerGUI::RobotControllerGUI()
         return QString("Display fps: " + QString::number(_displayImageClock.getFPS()));
     }, false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
 
+
+    // names are LD, RD, FW, RW
+    std::string motorNames[4] = {"LD", "RD", "FW", "RW"};
+
+    for (int i = 0; i < 4; i ++)
+    {
+        // left drive
+        addAutoUpdatingLabel(this, [i, motorNames]()
+        {
+            return QString((motorNames[i] + " amps: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorCurrent[i])).c_str());
+        }, false, 100, COLUMN_WIDTH / 4, 0);
+
+        addAutoUpdatingLabel(this, [i, motorNames]()
+        {
+            return QString((motorNames[i] + " volts: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorVoltage[i])).c_str());
+        }, false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4);
+
+        addAutoUpdatingLabel(this, [i, motorNames]()
+        {
+            return QString((motorNames[i] + " rpm: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorRPM[i])).c_str());
+        }, false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4);
+
+        addAutoUpdatingLabel(this, [i, motorNames]()
+        {
+            return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().escFETTemp[i])).c_str());
+        }, false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4);
+    }
+
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);
     _imageLabel->setMouseTracking(true);

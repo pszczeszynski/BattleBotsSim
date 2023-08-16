@@ -3,9 +3,9 @@
  */
 // #include "Motor.h"
 
+#include "Vesc.h"
 
 #include "Communication.h"
-#include "Vesc.h"
 
 #define VERBOSE_RADIO
 #include "Radio.h"
@@ -91,11 +91,6 @@ RobotMessage Update()
     ret.accelX = accel.x;
     ret.accelY = accel.y;
 
-    // now compute velocity
-    Point velocity = imu->getVelocity();
-    ret.velocityX = velocity.x;
-    ret.velocityY = velocity.y;
-
 #ifdef PRINT_VELOCITY_ACCEL
     // print on serial
     Serial.print("Accel: ");
@@ -119,6 +114,12 @@ RobotMessage Update()
 
     // calculate rotation velocity
     ret.rotationVelocity = imu->getRotationVelocity();
+
+    // get motor data
+    vesc->GetCurrents(ret.motorCurrent);
+    vesc->GetVolts(ret.motorVoltage);
+    vesc->GetRPMs(ret.motorRPM);
+    vesc->GetFETTemps(ret.escFETTemp);
 
     ret.valid = true;
 

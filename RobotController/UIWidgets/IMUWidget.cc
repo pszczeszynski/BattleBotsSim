@@ -74,15 +74,6 @@ void IMUWidget::Update()
                           WIDGET_RADIUS + (accelY / MAX_ACCEL_MPSS) * WIDGET_RADIUS);
     cv::circle(mat, dotCenter, 15, blue, 3);
 
-    // draw velocity
-    float velocityX = msg.velocityX;
-    float velocityY = msg.velocityY;
-    cv::Point2f velocity(WIDGET_RADIUS + (velocityX / 3) * WIDGET_RADIUS,
-                         WIDGET_RADIUS + (velocityY / 3) * WIDGET_RADIUS);
-    cv::line(mat, midPoint, velocity, blue, 3);
-
-
-
 
 
     /////////// GYRO VISUALIZATION ///////////

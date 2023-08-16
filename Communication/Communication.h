@@ -63,6 +63,8 @@ struct DriveCommand
 };
 
 // robot -> driver station
+// disable padding
+#pragma pack(push, 1)
 struct RobotMessage
 {
     bool valid;
@@ -70,9 +72,12 @@ struct RobotMessage
     float rotationVelocity;
     float accelX;
     float accelY;
-    float velocityX;
-    float velocityY;
+    unsigned char motorCurrent[4];
+    unsigned char motorVoltage[4];
+    unsigned char motorRPM[4];
+    unsigned char escFETTemp[4];
 };
+#pragma pack(pop)
 
 // indicates the end of a message. All communciation between devices should end with this
 const char MESSAGE_END_CHAR = '\n';
