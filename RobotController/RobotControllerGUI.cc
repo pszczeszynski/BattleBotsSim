@@ -436,8 +436,6 @@ void RobotControllerGUI::RefreshFieldImage()
     // clear all queued events because we don't want to store more than one refresh event at a time
     QCoreApplication::removePostedEvents(this, QEvent::MetaCall);
 
-    _displayImageClock.markStart();
-
     cv::Mat drawingImage;
     bool newImage = RobotController::GetInstance().drawingImageQueue.consumeLatestAndClear(drawingImage);
     // if there is no new image, don't do anything
@@ -446,6 +444,7 @@ void RobotControllerGUI::RefreshFieldImage()
         std::cerr << "RefreshFieldImage called when no drawingImage" << std::endl;
         return;
     }
+    _displayImageClock.markStart();
 
     // otherwise, convert drawing image to QImage and set it as the image in QLabel
     QImage imageQt(drawingImage.data, drawingImage.cols, drawingImage.rows, QImage::Format_RGB888);

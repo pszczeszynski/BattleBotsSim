@@ -36,15 +36,11 @@ int main(int argc, char *argv[])
 
 RobotController::RobotController() :
 									drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
-#ifdef XBOX
-                                    gamepad{0},
-#endif
-
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{0},
+                                     overheadCamL_real{1},
                                      vision{overheadCamL_real}
 #endif
 

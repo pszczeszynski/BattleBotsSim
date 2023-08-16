@@ -30,7 +30,7 @@ public:
 class XBox : public Gamepad
 {
 public:
-    XBox(int index);
+    XBox(int index = 0);
 
     virtual void Update() override;
 
