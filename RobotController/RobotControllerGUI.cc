@@ -63,6 +63,57 @@ void addLabeledSpinBox(QMainWindow* window, const QString& label, int& value, bo
     }
 }
 
+/**
+ * @brief addAutoUpdatingLabel
+ * @param window The window to add the label to
+ * @param initialText The initial text to display in the label
+ * @param updateTextLambda A lambda function that returns the new text to display in the label
+ * @param left Whether to place the label on the left or right side of the window
+ * @param refreshIntervalMs The interval in milliseconds to refresh the label text, default is 50 ms
+ */
+void addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updateTextLambda, bool left = true,
+                          int refreshIntervalMs = 50, int width = COLUMN_WIDTH, int x_offset = 0)
+{
+    int shiftAmount = LABEL_HEIGHT + widgetVerticalMargin;
+
+    // if there is an x_offset, assume it's at the last y position
+    if (x_offset != 0)
+    {
+        if (left)
+        {
+            nextWidgetYLeft -= shiftAmount;
+        }
+        else
+        {
+            nextWidgetYRight -= shiftAmount;
+        }
+    }
+
+    int x = (left ? widgetHorizontalMargin : rightSideX) + x_offset;
+    int y = left ? nextWidgetYLeft : nextWidgetYRight;
+
+    QLabel *label = new QLabel("", window);
+    label->setGeometry(x, y, width, LABEL_HEIGHT);
+
+    QTimer *timer = new QTimer(window);
+    QObject::connect(timer, &QTimer::timeout, [=]()
+                     { label->setText(updateTextLambda()); }); // Update the label text with the lambda function
+
+    timer->start(refreshIntervalMs); // Start the timer to update the label every refreshIntervalMs milliseconds
+
+
+    // if left, increase the vertical position for the next widget
+    if (left)
+    {
+        nextWidgetYLeft += shiftAmount;
+    }
+    else
+    {
+        nextWidgetYRight += shiftAmount;
+    }
+
+}
+
 // Helper function to add a labeled slider
 void addLabeledSlider(QMainWindow* window, const QString& label, int& value, int minValue, int maxValue, bool left = true)
 {
@@ -261,7 +312,7 @@ void addRpmWidget(QMainWindow *window, QString labelString, float &targetRpm, fl
     }
 }
 
-RobotConfigWindow::RobotConfigWindow()
+RobotControllerGUI::RobotControllerGUI()
 {
     setWindowTitle("Orbitron Hub");
     setWindowFlags(windowFlags() | Qt::WindowMinimizeButtonHint);
@@ -332,6 +383,40 @@ RobotConfigWindow::RobotConfigWindow()
     // Install this object as an event filter on the application object
     qApp->installEventFilter(this);
 
+    addAutoUpdatingLabel(this, []()
+    {
+        // after 40 ms of no packets, we consider the robot disconnected
+        bool connected = RobotController::GetInstance().GetRobotLink().receiveClock.getElapsedTime() < 0.04;
+        return QString(connected ? "CONNECTED" : "DISCONNECTED");
+    }, false, 100, COLUMN_WIDTH / 3, 0);
+
+    addAutoUpdatingLabel(this, []()
+    {
+        return QString("Packets/sec: " + QString::number(RobotController::GetInstance().GetRobotLink().receiveClock.getFPS()));
+    }, false, 100, COLUMN_WIDTH / 3, COLUMN_WIDTH / 3);
+
+
+    addAutoUpdatingLabel(this, []()
+    {
+        return QString("Max dropout (ms): " + QString::number((int) (1000 * RobotController::GetInstance().GetRobotLink().receiveClock.getMaxTimeDifference())));
+    }, false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
+
+
+    addAutoUpdatingLabel(this, []()
+    {
+        return QString("Vision FPS: " + QString::number(RobotController::GetInstance().visionClock.getFPS()));
+    }, false, 100, COLUMN_WIDTH / 3, 0);
+
+    addAutoUpdatingLabel(this, []()
+    {
+        return QString("Vision dropout: " + QString::number((int) (1000 * RobotController::GetInstance().visionClock.getMaxTimeDifference())));
+    }, false, 100, COLUMN_WIDTH / 3, COLUMN_WIDTH / 3);
+
+    addAutoUpdatingLabel(this, [this]()
+    {
+        return QString("Display fps: " + QString::number(_displayImageClock.getFPS()));
+    }, false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
+
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);
@@ -346,20 +431,19 @@ RobotConfigWindow::RobotConfigWindow()
  * This function is called from the robot controller thread
  * It is scheduled by the RobotController::RefreshFieldImageSignal signal
 */
-void RobotConfigWindow::RefreshFieldImage()
+void RobotControllerGUI::RefreshFieldImage()
 {
+    // clear all queued events because we don't want to store more than one refresh event at a time
+    QCoreApplication::removePostedEvents(this, QEvent::MetaCall);
+
+    _displayImageClock.markStart();
+
     cv::Mat drawingImage;
-    DRAWING_IMAGE_MUTEX.lock();
-    drawingImage = P_DRAWING_IMAGE.clone();
-    CAN_DRAW = true;
-    DRAWING_IMAGE_MUTEX.unlock();
-
-
-    // check if drawing image is empty and return if it is
-    bool isEmpty = false;
-    isEmpty = drawingImage.empty();
-    if (isEmpty)
+    bool newImage = RobotController::GetInstance().drawingImageQueue.consumeLatestAndClear(drawingImage);
+    // if there is no new image, don't do anything
+    if (!newImage || drawingImage.empty())
     {
+        std::cerr << "RefreshFieldImage called when no drawingImage" << std::endl;
         return;
     }
 
@@ -370,12 +454,16 @@ void RobotConfigWindow::RefreshFieldImage()
     _imageLabel->setPixmap(pixmap.scaled(_imageLabel->size(), Qt::KeepAspectRatio));
 }
 
-void RobotConfigWindow::ShowGUI()
+void RobotControllerGUI::ShowGUI()
 {
     show();
 }
 
-void RobotConfigWindow::SetApp(QApplication& app)
+/**
+ * @brief RobotConfigWindow::SetApp
+ * Sets the application object for the GUI and sets the application palette to a dark color scheme
+*/
+void RobotControllerGUI::SetApp(QApplication& app)
 {
     // Set the application palette to a dark color scheme
     QPalette darkPalette;
@@ -399,34 +487,34 @@ void RobotConfigWindow::SetApp(QApplication& app)
     this->app = &app;
 }
 
-RobotConfigWindow& RobotConfigWindow::GetInstance()
+RobotControllerGUI& RobotControllerGUI::GetInstance()
 {
-    static RobotConfigWindow instance;
+    static RobotControllerGUI instance;
     return instance;
 }
 
-QLabel* RobotConfigWindow::GetImageLabel()
+QLabel* RobotControllerGUI::GetImageLabel()
 {
     return _imageLabel;
 }
 
 // events
-void RobotConfigWindow::mousePressEvent(QMouseEvent *event)
+void RobotControllerGUI::mousePressEvent(QMouseEvent *event)
 {
     Input::GetInstance().UpdateMousePress(event);
 }
 
-void RobotConfigWindow::mouseReleaseEvent(QMouseEvent *event)
+void RobotControllerGUI::mouseReleaseEvent(QMouseEvent *event)
 {
     Input::GetInstance().UpdateMouseRelease(event);
 }
 
-void RobotConfigWindow::mouseMoveEvent(QMouseEvent *event)
+void RobotControllerGUI::mouseMoveEvent(QMouseEvent *event)
 {
     Input::GetInstance().UpdateMouseMove(event);
 }
 
-bool RobotConfigWindow::eventFilter(QObject *watched, QEvent *event)
+bool RobotControllerGUI::eventFilter(QObject *watched, QEvent *event)
 {
     Input::GetInstance().UpdateEventFilter(watched, event);
     return QMainWindow::eventFilter(watched, event);

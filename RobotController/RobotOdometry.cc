@@ -211,7 +211,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     }
 
     // update using the weighted average
-    PostUpdate(fusedPos, GetImuVelocity(), Angle(fusedAngle));
+    PostUpdate(fusedPos, smoothedVisualVelocity, Angle(fusedAngle));
 }
 
 /**

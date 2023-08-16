@@ -26,8 +26,4 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
 
     // Apply the perspective transformation
     warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT));
-
-    SAFE_DRAW
-    dst.copyTo(P_DRAWING_IMAGE);
-    END_SAFE_DRAW
 }

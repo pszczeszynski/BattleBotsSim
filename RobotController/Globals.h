@@ -14,7 +14,7 @@ extern bool CAN_DRAW;
 // it is set in the vision code and displayed in the main window
 extern cv::Mat P_DRAWING_IMAGE;
 extern std::mutex DRAWING_IMAGE_MUTEX;
-#define SAFE_DRAW DRAWING_IMAGE_MUTEX.lock(); if (CAN_DRAW) { cv::Mat& drawingImage = P_DRAWING_IMAGE;
+#define SAFE_DRAW DRAWING_IMAGE_MUTEX.lock(); { cv::Mat& drawingImage = P_DRAWING_IMAGE;
 #define END_SAFE_DRAW } DRAWING_IMAGE_MUTEX.unlock();
 
 

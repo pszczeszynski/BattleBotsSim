@@ -16,8 +16,9 @@
 #include "Globals.h"
 #include "Input/Input.h"
 #include "UIWidgets/IMUWidget.h"
+#include "Clock.h"
 
-class RobotConfigWindow : public QMainWindow
+class RobotControllerGUI : public QMainWindow
 {
     Q_OBJECT
 
@@ -28,7 +29,7 @@ public slots:
 public:
     void ShowGUI();
     void SetApp(QApplication& app);
-    static RobotConfigWindow& GetInstance();
+    static RobotControllerGUI& GetInstance();
     QLabel *GetImageLabel();
     
 protected:
@@ -40,11 +41,12 @@ protected:
 
 private:
     // private ctor since this is a singleton
-    RobotConfigWindow();
+    RobotControllerGUI();
 
     QLabel *_imageLabel;
     QApplication *app;
     IMUWidget *_imuWidget;
+    Clock _displayImageClock;
 };
 
 class TargetRpmProgressBar : public QProgressBar

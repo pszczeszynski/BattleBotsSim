@@ -13,7 +13,7 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    RobotConfigWindow::GetInstance().SetApp(app);
+    RobotControllerGUI::GetInstance().SetApp(app);
 
     // Create a separate thread for RobotController
     QThread controllerThread;
@@ -21,13 +21,13 @@ int main(int argc, char *argv[])
     RobotController& rc = RobotController::GetInstance();
     rc.moveToThread(&controllerThread);
 
-    // Connect RobotController's signal to RobotConfigWindow's slot
+    // Connect RobotController's signal to RobotControllerGUI's slot
     QObject::connect(&rc, &RobotController::RefreshFieldImageSignal,
-                     &RobotConfigWindow::GetInstance(), &RobotConfigWindow::RefreshFieldImage,
+                     &RobotControllerGUI::GetInstance(), &RobotControllerGUI::RefreshFieldImage,
                      Qt::QueuedConnection);
 
     QObject::connect(&controllerThread, &QThread::started, &rc, &RobotController::Run);
-    RobotConfigWindow::GetInstance().ShowGUI();
+    RobotControllerGUI::GetInstance().ShowGUI();
 
     controllerThread.start();
 
@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 }
 
 RobotController::RobotController() :
+									drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef XBOX
                                     gamepad{0},
 #endif
@@ -103,46 +104,50 @@ void RobotController::Run()
         // update the gamepad
         gamepad.Update();
 
-        TIMER_START
-        VisionClassification classification = vision.ConsumeLatestClassification();
+        // get the latest classification
+        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
         UpdateRobotTrackers(classification);
-        TIMER_PRINT("Vision")
 
         // receive state info from the robot
         state = robotLink.Receive();
 
-        // 3. run our robot controller loop
-        TIMER_START
+        // run our robot controller loop
         DriveCommand response = RobotLogic();
-        TIMER_PRINT("RobotLogic")
-
-        TIMER_START
+        
         // send the response to the robot
         robotLink.Drive(response);
-        TIMER_PRINT("Drive")
 
-        // 4. update the GUI
+        // update the GUI
         GuiLogic();
-
-        DRAWING_IMAGE_MUTEX.lock();
 
         if (classification.GetHadNewImage())
         {
-            // mark that we can't draw again until we get a new image
-            TIMER_START
-            // refresh the field image
-            emit RefreshFieldImageSignal();
-            TIMER_PRINT("imshow()")
-
-            CAN_DRAW = false;
+            // send the drawing image to the GUI
+            ProduceDrawingImage();
         }
-
-        DRAWING_IMAGE_MUTEX.unlock();
     }
+}
+
+void RobotController::ProduceDrawingImage()
+{
+    drawingImageQueue.produce(drawingImage);
+
+    // mark the start of the vision update
+    visionClock.markStart();
+
+    // refresh the field image
+    emit RefreshFieldImageSignal();
 }
 
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
+    // if we didn't get a new image, don't update the robot trackers
+    if (!classification.GetHadNewImage())
+    {
+        return;
+    }
+
+
     // if vision detected our robot
     if (classification.GetRobotBlob() != nullptr)
     {
@@ -233,7 +238,6 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(50.0 * cos(currAngle), 50.0 * sin(currAngle));
 
-    SAFE_DRAW
     cv::arrowedLine(drawingImage, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
     // draw our position
     cv::circle(drawingImage, currPos, 5, cv::Scalar(0,0,255), 2);
@@ -243,8 +247,6 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     // draw different colored arrow from our position at extrapolated angle
     cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
     cv::arrowedLine(drawingImage, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
-
-    END_SAFE_DRAW
 
 
 
@@ -279,9 +281,7 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     response.movement = goToOtherTarget ? -drive_scale : drive_scale;
 
     // Draw debugging information
-    SAFE_DRAW
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
-    END_SAFE_DRAW
 
     response.movement *= -1;
     response.turn *= -1;
@@ -314,7 +314,6 @@ DriveCommand RobotController::OrbitMode()
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
 
-    SAFE_DRAW
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
     // draw arrow from opponent position at opponent angle
@@ -322,8 +321,6 @@ DriveCommand RobotController::OrbitMode()
     cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
-    END_SAFE_DRAW
-
 
 
 
@@ -339,10 +336,8 @@ DriveCommand RobotController::OrbitMode()
     cv::Point2f targetPoint = opponentPosEx + cv::Point2f(ORBIT_RADIUS * cos(angleOpponentToUs), ORBIT_RADIUS * sin(angleOpponentToUs));
     std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, radius, opponentPosEx, ORBIT_RADIUS);
 
-    SAFE_DRAW
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, radius, cv::Scalar(0, 255, 0), 1);
-    END_SAFE_DRAW
 
     if (circleIntersections.size() > 0)
     {
@@ -350,10 +345,8 @@ DriveCommand RobotController::OrbitMode()
     }
 
 
-    SAFE_DRAW
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
-    END_SAFE_DRAW
 
     bool allowReverse = false;
 
@@ -470,17 +463,6 @@ DriveCommand RobotController::ManualMode()
     return response;
 }
 
-void DrawVelocity()
-{
-    // draw the current velocity using a line radially (x and y)
-    SAFE_DRAW
-    cv::line(drawingImage, cv::Point(drawingImage.cols / 2, drawingImage.rows / 2),
-             cv::Point(drawingImage.cols / 2 + RobotOdometry::Robot().GetVelocity().x,
-                       drawingImage.rows / 2 + RobotOdometry::Robot().GetVelocity().y),
-             cv::Scalar(0, 255, 0), 2);
-    END_SAFE_DRAW
-}
-
 /**
  * RobotLogic
  * The main logic for the robot
@@ -515,8 +497,6 @@ DriveCommand RobotController::RobotLogic()
         DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
         ret.turn = responseGoToPoint.turn;
     }
-
-    DrawVelocity();
 
     return ret;
 }
@@ -628,7 +608,6 @@ void RobotController::GuiLogic()
 
     for (int i = 0; i < 4; i++)
     {
-        SAFE_DRAW
         if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
         {
             cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
@@ -637,7 +616,6 @@ void RobotController::GuiLogic()
         {
             cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
         }
-        END_SAFE_DRAW
     }
 
     // save the last mouse position
@@ -652,4 +630,9 @@ float& RobotController::GetFrontWeaponTargetPowerRef()
 float& RobotController::GetBackWeaponTargetPowerRef()
 {
     return _backWeaponPower;
+}
+
+IRobotLink& RobotController::GetRobotLink()
+{
+    return robotLink;
 }

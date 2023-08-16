@@ -5,6 +5,7 @@
 #include <opencv2/imgproc.hpp>
 #include <windows.h>
 #include <thread>
+#include "Clock.h"
 
 class ICameraReceiver
 {
@@ -20,12 +21,27 @@ public:
     ~CameraReceiverSim();
 
 private:
-    cv::Mat _image;
+    bool _InitializeCamera();
+    void _CaptureFrame();
+
+
+    std::string _sharedFileName;
+    int _width;
+    int _height;
+
+    cv::Mat _image; // the memory mapped image
     HANDLE _hMapFile;
     HANDLE _hMutex;
     LPVOID _lpMapAddress;
+    std::thread _captureThread;
 
+    std::mutex _frameMutex;
+    cv::Mat _frame; // the last frame captured
     cv::Mat _prevFrame;
+
+    Clock _prevFrameTimer;
+
+    long int _framesReady;
 };
 
 class CameraReceiver : public ICameraReceiver

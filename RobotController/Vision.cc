@@ -24,6 +24,8 @@ Vision::Vision(ICameraReceiver &overheadCam)
             // if we didn't get a frame, return no classification
             if (!hadFrame)
             {
+                // sleep for 1ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue; // try to get a frame again
             }
 
@@ -33,6 +35,7 @@ Vision::Vision(ICameraReceiver &overheadCam)
             // save the classification
             _classificationMutex.lock();
             _classification = classification;
+            currFrame.copyTo(_lastDrawingImage);
             _classificationMutex.unlock();
         } });
 }
@@ -42,12 +45,14 @@ Vision::Vision(ICameraReceiver &overheadCam)
  * Will reset the stored classification to no classification
  * @return the latest classification
 */
-VisionClassification Vision::ConsumeLatestClassification()
+VisionClassification Vision::ConsumeLatestClassification(cv::Mat& outDrawingImage)
 {
     // lock the mutex
     _classificationMutex.lock();
     // get the classification
     VisionClassification classification = _classification;
+    // copy the last drawing image
+    _lastDrawingImage.copyTo(outDrawingImage);
     // reset the classification
     _classification = VisionClassification();
     // unlock the mutex
@@ -83,7 +88,7 @@ VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
 
     // find the opponent
     ret = LocateRobots2d(currFrame, previousBirdsEye);
-    if (ret.GetRobotBlob() != nullptr || ret.GetOpponentBlob() != nullptr || _prevFrameTimer.getElapsedTime() > 0.3)
+    if (ret.GetRobotBlob() != nullptr || ret.GetOpponentBlob() != nullptr || _prevFrameTimer.getElapsedTime() > 0.05)
     {
         // save the current frame as the previous frame
         previousBirdsEye = currFrame.clone();
@@ -100,7 +105,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.1, 2);
+    const float MIN_AREA = pow(frame.cols * 0.05, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -112,7 +117,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     cv::Mat grayDiff;
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
-    const int LOW_THRESHOLD = 20;
+    const int LOW_THRESHOLD = 30;
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;

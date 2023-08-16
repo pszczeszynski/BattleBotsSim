@@ -4,6 +4,21 @@
 #include "Globals.h"
 #include "MathUtils.h"
 
+/**
+ * Doesn't do anything except call the timer markStart
+ * Must be called for any robotlink
+*/
+RobotMessage IRobotLink::Receive()
+{
+    RobotMessage ret {0};
+
+    // mark that we have received a packet
+    receiveClock.markStart();
+
+    return ret;
+}
+
+
 #define TRANSMITTER_COM_PORT TEXT("COM8")
 
 #define COM_READ_TIMEOUT_MS 100
@@ -247,6 +262,9 @@ RobotMessage RobotLinkReal::Receive()
         _receiveFPS = 0;
     }
 
+    // call super method to update clock
+    IRobotLink::Receive();
+
     return retrievedStruct;
 }
 
@@ -268,7 +286,7 @@ void RobotLinkSim::Drive(DriveCommand &command)
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
-#define ACCELEROMETER_TO_PX_SCALER 0.05854 * WIDTH
+#define ACCELEROMETER_TO_PX_SCALER 1
 
 RobotMessage RobotLinkSim::Receive()
 {
@@ -286,6 +304,9 @@ RobotMessage RobotLinkSim::Receive()
     ret.velocityY *= ACCELEROMETER_TO_PX_SCALER;
     ret.rotation = message.robot_orientation;
     ret.rotationVelocity = message.robot_rotation_velocity;
+
+    // call super method to update clock
+    IRobotLink::Receive();
 
     // return the message
     return ret;

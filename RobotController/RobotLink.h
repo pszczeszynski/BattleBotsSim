@@ -14,8 +14,9 @@ class IRobotLink
 {
 public:
     virtual void Drive(DriveCommand& command) = 0; // sends data to robot
-    virtual RobotMessage Receive() = 0; // gets data from robot
-private:
+    virtual RobotMessage Receive();
+    Clock receiveClock; // for tracking the receive rate information (so public)
+    Clock sendClock; // for tracking the send rate information (so public)
 };
 
 /**

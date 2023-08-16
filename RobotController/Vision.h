@@ -18,12 +18,13 @@
 #include "Globals.h"
 #include "VisionPreprocessor.h"
 #include "ValueBin.h"
+#include "MatQueue.h"
 
 class Vision
 {
 public:
     Vision(ICameraReceiver &overheadCam);
-    VisionClassification ConsumeLatestClassification();
+    VisionClassification ConsumeLatestClassification(cv::Mat& outDrawingImage);
     VisionPreprocessor& GetPreprocessor();
 
 private:
@@ -39,6 +40,7 @@ private:
     std::thread processingThread;
 
     std::mutex _classificationMutex;
+    cv::Mat _lastDrawingImage;
     VisionClassification _classification;
     Clock _prevFrameTimer;
 };

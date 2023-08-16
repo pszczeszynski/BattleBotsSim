@@ -14,14 +14,13 @@
 #define NUMBER_LONG_READS_THRESH 2
 int NUMBER_OF_LONG_READS = 0;
 
-CameraReceiver::CameraReceiver(int cameraIndex) :
-    _cameraIndex(cameraIndex)
+CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 {
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
 
     // create a thread to capture frames
-    _captureThread = std::thread([this, &cameraIndex]()
+    _captureThread = std::thread([this]()
                                  {
         // try to initialize camera
         while (!_InitializeCamera())
@@ -196,9 +195,30 @@ CameraReceiver::~CameraReceiver()
 }
 
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
-CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
+CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height) : _sharedFileName(sharedFileName),
+                                                                                          _width(width),
+                                                                                          _height(height)
 {
-    std::wstring sharedFileNameW(sharedFileName.begin(), sharedFileName.end());
+    // create a thread to capture frames
+    _captureThread = std::thread([this]()
+                                 {
+        // try to initialize camera
+        while (!_InitializeCamera())
+        {
+            std::cerr << "ERROR: failed to initialize camera!" << std::endl;
+            Sleep(1000); // wait 1 second
+        }
+
+        // start capturing frames
+        while (true)
+        {
+            _CaptureFrame();
+        } });
+}
+
+bool CameraReceiverSim::_InitializeCamera()
+{
+    std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
     LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
     // 1. Create shared file
     // Open a handle to the memory-mapped file
@@ -214,7 +234,7 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
             std::cerr << "ERROR_INVALID_HANDLE" << std::endl;
         }
         std::cerr << "Error: " << err << std::endl;
-        return;
+        return false;
     }
 
     // Map the memory-mapped file to a memory address
@@ -223,12 +243,15 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
     {
         std::cerr << "Could not map memory-mapped file" << std::endl;
         CloseHandle(_hMapFile);
-        return;
+        return false;
     }
 
     // Create an OpenCV Mat to hold the image data (this points to the shared memory region)
-    _image = cv::Mat(cv::Size(width, height), CV_8UC4, _lpMapAddress);
-    std::cout << "done openning shared file: " << sharedFileName << std::endl;
+    _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, _lpMapAddress);
+    std::cout << "done openning shared file: " << _sharedFileName << std::endl;
+
+    // return success
+    return true;
 }
 
 static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
@@ -250,24 +273,50 @@ static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
     return cv::countNonZero(grayDiff) == 0;
 }
 
+void CameraReceiverSim::_CaptureFrame()
+{
+    // don't receive at more than 60 fps
+    if (_prevFrameTimer.getElapsedTime() < 0.015)
+    {
+        return;
+    }
+    _prevFrameTimer.markStart();
+
+    cv::Mat captured;
+    // remove alpha
+    cv::cvtColor(_image, captured, cv::COLOR_BGRA2BGR);
+    // Flip the image vertically
+    cv::flip(captured, captured, 0);
+
+    // lock the mutex
+    _frameMutex.lock();
+    // copy the frame to the previous frame
+    _frame.copyTo(_prevFrame);
+    // copy the frame
+    captured.copyTo(_frame);
+    // increase _framesReady
+    _framesReady++;
+    // unlock the mutex
+    _frameMutex.unlock();
+}
+
 bool CameraReceiverSim::GetFrame(cv::Mat &output)
 {
-    // remove alpha
-    cv::cvtColor(_image, output, cv::COLOR_BGRA2BGR);
-    // Flip the image vertically
-    cv::flip(output, output, 0);
-
-    // Skip the first frame or if the current frame is the same as the previous frame
-    if (AreMatsEqual(output, _prevFrame))
+    _frameMutex.lock();
+    // if no frames are ready, return false
+    if (_framesReady <= 0)
     {
-        // set the previous frame to the current frame
-        _prevFrame = output.clone();
-        // return no classification
+        _frameMutex.unlock();
         return false;
     }
 
-    // set the previous frame to the current frame
-    _prevFrame = output.clone();
+    // otherwise copy the frame
+    _frame.copyTo(output);
+    _framesReady = 0;
+    _frameMutex.unlock();
+
+    // return SUCCESS
+    return true;
 }
 
 CameraReceiverSim::~CameraReceiverSim()

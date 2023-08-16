@@ -12,6 +12,7 @@
 #include "Input/Gamepad.h"
 #include "../Communication/Communication.h"
 #include "Extrapolator.h"
+#include "MatQueue.h"
 
 class RobotController : public QObject
 {
@@ -24,6 +25,13 @@ public:
 
     float& GetFrontWeaponTargetPowerRef();
     float& GetBackWeaponTargetPowerRef();
+
+    MatQueue drawingImageQueue;
+
+    IRobotLink& GetRobotLink();
+
+    Clock visionClock;
+
 signals:
     // updates the image of the field in the GUI
     void RefreshFieldImageSignal();
@@ -39,6 +47,10 @@ private:
     void UpdateSpinnerPowers();
 
     void GuiLogic();
+
+    void ProduceDrawingImage();
+
+    cv::Mat drawingImage;
 
 #ifdef XBOX
     XBox gamepad;
