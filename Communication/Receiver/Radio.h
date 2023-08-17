@@ -39,7 +39,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_LOW);
+    radio.setPALevel(RF24_PA_MAX);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
