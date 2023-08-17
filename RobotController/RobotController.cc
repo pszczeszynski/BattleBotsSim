@@ -212,6 +212,7 @@ static double DoubleThreshToTarget(double error,
     return ret;
 }
 
+
 /**
  * Drive the robot to a specified position
  * @param targetPos The target position
@@ -263,28 +264,24 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     response.turn = DoubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
                                                 TURN_THRESH_2_DEG * TO_RAD, MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
 
-    // thrash angle
-    // response.turn_amount = deltaAngleRad > 0 ? 1.0 : -1.0;
-    // if (abs(deltaAngleRad) < 10 * TO_RAD)
-    // {
-    //     response.turn_amount = 0;
-    // }
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
     double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
 
-    response.movement = goToOtherTarget ? -drive_scale : drive_scale;
+    response.movement = goToOtherTarget ? drive_scale : -drive_scale;
+
 
     // Draw debugging information
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
 
-    response.movement *= -1;
     response.turn *= -1;
 
     return response;
 }
 
+
+double radius = PURE_PURSUIT_RADIUS;
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
@@ -318,14 +315,19 @@ DriveCommand RobotController::OrbitMode()
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
 
-
-
+    // get our velocity
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
+    // scale the radius based on our velocity
+    double targetRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
+    // slowly change the radius to the target radius
+    radius += (targetRadius - radius) * 0.05;
 
-    double radius = PURE_PURSUIT_RADIUS;
-    if (velocityNorm > 250)
+    // CLIP THE RADIUS TO NEVER BE TOO BIG AS TO GO MORE THAN 180
+    double distToCenter = cv::norm(ourPosition - opponentPosEx);
+    double distanceToOtherEdgeOfCircle = distToCenter + ORBIT_RADIUS;
+    if (radius > distanceToOtherEdgeOfCircle*0.99)
     {
-        radius *= 1.0 + (velocityNorm - 250.0) / 500.0;
+        radius = distanceToOtherEdgeOfCircle * 0.99;
     }
 
     // default to the angle from the opponent to us
@@ -340,6 +342,18 @@ DriveCommand RobotController::OrbitMode()
         targetPoint = circleIntersections[0];
     }
 
+    // calculate tangent points
+    cv::Point2f tangent1;
+    cv::Point2f tangent2;
+    CalculateTangentPoints(opponentPosEx, ORBIT_RADIUS, ourPosition, tangent1, tangent2);
+
+    double distToTargetPoint = cv::norm(targetPoint - ourPosition);
+    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
+    double distToTangent1 = cv::norm(tangent1 - ourPosition);
+    if (distToOpponent > ORBIT_RADIUS && distToTargetPoint < distToTangent1)
+    {
+        targetPoint = tangent1;
+    }
 
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
@@ -351,38 +365,6 @@ DriveCommand RobotController::OrbitMode()
 
     response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
-
-
-
-
-    // // compute the difference in our radios vs target radios
-    // double deltaRadius = norm(exState.position - opponentPosEx) - ORBIT_RADIUS;
-
-    // // get closest tangent direction to circle
-    // double tangentDirection = angleOpponentToUs + M_PI / 2.0;
-
-    // double targetDirection = tangentDirection + std::clamp(deltaRadius / PURE_PURSUIT_RADIUS, -M_PI / 2.0, M_PI / 2.0);
-
-    // // draw arrow at targetDirection
-    // SAFE_DRAW
-    // cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(targetDirection), 100.0 * sin(targetDirection));
-    // cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
-    // END_SAFE_DRAW
-
-    // // compute the angle from the tangent to the robot
-    // double deltaAngleRad = angle_wrap(exState.angle - targetDirection);
-
-    // DriveCommand response;
-    // response.turn = DoubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
-    //                                             TURN_THRESH_2_DEG * TO_RAD, MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
-    
-
-    // double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
-    // // Slow down when far away from the target angle
-    // double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
-
-    // response.movement = drive_scale;
-
 
     return response;
 }
@@ -482,7 +464,9 @@ DriveCommand RobotController::RobotLogic()
 
     DriveCommand ret = responseManual;
 
-    if (gamepad.GetLeftBumper())
+    responseManual.movement = 1.0;
+
+    if (true || gamepad.GetLeftBumper())
     {
         ret.turn = responseOrbit.turn;
         ret.movement = responseManual.movement * responseOrbit.movement;

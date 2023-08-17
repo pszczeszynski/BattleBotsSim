@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Diagnostics;
 
 // for now, just send the other robot's position + orientation
 // eventually: send camera images so that robot controller deduces other robot position + orientation
@@ -56,12 +57,21 @@ public class Robot_BB_Flipsy : RobotInterface3D
         InvokeRepeating("CacheEnemiesAndChooseOneToTrack", 0.0f, ENEMY_SEARCH_INTERVAL_SECONDS);
         // find the tank drive script
         _tankDrive = GetComponent<TankDrive>();
+
+
+        stopwatch.Start();
     }
 
 
     // simulated gyro rotation
     private double gyroRotationRad = 0.0f;
+    
 
+    private int frames = 0;
+    private Stopwatch stopwatch = new Stopwatch();
+
+    private double maxInterval = 0;
+    private long prevTime = 0;
     private void RobotControllerUpdate()
     {
         // don't execute this on the client
@@ -96,6 +106,28 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // send the robot controller the current state
         string message = JsonUtility.ToJson(rcMessage);
         _robotControllerLink.SendMessage(message);
+
+        frames ++;
+
+        // log elapsedmilliseconds
+        UnityEngine.Debug.Log("Elapsed milliseconds: " + stopwatch.ElapsedMilliseconds);
+
+        if (stopwatch.ElapsedMilliseconds - prevTime > maxInterval)
+        {
+            maxInterval = stopwatch.ElapsedMilliseconds - prevTime;
+        }
+
+        prevTime = stopwatch.ElapsedMilliseconds;
+
+        if (stopwatch.ElapsedMilliseconds > 1000)
+        {
+            UnityEngine.Debug.Log("Sending to RC fps: " + (float) frames  / (stopwatch.ElapsedMilliseconds / 1000.0));
+            UnityEngine.Debug.Log("Max interval: " + maxInterval);
+            frames = 0;
+            stopwatch.Restart();
+            maxInterval = 0;
+        }
+
 
         // receive latest control input from the robot controller
         RobotControllerDriveCommand? input = _robotControllerLink.Receive();
@@ -168,7 +200,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
             wasMovingLast = false;
         }
 
-        Debug.Log("average acceleration = " + ((currPos - lastMovePos).magnitude / Mathf.Pow(Time.timeSinceLevelLoad - lastMoveStartTime, 2)));
+        UnityEngine.Debug.Log("average acceleration = " + ((currPos - lastMovePos).magnitude / Mathf.Pow(Time.timeSinceLevelLoad - lastMoveStartTime, 2)));
         // Debug.Log("time since last stopped = " + (Time.timeSinceLevelLoad - lastMoveStartTime));
 
 
@@ -211,7 +243,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
         // choose the closest to track
         if (_enemyRobotBodies.Count > 0)
         {
-            Debug.Log("found enemy robot: " + _enemyRobotBodies.First().parent.name);
+            UnityEngine.Debug.Log("found enemy robot: " + _enemyRobotBodies.First().parent.name);
             opponent_body = _enemyRobotBodies.First();
         }
     }

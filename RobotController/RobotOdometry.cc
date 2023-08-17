@@ -308,7 +308,7 @@ double RobotOdometry::UpdateAndGetIMUAngle()
 /**
  * Smooths out the visual velocity so it's not so noisy
 */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 50
+#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 33
 cv::Point2f RobotOdometry::GetSmoothedVisualVelocity(MotionBlob& blob)
 {
     if (_lastVelocityCalcClock.getElapsedTime() > 0.1)

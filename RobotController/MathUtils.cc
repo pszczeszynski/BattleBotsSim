@@ -37,13 +37,13 @@ cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad)
 }
 
 // A function to calculate the tangent points of a circle given the center, radius and an external point
-void calculateTangentPoints(const cv::Point2f& center, float radius, const cv::Point2f& externalPoint, cv::Point2f& tangent1, cv::Point2f& tangent2)
+void CalculateTangentPoints(const cv::Point2f& center, float radius, const cv::Point2f& externalPoint, cv::Point2f& tangent1, cv::Point2f& tangent2)
 {
     // Calculate the distance between the external point and the center
     float dist = cv::norm(center - externalPoint);
     if (dist < radius)
     {
-        std::cerr << "ERROR calculateTangentPoints: The external point is inside the circle" << std::endl;
+        std::cerr << "ERROR CalculateTangentPoints: The external point is inside the circle" << std::endl;
     }
 
     // Calculate the angle for the two tangent lines
