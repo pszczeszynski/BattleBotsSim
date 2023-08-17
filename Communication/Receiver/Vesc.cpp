@@ -24,7 +24,7 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
     {
         volts[i] = 0;
         duty_cycles[i] = 0;
-        rpms[i] = 200;
+        rpms[i] = 0;
         ahs[i] = 0;
         fet_temps[i] = 0;
         motor_temps[i] = 0;
@@ -142,6 +142,15 @@ static void VESC::OnMessage(const CAN_message_t &msg)
 
 void VESC::_SetMotorPower(float power, int motorIndex)
 {
+    float diff = abs(power - lastPowers[motorIndex]);
+
+    if (!(abs(power) <= 0.001 && abs(lastPowers[motorIndex]) <= 0.001))
+    {
+        return;
+    }
+
+    lastPowers[motorIndex] = power;
+
     long frame_id = 0x00000000;
 
     CAN_message_t message;

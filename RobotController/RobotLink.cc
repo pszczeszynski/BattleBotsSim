@@ -129,6 +129,8 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 #define MIN_INTER_SEND_TIME_MS 5
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    command.movement *= 0.1;
+    command.turn *= 0.1;
     // swap movement and turn
     command.movement *= -1;
     double temp = command.movement;

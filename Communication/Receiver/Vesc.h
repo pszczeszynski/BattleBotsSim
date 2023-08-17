@@ -13,6 +13,7 @@ enum MotorIndexes
 class VESC
 {
 private:
+    float lastPowers[4] = { 0, 0, 0, 0 };
     static void OnMessage(const CAN_message_t &msg);
     FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> CAN1;
 
