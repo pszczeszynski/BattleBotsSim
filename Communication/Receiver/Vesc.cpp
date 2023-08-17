@@ -142,9 +142,7 @@ static void VESC::OnMessage(const CAN_message_t &msg)
 
 void VESC::_SetMotorPower(float power, int motorIndex)
 {
-    float diff = abs(power - lastPowers[motorIndex]);
-
-    if (!(abs(power) <= 0.001 && abs(lastPowers[motorIndex]) <= 0.001))
+    if (abs(power) <= 0.001 && abs(lastPowers[motorIndex]) <= 0.001)
     {
         return;
     }
