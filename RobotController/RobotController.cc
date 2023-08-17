@@ -311,14 +311,22 @@ DriveCommand RobotController::OrbitMode()
     // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
+    double orbitRadius = ORBIT_RADIUS;
+    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
+
+    // grow orbit radius the further we are away
+    if (distToOpponent > orbitRadius)
+    {
+        orbitRadius += (distToOpponent - orbitRadius) * 0.25;
+    }
 
     // draw blue circle around opponent
-    cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
+    cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 1);
     // draw arrow from opponent position at opponent angle
     cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
     cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
     // draw orange circle around opponent to show evasion radius
-    cv::circle(drawingImage, opponentPosEx, ORBIT_RADIUS, cv::Scalar(255, 165, 0), 4);
+    cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 4);
 
     // get our velocity
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
@@ -335,14 +343,14 @@ DriveCommand RobotController::OrbitMode()
     radius += (targetRadius - radius) * 0.05;
 
     // CLIP THE RADIUS TO NEVER BE TOO BIG AS TO GO MORE THAN 180
-    double distanceToOtherEdgeOfCircle = distToCenter + ORBIT_RADIUS;
+    double distanceToOtherEdgeOfCircle = distToCenter + orbitRadius;
     if (radius > distanceToOtherEdgeOfCircle*0.99)
     {
         radius = distanceToOtherEdgeOfCircle * 0.99;
     }
     // default to the angle from the opponent to us
-    cv::Point2f targetPoint = opponentPosEx + cv::Point2f(ORBIT_RADIUS * cos(angleOpponentToUs), ORBIT_RADIUS * sin(angleOpponentToUs));
-    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, radius, opponentPosEx, ORBIT_RADIUS);
+    cv::Point2f targetPoint = opponentPosEx + cv::Point2f(orbitRadius * cos(angleOpponentToUs), orbitRadius * sin(angleOpponentToUs));
+    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, radius, opponentPosEx, orbitRadius);
 
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, radius, cv::Scalar(0, 255, 0), 1);
@@ -355,13 +363,12 @@ DriveCommand RobotController::OrbitMode()
     // calculate tangent points
     cv::Point2f tangent1;
     cv::Point2f tangent2;
-    CalculateTangentPoints(opponentPosEx, ORBIT_RADIUS, ourPosition, tangent1, tangent2);
+    CalculateTangentPoints(opponentPosEx, orbitRadius, ourPosition, tangent1, tangent2);
 
     double distToTargetPoint = cv::norm(targetPoint - ourPosition);
-    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
     double distToTangent1 = cv::norm(tangent1 - ourPosition);
     // if we are really far away from the opponent
-    if (distToOpponent > ORBIT_RADIUS * 2)
+    if (distToOpponent > orbitRadius * 2)
     {
         // go to the tangent point
         targetPoint = tangent1;
