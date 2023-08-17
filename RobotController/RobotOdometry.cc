@@ -37,43 +37,6 @@ static double GetImuAngleRad()
     return robotMessage.rotation;
 }
 
-/**
- * Returns the velocity reported by the imu sensor, but rotated by our angle
-*/
-cv::Point2f RobotOdometry::GetImuVelocity()
-{
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
-
-    cv::Point2f accelRobotRelative = cv::Point2f(robotMessage.accelX, robotMessage.accelY);
-    #define FIELD_LENGTH_METERS 14.63
-    accelRobotRelative *= WIDTH / FIELD_LENGTH_METERS;
-
-    // convert to field relative
-    cv::Point2f accelFieldRelative = rotate_point(accelRobotRelative, _angle + M_PI);
-    
-    cv::Point2f newVelocity = _lastVelocity + accelFieldRelative * _lastAccelIntegrateClock.getElapsedTime();
-
-    _lastAccelIntegrateClock.markStart();
-    return newVelocity;
-
-
-    // // get velocity from imu (invert y because top left is 0,0)
-    // cv::Point2f imuRobotRelative = cv::Point2f(robotMessage.velocityX, robotMessage.velocityY);
-
-    // #define FIELD_LENGTH_METERS 14.63
-    // imuRobotRelative *= WIDTH / FIELD_LENGTH_METERS;
-
-    // double imuAngle = GetImuAngleRad();
-    // double ourAngle = _angle;
-
-    // double angleDifferenceRad = angle_wrap(ourAngle - imuAngle);
-
-    // // convert to field relative
-    // cv::Point2f imuFieldRelative = rotate_point(imuRobotRelative, -angleDifferenceRad);
-    // // return the rotated velocity
-    // return imuFieldRelative;
-}
 static double GetImuAngleVelocityRadPerSec()
 {
     // get latest message
@@ -155,47 +118,55 @@ Angle RobotOdometry::CalcAnglePathTangent()
     return retAngleRad;
 }
 
-
-
-/**
- * Predicts the current position of the robot using the velocity from last update and curr update
-*/
-static cv::Point2f PredictCurrPosUsingAvgVelocity(cv::Point2f lastPosition, cv::Point2f lastVelocity, cv::Point2f newVelocity, double timeSinceLastUpdateSeconds)
+bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
 {
-    // get the average velocity of the last update
-    cv::Point2f averageVelocityLastUpdate = (lastVelocity + newVelocity) / 2;
-    // predict the new position using that average velocity
-    cv::Point2f predictedPosition = lastPosition + averageVelocityLastUpdate * timeSinceLastUpdateSeconds;
+    double blobArea = blob.rect.area();
+    double lastVelocityNorm = cv::norm(_lastVelocity);
+    bool invalidBlob = blobArea < _lastBlobArea * 0.8 && _numUpdatesInvalid < 10;
 
-    return predictedPosition;
+    std::cout << "blobArea: " << blobArea << std::endl;
+    // if the blob is too small and we haven't had too many invalid blobs
+    if (invalidBlob)
+    {
+        std::cout << "Invalid blob" << std::endl;
+        // we are invalid, so increment the number of invalid blobs
+        _numUpdatesInvalid++;
+    }
+    else
+    {
+        std::cout << "valid blob" << std::endl;
+        // reset the number of invalid blobs
+        _numUpdatesInvalid = 0;
+        _lastBlobArea = blobArea;
+    }
+
+    return !invalidBlob;
 }
 
 /**
  * @brief updates with both visual and imu information. this should only be called for our robot (since we have our imu)
  * However, sometimes we don't have the visual information in which we call UpdateIMUOnly
 */
-#define VISUAL_LOCATION_INTERP_WEIGHT 1.0
 #define FUSE_ANGLE_WEIGHT 0.01
 
 void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 {
-    // put text that we are using vision
-    SAFE_DRAW
-    cv::putText(drawingImage, "Using Vision and IMU", cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 255), 2);
-    END_SAFE_DRAW
-
     //////////////////////// POS ////////////////////////
-    // predict where we are now using the velocity from the last update and the current velocity
-    cv::Point2f imuPos = PredictCurrPosUsingAvgVelocity(_position, _lastVelocity, GetImuVelocity(), _lastUpdateClock.getElapsedTime());
-    // do a weighted average of the predicted position and the visual position to smooth out the noise in the visual position
-    cv::Point2f fusedPos = InterpolatePoints(imuPos, blob.center, VISUAL_LOCATION_INTERP_WEIGHT);
+    cv::Point2f visualPos = blob.center;
+    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
+
+    bool valid = _IsValidBlob(blob);
 
     //////////////////////// VEL ////////////////////////
-    cv::Point2f smoothedVisualVelocity = GetSmoothedVisualVelocity(blob);
+    cv::Point2f smoothedVisualVelocity = _GetSmoothedVisualVelocity(blob);
+    if (!valid)
+    {
+        smoothedVisualVelocity = _lastVelocity;
+    }
 
-    //////////////////////// ANGLE ////////////////////////
+    /////////////////////// ANGLE ///////////////////////
     // set the fused angle to the imu angle
-    double fusedAngle = UpdateAndGetIMUAngle();
+    double fusedAngle = _UpdateAndGetIMUAngle();
     // calculate angle using the visual information
     double visualAngle = CalcAnglePathTangent();
     // if can use the visual information
@@ -203,15 +174,10 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     {
         // if we have visual information, use the visual angle
         fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);
-
-        // draw arrow at our position and fused angle
-        SAFE_DRAW
-        cv::arrowedLine(drawingImage, fusedPos, fusedPos + cv::Point2f(100 * cos(fusedAngle), 100 * sin(fusedAngle)), cv::Scalar(255, 0, 255), 2);
-        END_SAFE_DRAW
     }
 
     // update using the weighted average
-    PostUpdate(fusedPos, smoothedVisualVelocity, Angle(fusedAngle));
+    _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
 }
 
 /**
@@ -219,24 +185,20 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 */
 void RobotOdometry::UpdateIMUOnly()
 {
-    // put text that we are using vision
-    SAFE_DRAW
-    cv::putText(drawingImage, "Using IMU Only", cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
-    END_SAFE_DRAW
-
     //////////////////////// POS ////////////////////////
     // predict where we are now using the velocity from the last update and the current velocity
-    cv::Point2f predictedPosition = PredictCurrPosUsingAvgVelocity(_position, _lastVelocity, GetImuVelocity(), _lastUpdateClock.getElapsedTime());
+    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
 
     //////////////////////// VEL ////////////////////////
-    cv::Point2f imuVelocity = GetImuVelocity();
+    // just use the last velocity
+    cv::Point2f velocity = _lastVelocity;
 
     //////////////////////// ANGLE ////////////////////////
     // set the angle using just the imu
-    Angle angle = Angle(UpdateAndGetIMUAngle());
+    Angle angle = Angle(_UpdateAndGetIMUAngle());
 
     // update normally
-    PostUpdate(_position, imuVelocity, angle);
+    _PostUpdate(_position, velocity, angle);
 }
 
 /**
@@ -249,9 +211,19 @@ void RobotOdometry::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
     //////////////////////// POS ////////////////////////
     // use the blob's center for the visual position
     cv::Point2f visualPosition = blob.center;
+    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
+    bool valid = _IsValidBlob(blob);
+    if (!valid)
+    {
+        visualPosition = predictedPosition;
+    }
 
     //////////////////////// VEL ////////////////////////
-    cv::Point2f smoothedVisualVelocity = GetSmoothedVisualVelocity(blob);
+    cv::Point2f smoothedVisualVelocity = _GetSmoothedVisualVelocity(blob);
+    if (!valid)
+    {
+        smoothedVisualVelocity = _lastVelocity;
+    }
 
     //////////////////////// ANGLE ////////////////////////
     Angle angle = CalcAnglePathTangent();
@@ -262,7 +234,7 @@ void RobotOdometry::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
     }   
 
     // update using the visual information
-    PostUpdate(visualPosition, smoothedVisualVelocity, angle);
+    _PostUpdate(visualPosition, smoothedVisualVelocity, angle);
 }
 
 
@@ -286,7 +258,7 @@ double RobotOdometry::UpdateForceSetAngle(double newAngle)
  * 
  * @return the new angle with the change in angle added
 */
-double RobotOdometry::UpdateAndGetIMUAngle()
+double RobotOdometry::_UpdateAndGetIMUAngle()
 {
     // 1. compute angle change
     // get the new angle
@@ -296,10 +268,8 @@ double RobotOdometry::UpdateAndGetIMUAngle()
     // update the last angle
     _lastIMUAngle = newAngleImuRad;
 
-
     // 2. compute and save angular velocity for later
     _angleVelocity = GetImuAngleVelocityRadPerSec();
-
 
     // 3. return the current angle + change in angle
     return _angle + angleChange;
@@ -308,8 +278,8 @@ double RobotOdometry::UpdateAndGetIMUAngle()
 /**
  * Smooths out the visual velocity so it's not so noisy
 */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 33
-cv::Point2f RobotOdometry::GetSmoothedVisualVelocity(MotionBlob& blob)
+#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 66
+cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
 {
     if (_lastVelocityCalcClock.getElapsedTime() > 0.1)
     {
@@ -331,7 +301,7 @@ cv::Point2f RobotOdometry::GetSmoothedVisualVelocity(MotionBlob& blob)
     return smoothedVisualVelocity;
 }
 
-void RobotOdometry::PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle angle)
+void RobotOdometry::_PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle angle)
 {
     // update our velocity, position, and angle
     _lastVelocity = velocity;

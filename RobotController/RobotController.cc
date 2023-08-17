@@ -137,6 +137,7 @@ void RobotController::ProduceDrawingImage()
 
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
+    static int updatesWithoutOpponent = 0;
     // if we didn't get a new image, don't update the robot trackers
     if (!classification.GetHadNewImage())
     {
@@ -163,11 +164,15 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
         MotionBlob opponent = *classification.GetOpponentBlob();
         cv::Mat& frame = *(classification.GetOpponentBlob()->frame);
         RobotOdometry::Opponent().UpdateVisionOnly(opponent, frame);
+        updatesWithoutOpponent = 0;
     }
     else
     {
-        // set the opponent to invalid (sets their velocity to 0)
-        RobotOdometry::Opponent().Invalidate();
+        updatesWithoutOpponent++;
+        if (updatesWithoutOpponent > 10)
+        {
+            RobotOdometry::Opponent().Invalidate();
+        }
     }
 }
 
@@ -319,17 +324,22 @@ DriveCommand RobotController::OrbitMode()
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
     // scale the radius based on our velocity
     double targetRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
+    double distToCenter = cv::norm(ourPosition - opponentPosEx);
+
+    // if (distToCenter < ORBIT_RADIUS)
+    // {
+    //     targetRadius *= 0.5;
+    // }
+
     // slowly change the radius to the target radius
     radius += (targetRadius - radius) * 0.05;
 
     // CLIP THE RADIUS TO NEVER BE TOO BIG AS TO GO MORE THAN 180
-    double distToCenter = cv::norm(ourPosition - opponentPosEx);
     double distanceToOtherEdgeOfCircle = distToCenter + ORBIT_RADIUS;
     if (radius > distanceToOtherEdgeOfCircle*0.99)
     {
         radius = distanceToOtherEdgeOfCircle * 0.99;
     }
-
     // default to the angle from the opponent to us
     cv::Point2f targetPoint = opponentPosEx + cv::Point2f(ORBIT_RADIUS * cos(angleOpponentToUs), ORBIT_RADIUS * sin(angleOpponentToUs));
     std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, radius, opponentPosEx, ORBIT_RADIUS);
@@ -350,8 +360,10 @@ DriveCommand RobotController::OrbitMode()
     double distToTargetPoint = cv::norm(targetPoint - ourPosition);
     double distToOpponent = cv::norm(ourPosition - opponentPosEx);
     double distToTangent1 = cv::norm(tangent1 - ourPosition);
-    if (distToOpponent > ORBIT_RADIUS && distToTargetPoint < distToTangent1)
+    // if we are really far away from the opponent
+    if (distToOpponent > ORBIT_RADIUS * 2)
     {
+        // go to the tangent point
         targetPoint = tangent1;
     }
 

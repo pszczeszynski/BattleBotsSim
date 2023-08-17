@@ -43,13 +43,16 @@ public:
     double GetAngleVelocity();
 
     void InvertAngle();
-    cv::Point2f GetImuVelocity();
 
 private:
-    void PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
+    bool _IsValidBlob(MotionBlob& blob);
+    double _lastBlobArea;
+    int _numUpdatesInvalid;
 
-    double UpdateAndGetIMUAngle();
-    cv::Point2f GetSmoothedVisualVelocity(MotionBlob& blob);
+    void _PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
+    double _UpdateAndGetIMUAngle();
+    cv::Point2f _GetSmoothedVisualVelocity(MotionBlob& blob);
+
     double _lastIMUAngle;
 
     Angle _angle;
