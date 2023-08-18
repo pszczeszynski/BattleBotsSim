@@ -9,6 +9,12 @@
  * should be the same on both. Please don't change just one.
 */
 
+enum SendOutput {
+    SEND_SUCCESS,
+    FIFO_FAIL,
+    HW_FAULT
+};
+
 template <typename SendType, typename ReceiveType>
 class Radio
 {
@@ -16,7 +22,7 @@ public:
     Radio();
     void InitRadio();
 
-    void Send(SendType& message);
+    SendOutput Send(SendType& message);
     ReceiveType Receive();
 
     bool Available();
@@ -48,14 +54,16 @@ void Radio<SendType, ReceiveType>::InitRadio()
 unsigned long lastTimeReceivedMessage = 0;
 
 #define SEND_FIFO_TIMEOUT_MS 100
+
 /**
  * Receives a message from the driver station
  */
 template <typename SendType, typename ReceiveType>
-void Radio<SendType, ReceiveType>::Send(SendType &message)
+SendOutput Radio<SendType, ReceiveType>::Send(SendType &message)
 {
     radio.stopListening();
     radio.write(&message, sizeof(SendType));
+    SendOutput ret = SEND_SUCCESS;
 
     // check time
     unsigned long currentTime = millis();
@@ -73,6 +81,7 @@ void Radio<SendType, ReceiveType>::Send(SendType &message)
 #endif
             // reinit
             InitRadio();
+            ret = FIFO_FAIL;
             break;
         }
     }
@@ -87,9 +96,11 @@ void Radio<SendType, ReceiveType>::Send(SendType &message)
         InitRadio();
         // reset failure flag
         radio.failureDetected = false;
+        ret = HW_FAULT;
     }
 
     radio.startListening();
+    return ret;
 }
 
 template <typename SendType, typename ReceiveType>

@@ -8,8 +8,11 @@
 #include "Communication.h"
 
 #define VERBOSE_RADIO
+#define LOG_DATA
+
 #include "Radio.h"
 #include "IMU.h"
+#include "Logging.h"
 
 #define SERIAL_BAUD 9600
 
@@ -22,6 +25,7 @@ IMU* imu;
 
 VESC* vesc;
 Radio<RobotMessage, DriveCommand>* radio;
+Logger* logger;
 
 //===============================================================================
 //  Initialization
@@ -41,6 +45,10 @@ void setup()
 
     Serial.println("Initializing radio...");
     radio = new Radio<RobotMessage, DriveCommand>();
+    Serial.println("Success!");
+
+    Serial.println("Initializing SD card...");
+    logger = new Logger("dataLog.txt");
     Serial.println("Success!");
 
     vesc->Drive(0, 0);
@@ -123,6 +131,10 @@ RobotMessage Update()
 
     ret.valid = true;
 
+#ifdef LOG_DATA
+    logger->logMessage(logger->formatRobotMessage(ret));
+#endif
+
     return ret;
 }
 
@@ -151,6 +163,9 @@ void WaitForRadioData()
             if (TIMEOUT_COUNT % 10 == 0)
             {
                 // attempt to reinitialize the radio
+#ifdef LOG_DATA
+                logger->logMessage("Re-initializing Radio");
+#endif
                 radio->InitRadio();
             }
 
@@ -190,6 +205,10 @@ void DriveWithLatestMessage()
 
         // update the last receive time
         lastReceiveTime = millis();
+
+#ifdef LOG_DATA
+        logger->logMessage(logger->formatDriveCommand(command));
+#endif
     }
 
     // if haven't received a message in a while, stop the robot
@@ -203,8 +222,13 @@ void DriveWithLatestMessage()
         command.valid = true;
         Drive(command);
         DriveWeapons(command);
+#ifdef LOG_DATA
+        logger->logMessage("Radio Timeout");
+#endif
     }
 }
+
+
 
 //===============================================================================
 //  Main
@@ -221,5 +245,10 @@ void loop()
     RobotMessage message = Update();
 
     // send the message
-    radio->Send(message);
+    SendOutput result = radio->Send(message);
+
+#ifdef LOG_DATA
+    if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
+    else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
+#endif
 }
