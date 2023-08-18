@@ -11,6 +11,14 @@
 // the maximum acceleration in m/s^2
 #define MAX_ACCEL_MPSS 15
 
+#define AMPS_WARN 100
+#define AMPS_RED 120
+#define VOLT_WARN 60
+#define VOLT_RED 55
+#define TEMP_WARN 40
+#define TEMP_RED 50
+
+
 IMUWidget* IMUWidget::_instance = nullptr;
 
 IMUWidget::IMUWidget(QWidget *parent) : QLabel(parent)
@@ -95,6 +103,50 @@ void IMUWidget::Update()
     cv::line(mat, point1, point3, dottedCircleColor, 1, cv::LINE_AA);
     cv::line(mat, point2, point4, dottedCircleColor, 1, cv::LINE_AA);
 
+
+    //////////// VESC VISUALIZATION ////////////
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,0);
+        QPalette palette = label->palette();
+
+        if (msg.motorCurrent[i] < AMPS_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (msg.motorCurrent[i] < AMPS_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,1);
+        QPalette palette = label->palette();
+
+        if (msg.motorVoltage[i] > VOLT_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (msg.motorCurrent[i] > VOLT_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
+
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     if (msg.motorRPM[i] < 100) // set colour green;
+    //     else if (msg.motorCurrent[i] < 120) //set colour yellow;
+    //     else //set colour green;
+    // }
+
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,3);
+        QPalette palette = label->palette();
+
+        if (msg.escFETTemp[i] < TEMP_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (msg.escFETTemp[i] < TEMP_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
 
 
     // lock the mutex

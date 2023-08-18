@@ -71,7 +71,7 @@ void addLabeledSpinBox(QMainWindow* window, const QString& label, int& value, bo
  * @param left Whether to place the label on the left or right side of the window
  * @param refreshIntervalMs The interval in milliseconds to refresh the label text, default is 50 ms
  */
-void addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updateTextLambda, bool left = true,
+QLabel* addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updateTextLambda, bool left = true,
                           int refreshIntervalMs = 50, int width = COLUMN_WIDTH, int x_offset = 0)
 {
     int shiftAmount = LABEL_HEIGHT + widgetVerticalMargin;
@@ -112,6 +112,7 @@ void addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updateTe
         nextWidgetYRight += shiftAmount;
     }
 
+    return label;
 }
 
 // Helper function to add a labeled slider
@@ -430,22 +431,22 @@ RobotControllerGUI::RobotControllerGUI()
     for (int i = 0; i < 4; i ++)
     {
         // left drive
-        addAutoUpdatingLabel(this, [i, motorNames]()
+        vescInfo[i][0] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
             return QString((motorNames[i] + " amps: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorCurrent[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 0);
 
-        addAutoUpdatingLabel(this, [i, motorNames]()
+        vescInfo[i][1] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
             return QString((motorNames[i] + " volts: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorVoltage[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4);
 
-        addAutoUpdatingLabel(this, [i, motorNames]()
+        vescInfo[i][2] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
             return QString((motorNames[i] + " rpm: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorRPM[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4);
 
-        addAutoUpdatingLabel(this, [i, motorNames]()
+        vescInfo[i][3] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
             return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().escFETTemp[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4);
@@ -528,6 +529,16 @@ RobotControllerGUI& RobotControllerGUI::GetInstance()
 QLabel* RobotControllerGUI::GetImageLabel()
 {
     return _imageLabel;
+}
+
+// Function to provide access to the vescInfo array
+QLabel* RobotControllerGUI::GetVescInfo(int row, int column) {
+    if (row >= 0 && row < 4 && column >= 0 && column < 4) {
+        return vescInfo[row][column];
+    } else {
+        // Return nullptr or handle the out-of-bounds condition
+        return nullptr;
+    }
 }
 
 // events
