@@ -124,17 +124,14 @@ bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
     double lastVelocityNorm = cv::norm(_lastVelocity);
     bool invalidBlob = blobArea < _lastBlobArea * 0.8 && _numUpdatesInvalid < 10;
 
-    std::cout << "blobArea: " << blobArea << std::endl;
     // if the blob is too small and we haven't had too many invalid blobs
     if (invalidBlob)
     {
-        std::cout << "Invalid blob" << std::endl;
         // we are invalid, so increment the number of invalid blobs
         _numUpdatesInvalid++;
     }
     else
     {
-        std::cout << "valid blob" << std::endl;
         // reset the number of invalid blobs
         _numUpdatesInvalid = 0;
         _lastBlobArea = blobArea;
@@ -156,6 +153,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
 
     bool valid = _IsValidBlob(blob);
+    valid = true;
 
     //////////////////////// VEL ////////////////////////
     cv::Point2f smoothedVisualVelocity = _GetSmoothedVisualVelocity(blob);
@@ -278,7 +276,7 @@ double RobotOdometry::_UpdateAndGetIMUAngle()
 /**
  * Smooths out the visual velocity so it's not so noisy
 */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 66
+#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 250
 cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
 {
     if (_lastVelocityCalcClock.getElapsedTime() > 0.1)

@@ -151,6 +151,8 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
         MotionBlob robot = *classification.GetRobotBlob();
         cv::Mat& frame = *(classification.GetRobotBlob()->frame);
         RobotOdometry::Robot().UpdateVisionAndIMU(robot, frame);
+
+        cv::rectangle(drawingImage, robot.rect, cv::Scalar(255, 0, 0, 1));
     }
     else
     {
@@ -326,6 +328,16 @@ DriveCommand RobotController::OrbitMode()
     double targetRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
     double distToCenter = cv::norm(ourPosition - opponentPosEx);
 
+
+    if (targetRadius > PURE_PURSUIT_RADIUS * 3)
+    {
+        targetRadius = PURE_PURSUIT_RADIUS * 3;
+    }
+
+    if (targetRadius < PURE_PURSUIT_RADIUS * 0.5)
+    {
+        targetRadius = PURE_PURSUIT_RADIUS * 0.5;
+    }
     // if (distToCenter < ORBIT_RADIUS)
     // {
     //     targetRadius *= 0.5;
@@ -476,9 +488,7 @@ DriveCommand RobotController::RobotLogic()
 
     DriveCommand ret = responseManual;
 
-    responseManual.movement = 1.0;
-
-    if (true || gamepad.GetLeftBumper())
+    if (gamepad.GetLeftBumper())
     {
         ret.turn = responseOrbit.turn;
         ret.movement = responseManual.movement * responseOrbit.movement;

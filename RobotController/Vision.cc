@@ -105,7 +105,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.05, 2);
+    const float MIN_AREA = pow(frame.cols * 0.07, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -117,7 +117,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     cv::Mat grayDiff;
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
-    const int LOW_THRESHOLD = 30;
+    const int LOW_THRESHOLD = 14;
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
@@ -182,6 +182,9 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
         // add the average to the list of robot centers
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
+
+    cv::imshow("thresh", thresholdImg);
+    cv::waitKey(1);
 
     // classify the blobs and save them for later
     return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);

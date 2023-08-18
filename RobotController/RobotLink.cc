@@ -19,7 +19,7 @@ RobotMessage IRobotLink::Receive()
 }
 
 
-#define TRANSMITTER_COM_PORT TEXT("COM6")
+#define TRANSMITTER_COM_PORT TEXT("COM9")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -129,10 +129,10 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 #define MIN_INTER_SEND_TIME_MS 5
 void RobotLinkReal::Drive(DriveCommand &command)
 {
-    command.movement *= 0.1;
-    command.turn *= 0.1;
-    // swap movement and turn
-    command.movement *= -1;
+    // std::cout << "command.movement: " << command.movement << std::endl;
+    command.movement *= -0.3;
+    command.turn *= -0.3;
+    // command.turn *= -1;
     double temp = command.movement;
     command.movement = command.turn;
     command.turn = temp;

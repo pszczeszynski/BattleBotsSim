@@ -43,7 +43,8 @@ void CalculateTangentPoints(const cv::Point2f& center, float radius, const cv::P
     float dist = cv::norm(center - externalPoint);
     if (dist < radius)
     {
-        std::cerr << "ERROR CalculateTangentPoints: The external point is inside the circle" << std::endl;
+        // std::cerr << "ERROR CalculateTangentPoints: The external point is inside the circle" << std::endl;
+        return;
     }
 
     // Calculate the angle for the two tangent lines

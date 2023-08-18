@@ -140,9 +140,14 @@ static void VESC::OnMessage(const CAN_message_t &msg)
     }
 }
 
+float absolute(float f)
+{
+    return f > 0 ? f : -f;
+}
+
 void VESC::_SetMotorPower(float power, int motorIndex)
 {
-    if (abs(power) <= 0.001 && abs(lastPowers[motorIndex]) <= 0.001)
+    if (absolute(power) <= 0.01f && absolute(lastPowers[motorIndex]) <= 0.01f)
     {
         return;
     }
@@ -166,7 +171,6 @@ void VESC::_SetMotorPower(float power, int motorIndex)
 
     CAN1.write(message);
 }
-
 void VESC::Drive(float leftPower, float rightPower)
 {
     _SetMotorPower(leftPower, l_drive);
