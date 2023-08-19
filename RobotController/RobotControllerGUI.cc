@@ -534,7 +534,7 @@ QLabel* RobotControllerGUI::GetImageLabel()
 // Function to provide access to the vescInfo array
 QLabel* RobotControllerGUI::GetVescInfo(int motor, int dataType)
 {
-    if (motor >= 0 && motor < 4 && dataType >= 0 && dataType < 4)
+    if (motor >= 0 && motor < MOTOR_COUNT && dataType >= 0 && dataType < 4)
     {
         return vescInfo[motor][dataType];
     }

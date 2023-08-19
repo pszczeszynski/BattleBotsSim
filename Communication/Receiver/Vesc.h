@@ -1,14 +1,7 @@
 #pragma once
 #include <FlexCAN_T4.h>
+#include "Communication.h"
 #define CAN_RATE 500000 // must match vec set can rate
-
-enum MotorIndexes
-{
-    l_drive = 0,
-    r_drive,
-    f_weapon,
-    b_weapon
-};
 
 class VESC
 {

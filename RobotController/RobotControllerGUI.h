@@ -17,6 +17,7 @@
 #include "Input/Input.h"
 #include "UIWidgets/IMUWidget.h"
 #include "Clock.h"
+#include "../Communication/Communication.h"
 
 class RobotControllerGUI : public QMainWindow
 {
@@ -49,7 +50,7 @@ private:
     IMUWidget *_imuWidget;
     Clock _displayImageClock;
 
-    QLabel *vescInfo[4][4];
+    QLabel *vescInfo[MOTOR_COUNT][4];
 };
 
 class TargetRpmProgressBar : public QProgressBar

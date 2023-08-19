@@ -81,6 +81,15 @@ struct IMUData
     float accelY;
 };
 
+#define MOTOR_COUNT 4
+enum MotorIndexes
+{
+    l_drive = 0,
+    r_drive,
+    f_weapon,
+    b_weapon
+};
+
 struct CANData
 {
     unsigned char motorCurrent[4];
@@ -100,7 +109,6 @@ struct RobotMessage
         CANData canData;
     };
 };
-
 
 #pragma pack(pop)
 
