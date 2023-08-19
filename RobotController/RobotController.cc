@@ -9,6 +9,7 @@
 #include <QMainWindow>
 #include <QThread>
 #include <opencv2/core.hpp>
+#include <algorithm>
 
 int main(int argc, char *argv[])
 {
@@ -54,11 +55,19 @@ RobotController& RobotController::GetInstance()
 }
 
 /**
- * Gets the most recent message from the robot
+ * Gets the most recent imu data from the robot
 */
-RobotMessage& RobotController::GetLatestMessage()
+IMUData& RobotController::GetIMUData()
 {
-    return state;
+    return _lastIMUMessage.imuData;
+}
+
+/**
+ * Gets the most recent can data from the robot
+*/
+CANData& RobotController::GetCANData()
+{
+    return _lastCANMessage.canData;
 }
 
 #define FPS_PRINT_TIME_SECONDS 5
@@ -100,12 +109,24 @@ void RobotController::Run()
         // update the gamepad
         gamepad.Update();
 
-        // get the latest classification
-        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
-        UpdateRobotTrackers(classification);
+        // receive the latest message
+        RobotMessage msg = robotLink.Receive();
+        // save the last message type
+        _lastMessageType = msg.type;
+        // save the specific type information in a last struct
+        if (msg.type == RobotMessageType::IMU_DATA)
+        {
+            _lastIMUMessage = msg;
+        }
+        else if (msg.type == RobotMessageType::CAN_DATA)
+        {
+            _lastCANMessage = msg;
+        }
 
-        // receive state info from the robot
-        state = robotLink.Receive();
+        // get the latest classification (very fast)
+        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
+        // update the robot tracker positions
+        UpdateRobotTrackers(classification);
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
@@ -116,6 +137,7 @@ void RobotController::Run()
         // update the GUI
         GuiLogic();
 
+        // if there was a new image
         if (classification.GetHadNewImage())
         {
             // send the drawing image to the GUI
@@ -144,12 +166,12 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
         return;
     }
 
-
     // if vision detected our robot
     if (classification.GetRobotBlob() != nullptr)
     {
         MotionBlob robot = *classification.GetRobotBlob();
         cv::Mat& frame = *(classification.GetRobotBlob()->frame);
+
         RobotOdometry::Robot().UpdateVisionAndIMU(robot, frame);
 
         cv::rectangle(drawingImage, robot.rect, cv::Scalar(255, 0, 0, 1));
@@ -278,9 +300,9 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     response.movement = goToOtherTarget ? drive_scale : -drive_scale;
 
-
     // Draw debugging information
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
+
 
     response.turn *= -1;
 
@@ -288,14 +310,19 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 }
 
 
-double radius = PURE_PURSUIT_RADIUS;
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
  * @param message The current state of the robot
  */
+#define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
+#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
+#define RADIUS_MOVING_AVG_SPEED 0.05
+#define USE_TANGENT_POINTS_DIST ORBIT_RADIUS * 2
+
 DriveCommand RobotController::OrbitMode()
 {
+    static double radius = PURE_PURSUIT_RADIUS;
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     // our pos + angle
@@ -313,7 +340,6 @@ DriveCommand RobotController::OrbitMode()
     // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
-
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, ORBIT_RADIUS, cv::Scalar(255, 0, 0), 1);
     // draw arrow from opponent position at opponent angle
@@ -326,40 +352,32 @@ DriveCommand RobotController::OrbitMode()
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
     // scale the radius based on our velocity
     double targetRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
+    // calculate distance to the center of the circle
     double distToCenter = cv::norm(ourPosition - opponentPosEx);
-
-
-    if (targetRadius > PURE_PURSUIT_RADIUS * 3)
-    {
-        targetRadius = PURE_PURSUIT_RADIUS * 3;
-    }
-
-    if (targetRadius < PURE_PURSUIT_RADIUS * 0.5)
-    {
-        targetRadius = PURE_PURSUIT_RADIUS * 0.5;
-    }
-    // if (distToCenter < ORBIT_RADIUS)
-    // {
-    //     targetRadius *= 0.5;
-    // }
-
-    // slowly change the radius to the target radius
-    radius += (targetRadius - radius) * 0.05;
-
-    // CLIP THE RADIUS TO NEVER BE TOO BIG AS TO GO MORE THAN 180
+    // the radius shouldn't be larger than the distance to the other edge of the circle
     double distanceToOtherEdgeOfCircle = distToCenter + ORBIT_RADIUS;
-    if (radius > distanceToOtherEdgeOfCircle*0.99)
-    {
-        radius = distanceToOtherEdgeOfCircle * 0.99;
-    }
-    // default to the angle from the opponent to us
+    // enforce the targetRadius to be between the min and max scales
+    targetRadius = std::min(targetRadius, PURE_PURSUIT_RADIUS * MAX_PURE_PURSUIT_RADIUS_SCALE);
+    targetRadius = std::max(targetRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
+    targetRadius = std::min(targetRadius, distanceToOtherEdgeOfCircle - 5);
+    // slowly change the radius to the target radius
+    radius += (targetRadius - radius) * RADIUS_MOVING_AVG_SPEED;
+
+    // default the target to be radially from the angle from the opponent to us
     cv::Point2f targetPoint = opponentPosEx + cv::Point2f(ORBIT_RADIUS * cos(angleOpponentToUs), ORBIT_RADIUS * sin(angleOpponentToUs));
     std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, radius, opponentPosEx, ORBIT_RADIUS);
 
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, radius, cv::Scalar(0, 255, 0), 1);
 
-    if (circleIntersections.size() > 0)
+    // if there are 2 intersections
+    if (circleIntersections.size() == 2)
+    {
+        bool index = gamepad.GetRightStickY() > 0 ? 0 : 1;
+        targetPoint = circleIntersections[index];
+    }
+    // else if there is 1 intersection
+    else if (circleIntersections.size() == 1)
     {
         targetPoint = circleIntersections[0];
     }
@@ -369,11 +387,10 @@ DriveCommand RobotController::OrbitMode()
     cv::Point2f tangent2;
     CalculateTangentPoints(opponentPosEx, ORBIT_RADIUS, ourPosition, tangent1, tangent2);
 
-    double distToTargetPoint = cv::norm(targetPoint - ourPosition);
     double distToOpponent = cv::norm(ourPosition - opponentPosEx);
     double distToTangent1 = cv::norm(tangent1 - ourPosition);
     // if we are really far away from the opponent
-    if (distToOpponent > ORBIT_RADIUS * 2)
+    if (distToOpponent >= USE_TANGENT_POINTS_DIST)
     {
         // go to the tangent point
         targetPoint = tangent1;
@@ -382,13 +399,9 @@ DriveCommand RobotController::OrbitMode()
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
 
-    bool allowReverse = false;
-
     // Drive to the opponent position
+    bool allowReverse = false;
     DriveCommand response = DriveToPosition(targetPoint, allowReverse);
-
-    response.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
-    response.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
 
     return response;
 }
@@ -469,6 +482,8 @@ DriveCommand RobotController::ManualMode()
  * RobotLogic
  * The main logic for the robot
  */
+// sets the resolution of the extrapolation
+#define NUM_PREDICTION_ITERS 50
 DriveCommand RobotController::RobotLogic()
 {
     // simulates the movement of the robot
@@ -480,26 +495,44 @@ DriveCommand RobotController::RobotLogic()
     currentState.velocity = RobotOdometry::Robot().GetVelocity();
     currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * ANGLE_EXTRAPOLATE_MS / POSITION_EXTRAPOLATE_MS;
 
-    exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, 50);
+    // if the user wants robot position extrapolation
+    if (POSITION_EXTRAPOLATE_MS > 0)
+    {
+        // predict where the robot will be in a couple milliseconds
+        exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, NUM_PREDICTION_ITERS);
+    }
+    else
+    {
+        // otherwise don't simulate at all
+        exState = currentState;
+    }
 
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = OrbitMode();
 
-
+    // start with just manual control
     DriveCommand ret = responseManual;
 
-    if (gamepad.GetLeftBumper())
+    // if the user activates kill mode
+    if (gamepad.GetRightBumper())
     {
+        // drive directly to the opponent
+        DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
+        ret.turn = responseGoToPoint.turn;
+    }
+    // if driver wants to evade (left bumper)
+    else if (gamepad.GetLeftBumper())
+    {
+        // orbit around them
         ret.turn = responseOrbit.turn;
         ret.movement = responseManual.movement * responseOrbit.movement;
     }
 
-    if (gamepad.GetRightBumper())
-    {
-        DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
-        ret.turn = responseGoToPoint.turn;
-    }
+    // enforce the max speed
+    ret.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+    ret.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
 
+    // return the response
     return ret;
 }
 

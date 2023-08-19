@@ -31,18 +31,14 @@ RobotOdometry& RobotOdometry::Opponent()
 
 static double GetImuAngleRad()
 {
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
     // get angular velocity from imu
-    return robotMessage.rotation;
+    return RobotController::GetInstance().GetIMUData().rotation;
 }
 
 static double GetImuAngleVelocityRadPerSec()
 {
-    // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
     // get angular velocity from imu
-    return robotMessage.rotationVelocity;
+    return RobotController::GetInstance().GetIMUData().rotationVelocity;
 }
 
 // the displacement required to update the angle
@@ -75,9 +71,9 @@ Angle RobotOdometry::CalcAnglePathTangent()
     // }
 
     // get latest message
-    RobotMessage& robotMessage = RobotController::GetInstance().GetLatestMessage();
+    IMUData imuData = RobotController::GetInstance().GetIMUData();
     // get angular velocity from imu
-    double imuSpeedRadPerSec = abs(robotMessage.rotationVelocity);
+    double imuSpeedRadPerSec = abs(imuData.rotationVelocity);
     if (imuSpeedRadPerSec > MAX_ROTATION_SPEED_TO_ALIGN)
     {
         _lastPositionWhenUpdatedAngle = _position;

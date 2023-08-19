@@ -10,7 +10,7 @@
 */
 RobotMessage IRobotLink::Receive()
 {
-    RobotMessage ret {0};
+    RobotMessage ret {RobotMessageType::INVALID};
 
     // mark that we have received a packet
     receiveClock.markStart();
@@ -126,7 +126,7 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
     }
 }
 
-#define MIN_INTER_SEND_TIME_MS 5
+#define MIN_INTER_SEND_TIME_MS 4
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     // std::cout << "command.movement: " << command.movement << std::endl;
@@ -224,7 +224,7 @@ RobotMessage RobotLinkReal::Receive()
 
         // attempt to reopen
         _InitComPort();
-        return RobotMessage{0};
+        return RobotMessage{RobotMessageType::INVALID};
     }
 
     _receiver.update();
@@ -236,6 +236,10 @@ RobotMessage RobotLinkReal::Receive()
     {
         // call super method to update clock
         IRobotLink::Receive();
+    }
+    else
+    {
+        return RobotMessage{RobotMessageType::INVALID};
     }
 
     return retrievedStruct;
@@ -270,9 +274,9 @@ RobotMessage RobotLinkSim::Receive()
     }
     UnityRobotState message = RobotStateParser::parse(received);
 
-    RobotMessage ret{0};
-    ret.rotation = message.robot_orientation;
-    ret.rotationVelocity = message.robot_rotation_velocity;
+    RobotMessage ret{RobotMessageType::IMU_DATA};
+    ret.imuData.rotation = message.robot_orientation;
+    ret.imuData.rotationVelocity = message.robot_rotation_velocity;
 
     // call super method to update clock
     IRobotLink::Receive();

@@ -4,7 +4,6 @@
 // #include "Motor.h"
 
 #include "Vesc.h"
-
 #include "Communication.h"
 
 #define VERBOSE_RADIO
@@ -48,7 +47,7 @@ void setup()
     Serial.println("Success!");
 
     Serial.println("Initializing SD card...");
-    logger = new Logger("dataLog.txt");
+    logger = new Logger(const_cast<char *>("dataLog.txt"));
     Serial.println("Success!");
 
     vesc->Drive(0, 0);
@@ -87,49 +86,44 @@ void DriveWeapons(DriveCommand &command)
 /**
  * Computes response message of robot state data
  */
+#define CAN_UPDATE_INTERVAL 10
 RobotMessage Update()
 {
-    RobotMessage ret{0};
+    static int updateCount = 0;
+    RobotMessage ret{RobotMessageType::INVALID};
 
     // call update for imu
     imu->Update();
 
-    // get accelerometer data and set accel
-    Point accel = imu->getAccel();
-    ret.accelX = accel.x;
-    ret.accelY = accel.y;
+    // increase update count and wrap around
+    updateCount ++;
+    updateCount %= CAN_UPDATE_INTERVAL;
 
-#ifdef PRINT_VELOCITY_ACCEL
-    // print on serial
-    Serial.print("Accel: ");
-    Serial.print(ret.accel.x);
-    Serial.print(", ");
-    Serial.print(ret.accel.y);
-    Serial.print(", ");
-    Serial.print(ret.accel.z);
+    // if time to send a can message
+    if (updateCount == 0)
+    {
+        ret.type = CAN_DATA;
+        vesc->GetCurrents(ret.canData.motorCurrent);
+        vesc->GetVolts(ret.canData.motorVoltage);
+        vesc->GetRPMs(ret.canData.motorRPM);
+        vesc->GetFETTemps(ret.canData.escFETTemp);
+    }
+    // else send imu data
+    else
+    {
+        ret.type = IMU_DATA;
 
-    Serial.print(" | Velocity: ");
-    Serial.print(ret.velocity.x);
-    Serial.print(", ");
-    Serial.print(ret.velocity.y);
-    Serial.print(", ");
-    Serial.print(ret.velocity.z);
-    Serial.println("");
-#endif
+        // get accelerometer data and set accel
+        Point accel = imu->getAccel();
+        ret.imuData.accelX = accel.x;
+        ret.imuData.accelY = accel.y;
 
-    // get gyro data and set gyro
-    ret.rotation = imu->getRotation();
+        // get gyro data and set gyro
+        ret.imuData.rotation = imu->getRotation();
 
-    // calculate rotation velocity
-    ret.rotationVelocity = imu->getRotationVelocity();
-
-    // get motor data
-    vesc->GetCurrents(ret.motorCurrent);
-    vesc->GetVolts(ret.motorVoltage);
-    vesc->GetRPMs(ret.motorRPM);
-    vesc->GetFETTemps(ret.escFETTemp);
-
-    ret.valid = true;
+        // calculate rotation velocity
+        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+    }
 
 #ifdef LOG_DATA
     logger->logMessage(logger->formatRobotMessage(ret));
@@ -162,6 +156,9 @@ void WaitForRadioData()
 
             if (TIMEOUT_COUNT % 10 == 0)
             {
+                // reset counter
+                TIMEOUT_COUNT = 0;
+
                 // attempt to reinitialize the radio
 #ifdef LOG_DATA
                 logger->logMessage("Re-initializing Radio");
@@ -191,11 +188,14 @@ void DriveWithLatestMessage()
     {
         // receive latest drive command
         DriveCommand command = radio->Receive();
+
+        // print every 100 messages
         if (numMessagesReceived % 100 == 0)
         {
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);
         }
+        // increment message count
         numMessagesReceived++;
 
         // drive with message

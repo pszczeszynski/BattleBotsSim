@@ -21,7 +21,8 @@ public:
     RobotController();
     static RobotController& GetInstance();
 
-    RobotMessage& GetLatestMessage();
+    IMUData& GetIMUData();
+    CANData& GetCANData();
 
     float& GetFrontWeaponTargetPowerRef();
     float& GetBackWeaponTargetPowerRef();
@@ -58,7 +59,9 @@ private:
     DualSense gamepad;
 #endif
 
-    RobotMessage state;
+    RobotMessage _lastIMUMessage;
+    RobotMessage _lastCANMessage;
+    RobotMessageType _lastMessageType;
     RobotSimState exState;
 
 #ifdef SIMULATION

@@ -62,21 +62,46 @@ struct DriveCommand
     bool valid; // should always be true, used to check for blank messages
 };
 
-// robot -> driver station
 // disable padding
 #pragma pack(push, 1)
-struct RobotMessage
+
+// robot -> driver station
+enum RobotMessageType : char
 {
-    bool valid;
+    INVALID = 0,
+    IMU_DATA,
+    CAN_DATA
+};
+
+struct IMUData
+{
     float rotation;
     float rotationVelocity;
     float accelX;
     float accelY;
+};
+
+struct CANData
+{
     unsigned char motorCurrent[4];
     unsigned char motorVoltage[4];
     unsigned char motorRPM[4];
     unsigned char escFETTemp[4];
 };
+
+// Union that combines RobotMessage and TelemetryMessage
+struct RobotMessage
+{
+    RobotMessageType type;
+
+    union
+    {
+        IMUData imuData;
+        CANData canData;
+    };
+};
+
+
 #pragma pack(pop)
 
 // indicates the end of a message. All communciation between devices should end with this

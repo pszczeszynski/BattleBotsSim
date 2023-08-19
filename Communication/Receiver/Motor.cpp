@@ -32,8 +32,6 @@ void Motor::SetPower(double power)
     }
 
     motor.writeMicroseconds(pwm);
-    Serial.println("pwm");
-    Serial.println(pwm);
 
     // save the power for next time
     lastPower = power;

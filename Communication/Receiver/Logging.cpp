@@ -60,33 +60,46 @@ String Logger::formatRobotMessage(RobotMessage robotMessage)
 {
     // IMU Portion
     String message = "";
-    message += DoubleToString(millis() / 1000.0);
-    message += ": IMU DATA     { ROT : ";
-    message += DoubleToString(robotMessage.rotation);
-    message += "; ROT_VEL : ";
-    message += DoubleToString(robotMessage.rotationVelocity);
-    message += "; ACCEL_X : ";
-    message += DoubleToString(robotMessage.accelX);
-    message += "; ACCEL_Y : ";
-    message += DoubleToString(robotMessage.accelY);
-    message += " }\n";
 
-    // ESC Data
-    String names[4] = {"LEFT DRIVE  ", "RIGHT DRIVE ", "FRONT WEAPON", "REAR WEAPON "};
-    for (int i = 0; i < 4; i++)
+    // if the message is CAN data
+    if (robotMessage.type == CAN_DATA)
+    {
+        String names[4] = {"LEFT DRIVE  ", "RIGHT DRIVE ", "FRONT WEAPON", "REAR WEAPON "};
+        for (int i = 0; i < 4; i++)
+        {
+            message += DoubleToString(millis() / 1000.0);
+            message += ": ";
+            message += names[i];
+            message += " { I : ";
+            message += DoubleToString(robotMessage.canData.motorCurrent[i]);
+            message += "; V : ";
+            message += DoubleToString(robotMessage.canData.motorVoltage[i]);
+            message += "; RPM : ";
+            message += DoubleToString(robotMessage.canData.motorRPM[i]);
+            message += "; TEMP : ";
+            message += DoubleToString(robotMessage.canData.escFETTemp[i]);
+            message += " }\n";
+        }
+    }
+    // else if the message is IMU data
+    else if (robotMessage.type == IMU_DATA)
     {
         message += DoubleToString(millis() / 1000.0);
-        message += ": ";
-        message += names[i];
-        message += " { I : ";
-        message += DoubleToString(robotMessage.motorCurrent[i]);
-        message += "; V : ";
-        message += DoubleToString(robotMessage.motorVoltage[i]);
-        message += "; RPM : ";
-        message += DoubleToString(robotMessage.motorRPM[i]);
-        message += "; TEMP : ";
-        message += DoubleToString(robotMessage.escFETTemp[i]);
+        message += ": IMU DATA     { ROT : ";
+        message += DoubleToString(robotMessage.imuData.rotation);
+        message += "; ROT_VEL : ";
+        message += DoubleToString(robotMessage.imuData.rotationVelocity);
+        message += "; ACCEL_X : ";
+        message += DoubleToString(robotMessage.imuData.accelX);
+        message += "; ACCEL_Y : ";
+        message += DoubleToString(robotMessage.imuData.accelY);
         message += " }\n";
+    }
+    // else invalid message
+    else
+    {
+        message += DoubleToString(millis() / 1000.0);
+        message += ": INVALID MESSAGE!\n";
     }
 
     return message;
@@ -97,7 +110,6 @@ String Logger::formatRobotMessage(RobotMessage robotMessage)
   */
 bool Logger::logMessage(String message)
 {
-    Serial.println("Begin Log");
     if (initialized && !overflow)
     {
         // open the file.

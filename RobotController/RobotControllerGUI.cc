@@ -433,22 +433,22 @@ RobotControllerGUI::RobotControllerGUI()
         // left drive
         vescInfo[i][0] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
-            return QString((motorNames[i] + " amps: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorCurrent[i])).c_str());
+            return QString((motorNames[i] + " amps: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorCurrent[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 0);
 
         vescInfo[i][1] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
-            return QString((motorNames[i] + " volts: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorVoltage[i])).c_str());
+            return QString((motorNames[i] + " volts: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorVoltage[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4);
 
         vescInfo[i][2] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
-            return QString((motorNames[i] + " rpm: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().motorRPM[i])).c_str());
+            return QString((motorNames[i] + " rpm: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorRPM[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4);
 
         vescInfo[i][3] = addAutoUpdatingLabel(this, [i, motorNames]()
         {
-            return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetLatestMessage().escFETTemp[i])).c_str());
+            return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetCANData().escFETTemp[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4);
     }
 

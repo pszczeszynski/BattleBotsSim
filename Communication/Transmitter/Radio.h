@@ -40,7 +40,9 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
+#ifdef VERBOSE_RADIO
     Serial.println("Initializing radio");
+#endif
     const byte address[6] = "00001";
     radio.begin();
     radio.openReadingPipe(1, address);

@@ -77,8 +77,7 @@ void loop()
     {
         // read data from rc
         RobotMessage message = radio->Receive();
-
-        if (message.valid)
+        if (message.type != RobotMessageType::INVALID)
         {
             // turn on arduino led
             digitalWrite(LED_PORT, HIGH);

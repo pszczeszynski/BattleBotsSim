@@ -51,10 +51,10 @@ void IMUWidget::Update()
 {
 
     // get the latest message
-    RobotMessage msg = RobotController::GetInstance().GetLatestMessage();
+    IMUData imuData = RobotController::GetInstance().GetIMUData();
     // get the acceleration
-    float accelX = msg.accelX;
-    float accelY = msg.accelY;
+    float accelX = imuData.accelX;
+    float accelY = imuData.accelY;
 
     // get the midpoint
     cv::Point2f midPoint = cv::Point2f(WIDGET_RADIUS, WIDGET_RADIUS);
@@ -86,7 +86,7 @@ void IMUWidget::Update()
 
     /////////// GYRO VISUALIZATION ///////////
     // get the gyro data
-    float rotation = msg.rotation;
+    float rotation = imuData.rotation;
 
     // draw a dotted circle, rotated by the rotation
     cv::Scalar dottedCircleColor = cv::Scalar(255, 255, 255, 255);
