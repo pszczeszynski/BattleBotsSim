@@ -25,6 +25,8 @@ public slots:
     void Draw();
 
 private:
+    void _UpdateIMUInfos();
+    void _UpdateVESCInfos();
     static IMUWidget* _instance;
 
     cv::Mat _mat;

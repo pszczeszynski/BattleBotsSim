@@ -12,12 +12,11 @@
 #define MAX_ACCEL_MPSS 15
 
 #define AMPS_WARN 100
-#define AMPS_RED 120
+#define AMPS_RED 200
 #define VOLT_WARN 60
-#define VOLT_RED 55
-#define TEMP_WARN 40
-#define TEMP_RED 50
-
+#define VOLT_RED 58
+#define TEMP_WARN 70
+#define TEMP_RED 80
 
 IMUWidget* IMUWidget::_instance = nullptr;
 
@@ -44,14 +43,61 @@ void IMUWidget::SetMat(const cv::Mat& mat)
     _matMutex.unlock();
 }
 
-/**
- * Draws the new drawing image
- */
-void IMUWidget::Update()
+void IMUWidget::_UpdateVESCInfos()
 {
+    CANData canData = RobotController::GetInstance().GetCANData();
 
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 0);
+        QPalette palette = label->palette();
+
+        if (canData.motorCurrent[i] < AMPS_WARN)
+            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (canData.motorCurrent[i] < AMPS_RED)
+            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else
+            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 1);
+        QPalette palette = label->palette();
+
+        if (canData.motorVoltage[i] > VOLT_WARN)
+            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (canData.motorCurrent[i] > VOLT_RED)
+            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else
+            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 3);
+        QPalette palette = label->palette();
+
+        if (canData.escFETTemp[i] < TEMP_WARN)
+            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
+        else if (canData.escFETTemp[i] < TEMP_RED)
+            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
+        else
+            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
+
+        label->setPalette(palette);
+    }
+}
+
+void IMUWidget::_UpdateIMUInfos()
+{
     // get the latest message
     IMUData imuData = RobotController::GetInstance().GetIMUData();
+
     // get the acceleration
     float accelX = imuData.accelX;
     float accelY = imuData.accelY;
@@ -82,8 +128,6 @@ void IMUWidget::Update()
                           WIDGET_RADIUS + (accelY / MAX_ACCEL_MPSS) * WIDGET_RADIUS);
     cv::circle(mat, dotCenter, 15, blue, 3);
 
-
-
     /////////// GYRO VISUALIZATION ///////////
     // get the gyro data
     float rotation = imuData.rotation;
@@ -95,59 +139,13 @@ void IMUWidget::Update()
     cv::Point2f point1(center.x + radius * cos(rotation),
                        center.y + radius * sin(rotation));
     cv::Point2f point2(center.x + radius * cos(rotation + M_PI / 2),
-                          center.y + radius * sin(rotation + M_PI / 2));
+                       center.y + radius * sin(rotation + M_PI / 2));
     cv::Point2f point3(center.x + radius * cos(rotation + M_PI),
-                            center.y + radius * sin(rotation + M_PI));
+                       center.y + radius * sin(rotation + M_PI));
     cv::Point2f point4(center.x + radius * cos(rotation + 3 * M_PI / 2),
-                              center.y + radius * sin(rotation + 3 * M_PI / 2));
+                       center.y + radius * sin(rotation + 3 * M_PI / 2));
     cv::line(mat, point1, point3, dottedCircleColor, 1, cv::LINE_AA);
     cv::line(mat, point2, point4, dottedCircleColor, 1, cv::LINE_AA);
-
-
-    //////////// VESC VISUALIZATION ////////////
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,0);
-        QPalette palette = label->palette();
-
-        if (msg.motorCurrent[i] < AMPS_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (msg.motorCurrent[i] < AMPS_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,1);
-        QPalette palette = label->palette();
-
-        if (msg.motorVoltage[i] > VOLT_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (msg.motorCurrent[i] > VOLT_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
-
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     if (msg.motorRPM[i] < 100) // set colour green;
-    //     else if (msg.motorCurrent[i] < 120) //set colour yellow;
-    //     else //set colour green;
-    // }
-
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i,3);
-        QPalette palette = label->palette();
-
-        if (msg.escFETTemp[i] < TEMP_WARN) palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (msg.escFETTemp[i] < TEMP_RED) palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
-
 
     // lock the mutex
     _matMutex.lock();
@@ -155,6 +153,15 @@ void IMUWidget::Update()
     mat.copyTo(_mat);
     // unlock the mutex
     _matMutex.unlock();
+}
+
+/**
+ * Draws the new drawing image
+ */
+void IMUWidget::Update()
+{
+    _UpdateIMUInfos();
+    _UpdateVESCInfos();
 }
 
 void IMUWidget::Draw()
