@@ -40,6 +40,7 @@ public slots:
     void Run();
 private:
     double _CalculateOrbitRadius(cv::Point2f opponentPosEx);
+    cv::Point2f _NoMoreAggressiveThanTangent(cv::Point2f ourPosition, cv::Point2f opponentPosEx, double orbitRadius, cv::Point2f currentTargetPoint, bool circleDirection);
 
     DriveCommand RobotLogic();
     DriveCommand OrbitMode();

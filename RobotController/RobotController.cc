@@ -287,6 +287,8 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
         goToOtherTarget = abs(deltaAngleRad1_noex) < abs(deltaAngleRad2_noex);
     }
 
+    goToOtherTarget = gamepad.GetRightStickY() > 0;
+
     double deltaAngleRad = goToOtherTarget ? deltaAngleRad1 : deltaAngleRad2;
 
     DriveCommand response{0, 0};
@@ -345,6 +347,7 @@ double RobotController::_CalculateOrbitRadius(cv::Point2f opponentPosEx)
     double orbitRadius = ORBIT_RADIUS;
     double distToOpponent = cv::norm(ourPosition - opponentPosEx);
 
+    // scale the radius based on the triggers
     orbitRadius *= 1.0 + gamepad.GetRightTrigger();
     orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
 
@@ -357,6 +360,63 @@ double RobotController::_CalculateOrbitRadius(cv::Point2f opponentPosEx)
     return orbitRadius;
 }
 
+/**
+ * Makes sure the currentTargetPoint doesn't go more into the circle than the tangent point
+*/
+cv::Point2f RobotController::_NoMoreAggressiveThanTangent(cv::Point2f ourPosition, cv::Point2f opponentPosEx, double orbitRadius, cv::Point2f currentTargetPoint, bool circleDirection)
+{
+    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
+
+    bool direction = gamepad.GetRightStickY() >= 0;
+
+    // if we are inside the circle, then just return the currentTargetPoint since can't take tangent
+    if (distToOpponent <= orbitRadius)
+    {
+        return currentTargetPoint;
+    }
+
+    // calculate tangent points
+    cv::Point2f tangent1;
+    cv::Point2f tangent2;
+    CalculateTangentPoints(opponentPosEx, orbitRadius, ourPosition, tangent1, tangent2);
+
+    if (!circleDirection)
+    {
+        // swap
+        cv::Point2f temp = tangent1;
+        tangent1 = tangent2;
+        tangent2 = temp;
+    }
+
+
+    double distToTangent1 = cv::norm(tangent1 - ourPosition);
+
+    // calculate angle from opponent to us
+    double angleOpponentToUs = atan2(ourPosition.y - opponentPosEx.y, ourPosition.x - opponentPosEx.x);
+    // calculate angle from opponent to currentTargetPoint
+    double angleOpponentToCurrTarget = atan2(currentTargetPoint.y - opponentPosEx.y, currentTargetPoint.x - opponentPosEx.x);
+    // calculate angle from opponent to tangent1
+    double angleOpponentToTangent1 = atan2(tangent1.y - opponentPosEx.y, tangent1.x - opponentPosEx.x);
+
+
+    // if the tangent point is less aggressive than the currentTargetPoint
+    bool lessAggressive = angle_wrap(angleOpponentToCurrTarget - angleOpponentToUs) < angle_wrap(angleOpponentToTangent1 - angleOpponentToUs);
+    // flip use if applying negative power
+    if (!circleDirection)
+    {
+        lessAggressive = !lessAggressive;
+    }
+    
+    // if the tangent point is less aggressive than the currentTargetPoint
+    if (lessAggressive)
+    {
+        // then use the tangent point
+        currentTargetPoint = tangent1;
+    }
+
+    return currentTargetPoint;
+}
+
 DriveCommand RobotController::OrbitMode()
 {
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
@@ -364,6 +424,7 @@ DriveCommand RobotController::OrbitMode()
 
     // our pos + angle
     cv::Point2f ourPosition = RobotOdometry::Robot().GetPosition();
+    double ourAngle = RobotOdometry::Robot().GetAngle();
 
     // opponent pos + angle
     cv::Point2f opponentPos = RobotOdometry::Opponent().GetPosition();
@@ -372,7 +433,6 @@ DriveCommand RobotController::OrbitMode()
     opponentPosEx = RobotOdometry::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
     double orbitRadius = _CalculateOrbitRadius(opponentPosEx);
-
 
     // get the angle from us to the opponent
     cv::Point2f usToOpponent = opponentPosEx - ourPosition;
@@ -401,42 +461,43 @@ DriveCommand RobotController::OrbitMode()
     targetPurePursuitRadius = std::max(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
     targetPurePursuitRadius = std::min(targetPurePursuitRadius, distanceToOtherEdgeOfCircle - 5);
     // slowly change the radius to the target radius
-
     purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
+    // re-enforce the smoothed radius to not engulf the circle
     purePursuitRadius = std::min(purePursuitRadius, distanceToOtherEdgeOfCircle - 5);
 
     // default the target to be radially from the angle from the opponent to us
     cv::Point2f targetPoint = opponentPosEx + cv::Point2f(orbitRadius * cos(angleOpponentToUs), orbitRadius * sin(angleOpponentToUs));
+
+    // next find the intersection of the pure pursuit circle with the circle around the opponent
     std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, purePursuitRadius, opponentPosEx, orbitRadius);
 
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
 
-    // if there are 2 intersections
-    if (circleIntersections.size() == 2)
+
+
+    bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
+
+    if (gamepad.GetRightStickY() < 0)
     {
-        bool index = gamepad.GetRightStickY() > 0 ? 0 : 1;
-        targetPoint = circleIntersections[index];
+        circleDirection = !circleDirection;
     }
-    // else if there is 1 intersection
+
+    // if there are 2 intersections
+    if (circleIntersections.size() >= 2)
+    {
+        // then use the first intersection
+        targetPoint = circleDirection ? circleIntersections[0] : circleIntersections[1];
+    }
     else if (circleIntersections.size() == 1)
     {
+        // if there is only 1 intersection, then use that
         targetPoint = circleIntersections[0];
     }
+    
 
-    // calculate tangent points
-    cv::Point2f tangent1;
-    cv::Point2f tangent2;
-    CalculateTangentPoints(opponentPosEx, orbitRadius, ourPosition, tangent1, tangent2);
-
-    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
-    double distToTangent1 = cv::norm(tangent1 - ourPosition);
-    // if we are really far away from the opponent
-    // if (distToOpponent >= USE_TANGENT_POINTS_DIST)
-    // {
-    //     // go to the tangent point
-    //     targetPoint = tangent1;
-    // }
+    // // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
+    targetPoint = _NoMoreAggressiveThanTangent(ourPosition, opponentPosEx, orbitRadius, targetPoint, circleDirection);
 
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
@@ -582,7 +643,7 @@ DriveCommand RobotController::RobotLogic()
     {
         // orbit around them
         ret.turn = responseOrbit.turn;
-        ret.movement = responseManual.movement * responseOrbit.movement;
+        ret.movement = responseManual.movement * abs(responseOrbit.movement);
         _orbiting = true;
     }
 
