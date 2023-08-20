@@ -30,13 +30,13 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     // Apply the perspective transformation
     warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT));
 
-    Clock c;
+    // Clock c;
     // stabilize the image
+#ifdef STABALIZE
     _StabalizeImage(dst, dst);
+#endif
 
-    std::cout << "time in ms: " << c.getElapsedTime() * 1000 << std::endl;
-
-
+    // std::cout << "time in ms: " << c.getElapsedTime() * 1000 << std::endl;
 }
 
 void VisionPreprocessor::_StabalizeImage(cv::Mat &frame, cv::Mat &dst)
@@ -51,24 +51,24 @@ void VisionPreprocessor::_StabalizeImage(cv::Mat &frame, cv::Mat &dst)
         return;
     }
 
-    Clock c;
+    // Clock c;
     // compute the translation
     cv::Point2f translation = _TrackFeature(_prevFrame, frame, roi);
 
-    std::cout << "track feature time: " << c.getElapsedTime() * 1000 << std::endl;
+    // std::cout << "track feature time: " << c.getElapsedTime() * 1000 << std::endl;
 
-    c.markStart();
+    // c.markStart();
     // translate and clip the entire image
     cv::Mat translationMatrix = (cv::Mat_<double>(2, 3) << 1, 0, translation.x, 0, 1, translation.y);
     cv::warpAffine(frame, dst, translationMatrix, cv::Size(WIDTH, HEIGHT));
 
-    std::cout << "warp affine time: " << c.getElapsedTime() * 1000 << std::endl;
-    c.markStart();
+    // std::cout << "warp affine time: " << c.getElapsedTime() * 1000 << std::endl;
+    // c.markStart();
 
     // copy dst to the prev frame
     dst.copyTo(_prevFrame);
     
-    std::cout << "copy time: " << c.getElapsedTime() * 1000 << std::endl;
+    // std::cout << "copy time: " << c.getElapsedTime() * 1000 << std::endl;
 
     // draw the roi on dst
     cv::rectangle(dst, roi, cv::Scalar(0, 0, 255), 2);

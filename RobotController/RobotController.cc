@@ -469,9 +469,9 @@ DriveCommand RobotController::OrbitMode()
 
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 1);
-    // draw arrow from opponent position at opponent angle
-    cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
-    cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+    // // draw arrow from opponent position at opponent angle
+    // cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
+    // cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 4);
 
@@ -533,10 +533,10 @@ DriveCommand RobotController::OrbitMode()
     bool allowReverse = false;
     DriveCommand response = DriveToPosition(targetPoint, allowReverse);
 
-    drawAndDisplayValue(drawingImage, cv::norm(RobotOdometry::Robot().GetVelocity()), 50, cv::Scalar(0, 255, 0));
+    // drawAndDisplayValue(drawingImage, cv::norm(RobotOdometry::Robot().GetVelocity()), 50, cv::Scalar(0, 255, 0));
 
-    // draw the result response.movement
-    drawAndDisplayValue(drawingImage, response.movement, WIDTH / 2, cv::Scalar(255, 0, 0));
+    // // draw the result response.movement
+    // drawAndDisplayValue(drawingImage, response.movement, WIDTH / 2, cv::Scalar(255, 0, 0));
 
     return response;
 }

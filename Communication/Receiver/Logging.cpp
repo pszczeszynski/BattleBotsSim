@@ -119,12 +119,12 @@ bool Logger::logMessage(String message)
             dataFile.println(message);
             checkOverflow(dataFile);
             dataFile.close();
-            Serial.println("End Log");
+            // Serial.println("End Log");
             return true;
         } else {
             // if the file isn't open, pop up an error:
-            Serial.println("Error opening datalog.txt");
-            Serial.println("End Log");
+            // Serial.println("Error opening datalog.txt");
+            // Serial.println("End Log");
             return false;
         }
     }
