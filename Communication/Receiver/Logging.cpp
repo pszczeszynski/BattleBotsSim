@@ -106,7 +106,15 @@ String Logger::formatRobotMessage(RobotMessage robotMessage)
 }
 
 /**
-  * Writes given message to datalog.txt on the SD card
+  * Writes a string with timestamp to dataLog.txt on the SD card
+  */
+bool Logger::logString(String message)
+{
+  logMessage(DoubleToString(millis() / 1000.0) + ": " + message);
+}
+
+/**
+  * Writes given message to dataLog.txt on the SD card
   */
 bool Logger::logMessage(String message)
 {

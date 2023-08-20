@@ -15,6 +15,7 @@ public:
     Logger(char* fileName);
     String formatDriveCommand(DriveCommand command);
     String formatRobotMessage(RobotMessage robotMessage);
+    bool logString(String message);
     bool logMessage(String message);
 
 private:

@@ -161,7 +161,7 @@ void WaitForRadioData()
 
                 // attempt to reinitialize the radio
 #ifdef LOG_DATA
-                logger->logMessage("Re-initializing Radio");
+                logger->logString("Re-initializing Radio");
 #endif
                 radio->InitRadio();
             }
@@ -223,7 +223,7 @@ void DriveWithLatestMessage()
         Drive(command);
         DriveWeapons(command);
 #ifdef LOG_DATA
-        logger->logMessage("Radio Timeout");
+        logger->logString("Radio Timeout");
 #endif
     }
 }
@@ -248,7 +248,7 @@ void loop()
     SendOutput result = radio->Send(message);
 
 #ifdef LOG_DATA
-    if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
-    else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
+    if (result == FIFO_FAIL) logger->logString("Radio fifo failed to clear");
+    else if (result == HW_FAULT) logger->logString("Radio hardware failure detected");
 #endif
 }
