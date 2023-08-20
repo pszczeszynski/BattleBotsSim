@@ -20,7 +20,7 @@ const int LABEL_HEIGHT = 30;
 const int SPINBOX_HEIGHT = 30;
 const int SLIDER_HEIGHT = 30;
 
-const int widgetVerticalMargin = 10; // Margin between the label and the spin box or slider
+const int widgetVerticalMargin = 5; // Margin between the label and the spin box or slider
 const int widgetHorizontalMargin = 10; // Margin between the window border and the widgets
 int nextWidgetYLeft = widgetVerticalMargin; // Vertical position of the next widget on the left side
 int nextWidgetYRight = widgetVerticalMargin; // Vertical position of the next widget on the right side
@@ -292,6 +292,7 @@ void addRpmWidget(QMainWindow *window, QString labelString, float &targetRpm, fl
         {
             palette.setColor(QPalette::Highlight, Qt::green);
         }
+
         rpmProgressBar->setPalette(palette);
     };
 
@@ -329,11 +330,12 @@ RobotControllerGUI::RobotControllerGUI()
     addLabeledSpinBox(this, "DriveToPos Max Turn Power (%): ", MAX_TURN_POWER_PERCENT);
     addLabeledSpinBox(this, "DriveToPos Min Turn Power (%): ", MIN_TURN_POWER_PERCENT);
     addLabeledSpinBox(this, "DriveToPos Scale Down Movement (%): ", SCALE_DOWN_MOVEMENT_PERCENT);
-    addLabeledSlider(this, "DriveToPos Angle Extrapolate MS:", ANGLE_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(this, "Orbit Angle Extrapolate MS:", ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
+    addLabeledSlider(this, "Kill Angle Extrapolate MS:", GTP_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "DriveToPos Position Extrapolate MS:", POSITION_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(this, "Master: Orbit Radius:", ORBIT_RADIUS, 0, 300);
-    addLabeledSlider(this, "Master: PP Radius:", PURE_PURSUIT_RADIUS, 0, 300);
-    addLabeledSlider(this, "Master: Orbit dTheta Degrees:", ORBIT_DTHETA_DEG, 0, 300);
+    addLabeledSlider(this, "Orbit Radius:", ORBIT_RADIUS, 0, 300);
+    addLabeledSlider(this, "PP Radius:", PURE_PURSUIT_RADIUS, 0, 300);
+    addLabeledSlider(this, "Orbit Moving Avg Speed (%):", ORBIT_RADIUS_MOVAVG_SPEED, 0, 100);
     addLabeledSlider(this, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     addLabeledSlider(this, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
 

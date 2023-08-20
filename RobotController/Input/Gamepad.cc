@@ -61,6 +61,16 @@ float XBox::GetRightStickY()
     return _controllerState.Gamepad.sThumbRY / RANGE;
 }
 
+float XBox::GetLeftTrigger()
+{
+    return _controllerState.Gamepad.bLeftTrigger / 255.0f;
+}
+
+float XBox::GetRightTrigger()
+{
+    return _controllerState.Gamepad.bRightTrigger / 255.0f;
+}
+
 
 
 DualSense::DualSense() 
@@ -169,5 +179,17 @@ float DualSense::GetRightStickX()
 float DualSense::GetRightStickY()
 {
     if (_initialized) return INT8(_inState.rightStick.y) / RANGE;
+    return 0;
+}
+
+float DualSense::GetLeftTrigger()
+{
+    if (_initialized) return _inState.leftTrigger / 255.0f;
+    return 0;
+}
+
+float DualSense::GetRightTrigger()
+{
+    if (_initialized) return _inState.rightTrigger / 255.0f;
     return 0;
 }

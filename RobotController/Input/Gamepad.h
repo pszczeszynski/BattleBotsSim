@@ -24,6 +24,9 @@ public:
     virtual float GetLeftStickY() = 0;
     virtual float GetRightStickX() = 0;
     virtual float GetRightStickY() = 0;
+
+    virtual float GetLeftTrigger() = 0;
+    virtual float GetRightTrigger() = 0;
 };
 
 
@@ -47,6 +50,9 @@ public:
     virtual float GetLeftStickY() override;
     virtual float GetRightStickX() override;
     virtual float GetRightStickY() override;
+
+    virtual float GetLeftTrigger() override;
+    virtual float GetRightTrigger() override;
 
 private:
     int _controllerIndex;
@@ -79,6 +85,8 @@ public:
     virtual float GetRightStickX() override;
     virtual float GetRightStickY() override;
 
+    virtual float GetLeftTrigger() override;
+    virtual float GetRightTrigger() override;
 private:
     //Array of Controller Infos
     DS5W::DeviceEnumInfo _infos[16];

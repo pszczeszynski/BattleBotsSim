@@ -39,6 +39,7 @@ signals:
 public slots:
     void Run();
 private:
+    double _CalculateOrbitRadius(cv::Point2f opponentPosEx);
 
     DriveCommand RobotLogic();
     DriveCommand OrbitMode();
@@ -76,4 +77,6 @@ private:
 
     float _frontWeaponPower = 0;
     float _backWeaponPower = 0;
+
+    bool _orbiting = false;
 };

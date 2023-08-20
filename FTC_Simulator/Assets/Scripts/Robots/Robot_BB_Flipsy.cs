@@ -97,7 +97,7 @@ public class Robot_BB_Flipsy : RobotInterface3D
         RobotControllerMessage rcMessage = new RobotControllerMessage
         {
             robot_velocity = rb.velocity,
-            robot_rotation = gyroRotationRad,
+            robot_rotation = robot_rotation * Mathf.Deg2Rad,
             robot_rotation_velocity = robotRotationWithNoise,
             opponent_position = opponent_body.position,
             opponent_rotation = opponent_body.rotation.eulerAngles[1]

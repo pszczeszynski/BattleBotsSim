@@ -33,6 +33,7 @@ private:
     // socket stuff
     void setup();
     ServerSocket serverSocket;
+    RobotMessage _lastMessage;
 };
 
 class RobotLinkReal : public IRobotLink
