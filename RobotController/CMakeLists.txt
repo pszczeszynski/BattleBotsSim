@@ -35,7 +35,7 @@ list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
 
 find_package( OpenCV REQUIRED )
 # find_package( CUDA REQUIRED )
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
 qt_standard_project_setup()
 
 add_definitions(-D_MBCS)
@@ -78,7 +78,7 @@ set(SOURCES
 # cuda_add_executable(RobotController ${SOURCES})
 add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib)
+target_link_libraries(RobotController opencv_world Qt6::Widgets Qt6::Charts Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib)
 
 
 add_custom_command(TARGET RobotController POST_BUILD

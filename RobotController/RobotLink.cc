@@ -13,8 +13,46 @@ RobotMessage IRobotLink::Receive()
     RobotMessage ret {RobotMessageType::INVALID};
 
     // mark that we have received a packet
-    receiveClock.markStart();
+    _receiveMutex.lock();
+    _receiveClock.markStart();
+    _receiveMutex.unlock();
 
+    return ret;
+}
+
+bool IRobotLink::HasReceivedRecentPacket()
+{
+    bool ret = false;
+    _receiveMutex.lock();
+    ret = _receiveClock.getElapsedTime() < 0.04;
+    _receiveMutex.unlock();
+    return ret;
+}
+
+double IRobotLink::GetReceivedFPSThreadSafe()
+{
+    double ret = 0;
+    _receiveMutex.lock();
+    ret = _receiveClock.getFPS();
+    _receiveMutex.unlock();
+    return ret;
+}
+
+double IRobotLink::GetSendFPSThreadSafe()
+{
+    double ret = 0;
+    _sendMutex.lock();
+    ret = _sendClock.getFPS();
+    _sendMutex.unlock();
+    return ret;
+}
+
+double IRobotLink::GetTimeDiffThreadSafe()
+{
+    double ret = 0;
+    _receiveMutex.lock();
+    ret = _receiveClock.getMaxTimeDifference();
+    _receiveMutex.unlock();
     return ret;
 }
 
@@ -199,7 +237,9 @@ void RobotLinkReal::Drive(DriveCommand &command)
         char end = MESSAGE_END_CHAR;
         _WriteSerialMessage((char *)&end, sizeof(end));
 
-        sendClock.markStart();
+        _sendMutex.lock();
+        _sendClock.markStart();
+        _sendMutex.unlock();
     }
     catch (std::exception &e)
     {

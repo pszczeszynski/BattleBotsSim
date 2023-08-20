@@ -13,6 +13,8 @@
 #include <QKeyEvent>
 #include <QProgressBar>
 #include <QPainter>
+#include <QtCharts>
+#include <QLineSeries>
 #include "Globals.h"
 #include "Input/Input.h"
 #include "UIWidgets/IMUWidget.h"
@@ -33,6 +35,9 @@ public:
     static RobotControllerGUI& GetInstance();
     QLabel *GetImageLabel();
     QLabel *GetVescInfo(int motor, int dataType);
+    void SetRadioSeries(QLineSeries*);
+    QChart* GetRadioChart();
+    void UpdateRadioSeries();
     
 protected:
     // qt event handlers
@@ -50,7 +55,9 @@ private:
     IMUWidget *_imuWidget;
     Clock _displayImageClock;
 
-    QLabel *vescInfo[MOTOR_COUNT][4];
+    QLabel *_vescInfo[MOTOR_COUNT][4];
+    QLineSeries* _radioSeries;
+    QChart* _radioChart;
 };
 
 class TargetRpmProgressBar : public QProgressBar
@@ -79,4 +86,42 @@ protected:
 
 private:
     float targetRpm;
+};
+
+
+
+
+
+
+class RadioChartWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public slots:
+    // needs to be a slot so it can be called from the robot controller thread
+    // qt will schedule the call to this function so that it is thread safe
+    // void RefreshFieldImage();
+public:
+    void ShowGUI();
+    void SetApp(QApplication& app);
+    static RadioChartWindow& GetInstance();
+    void SetRadioSeries(QLineSeries*);
+    QChart* GetRadioChart();
+    void UpdateRadioSeries();
+    
+protected:
+
+private:
+    // private ctor since this is a singleton
+    RadioChartWindow();
+
+    QApplication *app;
+    Clock _displayImageClock;
+    QLineSeries* _radioSeries;
+    QChart* _radioChart;
+
+    int axisMax;
+    
+    const int axisAdvance = 20;
+    const float axisConversion = 0.03;
 };

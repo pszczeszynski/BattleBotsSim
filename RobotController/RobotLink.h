@@ -7,6 +7,8 @@
 #include "../Communication/GenericReceiver.h"
 #include <fstream>
 #include <functional>
+#include <thread>
+#include <mutex>
 #include "Clock.h"
 
 // interface
@@ -15,8 +17,17 @@ class IRobotLink
 public:
     virtual void Drive(DriveCommand& command) = 0; // sends data to robot
     virtual RobotMessage Receive();
-    Clock receiveClock; // for tracking the receive rate information (so public)
-    Clock sendClock; // for tracking the send rate information (so public)
+    bool HasReceivedRecentPacket();
+    double GetReceivedFPSThreadSafe();
+    double GetSendFPSThreadSafe();
+    double GetTimeDiffThreadSafe();
+
+protected:
+    Clock _receiveClock; // for tracking the receive rate information (so public)
+    Clock _sendClock; // for tracking the send rate information (so public)
+
+    std::mutex _receiveMutex;
+    std::mutex _sendMutex;
 };
 
 /**

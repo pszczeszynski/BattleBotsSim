@@ -30,6 +30,10 @@ int main(int argc, char *argv[])
     QObject::connect(&controllerThread, &QThread::started, &rc, &RobotController::Run);
     RobotControllerGUI::GetInstance().ShowGUI();
 
+
+    RadioChartWindow::GetInstance().SetApp(app);
+    RadioChartWindow::GetInstance().ShowGUI();
+
     controllerThread.start();
 
     app.exec();
