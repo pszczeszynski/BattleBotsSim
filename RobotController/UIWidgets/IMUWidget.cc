@@ -11,13 +11,6 @@
 // the maximum acceleration in m/s^2
 #define MAX_ACCEL_MPSS 15
 
-#define AMPS_WARN 100
-#define AMPS_RED 200
-#define VOLT_WARN 60
-#define VOLT_RED 58
-#define TEMP_WARN 70
-#define TEMP_RED 80
-
 IMUWidget* IMUWidget::_instance = nullptr;
 
 IMUWidget::IMUWidget(QWidget *parent) : QLabel(parent)
@@ -41,56 +34,6 @@ void IMUWidget::SetMat(const cv::Mat& mat)
     _matMutex.lock();
     _mat = mat.clone();
     _matMutex.unlock();
-}
-
-void IMUWidget::_UpdateVESCInfos()
-{
-    CANData canData = RobotController::GetInstance().GetCANData();
-
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 0);
-        QPalette palette = label->palette();
-
-        if (canData.motorCurrent[i] < AMPS_WARN)
-            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (canData.motorCurrent[i] < AMPS_RED)
-            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else
-            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 1);
-        QPalette palette = label->palette();
-
-        if (canData.motorVoltage[i] > VOLT_WARN)
-            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (canData.motorCurrent[i] > VOLT_RED)
-            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else
-            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        QLabel *label = RobotControllerGUI::GetInstance().GetVescInfo(i, 3);
-        QPalette palette = label->palette();
-
-        if (canData.escFETTemp[i] < TEMP_WARN)
-            palette.setColor(QPalette::WindowText, QColor(0, 255, 0));
-        else if (canData.escFETTemp[i] < TEMP_RED)
-            palette.setColor(QPalette::WindowText, QColor(255, 255, 0));
-        else
-            palette.setColor(QPalette::WindowText, QColor(255, 0, 0));
-
-        label->setPalette(palette);
-    }
 }
 
 void IMUWidget::_UpdateIMUInfos()
@@ -161,7 +104,6 @@ void IMUWidget::_UpdateIMUInfos()
 void IMUWidget::Update()
 {
     _UpdateIMUInfos();
-    _UpdateVESCInfos();
 }
 
 void IMUWidget::Draw()

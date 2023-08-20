@@ -66,13 +66,23 @@ void addLabeledSpinBox(QMainWindow* window, const QString& label, int& value, bo
 /**
  * @brief addAutoUpdatingLabel
  * @param window The window to add the label to
- * @param initialText The initial text to display in the label
  * @param updateTextLambda A lambda function that returns the new text to display in the label
  * @param left Whether to place the label on the left or right side of the window
- * @param refreshIntervalMs The interval in milliseconds to refresh the label text, default is 50 ms
+ * @param refreshIntervalMs The interval in milliseconds to refresh the label text and color, default is 50 ms
+ * @param width The width of the label
+ * @param x_offset The x offset for the label placement
+ * @param updateColorLambda A lambda function that returns the new color to apply to the label
  */
-QLabel* addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updateTextLambda, bool left = true,
-                          int refreshIntervalMs = 50, int width = COLUMN_WIDTH, int x_offset = 0)
+QLabel *addAutoUpdatingLabel(
+    QMainWindow *window,
+    std::function<QString()> updateTextLambda,
+    bool left = true,
+    int refreshIntervalMs = 50,
+    int width = COLUMN_WIDTH,
+    int x_offset = 0,
+    std::function<QColor()> updateColorLambda = []()
+    { return QColor("white"); } // default to white
+)
 {
     int shiftAmount = LABEL_HEIGHT + widgetVerticalMargin;
 
@@ -97,10 +107,12 @@ QLabel* addAutoUpdatingLabel(QMainWindow *window, std::function<QString()> updat
 
     QTimer *timer = new QTimer(window);
     QObject::connect(timer, &QTimer::timeout, [=]()
-                     { label->setText(updateTextLambda()); }); // Update the label text with the lambda function
+                     {
+                         label->setText(updateTextLambda());                           // Update the label text with the lambda function
+                         label->setStyleSheet("color: " + updateColorLambda().name()); // Update the label color with the lambda function
+                     });
 
     timer->start(refreshIntervalMs); // Start the timer to update the label every refreshIntervalMs milliseconds
-
 
     // if left, increase the vertical position for the next widget
     if (left)
@@ -314,6 +326,13 @@ void addRpmWidget(QMainWindow *window, QString labelString, float &targetRpm, fl
     }
 }
 
+#define AMPS_WARN 100
+#define AMPS_RED 200
+#define VOLT_WARN 60
+#define VOLT_RED 58
+#define TEMP_WARN 70
+#define TEMP_RED 80
+
 RobotControllerGUI::RobotControllerGUI()
 {
     setWindowTitle("Orbitron Hub");
@@ -430,28 +449,70 @@ RobotControllerGUI::RobotControllerGUI()
     // names are LD, RD, FW, RW
     std::string motorNames[4] = {"LD", "RD", "FW", "RW"};
 
-    for (int i = 0; i < 4; i ++)
+    for (int i = 0; i < 4; i++)
     {
         // left drive
-        vescInfo[i][0] = addAutoUpdatingLabel(this, [i, motorNames]()
-        {
-            return QString((motorNames[i] + " amps: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorCurrent[i])).c_str());
-        }, false, 100, COLUMN_WIDTH / 4, 0);
+        addAutoUpdatingLabel(
+            this, [i, motorNames]()
+            { return QString((motorNames[i] + " amps: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorCurrent[i])).c_str()); },
+            false, 100, COLUMN_WIDTH / 4, 0,
+            []()
+            {
+                CANData canData = RobotController::GetInstance().GetCANData();
+                if (canData.motorCurrent[0] < AMPS_WARN)
+                    return QColor("green");
+                else if (canData.motorCurrent[0] < AMPS_RED)
+                    return QColor("yellow");
+                else
+                    return QColor("red");
+                return QColor("white");
+            });
 
-        vescInfo[i][1] = addAutoUpdatingLabel(this, [i, motorNames]()
-        {
-            return QString((motorNames[i] + " volts: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorVoltage[i])).c_str());
-        }, false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4);
+        addAutoUpdatingLabel(
+            this, [i, motorNames]()
+            { return QString((motorNames[i] + " volts: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorVoltage[i])).c_str()); },
+            false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4,
+            []()
+            {
+                CANData canData = RobotController::GetInstance().GetCANData();
+                if (canData.motorVoltage[0] > VOLT_WARN)
+                    return QColor("green");
+                else if (canData.motorCurrent[0] > VOLT_RED)
+                    return QColor("yellow");
+                else
+                    return QColor("red");
+                return QColor("white");
+            });
 
-        vescInfo[i][2] = addAutoUpdatingLabel(this, [i, motorNames]()
-        {
-            return QString((motorNames[i] + " rpm: " + std::to_string((int) RobotController::GetInstance().GetCANData().motorRPM[i])).c_str());
-        }, false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4);
+        addAutoUpdatingLabel(
+            this, [i, motorNames]()
+            { return QString((motorNames[i] + " rpm: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorRPM[i])).c_str()); },
+            false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4,
+            []()
+            {
+                CANData canData = RobotController::GetInstance().GetCANData();
+                if (canData.motorRPM[0] > 0)
+                    return QColor("green");
+                else
+                    return QColor("red");
+                return QColor("white");
+            });
 
-        vescInfo[i][3] = addAutoUpdatingLabel(this, [i, motorNames]()
-        {
-            return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetCANData().escFETTemp[i])).c_str());
-        }, false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4);
+        addAutoUpdatingLabel(
+            this, [i, motorNames]()
+            { return QString((motorNames[i] + " esctemp: " + std::to_string((int)RobotController::GetInstance().GetCANData().escFETTemp[i])).c_str()); },
+            false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4,
+            []()
+            {
+                CANData canData = RobotController::GetInstance().GetCANData();
+                if (canData.escFETTemp[0] < TEMP_WARN)
+                    return QColor("green");
+                else if (canData.escFETTemp[0] < TEMP_RED)
+                    return QColor("yellow");
+                else
+                    return QColor("red");
+                return QColor("white");
+            });
     }
 
     // enable tracking the mouse even when it isn't pressed
@@ -531,20 +592,6 @@ RobotControllerGUI& RobotControllerGUI::GetInstance()
 QLabel* RobotControllerGUI::GetImageLabel()
 {
     return _imageLabel;
-}
-
-// Function to provide access to the vescInfo array
-QLabel* RobotControllerGUI::GetVescInfo(int motor, int dataType)
-{
-    if (motor >= 0 && motor < MOTOR_COUNT && dataType >= 0 && dataType < 4)
-    {
-        return vescInfo[motor][dataType];
-    }
-    else
-    {
-        // Return nullptr or handle the out-of-bounds condition
-        return nullptr;
-    }
 }
 
 // events

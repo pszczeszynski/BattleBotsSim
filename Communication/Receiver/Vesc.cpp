@@ -149,13 +149,23 @@ float absolute(float f)
     return f > 0 ? f : -f;
 }
 
+#define DEAD_BAND 0.01f
+
 void VESC::_SetMotorPower(float power, int motorIndex)
 {
-    if (absolute(power) <= 0.01f && absolute(lastPowers[motorIndex]) <= 0.01f)
+    // if the power is within the dead band, set it to 0
+    if (absolute(power) <= DEAD_BAND)
+    {
+        power = 0;
+    }
+
+    // if the power is 0 and we already sent a 0, don't send another 0
+    if (power == 0 && lastPowers[motorIndex] == 0)
     {
         return;
     }
 
+    // save the last power
     lastPowers[motorIndex] = power;
 
     long frame_id = 0x00000000;

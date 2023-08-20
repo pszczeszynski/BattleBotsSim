@@ -164,7 +164,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     // calculate angle using the visual information
     double visualAngle = CalcAnglePathTangent();
     // if can use the visual information
-    if (_visualAngleValid)
+    if (_visualAngleValid && false)
     {
         // if we have visual information, use the visual angle
         fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);

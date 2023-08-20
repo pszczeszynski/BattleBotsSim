@@ -10,7 +10,8 @@
 #include "Globals.h"
 
 Vision::Vision(ICameraReceiver &overheadCam)
-    : overheadCam(overheadCam)
+    : overheadCam(overheadCam),
+      _lastDrawingImage(cv::Mat::zeros(WIDTH, HEIGHT, CV_8UC3))
 {
     // create the processing thread in a loop
     processingThread = std::thread([&]()

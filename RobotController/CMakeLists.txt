@@ -63,6 +63,7 @@ set(SOURCES
     RobotClassifier.cc
     VisionPreprocessor.cc
     RobotControllerGUI.cc
+    SelfRighter.cc
     RobotLink.cc
     Input/Gamepad.cc
     Input/Input.cc

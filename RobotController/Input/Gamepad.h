@@ -18,6 +18,10 @@ public:
     virtual bool GetButtonY() = 0;
     virtual bool GetLeftBumper() = 0;
     virtual bool GetRightBumper() = 0;
+    virtual bool GetDpadLeft() = 0;
+    virtual bool GetDpadRight() = 0;
+    virtual bool GetDpadUp() = 0;
+    virtual bool GetDpadDown() = 0;
 
     // Stick values, range from -1.0 to 1.0
     virtual float GetLeftStickX() = 0;
@@ -44,6 +48,10 @@ public:
     virtual bool GetButtonY() override;
     virtual bool GetLeftBumper() override;
     virtual bool GetRightBumper() override;
+    virtual bool GetDpadLeft() override;
+    virtual bool GetDpadRight() override;
+    virtual bool GetDpadUp() override;
+    virtual bool GetDpadDown() override;
 
     // Stick values, range from -1.0 to 1.0
     virtual float GetLeftStickX() override;
@@ -78,6 +86,10 @@ public:
     virtual bool GetButtonY() override;
     virtual bool GetLeftBumper() override;
     virtual bool GetRightBumper() override;
+    virtual bool GetDpadLeft() override;
+    virtual bool GetDpadRight() override;
+    virtual bool GetDpadUp() override;
+    virtual bool GetDpadDown() override;
 
     // Stick values, range from -1.0 to 1.0
     virtual float GetLeftStickX() override;

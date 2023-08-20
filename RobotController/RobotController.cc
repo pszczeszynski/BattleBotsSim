@@ -65,9 +65,19 @@ IMUData& RobotController::GetIMUData()
 /**
  * Gets the most recent can data from the robot
 */
-CANData& RobotController::GetCANData()
+CANData RobotController::GetCANData()
 {
-    return _lastCANMessage.canData;
+    CANData ret;
+    // make everything 0
+    memset(&ret, 0, sizeof(CANData));
+    // lock the mutex
+    _lastCanMessageMutex.lock();
+    // copy the data
+    ret = _lastCANMessage.canData;
+    // unlock the mutex
+    _lastCanMessageMutex.unlock();
+    // return the data
+    return ret;
 }
 
 #define FPS_PRINT_TIME_SECONDS 5
@@ -100,6 +110,14 @@ void RobotController::Run()
     robotLink.Drive(c);
 #endif
 
+#ifdef SAVE_VIDEO
+    // Initialize VideoWriter
+    int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G'); // or use another codec
+    double fps = 60.0;                                        // you can adjust this according to your needs
+    cv::Size frameSize(drawingImage.cols, drawingImage.rows);
+    cv::VideoWriter video("Recordings/outputVideo.avi", fourcc, fps, frameSize, true); // 'true' for color video
+#endif
+
     // receive until the peer closes the connection
     while (true)
     {
@@ -120,7 +138,9 @@ void RobotController::Run()
         }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
+            _lastCanMessageMutex.lock();
             _lastCANMessage = msg;
+            _lastCanMessageMutex.unlock();
         }
 
         // get the latest classification (very fast)
@@ -133,6 +153,14 @@ void RobotController::Run()
         
         // send the response to the robot
         robotLink.Drive(response);
+
+#ifdef SAVE_VIDEO
+        if (!drawingImage.empty())
+        {
+            // write the frame to the video
+            video.write(drawingImage);
+        }
+#endif
 
         // update the GUI
         GuiLogic();
@@ -298,13 +326,12 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
-    double drive_scale = std::max(scaleDownMovement, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
+    double drive_scale = std::max(0.0, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
 
     response.movement = goToOtherTarget ? drive_scale : -drive_scale;
 
     // Draw debugging information
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
-
 
     response.turn *= -1;
 
@@ -326,7 +353,7 @@ void drawAndDisplayValue(cv::Mat &image, double value, double xPosition, cv::Sca
 {
     value *= -1;
     // Calculate height and adjust starting y-coordinate based on value's sign
-    int rectHeight = std::abs(value) * 200;
+    int rectHeight = std::abs(value);
     int startY = value >= 0 ? HEIGHT / 2 : HEIGHT / 2 - rectHeight;
 
     // Draw the rectangle
@@ -506,26 +533,10 @@ DriveCommand RobotController::OrbitMode()
     bool allowReverse = false;
     DriveCommand response = DriveToPosition(targetPoint, allowReverse);
 
-    static double radiusError = 0;
-    static double lastRadiusError = 0;
-    static Clock clock;
-    static double derivative = 0;
-    const double KP = 1.0 / 200.0;
-    const double KD = 1.0 / 1000.0;
+    drawAndDisplayValue(drawingImage, cv::norm(RobotOdometry::Robot().GetVelocity()), 50, cv::Scalar(0, 255, 0));
 
-    radiusError = orbitRadius - distToCenter;
-    double proportional = KP * radiusError;
-    if (radiusError != lastRadiusError)
-    {
-        derivative = KD * (radiusError - lastRadiusError) / clock.getElapsedTime();
-        lastRadiusError = radiusError;
-    }
-    // response.movement += proportional + derivative;
-    clock.markStart();
-
-    // Usage
-    drawAndDisplayValue(drawingImage, proportional, WIDTH / 2, cv::Scalar(255, 255, 0));
-    drawAndDisplayValue(drawingImage, derivative, WIDTH * 0.7, cv::Scalar(0, 255, 255));
+    // draw the result response.movement
+    drawAndDisplayValue(drawingImage, response.movement, WIDTH / 2, cv::Scalar(255, 0, 0));
 
     return response;
 }
@@ -630,6 +641,7 @@ DriveCommand RobotController::RobotLogic()
     DriveCommand ret = responseManual;
 
     _orbiting = false;
+    _killing = false;
 
     // if the user activates kill mode
     if (gamepad.GetRightBumper())
@@ -637,6 +649,8 @@ DriveCommand RobotController::RobotLogic()
         // drive directly to the opponent
         DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
         ret.turn = responseGoToPoint.turn;
+        ret.movement = responseGoToPoint.movement;
+        _killing = true;
     }
     // if driver wants to evade (left bumper)
     else if (gamepad.GetLeftBumper())
@@ -650,6 +664,9 @@ DriveCommand RobotController::RobotLogic()
     // enforce the max speed
     ret.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     ret.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+
+    // control the self righter
+    _selfRighter.Move((int) gamepad.GetDpadUp() - (int) gamepad.GetDpadDown(), ret, drawingImage);
 
     // return the response
     return ret;

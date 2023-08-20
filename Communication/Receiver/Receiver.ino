@@ -5,6 +5,7 @@
 
 #include "Vesc.h"
 #include "Communication.h"
+#include "Motor.h"
 
 #define VERBOSE_RADIO
 #define LOG_DATA
@@ -22,7 +23,11 @@ IMU* imu;
 #define FRONT_WEAPON_CAN_ID 2
 #define BACK_WEAPON_CAN_ID 4
 
+// closest to the middle of the teensy
+#define SELF_RIGHTER_MOTOR_PIN 9
+
 VESC* vesc;
+Motor* selfRightMotor;
 Radio<RobotMessage, DriveCommand>* radio;
 Logger* logger;
 
@@ -40,6 +45,10 @@ void setup()
 
     Serial.println("Initializing Canbus motors...");
     vesc = new VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
+    Serial.println("Success!");
+
+    Serial.println("Initializing Self-Righting Motor...");
+    selfRightMotor = new Motor(SELF_RIGHTER_MOTOR_PIN);
     Serial.println("Success!");
 
     Serial.println("Initializing radio...");
@@ -81,6 +90,14 @@ void Drive(DriveCommand &command)
 void DriveWeapons(DriveCommand &command)
 {
     vesc->DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
+}
+
+/**
+ * Drives the self righting motor
+*/
+void DriveSelfRighter(DriveCommand &command)
+{
+    selfRightMotor->SetPower(command.selfRighterPower);
 }
 
 /**
@@ -198,10 +215,9 @@ void DriveWithLatestMessage()
         // increment message count
         numMessagesReceived++;
 
-        // drive with message
         Drive(command);
-
         DriveWeapons(command);
+        DriveSelfRighter(command);
 
         // update the last receive time
         lastReceiveTime = millis();

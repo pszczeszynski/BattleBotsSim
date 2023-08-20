@@ -13,6 +13,7 @@
 #include "../Communication/Communication.h"
 #include "Extrapolator.h"
 #include "MatQueue.h"
+#include "SelfRighter.h"
 
 class RobotController : public QObject
 {
@@ -22,7 +23,7 @@ public:
     static RobotController& GetInstance();
 
     IMUData& GetIMUData();
-    CANData& GetCANData();
+    CANData GetCANData();
 
     float& GetFrontWeaponTargetPowerRef();
     float& GetBackWeaponTargetPowerRef();
@@ -63,6 +64,8 @@ private:
 
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
+    std::mutex _lastCanMessageMutex;
+
     RobotMessageType _lastMessageType;
     RobotSimState exState;
 
@@ -76,8 +79,11 @@ private:
 
     Vision vision;
 
+    SelfRighter _selfRighter;
+
     float _frontWeaponPower = 0;
     float _backWeaponPower = 0;
 
     bool _orbiting = false;
+    bool _killing = false;
 };

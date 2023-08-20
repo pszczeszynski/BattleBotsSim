@@ -59,6 +59,7 @@ struct DriveCommand
     double turn;
     float frontWeaponPower;
     float backWeaponPower;
+    float selfRighterPower;
     bool valid; // should always be true, used to check for blank messages
 };
 

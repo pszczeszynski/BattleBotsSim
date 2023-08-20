@@ -32,7 +32,6 @@ public:
     void SetApp(QApplication& app);
     static RobotControllerGUI& GetInstance();
     QLabel *GetImageLabel();
-    QLabel *GetVescInfo(int motor, int dataType);
     
 protected:
     // qt event handlers
@@ -49,8 +48,6 @@ private:
     QApplication *app;
     IMUWidget *_imuWidget;
     Clock _displayImageClock;
-
-    QLabel *vescInfo[MOTOR_COUNT][4];
 };
 
 class TargetRpmProgressBar : public QProgressBar

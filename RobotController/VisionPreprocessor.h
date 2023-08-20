@@ -12,10 +12,12 @@ class VisionPreprocessor
 {
 public:
     VisionPreprocessor();
-    void Preprocess(cv::Mat& frame, cv::Mat& dst);
+    void Preprocess(cv::Mat &frame, cv::Mat &dst);
 
 private:
-    cv::Point2f dstPoints[4];
-    cv::Point2f _mousePosLast;
-    bool down[4];
+    void _StabalizeImage(cv::Mat &frame, cv::Mat &dst);
+    cv::Point2f _TrackFeature(cv::Mat &prevFrame, cv::Mat &frame, cv::Rect &roi);
+
+    cv::Point2f _dstPoints[4];
+    cv::Mat _prevFrame;
 };

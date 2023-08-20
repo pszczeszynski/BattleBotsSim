@@ -41,6 +41,26 @@ bool XBox::GetRightBumper()
     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
 }
 
+bool XBox::GetDpadLeft()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
+}
+
+bool XBox::GetDpadRight()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
+}
+
+bool XBox::GetDpadUp()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
+}
+
+bool XBox::GetDpadDown()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+}
+
 float XBox::GetLeftStickX()
 {
     return _controllerState.Gamepad.sThumbLX / RANGE;
@@ -156,6 +176,30 @@ bool DualSense::GetRightBumper()
 {
     if (_initialized) return (_inState.buttonsA & DS5W_ISTATE_BTN_A_RIGHT_BUMPER);
     return false;
+}
+
+bool DualSense::GetDpadLeft()
+{
+    if (_initialized) return _inState.buttonsAndDpad & DS5W_ISTATE_DPAD_LEFT;
+    return 0;
+}
+
+bool DualSense::GetDpadRight()
+{
+    if (_initialized) return _inState.buttonsAndDpad & DS5W_ISTATE_DPAD_RIGHT;
+    return 0;
+}
+
+bool DualSense::GetDpadUp()
+{
+    if (_initialized) return _inState.buttonsAndDpad & DS5W_ISTATE_DPAD_UP;
+    return 0;
+}
+
+bool DualSense::GetDpadDown()
+{
+    if (_initialized) return _inState.buttonsAndDpad & DS5W_ISTATE_DPAD_DOWN;
+    return 0;
 }
 
 float DualSense::GetLeftStickX()

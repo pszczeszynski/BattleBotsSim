@@ -129,6 +129,10 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 #define MIN_INTER_SEND_TIME_MS 4
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    command.selfRighterPower = command.movement;
+    command.movement = 0;
+    command.turn = 0;
+
     // std::cout << "command.movement: " << command.movement << std::endl;
     command.movement *= -0.3;
     command.turn *= -0.3;
@@ -136,6 +140,8 @@ void RobotLinkReal::Drive(DriveCommand &command)
     double temp = command.movement;
     command.movement = command.turn;
     command.turn = temp;
+
+
     // if we have sent a packet too recently, return
     if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
