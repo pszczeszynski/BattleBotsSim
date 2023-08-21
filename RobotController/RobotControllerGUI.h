@@ -105,7 +105,6 @@ public:
     void ShowGUI();
     void SetApp(QApplication& app);
     static RadioChartWindow& GetInstance();
-    void SetRadioSeries(QLineSeries*);
     QChart* GetRadioChart();
     void UpdateRadioSeries();
     
@@ -117,11 +116,12 @@ private:
 
     QApplication *app;
     Clock _displayImageClock;
-    QLineSeries* _radioSeries;
+    QLineSeries* _receiveSeries;
+    QLineSeries* _sendSeries;
     QChart* _radioChart;
 
     int axisMax;
-    
+
     const int axisAdvance = 20;
     const float axisConversion = 0.03;
 };

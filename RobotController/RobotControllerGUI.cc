@@ -659,15 +659,26 @@ RadioChartWindow::RadioChartWindow()
     QChartView* chartView = new QChartView(this);
     chartView->setGeometry(10, 10, WINDOW_WIDTH/2 - 20, WINDOW_HEIGHT/2 - 20);
 
-    _radioSeries = new QLineSeries();
+    _receiveSeries = new QLineSeries();
 
-    _radioSeries->append(0, 0);
+    _receiveSeries->append(0, 0);
+    // _receiveSeries->setColor(Qt::green);
+
+    
+    _sendSeries = new QLineSeries();
+
+    _sendSeries->append(0, 0);
+    _sendSeries->setColor(Qt::red);
 
     _radioChart = new QChart();
     _radioChart->setTheme(QChart::ChartThemeDark);
-    _radioChart->addSeries(_radioSeries);
+    _radioChart->addSeries(_receiveSeries);
+    _radioChart->addSeries(_sendSeries);
     _radioChart->setTitle("Radio Connection");
     _radioChart->createDefaultAxes();
+
+    _radioChart->legend()->markers()[0]->setLabel("Received");
+    _radioChart->legend()->markers()[1]->setLabel("Sent");
 
     axisMax = RADIO_HISTORY;
     _radioChart->axes(Qt::Horizontal)[0]->setMin(0);
@@ -675,8 +686,8 @@ RadioChartWindow::RadioChartWindow()
     _radioChart->axes(Qt::Horizontal)[0]->setTitleText("Time (s)");
 
     _radioChart->axes(Qt::Vertical)[0]->setMin(0);
-    _radioChart->axes(Qt::Vertical)[0]->setMax(1);
-    _radioChart->axes(Qt::Vertical)[0]->setTitleText("Received");
+    _radioChart->axes(Qt::Vertical)[0]->setMax(225);
+    _radioChart->axes(Qt::Vertical)[0]->setTitleText("Packets/s");
 
     chartView->setChart(_radioChart);
 
@@ -731,26 +742,16 @@ QChart* RadioChartWindow::GetRadioChart()
     return _radioChart;
 }
 
-void RadioChartWindow::SetRadioSeries(QLineSeries* series)
-{
-    _radioSeries = series;
-}
-
-
 void RadioChartWindow::UpdateRadioSeries()
 {
-    bool received = RobotController::GetInstance().GetRobotLink().HasReceivedRecentPacket();
-
-    // std::cout << radioCount << std::endl;
-    // std::cout << _radioSeries->count() << std::endl;
-
     if (radioCount * axisConversion >= RADIO_HISTORY)
-        _radioSeries->remove(0);
+    {
+        _receiveSeries->remove(0);
+        _sendSeries->remove(0);
+    }
 
-    if (received) 
-        _radioSeries->append(radioCount * axisConversion, 1);
-    else
-        _radioSeries->append(radioCount * axisConversion, 0);
+    _receiveSeries->append(radioCount * axisConversion, RobotController::GetInstance().GetRobotLink().GetReceivedFPSThreadSafe());
+    _sendSeries->append(radioCount * axisConversion, RobotController::GetInstance().GetRobotLink().GetSendFPSThreadSafe());
 
     if (radioCount * axisConversion >= axisMax)
     {
