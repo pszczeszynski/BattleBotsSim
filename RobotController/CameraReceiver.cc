@@ -133,26 +133,22 @@ bool CameraReceiver::_InitializeCamera()
         return false;
     }
 
-    // set frame size
+    // Set core properties first
     _cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
     _cap->set(cv::CAP_PROP_FRAME_HEIGHT, (int)(HEIGHT * 0.6666666667));
-    // set to 60 fps
-    _cap->set(cv::CAP_PROP_FPS, 100000);
-    // disable buffering
-    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
-    // disable auto exposure
-    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
-    // disable auto white balance
-    _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
-    // set exposure
-    _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
-    // set white balance
-    _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 4500);
+    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
 
-    // make camera have no automatic anything
-    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    // Disable buffering to minimize latency
+    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+    // Disable any automatic settings for more predictable performance
+    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25); // 0.25 usually means "manual mode" in OpenCV
     _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
     _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
+
+    // Set exposure and white balance after disabling automatic modes
+    _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
+    _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 2500);
 
     std::cout << "Successfully initialized camera!" << std::endl;
 

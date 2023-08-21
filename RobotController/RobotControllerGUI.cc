@@ -460,7 +460,7 @@ RobotControllerGUI::RobotControllerGUI()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
                 if (canData.motorCurrent[0] < AMPS_WARN)
-                    return QColor("green");
+                    return QColor(0, 255, 0);
                 else if (canData.motorCurrent[0] < AMPS_RED)
                     return QColor("yellow");
                 else
@@ -476,7 +476,7 @@ RobotControllerGUI::RobotControllerGUI()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
                 if (canData.motorVoltage[0] > VOLT_WARN)
-                    return QColor("green");
+                    return QColor(0, 255, 0);
                 else if (canData.motorCurrent[0] > VOLT_RED)
                     return QColor("yellow");
                 else
@@ -492,7 +492,7 @@ RobotControllerGUI::RobotControllerGUI()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
                 if (canData.motorRPM[0] > 0)
-                    return QColor("green");
+                    return QColor(0, 255, 0);
                 else
                     return QColor("red");
                 return QColor("white");
@@ -506,7 +506,7 @@ RobotControllerGUI::RobotControllerGUI()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
                 if (canData.escFETTemp[0] < TEMP_WARN)
-                    return QColor("green");
+                    return QColor(0, 255, 0);
                 else if (canData.escFETTemp[0] < TEMP_RED)
                     return QColor("yellow");
                 else

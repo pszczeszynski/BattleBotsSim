@@ -326,7 +326,7 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
-    double drive_scale = std::max(0.0, 1.0 - abs(response.turn) * scaleDownMovement) * 1.0;
+    double drive_scale = std::max(0.0, 1.0 - abs(response.turn / (MAX_TURN_POWER_PERCENT/ 100.0)) * scaleDownMovement) * 1.0;
 
     response.movement = goToOtherTarget ? drive_scale : -drive_scale;
 
@@ -541,7 +541,7 @@ DriveCommand RobotController::OrbitMode()
     return response;
 }
 
-#define SECONDS_UNTIL_FULL_POWER 2.0
+#define SECONDS_UNTIL_FULL_POWER 8.0
 void RobotController::UpdateSpinnerPowers()
 {
     static Clock updateTimer;
@@ -610,6 +610,22 @@ DriveCommand RobotController::ManualMode()
     response.frontWeaponPower = _frontWeaponPower;
     response.backWeaponPower = _backWeaponPower;
 
+    float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
+    // control the self righter
+    _selfRighter.Move(power, response, drawingImage);
+
+    if (abs(response.movement) < 0.05)
+    {
+        response.movement = 0;
+    }
+
+    if (abs(response.turn) < 0.05)
+    {
+        response.turn = 0;
+    }
+
+    response.turn *= 0.6;
+
     return response;
 }
 
@@ -647,9 +663,9 @@ DriveCommand RobotController::RobotLogic()
     if (gamepad.GetRightBumper())
     {
         // drive directly to the opponent
-        DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), false);
+        DriveCommand responseGoToPoint = DriveToPosition(RobotOdometry::Opponent().GetPosition(), true);
         ret.turn = responseGoToPoint.turn;
-        ret.movement = responseGoToPoint.movement;
+        ret.movement = responseManual.movement * abs(responseGoToPoint.movement);
         _killing = true;
     }
     // if driver wants to evade (left bumper)
@@ -664,9 +680,6 @@ DriveCommand RobotController::RobotLogic()
     // enforce the max speed
     ret.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
     ret.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
-
-    // control the self righter
-    _selfRighter.Move((int) gamepad.GetDpadUp() - (int) gamepad.GetDpadDown(), ret, drawingImage);
 
     // return the response
     return ret;

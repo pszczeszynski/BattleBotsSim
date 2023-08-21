@@ -22,6 +22,7 @@ Vision::Vision(ICameraReceiver &overheadCam)
         {
             // get the current frame from the camera
             bool hadFrame = overheadCam.GetFrame(currFrame);
+
             // if we didn't get a frame, return no classification
             if (!hadFrame)
             {
@@ -183,9 +184,6 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
         // add the average to the list of robot centers
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
-
-    cv::imshow("thresh", thresholdImg);
-    cv::waitKey(1);
 
     // classify the blobs and save them for later
     return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);

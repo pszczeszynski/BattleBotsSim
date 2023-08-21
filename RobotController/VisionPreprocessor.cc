@@ -27,8 +27,9 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     // Compute the transformation matrix
     cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, _dstPoints);
 
+    Clock c;
     // Apply the perspective transformation
-    warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT));
+    warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
 
     // Clock c;
     // stabilize the image

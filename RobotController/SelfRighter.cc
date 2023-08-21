@@ -10,7 +10,7 @@ SelfRighter::SelfRighter() :
 
 }
 
-#define LIMITS_POWER_PERCENT 0.2
+#define LIMITS_POWER_PERCENT 1.0
 
 /**
  * @brief Times the self righter and reduces power towards the limits
