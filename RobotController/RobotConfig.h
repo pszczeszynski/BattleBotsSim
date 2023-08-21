@@ -27,7 +27,8 @@ extern int OPPONENT_POSITION_EXTRAPOLATE_MS;
 extern int ORBIT_RADIUS;
 extern int PURE_PURSUIT_RADIUS;
 extern int ORBIT_RADIUS_MOVAVG_SPEED;
-extern int MASTER_SPEED_SCALE_PERCENT;
+extern int MASTER_MOVE_SCALE_PERCENT;
+extern int MASTER_TURN_SCALE_PERCENT;
 extern int preprocess_tl_x;
 extern int preprocess_tl_y;
 extern int preprocess_tr_x;
@@ -36,6 +37,7 @@ extern int preprocess_bl_x;
 extern int preprocess_bl_y;
 extern int preprocess_br_x;
 extern int preprocess_br_y;
+extern int MIN_INTER_SEND_TIME_MS;
 
 
 

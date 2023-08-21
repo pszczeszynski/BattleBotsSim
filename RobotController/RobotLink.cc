@@ -3,6 +3,7 @@
 #include "../Communication/Communication.h"
 #include "Globals.h"
 #include "MathUtils.h"
+#include "RobotConfig.h"
 
 /**
  * Doesn't do anything except call the timer markStart
@@ -126,7 +127,6 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
     }
 }
 
-#define MIN_INTER_SEND_TIME_MS 4
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     // std::cout << "command.movement: " << command.movement << std::endl;

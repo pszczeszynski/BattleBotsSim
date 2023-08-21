@@ -556,32 +556,45 @@ void RobotController::UpdateSpinnerPowers()
         deltaTimeS = 0;
     }
 
+    double scaleFront = _frontWeaponPower < 0.1 ? 1 : (_frontWeaponPower < 0.5 ? 2 : 1);
+    double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.5 ? 2 : 1);
+
     // if a pressed
-    if (gamepad.GetButtonA())
+    if (gamepad.GetButtonA() || Input::GetInstance().IsKeyPressed(Qt::Key_W))
     {
         // invert powers
-        _frontWeaponPower += deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        _frontWeaponPower += scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
     }
 
     // if b pressed
-    if (gamepad.GetButtonB())
+    if (gamepad.GetButtonB() || Input::GetInstance().IsKeyPressed(Qt::Key_S))
     {
         // invert powers
-        _frontWeaponPower -= deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        _frontWeaponPower -= scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
     }
 
     // if x pressed
-    if (gamepad.GetButtonX())
+    if (gamepad.GetButtonX() || Input::GetInstance().IsKeyPressed(Qt::Key_I))
     {
         // invert powers
-        _backWeaponPower += deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        _backWeaponPower += scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
     }
 
     // if y pressed
-    if (gamepad.GetButtonY())
+    if (gamepad.GetButtonY() || Input::GetInstance().IsKeyPressed(Qt::Key_K))
     {
         // invert powers
-        _backWeaponPower -= deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        _backWeaponPower -= scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    }
+
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_9))
+    {
+        _frontWeaponPower = 0;
+    }
+
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_0))
+    {
+        _backWeaponPower = 0;
     }
 
     // force weapon powers to be between 0 and 1
@@ -611,14 +624,18 @@ DriveCommand RobotController::ManualMode()
     response.backWeaponPower = _backWeaponPower;
 
     float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
+    power += Input::GetInstance().IsKeyPressed(Qt::Key_O) - Input::GetInstance().IsKeyPressed(Qt::Key_L);
+
     // control the self righter
     _selfRighter.Move(power, response, drawingImage);
 
+    // deadband the movement
     if (abs(response.movement) < 0.05)
     {
         response.movement = 0;
     }
 
+    // deadband the turn
     if (abs(response.turn) < 0.05)
     {
         response.turn = 0;
@@ -678,8 +695,8 @@ DriveCommand RobotController::RobotLogic()
     }
 
     // enforce the max speed
-    ret.movement *= MASTER_SPEED_SCALE_PERCENT / 100.0;
-    ret.turn *= MASTER_SPEED_SCALE_PERCENT / 100.0;
+    ret.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+    ret.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
     // return the response
     return ret;
@@ -759,14 +776,14 @@ void RobotController::GuiLogic()
         {
             // robot tracker calibration
             // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
-            if (input.IsLeftMousePressed())
+            if (input.IsLeftMousePressed() && input.IsMouseOverImage())
             {
                 // set the robot to the mouse position
                 RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
             }
 
             // if the user right clicks
-            if (input.IsRightMousePressed())
+            if (input.IsRightMousePressed() && input.IsMouseOverImage())
             {
                 // set the opponent to the mouse position
                 RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});

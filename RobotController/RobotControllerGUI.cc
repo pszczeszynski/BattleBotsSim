@@ -20,7 +20,7 @@ const int LABEL_HEIGHT = 30;
 const int SPINBOX_HEIGHT = 30;
 const int SLIDER_HEIGHT = 30;
 
-const int widgetVerticalMargin = 5; // Margin between the label and the spin box or slider
+const int widgetVerticalMargin = 4; // Margin between the label and the spin box or slider
 const int widgetHorizontalMargin = 10; // Margin between the window border and the widgets
 int nextWidgetYLeft = widgetVerticalMargin; // Vertical position of the next widget on the left side
 int nextWidgetYRight = widgetVerticalMargin; // Vertical position of the next widget on the right side
@@ -356,8 +356,8 @@ RobotControllerGUI::RobotControllerGUI()
     addLabeledSlider(this, "PP Radius:", PURE_PURSUIT_RADIUS, 0, 300);
     addLabeledSlider(this, "Orbit Moving Avg Speed (%):", ORBIT_RADIUS_MOVAVG_SPEED, 0, 100);
     addLabeledSlider(this, "Opponent Position Extrapolate MS:", OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
-    addLabeledSlider(this, "Master Speed Scale:", MASTER_SPEED_SCALE_PERCENT, 0, 100);
-
+    addLabeledSlider(this, "Master Move Scale:", MASTER_MOVE_SCALE_PERCENT, 0, 100);
+    addLabeledSlider(this, "Master Turn Scale:", MASTER_TURN_SCALE_PERCENT, 0, 100);
     addTextInput(this, "Save File Name: ", SAVE_FILE_NAME, true);
 
     // add save button
@@ -366,18 +366,9 @@ RobotControllerGUI::RobotControllerGUI()
         saveGlobalVariablesToFile(SAVE_FILE_NAME.toStdString());
     }, true);
 
-
-    // add switch robots button
-    addPushButton(this, "Switch Robots", []()
-    {
-        RobotClassifier::instance->SwitchRobots();
-    });
-
-
     // Middle column: Display OpenCV Mat (passed by reference)
     _imageLabel = new QLabel(this);
     _imageLabel->setGeometry(RIGHT_COLUMN_X, 10, WINDOW_HEIGHT - 20, WINDOW_HEIGHT - 20);
-
 
     // Right column: IMU widget
     // imu widget
@@ -385,13 +376,19 @@ RobotControllerGUI::RobotControllerGUI()
     _imuWidget->setGeometry(rightSideX, nextWidgetYRight, COLUMN_WIDTH, COLUMN_WIDTH);
     nextWidgetYRight += COLUMN_WIDTH + widgetVerticalMargin;
 
-    addRpmWidget(this, QString("Front Weapon"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
-    addRpmWidget(this, QString("Rear Weapon"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
+    addRpmWidget(this, QString("Front Weapon (w/s)"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
+    addRpmWidget(this, QString("Rear Weapon (i/k)"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
 
     addPushButton(this, "Angle Invert", []()
     {
         RobotOdometry::Robot().InvertAngle();
     }, false);
+
+    addPushButton(this, "Switch Robots", []()
+    {
+        RobotClassifier::instance->SwitchRobots();
+    }, false);
+
 
     SAFE_DRAW
     // init drawing image
@@ -440,11 +437,10 @@ RobotControllerGUI::RobotControllerGUI()
         return QString("Vision dropout: " + QString::number((int) (1000 * RobotController::GetInstance().visionClock.getMaxTimeDifference())));
     }, false, 100, COLUMN_WIDTH / 3, COLUMN_WIDTH / 3);
 
-    addAutoUpdatingLabel(this, [this]()
-    {
-        return QString("Display fps: " + QString::number(_displayImageClock.getFPS()));
-    }, false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
-
+    addAutoUpdatingLabel(
+        this, [this]()
+        { return QString("Display fps: " + QString::number(_displayImageClock.getFPS())); },
+        false, 100, COLUMN_WIDTH / 3, 2 * COLUMN_WIDTH / 3);
 
     // names are LD, RD, FW, RW
     std::string motorNames[4] = {"LD", "RD", "FW", "RW"};
@@ -456,12 +452,12 @@ RobotControllerGUI::RobotControllerGUI()
             this, [i, motorNames]()
             { return QString((motorNames[i] + " amps: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorCurrent[i])).c_str()); },
             false, 100, COLUMN_WIDTH / 4, 0,
-            []()
+            [i]()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
-                if (canData.motorCurrent[0] < AMPS_WARN)
+                if (canData.motorCurrent[i] < AMPS_WARN)
                     return QColor(0, 255, 0);
-                else if (canData.motorCurrent[0] < AMPS_RED)
+                else if (canData.motorCurrent[i] < AMPS_RED)
                     return QColor("yellow");
                 else
                     return QColor("red");
@@ -472,15 +468,15 @@ RobotControllerGUI::RobotControllerGUI()
             this, [i, motorNames]()
             { return QString((motorNames[i] + " volts: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorVoltage[i])).c_str()); },
             false, 100, COLUMN_WIDTH / 4, COLUMN_WIDTH / 4,
-            []()
+            [i]()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
-                if (canData.motorVoltage[0] > VOLT_WARN)
+                if (canData.motorVoltage[i] > VOLT_WARN)
                     return QColor(0, 255, 0);
-                else if (canData.motorCurrent[0] > VOLT_RED)
-                    return QColor("yellow");
+                else if (canData.motorCurrent[i] > VOLT_RED)
+                    return QColor(255, 255,0 );
                 else
-                    return QColor("red");
+                    return QColor(255, 0, 0);
                 return QColor("white");
             });
 
@@ -488,13 +484,13 @@ RobotControllerGUI::RobotControllerGUI()
             this, [i, motorNames]()
             { return QString((motorNames[i] + " rpm: " + std::to_string((int)RobotController::GetInstance().GetCANData().motorRPM[i])).c_str()); },
             false, 100, COLUMN_WIDTH / 4, 2 * COLUMN_WIDTH / 4,
-            []()
+            [i]()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
-                if (canData.motorRPM[0] > 0)
+                if (canData.motorRPM[i] > 0)
                     return QColor(0, 255, 0);
                 else
-                    return QColor("red");
+                    return QColor(255, 0, 0);
                 return QColor("white");
             });
 
@@ -502,18 +498,20 @@ RobotControllerGUI::RobotControllerGUI()
             this, [i, motorNames]()
             { return QString((motorNames[i] + " esctemp: " + std::to_string((int)RobotController::GetInstance().GetCANData().escFETTemp[i])).c_str()); },
             false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4,
-            []()
+            [i]()
             {
                 CANData canData = RobotController::GetInstance().GetCANData();
-                if (canData.escFETTemp[0] < TEMP_WARN)
+                if (canData.escFETTemp[i] < TEMP_WARN)
                     return QColor(0, 255, 0);
-                else if (canData.escFETTemp[0] < TEMP_RED)
-                    return QColor("yellow");
+                else if (canData.escFETTemp[i] < TEMP_RED)
+                    return QColor(255, 255, 0);
                 else
-                    return QColor("red");
+                    return QColor(255, 0, 0);
                 return QColor("white");
             });
     }
+
+    addLabeledSpinBox(this, "Packet rate (ms): ", MIN_INTER_SEND_TIME_MS, false);
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);
@@ -527,7 +525,7 @@ RobotControllerGUI::RobotControllerGUI()
  * Refreshes the field image in the GUI
  * This function is called from the robot controller thread
  * It is scheduled by the RobotController::RefreshFieldImageSignal signal
-*/
+ */
 void RobotControllerGUI::RefreshFieldImage()
 {
     // clear all queued events because we don't want to store more than one refresh event at a time
