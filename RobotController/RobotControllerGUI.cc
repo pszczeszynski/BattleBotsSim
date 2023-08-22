@@ -20,13 +20,13 @@ const int LABEL_HEIGHT = 30;
 const int SPINBOX_HEIGHT = 30;
 const int SLIDER_HEIGHT = 30;
 const int CHART_HEIGHT = 250;
-const int RADIO_HISTORY = 60;
+const int CHART_HISTORY = 60;
 
 const int widgetVerticalMargin = 5; // Margin between the label and the spin box or slider
 const int widgetHorizontalMargin = 10; // Margin between the window border and the widgets
 int nextWidgetYLeft = widgetVerticalMargin; // Vertical position of the next widget on the left side
 int nextWidgetYRight = widgetVerticalMargin; // Vertical position of the next widget on the right side
-int radioCount = 0;
+int radioCount = 1;
 
 const int rightSideX = WINDOW_WIDTH - COLUMN_WIDTH - widgetHorizontalMargin - 50;
 
@@ -328,7 +328,7 @@ QLineSeries* addRadioChart(QMainWindow *window, bool left)
     QLineSeries* series = new QLineSeries();
 
     //for (int i = 0; i < RADIO_HISTORY; i++)
-    for (int i = 0; i < RADIO_HISTORY; i++)
+    for (int i = 0; i < CHART_HISTORY; i++)
     {
         series->append(i, 0);
     }
@@ -411,8 +411,8 @@ RobotControllerGUI::RobotControllerGUI()
     // Right column: IMU widget
     // imu widget
     _imuWidget = new IMUWidget(this);
-    _imuWidget->setGeometry(rightSideX, nextWidgetYRight, COLUMN_WIDTH, COLUMN_WIDTH);
-    nextWidgetYRight += COLUMN_WIDTH + widgetVerticalMargin;
+    _imuWidget->setGeometry(rightSideX, nextWidgetYRight, COLUMN_WIDTH - 100, COLUMN_WIDTH - 100);
+    nextWidgetYRight += COLUMN_WIDTH + widgetVerticalMargin - 100;
 
     addRpmWidget(this, QString("Front Weapon"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
     addRpmWidget(this, QString("Rear Weapon"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
@@ -501,6 +501,15 @@ RobotControllerGUI::RobotControllerGUI()
             return QString((motorNames[i] + " esctemp: " + std::to_string((int) RobotController::GetInstance().GetCANData().escFETTemp[i])).c_str());
         }, false, 100, COLUMN_WIDTH / 4, 3 * COLUMN_WIDTH / 4);
     }
+
+    // _radioSeries = addRadioChart(this, false);
+    // // make it update every 50ms
+    // QTimer *timer = new QTimer(this);
+    // QObject::connect(timer, &QTimer::timeout, this, &RobotControllerGUI::UpdateRadioSeries);
+    // timer->start(50);
+
+
+
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);
@@ -614,9 +623,9 @@ void RobotControllerGUI::UpdateRadioSeries()
     _radioSeries->remove(0);
 
     if (received) 
-        _radioSeries->append(radioCount%RADIO_HISTORY, 0.5);
+        _radioSeries->append(radioCount%CHART_HISTORY, 0.5);
     else
-        _radioSeries->append(radioCount%RADIO_HISTORY, 0);
+        _radioSeries->append(radioCount%CHART_HISTORY, 0);
     radioCount++;
 }
 
@@ -649,15 +658,15 @@ bool RobotControllerGUI::eventFilter(QObject *watched, QEvent *event)
 
 ////// RADIO CHART ///////
 
-RadioChartWindow::RadioChartWindow()
+ChartWindow::ChartWindow()
 {
     setWindowTitle("Radio Chart");
     setWindowFlags(windowFlags() | Qt::WindowMinimizeButtonHint);
-    setGeometry(100, 100, WINDOW_WIDTH/2, WINDOW_HEIGHT/2);
+    setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT/2 + 120);
 
 
-    QChartView* chartView = new QChartView(this);
-    chartView->setGeometry(10, 10, WINDOW_WIDTH/2 - 20, WINDOW_HEIGHT/2 - 20);
+    QChartView* radioChartView = new QChartView(this);
+    radioChartView->setGeometry(10, 10, WINDOW_WIDTH/2 - 30, WINDOW_HEIGHT/2 + 100);
 
     _receiveSeries = new QLineSeries();
 
@@ -680,25 +689,73 @@ RadioChartWindow::RadioChartWindow()
     _radioChart->legend()->markers()[0]->setLabel("Received");
     _radioChart->legend()->markers()[1]->setLabel("Sent");
 
-    axisMax = RADIO_HISTORY;
+    _radioAxisMax = CHART_HISTORY;
     _radioChart->axes(Qt::Horizontal)[0]->setMin(0);
-    _radioChart->axes(Qt::Horizontal)[0]->setMax(axisMax);
+    _radioChart->axes(Qt::Horizontal)[0]->setMax(_radioAxisMax);
     _radioChart->axes(Qt::Horizontal)[0]->setTitleText("Time (s)");
 
     _radioChart->axes(Qt::Vertical)[0]->setMin(0);
     _radioChart->axes(Qt::Vertical)[0]->setMax(225);
     _radioChart->axes(Qt::Vertical)[0]->setTitleText("Packets/s");
 
-    chartView->setChart(_radioChart);
+    radioChartView->setChart(_radioChart);
 
     // make it update every 50ms
-    QTimer *timer = new QTimer(this);
-    QObject::connect(timer, &QTimer::timeout, this, &RadioChartWindow::UpdateRadioSeries);
-    timer->start(50);
+    QTimer *radioTimer = new QTimer(this);
+    QObject::connect(radioTimer, &QTimer::timeout, this, &ChartWindow::UpdateRadioSeries);
+    radioTimer->start(50);
+
+
+
+    
+    QChartView* ampChartView = new QChartView(this);
+    ampChartView->setGeometry(WINDOW_WIDTH/2 + 10, 10, WINDOW_WIDTH/2 - 30, WINDOW_HEIGHT/2 + 100);
+
+    for (int i = 0; i < MOTOR_COUNT; i++)
+    {
+        _ampSeries[i] = new QLineSeries();
+        _ampSeries[i]->append(0, 0);
+    }
+
+    _ampSeries[1]->setColor(Qt::blue);
+    _ampSeries[2]->setColor(Qt::red);
+    _ampSeries[3]->setColor(Qt::darkYellow);
+
+    _ampChart = new QChart();
+    _ampChart->setTheme(QChart::ChartThemeDark);
+    for (int i = 0; i < MOTOR_COUNT; i++)
+    {
+        _ampChart->addSeries(_ampSeries[i]);
+    }
+    _ampCount = 1;
+
+    _ampChart->setTitle("Motor Currents");
+    _ampChart->createDefaultAxes();
+
+    _ampChart->legend()->markers()[0]->setLabel("Left Drive");
+    _ampChart->legend()->markers()[1]->setLabel("Right Drive");
+    _ampChart->legend()->markers()[2]->setLabel("Front Weapon");
+    _ampChart->legend()->markers()[3]->setLabel("Rear Weapon");
+
+    _ampAxisMax = CHART_HISTORY;
+    _ampChart->axes(Qt::Horizontal)[0]->setMin(0);
+    _ampChart->axes(Qt::Horizontal)[0]->setMax(_ampAxisMax);
+    _ampChart->axes(Qt::Horizontal)[0]->setTitleText("Time (s)");
+
+    _ampChart->axes(Qt::Vertical)[0]->setMin(0);
+    _ampChart->axes(Qt::Vertical)[0]->setMax(225);
+    _ampChart->axes(Qt::Vertical)[0]->setTitleText("Curent (A)");
+
+    ampChartView->setChart(_ampChart);
+
+    // make it update every 50ms
+    QTimer *ampTimer = new QTimer(this);
+    QObject::connect(ampTimer, &QTimer::timeout, this, &ChartWindow::UpdateAmpSeries);
+    ampTimer->start(50);
 
 }
 
-void RadioChartWindow::ShowGUI()
+void ChartWindow::ShowGUI()
 {
     show();
 }
@@ -707,7 +764,7 @@ void RadioChartWindow::ShowGUI()
  * @brief RadioChartWindow::SetApp
  * Sets the application object for the GUI and sets the application palette to a dark color scheme
 */
-void RadioChartWindow::SetApp(QApplication& app)
+void ChartWindow::SetApp(QApplication& app)
 {
     // Set the application palette to a dark color scheme
     QPalette darkPalette;
@@ -731,34 +788,55 @@ void RadioChartWindow::SetApp(QApplication& app)
     this->app = &app;
 }
 
-RadioChartWindow& RadioChartWindow::GetInstance()
+ChartWindow& ChartWindow::GetInstance()
 {
-    static RadioChartWindow instance;
+    static ChartWindow instance;
     return instance;
 }
 
-QChart* RadioChartWindow::GetRadioChart()
+QChart* ChartWindow::GetRadioChart()
 {
     return _radioChart;
 }
 
-void RadioChartWindow::UpdateRadioSeries()
+void ChartWindow::UpdateRadioSeries()
 {
-    if (radioCount * axisConversion >= RADIO_HISTORY)
+    if (radioCount * AXIS_CONVERSION >= CHART_HISTORY)
     {
         _receiveSeries->remove(0);
         _sendSeries->remove(0);
     }
 
-    _receiveSeries->append(radioCount * axisConversion, RobotController::GetInstance().GetRobotLink().GetReceivedFPSThreadSafe());
-    _sendSeries->append(radioCount * axisConversion, RobotController::GetInstance().GetRobotLink().GetSendFPSThreadSafe());
+    _receiveSeries->append(radioCount * AXIS_CONVERSION, RobotController::GetInstance().GetRobotLink().GetReceivedFPSThreadSafe());
+    _sendSeries->append(radioCount * AXIS_CONVERSION, RobotController::GetInstance().GetRobotLink().GetSendFPSThreadSafe());
 
-    if (radioCount * axisConversion >= axisMax)
+    if (radioCount * AXIS_CONVERSION >= _radioAxisMax)
     {
-        axisMax += axisAdvance;
-        _radioChart->axes(Qt::Horizontal)[0]->setMin(axisMax - RADIO_HISTORY);
-        _radioChart->axes(Qt::Horizontal)[0]->setMax(axisMax);
+        _radioAxisMax += AXIS_ADVANCE;
+        _radioChart->axes(Qt::Horizontal)[0]->setMin(_radioAxisMax - CHART_HISTORY);
+        _radioChart->axes(Qt::Horizontal)[0]->setMax(_radioAxisMax);
     }
 
     radioCount++;
+}
+
+
+void ChartWindow::UpdateAmpSeries()
+{
+    for (int i = 0; i < MOTOR_COUNT; i++)
+    {
+        if (_ampCount * AXIS_CONVERSION >= CHART_HISTORY)
+            _ampSeries[i]->remove(0);
+
+        _ampSeries[i]->append(_ampCount * AXIS_CONVERSION*2, RobotController::GetInstance().GetCANData().motorCurrent[i]);
+    }
+
+    if (_ampCount * AXIS_CONVERSION >= _ampAxisMax)
+    {
+        _ampAxisMax += AXIS_ADVANCE;
+        _ampChart->axes(Qt::Horizontal)[0]->setMin(_ampAxisMax - CHART_HISTORY);
+        _ampChart->axes(Qt::Horizontal)[0]->setMax(_ampAxisMax);
+    }
+
+    _ampCount++;
 }

@@ -93,7 +93,7 @@ private:
 
 
 
-class RadioChartWindow : public QMainWindow
+class ChartWindow : public QMainWindow
 {
     Q_OBJECT
 
@@ -104,15 +104,16 @@ public slots:
 public:
     void ShowGUI();
     void SetApp(QApplication& app);
-    static RadioChartWindow& GetInstance();
+    static ChartWindow& GetInstance();
     QChart* GetRadioChart();
     void UpdateRadioSeries();
+    void UpdateAmpSeries();
     
 protected:
 
 private:
     // private ctor since this is a singleton
-    RadioChartWindow();
+    ChartWindow();
 
     QApplication *app;
     Clock _displayImageClock;
@@ -120,8 +121,13 @@ private:
     QLineSeries* _sendSeries;
     QChart* _radioChart;
 
-    int axisMax;
+    QLineSeries* _ampSeries[MOTOR_COUNT];
+    QChart* _ampChart;
 
-    const int axisAdvance = 20;
-    const float axisConversion = 0.03;
+    int _radioAxisMax;
+    int _ampAxisMax;
+    int _ampCount;
+
+    const int AXIS_ADVANCE = 20;
+    const float AXIS_CONVERSION = 0.03;
 };

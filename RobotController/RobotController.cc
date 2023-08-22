@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
     RobotControllerGUI::GetInstance().ShowGUI();
 
 
-    RadioChartWindow::GetInstance().SetApp(app);
-    RadioChartWindow::GetInstance().ShowGUI();
+    ChartWindow::GetInstance().SetApp(app);
+    ChartWindow::GetInstance().ShowGUI();
 
     controllerThread.start();
 
