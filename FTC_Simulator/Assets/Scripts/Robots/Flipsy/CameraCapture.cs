@@ -43,12 +43,12 @@ public class CameraCapture : MonoBehaviour
     Stopwatch stopwatch = new Stopwatch();
     void Update()
     {
-        if (stopwatch.ElapsedMilliseconds < 15)
+        if (stopwatch.ElapsedMilliseconds < 10)
         {
             return;
         }
-        stopwatch.Restart();
-        UnityEngine.Debug.Log("Streaming FPS:" + 1.0f / Time.deltaTime);
+        // stopwatch.Restart();
+        // UnityEngine.Debug.Log("Streaming FPS:" + 1.0f / Time.deltaTime);
         // ApplicationManager applicationManager = FindObjectOfType<ApplicationManager>();
         // // move MainCamera to this location
         // applicationManager.MainCamera.transform.position = transform.position;

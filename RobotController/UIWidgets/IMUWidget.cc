@@ -4,8 +4,8 @@
 #include <QPixmap>
 
 #define REFRESH_INTERVAL_MS 30
-#define WIDGET_WIDTH 500
-#define WIDGET_HEIGHT 500
+#define WIDGET_WIDTH 250
+#define WIDGET_HEIGHT 250
 #define WIDGET_RADIUS WIDGET_WIDTH / 2
 
 // the maximum acceleration in m/s^2

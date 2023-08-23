@@ -107,7 +107,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.07, 2);
+    const float MIN_AREA = pow(frame.cols * 0.04, 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 

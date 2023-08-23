@@ -3,20 +3,20 @@ using UnityEngine;
 using System.Linq;
 using System.Diagnostics;
 
-// for now, just send the other robot's position + orientation
-// eventually: send camera images so that robot controller deduces other robot position + orientation
-[System.Serializable]
-public struct RobotControllerMessage
-{
-    // our robot
-    public Vector3 robot_velocity;
-    public double robot_rotation;
-    public double robot_rotation_velocity;
+// // for now, just send the other robot's position + orientation
+// // eventually: send camera images so that robot controller deduces other robot position + orientation
+// [System.Serializable]
+// public struct RobotControllerMessage
+// {
+//     // our robot
+//     public Vector3 robot_velocity;
+//     public double robot_rotation;
+//     public double robot_rotation_velocity;
 
-    // other robot
-    public Vector3 opponent_position;
-    public double opponent_rotation;
-}
+//     // other robot
+//     public Vector3 opponent_position;
+//     public double opponent_rotation;
+// }
 
 public class Robot_BB_Flipsy : RobotInterface3D
 {

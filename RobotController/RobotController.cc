@@ -145,6 +145,16 @@ void RobotController::Run()
 
         // get the latest classification (very fast)
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
+
+        // in simulation, add a 5 millisecond wait and continue if we don't get a new image
+#ifdef SIMULATION
+        if (!classification.GetHadNewImage())
+        {
+            Sleep(5);
+            continue;
+        }
+#endif
+
         // update the robot tracker positions
         UpdateRobotTrackers(classification);
 
@@ -292,15 +302,14 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
     // draw arrow from our position at our angle
     cv::Point2f arrowEnd = currPos + cv::Point2f(50.0 * cos(currAngle), 50.0 * sin(currAngle));
 
-    cv::arrowedLine(drawingImage, currPos, arrowEnd, cv::Scalar(0, 0, 255), 1);
+    // draw blue arrow at our angle
+    cv::arrowedLine(drawingImage, currPos, arrowEnd, cv::Scalar(255, 255, 0), 2);
     // draw our position
-    cv::circle(drawingImage, currPos, 5, cv::Scalar(0,0,255), 2);
-    // draw circle with dotted line at extrapolated position
-    cv::circle(drawingImage, currPosEx, 5, cv::Scalar(255,100,0), 1);
+    cv::circle(drawingImage, currPos, 5, cv::Scalar(255,100,0), 2);
 
     // draw different colored arrow from our position at extrapolated angle
-    cv::Point2f arrowEndEx = currPosEx + cv::Point2f(50.0 * cos(currAngleEx), 50.0 * sin(currAngleEx));
-    cv::arrowedLine(drawingImage, currPosEx, arrowEndEx, cv::Scalar(255, 100, 0), 2);
+    cv::Point2f arrowEndEx = currPosEx + cv::Point2f(25.0 * cos(currAngleEx), 25.0 * sin(currAngleEx));
+    cv::arrowedLine(drawingImage, currPosEx, arrowEndEx, cv::Scalar(0, 0, 255), 1);
 
 
 
@@ -468,12 +477,12 @@ DriveCommand RobotController::OrbitMode()
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
     // draw blue circle around opponent
-    cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 1);
+    cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
     // // draw arrow from opponent position at opponent angle
     // cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
     // cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
     // draw orange circle around opponent to show evasion radius
-    cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 4);
+    cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 1);
 
     // get our velocity
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
@@ -641,7 +650,9 @@ DriveCommand RobotController::ManualMode()
         response.turn = 0;
     }
 
-    response.turn *= 0.6;
+    // enforce the max speed
+    response.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+    response.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
     return response;
 }
@@ -693,10 +704,6 @@ DriveCommand RobotController::RobotLogic()
         ret.movement = responseManual.movement * abs(responseOrbit.movement);
         _orbiting = true;
     }
-
-    // enforce the max speed
-    ret.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
-    ret.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
     // return the response
     return ret;

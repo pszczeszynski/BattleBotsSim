@@ -33,6 +33,12 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         while (true)
         {
             _CaptureFrame();
+
+#ifdef SIMULATION
+            // sleep for 15 ms
+            Sleep(15);
+#endif
+            
         } });
 }
 
