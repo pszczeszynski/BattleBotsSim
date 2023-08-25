@@ -16,7 +16,7 @@ const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1015;
 const int COLUMN_WIDTH = WINDOW_WIDTH / 5;
 const int COLUMN_SPACING = 20;
-const int LABEL_HEIGHT = 30;
+const int LABEL_HEIGHT = 25;
 const int SPINBOX_HEIGHT = 30;
 const int SLIDER_HEIGHT = 30;
 
@@ -511,6 +511,9 @@ RobotControllerGUI::RobotControllerGUI()
             });
     }
 
+    addLabeledSlider(this, "Min robot blob size px: ", MIN_ROBOT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Min opponent blob size px: ", MIN_OPPONENT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Motion low threshold: ", MOTION_LOW_THRESHOLD, 0, 100, false);
     addLabeledSpinBox(this, "Packet rate (ms): ", MIN_INTER_SEND_TIME_MS, false);
 
     // enable tracking the mouse even when it isn't pressed

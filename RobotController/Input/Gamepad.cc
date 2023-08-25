@@ -123,7 +123,6 @@ DualSense::~DualSense()
 {
     // Free Device Context
     DS5W::freeDeviceContext(&_con);
-
 }
 
 bool DualSense::InitController(int index)
@@ -139,7 +138,20 @@ bool DualSense::InitController(int index)
 
 void DualSense::Update()
 {
-    if (_initialized) DS5W::getDeviceInputState(&_con, &_inState); 
+    if (_initialized)
+    {
+        DS5W_ReturnValue ret = DS5W::getDeviceInputState(&_con, &_inState);
+        
+        if (ret != DS5W_OK)
+        {
+            _initialized = false;
+        }
+    }
+    else
+    {
+        // attempt to regain
+        InitController(0);
+    }
 }
 
 bool DualSense::GetButtonA()

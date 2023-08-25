@@ -11,6 +11,8 @@
 #include <opencv2/core.hpp>
 #include <algorithm>
 
+#define HARDCORE
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -339,8 +341,10 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     response.movement = goToOtherTarget ? drive_scale : -drive_scale;
 
+#ifndef HARDCORE
     // Draw debugging information
     cv::circle(drawingImage, targetPos, 10, cv::Scalar(0, 255, 0), 4);
+#endif
 
     response.turn *= -1;
 
@@ -476,13 +480,18 @@ DriveCommand RobotController::OrbitMode()
     // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
+#ifndef HARDCORE
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
     // // draw arrow from opponent position at opponent angle
     // cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
     // cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 1);
+#else
+    cv::circle(drawingImage, opponentPosEx, 5, cv::Scalar(255, 165, 0), 1);
+#endif
 
     // get our velocity
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
@@ -496,6 +505,7 @@ DriveCommand RobotController::OrbitMode()
     targetPurePursuitRadius = std::min(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MAX_PURE_PURSUIT_RADIUS_SCALE);
     targetPurePursuitRadius = std::max(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
     targetPurePursuitRadius = std::min(targetPurePursuitRadius, distanceToOtherEdgeOfCircle - 5);
+
     // slowly change the radius to the target radius
     purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
     // re-enforce the smoothed radius to not engulf the circle
@@ -507,9 +517,10 @@ DriveCommand RobotController::OrbitMode()
     // next find the intersection of the pure pursuit circle with the circle around the opponent
     std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, purePursuitRadius, opponentPosEx, orbitRadius);
 
+#ifndef HARDCORE
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
-
+#endif
 
 
     bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
@@ -535,12 +546,23 @@ DriveCommand RobotController::OrbitMode()
     // // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
     targetPoint = _NoMoreAggressiveThanTangent(ourPosition, opponentPosEx, orbitRadius, targetPoint, circleDirection);
 
+#ifndef HARDCORE
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
+#endif
 
     // Drive to the opponent position
     bool allowReverse = false;
     DriveCommand response = DriveToPosition(targetPoint, allowReverse);
+
+
+    // if on inside of circle and pointed outwards
+    if (distToCenter < orbitRadius && abs(angle_wrap(angleToOpponent + M_PI - ourAngle)) < 45 * TO_RAD)
+    {
+        // force 100% move power
+        response.movement = 1.0;
+        response.turn *= 0.5;
+    }
 
     // drawAndDisplayValue(drawingImage, cv::norm(RobotOdometry::Robot().GetVelocity()), 50, cv::Scalar(0, 255, 0));
 
@@ -615,6 +637,24 @@ void RobotController::UpdateSpinnerPowers()
 
 
 /**
+ * Allows the spacebar to control switching the robot positions should the trackers swap
+*/
+void SpaceSwitchesRobots()
+{
+    static bool spacePressedLast = false;
+    bool spacePressed = Input::GetInstance().IsKeyPressed(Qt::Key_Space);
+
+    // if the space bar was just pressed down
+    if (spacePressed && !spacePressedLast)
+    {
+        RobotClassifier::instance->SwitchRobots();
+    }
+
+    // save the last variable for next time
+    spacePressedLast = spacePressed;
+}
+
+/**
  * ManualMode
  * Allows the user to drive the robot manually
  */
@@ -653,6 +693,8 @@ DriveCommand RobotController::ManualMode()
     // enforce the max speed
     response.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
     response.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
+
+    SpaceSwitchesRobots();
 
     return response;
 }

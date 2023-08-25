@@ -8,6 +8,7 @@
 #include "PathFinder.h"
 #include <opencv2/flann.hpp>
 #include "Globals.h"
+#include "RobotConfig.h"
 
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam),
@@ -119,15 +120,16 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     cv::Mat grayDiff;
     cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
 
-    const int LOW_THRESHOLD = 14;
-
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;
-    cv::threshold(grayDiff, thresholdImg, LOW_THRESHOLD, 255, cv::THRESH_BINARY);
+    cv::threshold(grayDiff, thresholdImg, MOTION_LOW_THRESHOLD, 255, cv::THRESH_BINARY);
 
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
+
+    // cv::imshow("threshold", thresholdImg);
+    // cv::waitKey(1);
     
 
     // cv::imshow("Motion", thresholdImg);

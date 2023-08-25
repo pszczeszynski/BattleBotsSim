@@ -796,6 +796,7 @@ MonoBehaviour:
   arm_speed: 160
   arm_min: 0
   arm_max: 120
+  spinners_on: 1
   downForce: 500
   use_downforce: 0
 --- !u!1 &1513895556740696

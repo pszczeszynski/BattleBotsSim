@@ -29,7 +29,7 @@ public class Robot_BB_Roundhouse : RobotInterface3D
     public float arm_min = 0f;
     public float arm_max = 180f;
 
-    bool spinners_on = false;
+    public bool spinners_on = false;
     public float downForce = 100f;
 
     public bool use_downforce = false;
@@ -66,6 +66,8 @@ public class Robot_BB_Roundhouse : RobotInterface3D
         {
             return;
         }
+
+        UpdateTankDriveScript();
 
         // ****************************
         // B button: turns spinner off-on
@@ -133,4 +135,26 @@ public class Robot_BB_Roundhouse : RobotInterface3D
 
     }
 
+    // private bool qLast = false;
+    void UpdateTankDriveScript()
+    {
+        // movement with w and s
+        float movement_amount = (Input.GetKey(KeyCode.W) ? 1.0f : 0) - (Input.GetKey(KeyCode.S) ? 1.0f : 0);
+        // turn with j and l
+        float turn_amount = (Input.GetKey(KeyCode.A) ? 1.0f : 0) - (Input.GetKey(KeyCode.D) ? 1.0f : 0);
+    
+        gamepad1_left_stick_y = -movement_amount;
+        gamepad1_right_stick_x = -turn_amount;
+
+        // bool qCurr = Input.GetKey(KeyCode.Q);
+        // if (qCurr && !qLast)
+        // {
+        //     spinners_on = !spinners_on;
+        // }
+
+        // qLast = qCurr;
+
+        base.UpdateMovement();
+
+    }
 }

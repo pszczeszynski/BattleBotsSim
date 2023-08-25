@@ -140,7 +140,7 @@ bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
  * @brief updates with both visual and imu information. this should only be called for our robot (since we have our imu)
  * However, sometimes we don't have the visual information in which we call UpdateIMUOnly
 */
-#define FUSE_ANGLE_WEIGHT 0.01
+#define FUSE_ANGLE_WEIGHT 0.05
 
 void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 {
@@ -163,8 +163,8 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     double fusedAngle = _UpdateAndGetIMUAngle();
     // calculate angle using the visual information
     double visualAngle = CalcAnglePathTangent();
-    // if can use the visual information
-    if (_visualAngleValid && false)
+    // if can use the visual information and the user presses enter (to realign)
+    if (_visualAngleValid && Input::GetInstance().IsKeyPressed(Qt::Key_Control))
     {
         // if we have visual information, use the visual angle
         fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);
@@ -273,6 +273,7 @@ double RobotOdometry::_UpdateAndGetIMUAngle()
  * Smooths out the visual velocity so it's not so noisy
 */
 #define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 50
+#define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 3
 cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
 {
     if (_lastVelocityCalcClock.getElapsedTime() > 0.1)
@@ -285,6 +286,13 @@ cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
     cv::Point2f visualVelocity = (blob.center - _position) / _lastVelocityCalcClock.getElapsedTime();
     // compute weight for interpolation
     double weight = _lastVelocityCalcClock.getElapsedTime() * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
+
+    // If this is the opponent, don't extrapolate so much!! => TODO: make this not a hack
+    if (this == &RobotOdometry::Opponent())
+    {
+        weight /= NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT;
+    }
+
     // interpolate towards the visual velocity so it's not so noisy
     cv::Point2f smoothedVisualVelocity = InterpolatePoints(_lastVelocity, visualVelocity, weight);
 
