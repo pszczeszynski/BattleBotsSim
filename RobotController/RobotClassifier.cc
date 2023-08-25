@@ -164,87 +164,49 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     double matchingDistThresholdOpponent = MATCHING_DIST_THRESHOLD;
 
 
-    // // if haven't matched the robot for a while, increase the dist threshold for it
-    // if (noRobotClock.getElapsedTime() > 3)
-    // {
-    //     matchingDistThresholdRobot = WIDTH * 3;
-    // }
-
-    // // if we haven't matched the opponent in a while, increase the dist threshold for it
-    // if (noOpponentClock.getElapsedTime() > 3)
-    // {
-    //     matchingDistThresholdOpponent = WIDTH * 3;
-    // }
-
     // if only one blob
     if (blobs.size() == 1)
     {
         double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blobs[0].center);
         double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blobs[0].center);
 
-        bool isRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
-
-        // if the blob is really close to both robots
-        if (distanceToRobot < 10 && distanceToOpponent < 10)
-        {
-            // choose the one with more velocity last time
-            isRobot = cv::norm(RobotOdometry::Robot().GetVelocity()) > cv::norm(RobotOdometry::Opponent().GetVelocity());
-        }
+        bool isRobot = distanceToRobot < distanceToOpponent;
 
         // if this is the robot (not the opponent)
         if (isRobot)
         {
-            if (distanceToRobot < matchingDistThresholdRobot &&
-                sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
-                sqrt(blobs[0].rect.area()) <= MAX_ROBOT_BLOB_SIZE)
+            if (distanceToRobot < matchingDistThresholdRobot)
             {
-                RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetRobot(blobs[0]);
-                noRobotClock.markStart();
             }
         }
         else
         {
-            // make sure it's close enough and the size is big enough
-            if (distanceToOpponent < matchingDistThresholdOpponent &&
-                sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
-                sqrt(blobs[0].rect.area()) <= MIN_OPPONENT_BLOB_SIZE)
+            if (distanceToOpponent < matchingDistThresholdOpponent)
             {
-                RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetOpponent(blobs[0]);
-                noRobotClock.markStart();
             }
         }
     }
     // otherwise have more than 2 blobs, only use the first 2 blobs
     else if (blobs.size() >= 2)
     {
-        double firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage);
-        double secondIsRobot = ClassifyBlob(blobs[1], frame, motionImage);
-        double preference = firstIsRobot - secondIsRobot;
+        double totalMovement1 = cv::norm(blobs[0].center - RobotOdometry::Robot().GetPosition()) + cv::norm(blobs[1].center - RobotOdometry::Opponent().GetPosition());
+        double totalMovement2 = cv::norm(blobs[1].center - RobotOdometry::Robot().GetPosition()) + cv::norm(blobs[0].center - RobotOdometry::Opponent().GetPosition());
 
-        MotionBlob& robot = preference <= 0 ? blobs[0] : blobs[1];
-        MotionBlob& opponent = preference <= 0 ? blobs[1] : blobs[0];
+        MotionBlob& robot = totalMovement1 < totalMovement2 ? blobs[0] : blobs[1];
+        MotionBlob& opponent = totalMovement1 < totalMovement2 ? blobs[1] : blobs[0];
 
-        RecalibrateRobot(robotCalibrationData, robot, frame, motionImage);
-        RecalibrateRobot(opponentCalibrationData, opponent, frame, motionImage);
+        double distanceToRobot = cv::norm(robot.center - RobotOdometry::Robot().GetPosition());
+        double distanceToOpponent = cv::norm(opponent.center - RobotOdometry::Opponent().GetPosition());
 
-        // if the robot blob is close to the robot tracker
-        if (norm(robot.center - RobotOdometry::Robot().GetPosition()) < matchingDistThresholdRobot &&
-            sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
-            sqrt(robot.rect.area()) <= MAX_ROBOT_BLOB_SIZE)
+        if (distanceToRobot < matchingDistThresholdRobot)
         {
             classificationResult.SetRobot(robot);
-            noRobotClock.markStart();
         }
-
-        // if the opponent blob is close to the opponent tracker
-        if (norm(opponent.center - RobotOdometry::Opponent().GetPosition()) < matchingDistThresholdOpponent &&
-            sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
-            sqrt(opponent.rect.area()) <= MAX_OPPONENT_BLOB_SIZE)
+        if (distanceToOpponent < matchingDistThresholdOpponent)
         {
             classificationResult.SetOpponent(opponent);
-            noRobotClock.markStart();
         }
     }
 
