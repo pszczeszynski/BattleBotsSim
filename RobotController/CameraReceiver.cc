@@ -104,11 +104,12 @@ void CameraReceiver::_CaptureFrame()
     }
 
     // convert to RGB
-    cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
     // lock the mutex
     _frameMutex.lock();
+    cv::cvtColor(frame, _frame, cv::COLOR_BGR2RGB);
+
     // flip image
-    cv::flip(frame, _frame, -1);
+    // cv::flip(frame, _frame, -1);
     // increase _framesReady
     _framesReady++;
     // unlock the mutex
@@ -130,7 +131,7 @@ bool CameraReceiver::_InitializeCamera()
     }
 
     // Now we can create the video capture
-    _cap = new cv::VideoCapture(_cameraIndex, cv::CAP_ANY);
+    _cap = new cv::VideoCapture(_cameraIndex, cv::CAP_DSHOW);
 
     // check if camera opened successfully
     if (!_cap->isOpened())
@@ -140,10 +141,11 @@ bool CameraReceiver::_InitializeCamera()
     }
 
     // Set core properties first
-    _cap->set(cv::CAP_PROP_FRAME_WIDTH, WIDTH);
-    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, (int)(HEIGHT * 0.6666666667));
-    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
+    _cap->set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+    _cap->set(cv::CAP_PROP_FPS, 90); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
 
+    _cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     // Disable buffering to minimize latency
     _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
 
@@ -152,9 +154,9 @@ bool CameraReceiver::_InitializeCamera()
     _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
     _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
 
-    // Set exposure and white balance after disabling automatic modes
-    _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
-    _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 2500);
+    // // Set exposure and white balance after disabling automatic modes
+    // _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
+    // _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 2500);
 
     std::cout << "Successfully initialized camera!" << std::endl;
 
