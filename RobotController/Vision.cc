@@ -108,7 +108,8 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 {
     const cv::Size BLUR_SIZE = cv::Size(14,14);
 
-    const float MIN_AREA = pow(frame.cols * 0.04, 2);
+    const float MIN_AREA = pow(std::min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE), 2);
+    const float MAX_AREA = pow(std::max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE), 2);
 
     cv::Point2f center = cv::Point2f(0,0);
 
@@ -150,8 +151,8 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
                 // flood fill but don't change the image
                 cv::floodFill(thresholdImg, cv::Point(x, y), cv::Scalar(100), &rect);
 
-                // if the blob is larger than the previous largest blob, then update the largest blob
-                if (rect.area() > MIN_AREA)
+                // if the blob is a reasonable size, add it to the list
+                if (rect.area() >= MIN_AREA && rect.area() <= MAX_AREA)
                 {
                     // add the rect to the list of potential robots
                     potentialRobots.push_back(rect);

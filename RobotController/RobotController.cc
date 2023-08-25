@@ -11,7 +11,7 @@
 #include <opencv2/core.hpp>
 #include <algorithm>
 
-#define HARDCORE
+// #define HARDCORE
 
 int main(int argc, char *argv[])
 {

@@ -511,10 +511,12 @@ RobotControllerGUI::RobotControllerGUI()
             });
     }
 
-    addLabeledSlider(this, "Min robot blob size px: ", MIN_ROBOT_BLOB_SIZE, 0, 100, false);
-    addLabeledSlider(this, "Min opponent blob size px: ", MIN_OPPONENT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Min robot blob size (px): ", MIN_ROBOT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Max robot blob size (px): ", MAX_ROBOT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Min opponent blob size (px): ", MIN_OPPONENT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Max opponent blob size (px): ", MAX_OPPONENT_BLOB_SIZE, 0, 100, false);
     addLabeledSlider(this, "Motion low threshold: ", MOTION_LOW_THRESHOLD, 0, 100, false);
-    addLabeledSpinBox(this, "Packet rate (ms): ", MIN_INTER_SEND_TIME_MS, false);
+    addLabeledSpinBox(this, "Packet rate (ms): ", MIN_INTER_SEND_TIME_MS, true);
 
     // enable tracking the mouse even when it isn't pressed
     setMouseTracking(true);

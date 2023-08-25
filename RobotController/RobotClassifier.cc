@@ -126,22 +126,13 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
 #define HISTOGRAM_WEIGHT 0.0
 #define DISTNACE_WEIGHT 1.0
 /**
- * Returns a number that is greater the more we think the robot is us.
+ * Returns a number that is more negative the more we think the robot is us.
  * 
  * What does that look for?
  * Being more blue in the lastFrame
 */
 double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
 {
-    // calculate the histogram of the blob
-    cv::Mat histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
-    // compare to the histogram of the robot and the opponent
-    double diffToRobotHist = compareHistograms(histogram, robotCalibrationData.histogram);
-    double diffToOpponentHist = compareHistograms(histogram, opponentCalibrationData.histogram);
-
-    // calculate the overal preference to be the robot
-    double histogramScore = diffToRobotHist - diffToOpponentHist;
-
     // now let's take their location into account
     double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blob.center);
     double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blob.center);
@@ -150,10 +141,10 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     double distanceScoreNormalized = (distanceToRobot - distanceToOpponent) / (distanceToRobot + distanceToOpponent);
 
     // weight and sum the scores
-    return histogramScore * HISTOGRAM_WEIGHT + distanceScoreNormalized * DISTNACE_WEIGHT;
+    return distanceScoreNormalized;
 }
 
-#define MATCHING_DIST_THRESHOLD 200 * WIDTH / 720
+#define MATCHING_DIST_THRESHOLD 100 * WIDTH / 720
 #define TIME_UNTIL_BIGGER_THRESH_SECONDS 3
 /**
  * @brief Classifies the blobs and returns the robot and opponent blobs
@@ -204,7 +195,8 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         if (isRobot)
         {
             if (distanceToRobot < matchingDistThresholdRobot &&
-                sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE)
+                sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
+                sqrt(blobs[0].rect.area()) <= MAX_ROBOT_BLOB_SIZE)
             {
                 RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetRobot(blobs[0]);
@@ -215,7 +207,8 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         {
             // make sure it's close enough and the size is big enough
             if (distanceToOpponent < matchingDistThresholdOpponent &&
-                sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE)
+                sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
+                sqrt(blobs[0].rect.area()) <= MIN_OPPONENT_BLOB_SIZE)
             {
                 RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetOpponent(blobs[0]);
@@ -238,7 +231,8 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
 
         // if the robot blob is close to the robot tracker
         if (norm(robot.center - RobotOdometry::Robot().GetPosition()) < matchingDistThresholdRobot &&
-            sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE)
+            sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
+            sqrt(robot.rect.area()) <= MAX_ROBOT_BLOB_SIZE)
         {
             classificationResult.SetRobot(robot);
             noRobotClock.markStart();
@@ -246,7 +240,8 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
 
         // if the opponent blob is close to the opponent tracker
         if (norm(opponent.center - RobotOdometry::Opponent().GetPosition()) < matchingDistThresholdOpponent &&
-            sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE)
+            sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
+            sqrt(opponent.rect.area()) <= MAX_OPPONENT_BLOB_SIZE)
         {
             classificationResult.SetOpponent(opponent);
             noRobotClock.markStart();
