@@ -8,12 +8,19 @@
 #include "Globals.h"
 #include "Clock.h"
 #include <stdlib.h>
+#include "Input/Input.h"
+
+
+#define VIDEO_READ
+// #define SAVE_VIDEO
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
 #define BAD_READ_TIME_THRESH_SECONDS 0.4
 #define NUMBER_LONG_READS_THRESH 2
 int NUMBER_OF_LONG_READS = 0;
 
+
+bool saveVideo = false;
 CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 {
     // Disable hardware transforms so it takes less time to initialize
@@ -22,6 +29,15 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
     // create a thread to capture frames
     _captureThread = std::thread([this]()
                                  {
+
+#ifdef SAVE_VIDEO
+        // Initialize VideoWriter0
+        int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G'); // or use another codec
+        double fps = 60.0;                                        // you can adjust this according to your needs
+        cv::Size frameSize(1280, 720);
+        cv::VideoWriter video("Recordings/outputVideo.avi", fourcc, fps, frameSize, true); // 'true' for color video
+#endif
+
         // try to initialize camera
         while (!_InitializeCamera())
         {
@@ -33,6 +49,23 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         while (true)
         {
             _CaptureFrame();
+
+#ifdef SAVE_VIDEO
+            if (Input::GetInstance().IsKeyPressed(Qt::Key_Enter))
+            {
+                saveVideo = true;
+            }
+            if (Input::GetInstance().IsKeyPressed(Qt::Key_Backspace))
+            {
+                saveVideo = false;
+            }
+            if (saveVideo)
+            {
+                _frameMutex.lock();
+                video.write(_frame);
+                _frameMutex.unlock();
+            }
+#endif
 
 #ifdef SIMULATION
             // sleep for 15 ms
@@ -103,6 +136,7 @@ void CameraReceiver::_CaptureFrame()
         return;
     }
 
+    // cv::equalizeHist(frame, frame);
     // convert to RGB
     // lock the mutex
     _frameMutex.lock();
@@ -130,8 +164,29 @@ bool CameraReceiver::_InitializeCamera()
         _cap = nullptr;
     }
 
+
+#ifndef VIDEO_READ
     // Now we can create the video capture
     _cap = new cv::VideoCapture(_cameraIndex, cv::CAP_DSHOW);
+
+    // Set core properties first
+    _cap->set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
+
+    _cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    // Disable buffering to minimize latency
+    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+    // Disable any automatic settings for more predictable performance
+    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0); // 0.25 usually means "manual mode" in OpenCV
+    _cap->set(cv::CAP_PROP_AUTO_WB, 1.0);
+#else
+    // init video reader
+    _cap = new cv::VideoCapture("Recordings/terribleFight.avi");
+    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
+
+#endif
 
     // check if camera opened successfully
     if (!_cap->isOpened())
@@ -140,19 +195,7 @@ bool CameraReceiver::_InitializeCamera()
         return false;
     }
 
-    // Set core properties first
-    _cap->set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-    _cap->set(cv::CAP_PROP_FPS, 90); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
-
-    _cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    // Disable buffering to minimize latency
-    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
-
-    // Disable any automatic settings for more predictable performance
-    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25); // 0.25 usually means "manual mode" in OpenCV
-    _cap->set(cv::CAP_PROP_AUTO_WB, 0.25);
-    _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
+    // _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
 
     // // Set exposure and white balance after disabling automatic modes
     // _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);

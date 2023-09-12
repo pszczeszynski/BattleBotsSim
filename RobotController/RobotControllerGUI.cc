@@ -1,6 +1,7 @@
 #include "RobotControllerGUI.h"
 #include "RobotClassifier.h"
 #include "RobotController.h"
+#include "Globals.h"
 #include <QPushButton>
 #include <QLabel>
 #include <QSpinBox>
@@ -265,11 +266,26 @@ const int RPM_WIDGET_WIDTH = COLUMN_WIDTH * 0.9;
 const int MAX_RPM = 4000;
 void addRpmWidget(QMainWindow *window, QString labelString, float &targetRpm, float &currentRpm, bool left = true)
 {
+    static int index = 0;
     int x = left ? widgetHorizontalMargin : rightSideX;
     int y = left ? nextWidgetYLeft : nextWidgetYRight;
 
     QLabel *label = new QLabel(labelString, window);
     label->setGeometry(x, y, RPM_WIDGET_WIDTH, LABEL_HEIGHT);
+
+    // set color
+    QPalette palette2 = label->palette();
+    if (index == 1)
+    {
+        palette2.setColor(QPalette::WindowText, Qt::blue);
+    }
+    else
+    {
+        palette2.setColor(QPalette::WindowText, Qt::yellow);
+    }
+    label->setPalette(palette2);
+
+    index ++;
 
     TargetRpmProgressBar  *rpmProgressBar = new TargetRpmProgressBar(window);
     rpmProgressBar->setGeometry(x, y + LABEL_HEIGHT, RPM_WIDGET_WIDTH, RPM_WIDGET_HEIGHT - LABEL_HEIGHT);
@@ -376,8 +392,8 @@ RobotControllerGUI::RobotControllerGUI()
     _imuWidget->setGeometry(rightSideX, nextWidgetYRight, COLUMN_WIDTH, COLUMN_WIDTH);
     nextWidgetYRight += COLUMN_WIDTH + widgetVerticalMargin;
 
-    addRpmWidget(this, QString("Front Weapon (w/s)"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), false);
-    addRpmWidget(this, QString("Rear Weapon (i/k)"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), false);
+    addRpmWidget(this, QString("YELLOW Weapon (w/s)"), RobotController::GetInstance().GetFrontWeaponTargetPowerRef(), frontWeaponCurrRPMPercent, false);
+    addRpmWidget(this, QString("BLUE Weapon (i/k)"), RobotController::GetInstance().GetBackWeaponTargetPowerRef(), backWeaponCurrRPMPercent, false);
 
     addPushButton(this, "Angle Invert", []()
     {
@@ -514,7 +530,7 @@ RobotControllerGUI::RobotControllerGUI()
     addLabeledSlider(this, "Min robot blob size (px): ", MIN_ROBOT_BLOB_SIZE, 0, 100, false);
     addLabeledSlider(this, "Max robot blob size (px): ", MAX_ROBOT_BLOB_SIZE, 0, 100, false);
     addLabeledSlider(this, "Min opponent blob size (px): ", MIN_OPPONENT_BLOB_SIZE, 0, 100, false);
-    addLabeledSlider(this, "Max opponent blob size (px): ", MAX_OPPONENT_BLOB_SIZE, 0, 100, false);
+    addLabeledSlider(this, "Max opponent blob size (px): ", MAX_OPPONENT_BLOB_SIZE, 0, 200, false);
     addLabeledSlider(this, "Motion low threshold: ", MOTION_LOW_THRESHOLD, 0, 100, false);
     addLabeledSpinBox(this, "Packet rate (ms): ", MIN_INTER_SEND_TIME_MS, true);
 

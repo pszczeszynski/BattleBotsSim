@@ -4,6 +4,8 @@
 
 const int CLOSE = 20;
 
+// #define STABALIZE
+
 VisionPreprocessor::VisionPreprocessor()
 {
     // Define the four corners of the bird's-eye view output image
@@ -30,6 +32,18 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     Clock c;
     // Apply the perspective transformation
     warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
+
+    // // split channels
+    // std::vector<cv::Mat> channels;
+    // cv::split(dst, channels);
+
+    // // equalize histogram of each
+    // cv::equalizeHist(channels[0], channels[0]);
+    // cv::equalizeHist(channels[1], channels[1]);
+    // cv::equalizeHist(channels[2], channels[2]);
+
+    // // merge channels
+    // cv::merge(channels, dst);
 
     // Clock c;
     // stabilize the image

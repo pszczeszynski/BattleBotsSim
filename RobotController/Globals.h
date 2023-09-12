@@ -10,6 +10,9 @@
 
 extern bool CAN_DRAW;
 
+extern float frontWeaponCurrRPMPercent;
+extern float backWeaponCurrRPMPercent; 
+
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window
 extern cv::Mat P_DRAWING_IMAGE;

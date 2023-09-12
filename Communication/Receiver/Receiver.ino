@@ -235,9 +235,12 @@ void DriveWithLatestMessage()
         command.turn = 0;
         command.frontWeaponPower = 0;
         command.backWeaponPower = 0;
+        command.selfRighterPower = 0;
         command.valid = true;
         Drive(command);
         DriveWeapons(command);
+        DriveSelfRighter(command);
+
 #ifdef LOG_DATA
         logger->logMessage("Radio Timeout");
 #endif

@@ -208,8 +208,9 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
             // make sure it's close enough and the size is big enough
             if (distanceToOpponent < matchingDistThresholdOpponent &&
                 sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
-                sqrt(blobs[0].rect.area()) <= MIN_OPPONENT_BLOB_SIZE)
+                sqrt(blobs[0].rect.area()) <= MAX_OPPONENT_BLOB_SIZE)
             {
+
                 RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetOpponent(blobs[0]);
                 noRobotClock.markStart();

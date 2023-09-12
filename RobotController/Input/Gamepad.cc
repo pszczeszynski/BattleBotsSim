@@ -127,10 +127,17 @@ DualSense::~DualSense()
 
 bool DualSense::InitController(int index)
 {
+    static int fails = 0;
     // Init controller
     _initialized = !DS5W_FAILED(DS5W::initDeviceContext(&_infos[index], &_con));
-    if (!_initialized) {
-        std::cout << "Error Initializing Controller " << index << std::endl;
+    if (!_initialized)
+    {
+        fails++;
+        if (fails >= 500)
+        {
+            std::cout << "Error Initializing Controller " << index << std::endl;
+            fails = 0;
+        }
         return false;
     }
     return true;

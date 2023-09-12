@@ -78,6 +78,9 @@ CANData RobotController::GetCANData()
     ret = _lastCANMessage.canData;
     // unlock the mutex
     _lastCanMessageMutex.unlock();
+
+    frontWeaponCurrRPMPercent = ret.motorRPM[2] / 88.0f;
+    backWeaponCurrRPMPercent = ret.motorRPM[3] / 88.0f;
     // return the data
     return ret;
 }
@@ -572,10 +575,13 @@ DriveCommand RobotController::OrbitMode()
     return response;
 }
 
-#define SECONDS_UNTIL_FULL_POWER 8.0
+#define SECONDS_UNTIL_FULL_POWER 15.6
 void RobotController::UpdateSpinnerPowers()
 {
     static Clock updateTimer;
+    static bool rampUpF = false;
+    static bool rampUpB = false;
+    static bool overrideRampLimit = false;
 
     // get the delta time
     double deltaTimeS = updateTimer.getElapsedTime();
@@ -587,46 +593,99 @@ void RobotController::UpdateSpinnerPowers()
         deltaTimeS = 0;
     }
 
-    double scaleFront = _frontWeaponPower < 0.1 ? 1 : (_frontWeaponPower < 0.5 ? 2 : 1);
-    double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.5 ? 2 : 1);
+    double scaleFront = _frontWeaponPower < 0.1 ? 1 : (_frontWeaponPower < 0.55 ? 2.2 : 1.2);
+    double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.55 ? 2.2 : 1.2);
 
     // if a pressed
     if (gamepad.GetButtonA() || Input::GetInstance().IsKeyPressed(Qt::Key_W))
     {
-        // invert powers
-        _frontWeaponPower += scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        rampUpB = true;
     }
 
     // if b pressed
     if (gamepad.GetButtonB() || Input::GetInstance().IsKeyPressed(Qt::Key_S))
     {
-        // invert powers
-        _frontWeaponPower -= scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        rampUpB = false;
     }
 
     // if x pressed
     if (gamepad.GetButtonX() || Input::GetInstance().IsKeyPressed(Qt::Key_I))
     {
-        // invert powers
-        _backWeaponPower += scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        rampUpF = true;
     }
 
     // if y pressed
     if (gamepad.GetButtonY() || Input::GetInstance().IsKeyPressed(Qt::Key_K))
     {
-        // invert powers
-        _backWeaponPower -= scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+        rampUpF = false;
     }
 
+    // if user toggles off the weapon, then set the power to 0
     if (Input::GetInstance().IsKeyPressed(Qt::Key_9))
     {
-        _frontWeaponPower = 0;
+        if (rampUpF)
+        {
+            _frontWeaponPower = std::min(_frontWeaponPower, 0.55f);
+        }
+        else
+        {
+            _frontWeaponPower = 0;
+        }
     }
 
+    // if user toggles off the weapon, then set the power to 0
     if (Input::GetInstance().IsKeyPressed(Qt::Key_0))
     {
-        _backWeaponPower = 0;
+        if (rampUpF)
+        {
+            _backWeaponPower = std::min(_backWeaponPower, 0.55f);
+        }
+        else
+        {
+            _backWeaponPower = 0;
+        }
     }
+
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_O))
+    {
+        overrideRampLimit = true;
+    }
+
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_L))
+    {
+        overrideRampLimit = false;
+    }
+
+    // if we are ramping up and past 50% power with no curren (because of a fault), then keep it at 50%
+    if (rampUpF)
+    {
+        _lastCanMessageMutex.lock();
+        bool hasNoCurrent = _lastCANMessage.canData.motorCurrent[2] == 0.0f;
+        _lastCanMessageMutex.unlock();
+
+        // if we have no current and we are ramping up, back off to the current rpm percent (mins a bit)
+        if (hasNoCurrent && !overrideRampLimit && _frontWeaponPower > 0.5)
+        {
+            _frontWeaponPower = std::max(0.5, frontWeaponCurrRPMPercent - 0.02);
+        }
+    }
+
+    // same thing for the other one
+    if (rampUpB)
+    {
+        _lastCanMessageMutex.lock();
+        bool hasNoCurrent = _lastCANMessage.canData.motorCurrent[3] == 0.0f;
+        _lastCanMessageMutex.unlock();
+
+        // if we have no current and we are ramping up, back off to the current rpm percent (minus a bit)
+        if (hasNoCurrent && !overrideRampLimit && _backWeaponPower > 0.5)
+        {
+            _backWeaponPower = std::max(0.5, backWeaponCurrRPMPercent - 0.02);
+        }
+    }
+
+    _frontWeaponPower += (rampUpF ? 1 : -1) * scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
+    _backWeaponPower += (rampUpB ? 1 : -1) * scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
 
     // force weapon powers to be between 0 and 1
     if (_frontWeaponPower > 1) { _frontWeaponPower = 1; }
@@ -673,7 +732,7 @@ DriveCommand RobotController::ManualMode()
     response.backWeaponPower = _backWeaponPower;
 
     float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
-    power += Input::GetInstance().IsKeyPressed(Qt::Key_O) - Input::GetInstance().IsKeyPressed(Qt::Key_L);
+    power += Input::GetInstance().IsKeyPressed(Qt::Key_J) - Input::GetInstance().IsKeyPressed(Qt::Key_U);
 
     // control the self righter
     _selfRighter.Move(power, response, drawingImage);
@@ -759,6 +818,7 @@ void RobotController::GuiLogic()
                                             cv::Point2f(WIDTH, 0),
                                             cv::Point2f(WIDTH, HEIGHT),
                                             cv::Point2f(0, HEIGHT)};
+    static Clock updateClock;
 
     // 1. update imu display
     IMUWidget::GetInstance().Update();
@@ -851,6 +911,19 @@ void RobotController::GuiLogic()
             RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
         }
     }
+
+    // allow the user to use the arrow keys to adjust the robot angle
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_Left))
+    {
+        RobotOdometry::Robot().UpdateForceSetAngle(Angle(RobotOdometry::Robot().GetAngle() - updateClock.getElapsedTime() * 30 * M_PI / 180.0));
+    }
+
+    if (Input::GetInstance().IsKeyPressed(Qt::Key_Right))
+    {
+        RobotOdometry::Robot().UpdateForceSetAngle(Angle(RobotOdometry::Robot().GetAngle() + updateClock.getElapsedTime() * 30 * M_PI / 180.0));
+    }
+    updateClock.markStart();
+
 
     // SAFE_DRAW
     // cv::circle(drawingImage, mousePosLast, 3, cv::Scalar(0, 255, 0), 2);

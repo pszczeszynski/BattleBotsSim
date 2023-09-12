@@ -97,6 +97,7 @@ VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
         previousBirdsEye = currFrame.clone();
         _prevFrameTimer.markStart();
     }
+
     // set the flag that we had a new image
     ret.SetHadNewImage();
 
@@ -128,13 +129,8 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
-
-    // cv::imshow("threshold", thresholdImg);
-    // cv::waitKey(1);
-    
-
-    // cv::imshow("Motion", thresholdImg);
-
+    cv::imshow("Motion", thresholdImg);
+    cv::waitKey(1);
     // find big blobs in the image using a blob detector
 
     // iterate through every pixel in the image and find the largest blob
@@ -187,6 +183,12 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
         // add the average to the list of robot centers
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
+    
+    // if (motionBlobs.size() > 0)
+    // {
+    //     cv::imshow("threshold", thresholdImg);
+    //     cv::waitKey(1);
+    // }
 
     // classify the blobs and save them for later
     return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);
