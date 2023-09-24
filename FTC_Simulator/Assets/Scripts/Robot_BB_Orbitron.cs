@@ -132,15 +132,14 @@ public class Robot_BB_Orbitron : RobotInterface3D
         // receive latest control input from the robot controller
         RobotControllerDriveCommand? input = _robotControllerLink.Receive();
  
-         // // movement with w and s
-        // float movement_amount = (Input.GetKey(KeyCode.W) ? 1.0f : 0) - (Input.GetKey(KeyCode.S) ? 1.0f : 0);
-        // // movement_amount += Input.GetAxis("J1Axis5");
-        // // turn with j and l
-        // float turn_amount = (Input.GetKey(KeyCode.A) ? 1.0f : 0) - (Input.GetKey(KeyCode.D) ? 1.0f : 0);
-        // // turn_amount -= Input.GetAxis("J1Axis1");
+         // movement with arrow keys + joystick
+        float movement_amount = (Input.GetKey(KeyCode.UpArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.DownArrow) ? 1.0f : 0);
+        movement_amount += Input.GetAxis("J1Axis5");
+        float turn_amount = (Input.GetKey(KeyCode.LeftArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.RightArrow) ? 1.0f : 0);
+        turn_amount -= Input.GetAxis("J1Axis1");
 
-        float movement_amount = 0;
-        float turn_amount = 0;
+        // float movement_amount = 0;
+        // float turn_amount = 0;
         // IF has input from robot controller, use that
         if (input.HasValue)
         {
