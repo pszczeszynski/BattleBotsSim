@@ -137,6 +137,7 @@ public class Robot_BB_Orbitron : RobotInterface3D
         movement_amount += Input.GetAxis("J1Axis5");
         float turn_amount = (Input.GetKey(KeyCode.LeftArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.RightArrow) ? 1.0f : 0);
         turn_amount -= Input.GetAxis("J1Axis1");
+        turn_amount *= 0.8f;
 
         // float movement_amount = 0;
         // float turn_amount = 0;
