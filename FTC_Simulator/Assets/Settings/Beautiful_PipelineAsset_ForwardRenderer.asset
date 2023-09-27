@@ -17,11 +17,11 @@ MonoBehaviour:
   m_Settings:
     Downsample: 0
     AfterOpaque: 0
-    Source: 1
+    Source: 0
     NormalSamples: 1
-    Intensity: 1.93
+    Intensity: 22.6
     DirectLightingStrength: 0.25
-    Radius: 0.07
+    Radius: 56.4
     SampleCount: 4
 --- !u!114 &11400000
 MonoBehaviour:
@@ -59,7 +59,7 @@ MonoBehaviour:
       type: 3}
     objectMotionVector: {fileID: 4800000, guid: 7b3ede40266cd49a395def176e1bc486,
       type: 3}
-  m_AssetVersion: 1
+  m_AssetVersion: 2
   m_OpaqueLayerMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -76,6 +76,7 @@ MonoBehaviour:
   m_ShadowTransparentReceive: 1
   m_RenderingMode: 0
   m_DepthPrimingMode: 0
+  m_CopyDepthMode: 0
   m_AccurateGbufferNormals: 0
   m_ClusteredRendering: 0
   m_TileSize: 32
