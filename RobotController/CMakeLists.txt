@@ -41,33 +41,22 @@ qt_standard_project_setup()
 add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
-include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} )
+
+set(IMGUI_INCLUDE_PATH "./libs/IMGUI")
+set(GLFW_INCLUDE_PATH "./libs/IMGUI/glfw/include")
+include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${IMGUI_INCLUDE_PATH} ${GLFW_INCLUDE_PATH})
 
 # Define the sources and headers
 set(SOURCES 
-    Globals.cc
-    RobotConfig.cc
-    RobotController.cc
-    MathUtils.cc
-    Vision.cc
-    CameraReceiver.cc
-    ServerSocket.cc
-    RobotStateParser.cc
-    Clock.cc
-    RobotOdometry.cc
-    ValueBin.cc
-    TrackingUtils.cc
-    Timer.cc
-    OpponentProfile.cc
-    PathFinder.cc
-    RobotClassifier.cc
-    VisionPreprocessor.cc
-    RobotControllerGUI.cc
-    SelfRighter.cc
-    RobotLink.cc
-    Input/Gamepad.cc
-    Input/Input.cc
-    UIWidgets/IMUWidget.cc
+    RobotControllerImGui.cc
+    main.cpp
+    libs/IMGUI/imgui.cpp
+    libs/IMGUI/imgui_draw.cpp
+    libs/IMGUI/imgui_widgets.cpp
+    libs/IMGUI/imgui_tables.cpp
+    libs/IMGUI/imgui_impl_opengl3.cpp
+    libs/IMGUI/imgui_impl_glfw.cpp
+    libs/IMGUI/imgui_demo.cpp
 )
 
 # Create the object files
@@ -79,7 +68,9 @@ set(SOURCES
 # cuda_add_executable(RobotController ${SOURCES})
 add_executable(RobotController ${SOURCES})
 
-target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib)
+find_package(OpenGL REQUIRED)
+
+target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES})
 
 
 add_custom_command(TARGET RobotController POST_BUILD

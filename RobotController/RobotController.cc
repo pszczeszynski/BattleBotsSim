@@ -13,6 +13,7 @@
 
 // #define HARDCORE
 
+#ifdef USE_QT
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
 
     app.exec();
 }
+#endif
 
 RobotController::RobotController() :
 									drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
