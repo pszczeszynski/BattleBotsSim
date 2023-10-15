@@ -30,13 +30,13 @@ if(XBOX)
     add_definitions(-DXBOX)
 endif()
 
-# TODO: make this not hardcoded
-list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
+# # TODO: make this not hardcoded
+# list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
 
 find_package( OpenCV REQUIRED )
 # find_package( CUDA REQUIRED )
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
-qt_standard_project_setup()
+# find_package(Qt6 REQUIRED COMPONENTS Widgets)
+# qt_standard_project_setup()
 
 add_definitions(-D_MBCS)
 
@@ -48,8 +48,11 @@ include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${IMGUI_INCLUDE
 
 # Define the sources and headers
 set(SOURCES 
-    RobotControllerImGui.cc
-    main.cpp
+    RobotController.cc
+    UIWidgets/RobotControllerGUI.cc
+    UIWidgets/ConfigWidget.cc
+    UIWidgets/FieldWidget.cc
+    UIWidgets/RobotTelemetryWidget.cc
     libs/IMGUI/imgui.cpp
     libs/IMGUI/imgui_draw.cpp
     libs/IMGUI/imgui_widgets.cpp
@@ -57,6 +60,24 @@ set(SOURCES
     libs/IMGUI/imgui_impl_opengl3.cpp
     libs/IMGUI/imgui_impl_glfw.cpp
     libs/IMGUI/imgui_demo.cpp
+    RobotConfig.cc
+    GuiUtils.cc
+    MathUtils.cc
+    Input/Gamepad.cc
+    Globals.cc
+    RobotClassifier.cc
+    RobotLink.cc
+    RobotOdometry.cc
+    RobotStateParser.cc
+    SelfRighter.cc
+    ServerSocket.cc
+    Timer.cc
+    Clock.cc
+    Vision.cc
+    VisionPreprocessor.cc
+    CameraReceiver.cc
+    UIWidgets/IMUWidget.cc
+    CVRotation.cc
 )
 
 # Create the object files
@@ -70,7 +91,8 @@ add_executable(RobotController ${SOURCES})
 
 find_package(OpenGL REQUIRED)
 
-target_link_libraries(RobotController opencv_world Qt6::Widgets Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES})
+target_link_libraries(RobotController opencv_world Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
+                      ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES}) # Qt6::Widgets
 
 
 add_custom_command(TARGET RobotController POST_BUILD

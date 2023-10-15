@@ -1,6 +1,5 @@
 #include "VisionPreprocessor.h"
 #include "RobotConfig.h"
-#include "Clock.h"
 
 const int CLOSE = 20;
 
@@ -15,9 +14,27 @@ VisionPreprocessor::VisionPreprocessor()
     _dstPoints[3] = cv::Point2f(0, HEIGHT);     // Bottom-left corner
 
     _prevFrame = cv::Mat(WIDTH, HEIGHT, CV_8UC3);
+
+    // compute initial transformation matrix
+    ComputeTransformationMatrix();
 }
 
-void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
+cv::Point2f VisionPreprocessor::TransformPoint(const cv::Point2f &pt)
+{
+    // Convert point to homogeneous coordinates
+    cv::Mat srcMat = (cv::Mat_<double>(3, 1) << pt.x, pt.y, 1.0);
+
+    // Apply transformation matrix
+    cv::Mat dstMat = _transformationMatrix * srcMat;
+
+    // Convert back to inhomogeneous coordinates
+    float x = dstMat.at<double>(0, 0) / dstMat.at<double>(2, 0);
+    float y = dstMat.at<double>(1, 0) / dstMat.at<double>(2, 0);
+
+    return cv::Point2f(x, y);
+}
+
+void VisionPreprocessor::ComputeTransformationMatrix()
 {
     cv::Point2f srcPoints[4];
     // Define the four corners of the bird's-eye view input image
@@ -27,31 +44,21 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     srcPoints[3] = cv::Point2f(preprocess_bl_x, preprocess_bl_y);
 
     // Compute the transformation matrix
-    cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, _dstPoints);
+    _transformationMatrix = cv::getPerspectiveTransform(srcPoints, _dstPoints);
+}
 
-    Clock c;
+void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
+{
+    // recompute the transformation matrix
+    ComputeTransformationMatrix();
+
     // Apply the perspective transformation
-    warpPerspective(dst, dst, transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
+    warpPerspective(frame, dst, _transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
 
-    // // split channels
-    // std::vector<cv::Mat> channels;
-    // cv::split(dst, channels);
-
-    // // equalize histogram of each
-    // cv::equalizeHist(channels[0], channels[0]);
-    // cv::equalizeHist(channels[1], channels[1]);
-    // cv::equalizeHist(channels[2], channels[2]);
-
-    // // merge channels
-    // cv::merge(channels, dst);
-
-    // Clock c;
-    // stabilize the image
 #ifdef STABALIZE
     _StabalizeImage(dst, dst);
 #endif
 
-    // std::cout << "time in ms: " << c.getElapsedTime() * 1000 << std::endl;
 }
 
 void VisionPreprocessor::_StabalizeImage(cv::Mat &frame, cv::Mat &dst)

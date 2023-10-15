@@ -5,42 +5,25 @@
 #include "RobotClassifier.h"
 #include "RobotLink.h"
 #include "Vision.h"
-#include <QApplication>
-#include <QMainWindow>
-#include <QThread>
 #include <opencv2/core.hpp>
 #include <algorithm>
+#include "UIWidgets/IMUWidget.h"
+#include "UIWidgets/RobotControllerGUI.h"
+#include "imgui.h"
 
-// #define HARDCORE
+#include "UIWidgets/FieldWidget.h"
 
-#ifdef USE_QT
-int main(int argc, char *argv[])
+int main()
 {
-    QApplication app(argc, argv);
-    RobotControllerGUI::GetInstance().SetApp(app);
-
-    // Create a separate thread for RobotController
-    QThread controllerThread;
-    // get instance of RobotController
-    RobotController& rc = RobotController::GetInstance();
-    rc.moveToThread(&controllerThread);
-
-    // Connect RobotController's signal to RobotControllerGUI's slot
-    QObject::connect(&rc, &RobotController::RefreshFieldImageSignal,
-                     &RobotControllerGUI::GetInstance(), &RobotControllerGUI::RefreshFieldImage,
-                     Qt::QueuedConnection);
-
-    QObject::connect(&controllerThread, &QThread::started, &rc, &RobotController::Run);
-    RobotControllerGUI::GetInstance().ShowGUI();
-
-    controllerThread.start();
-
-    app.exec();
+    loadGlobalVariablesFromFile("RobotConfig.txt");
+    // initialize the robot controller
+    RobotController& robotController = RobotController::GetInstance();
+    // run the robot controller
+    robotController.Run();
+    return 0;
 }
-#endif
 
-RobotController::RobotController() :
-									drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
+RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
@@ -48,7 +31,6 @@ RobotController::RobotController() :
                                      overheadCamL_real{1},
                                      vision{overheadCamL_real}
 #endif
-
 {
 }
 
@@ -125,6 +107,9 @@ void RobotController::Run()
     cv::VideoWriter video("Recordings/outputVideo.avi", fourcc, fps, frameSize, true); // 'true' for color video
 #endif
 
+    // construct gui application
+    RobotControllerGUI robotControllerGUI;
+
     // receive until the peer closes the connection
     while (true)
     {
@@ -182,25 +167,26 @@ void RobotController::Run()
         // update the GUI
         GuiLogic();
 
-        // if there was a new image
-        if (classification.GetHadNewImage())
-        {
-            // send the drawing image to the GUI
-            ProduceDrawingImage();
-        }
+        robotControllerGUI.Update();
+
+        // // if there was a new image
+        // if (classification.GetHadNewImage())
+        // {
+        //     // send the drawing image to the GUI
+        //     ProduceDrawingImage();
+        // }
     }
+
+    robotControllerGUI.Shutdown();
 }
 
-void RobotController::ProduceDrawingImage()
-{
-    drawingImageQueue.produce(drawingImage);
+// void RobotController::ProduceDrawingImage()
+// {
+//     drawingImageQueue.produce(drawingImage);
 
-    // mark the start of the vision update
-    visionClock.markStart();
-
-    // refresh the field image
-    emit RefreshFieldImageSignal();
-}
+//     // mark the start of the vision update
+//     visionClock.markStart();
+// }
 
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
@@ -224,7 +210,8 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     else
     {
         // otherwise just update using the imu
-        RobotOdometry::Robot().UpdateIMUOnly();
+        // TODO: DONT JUST USE THE DRAWING IMAGE, that's hacky
+        RobotOdometry::Robot().UpdateIMUOnly(drawingImage);
     }
 
     // if vision detected the opponent
@@ -485,6 +472,11 @@ DriveCommand RobotController::OrbitMode()
     // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
+
+    // draw arrowed line from us at our angle
+    cv::Point2f arrowEnd = ourPosition + cv::Point2f(100.0 * cos(ourAngle), 100.0 * sin(ourAngle));
+    cv::arrowedLine(drawingImage, ourPosition, arrowEnd, cv::Scalar(0, 255, 0), 2);
+
 #ifndef HARDCORE
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
@@ -599,31 +591,31 @@ void RobotController::UpdateSpinnerPowers()
     double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.55 ? 2.2 : 1.2);
 
     // if a pressed
-    if (gamepad.GetButtonA() || Input::GetInstance().IsKeyPressed(Qt::Key_W))
+    if (gamepad.GetButtonA() || ImGui::IsKeyDown(ImGuiKey_W))
     {
         rampUpB = true;
     }
 
     // if b pressed
-    if (gamepad.GetButtonB() || Input::GetInstance().IsKeyPressed(Qt::Key_S))
+    if (gamepad.GetButtonB() || ImGui::IsKeyDown(ImGuiKey_S))
     {
         rampUpB = false;
     }
 
     // if x pressed
-    if (gamepad.GetButtonX() || Input::GetInstance().IsKeyPressed(Qt::Key_I))
+    if (gamepad.GetButtonX() || ImGui::IsKeyDown(ImGuiKey_I))
     {
         rampUpF = true;
     }
 
     // if y pressed
-    if (gamepad.GetButtonY() || Input::GetInstance().IsKeyPressed(Qt::Key_K))
+    if (gamepad.GetButtonY() || ImGui::IsKeyDown(ImGuiKey_K))
     {
         rampUpF = false;
     }
 
     // if user toggles off the weapon, then set the power to 0
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_9))
+    if (ImGui::IsKeyDown(ImGuiKey_9))
     {
         if (rampUpF)
         {
@@ -636,7 +628,7 @@ void RobotController::UpdateSpinnerPowers()
     }
 
     // if user toggles off the weapon, then set the power to 0
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_0))
+    if (ImGui::IsKeyDown(ImGuiKey_0))
     {
         if (rampUpF)
         {
@@ -648,12 +640,12 @@ void RobotController::UpdateSpinnerPowers()
         }
     }
 
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_O))
+    if (ImGui::IsKeyDown(ImGuiKey_O))
     {
         overrideRampLimit = true;
     }
 
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_L))
+    if (ImGui::IsKeyDown(ImGuiKey_L))
     {
         overrideRampLimit = false;
     }
@@ -703,7 +695,7 @@ void RobotController::UpdateSpinnerPowers()
 void SpaceSwitchesRobots()
 {
     static bool spacePressedLast = false;
-    bool spacePressed = Input::GetInstance().IsKeyPressed(Qt::Key_Space);
+    bool spacePressed = ImGui::IsKeyDown(ImGuiKey_Space);
 
     // if the space bar was just pressed down
     if (spacePressed && !spacePressedLast)
@@ -734,7 +726,7 @@ DriveCommand RobotController::ManualMode()
     response.backWeaponPower = _backWeaponPower;
 
     float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
-    power += Input::GetInstance().IsKeyPressed(Qt::Key_J) - Input::GetInstance().IsKeyPressed(Qt::Key_U);
+    power += ImGui::IsKeyDown(ImGuiKey_J) - ImGui::IsKeyDown(ImGuiKey_U);
 
     // control the self righter
     _selfRighter.Move(power, response, drawingImage);
@@ -823,21 +815,20 @@ void RobotController::GuiLogic()
     static Clock updateClock;
 
     // 1. update imu display
-    IMUWidget::GetInstance().Update();
+    // IMUWidget::GetInstance().Update();
 
     const double CORNER_DIST_THRESH = 20.0;
 
-    Input &input = Input::GetInstance();
     // get the curr mouse position
-    cv::Point2f currMousePos = input.GetMousePosition();
+    cv::Point2f currMousePos = FieldWidget::GetInstance().GetMousePosOnField();
 
     // if the user isn't pressing shift
-    if (!input.IsKeyPressed(Qt::Key_Shift))
+    if (!ImGui::IsKeyDown(ImGuiKey_LeftShift))
     {
         // corner adjustment
 
         // If the user left clicks near one of the corners
-        if (input.IsLeftMousePressed())
+        if (ImGui::IsMouseDown(0))
         {
             if (cornerToAdjust == -1)
             {
@@ -887,14 +878,14 @@ void RobotController::GuiLogic()
         {
             // robot tracker calibration
             // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
-            if (input.IsLeftMousePressed() && input.IsMouseOverImage())
+            if (ImGui::IsMouseDown(0))// && input.IsMouseOverImage())
             {
                 // set the robot to the mouse position
                 RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
             }
 
             // if the user right clicks
-            if (input.IsRightMousePressed() && input.IsMouseOverImage())
+            if (ImGui::IsMouseDown(1))// && input.IsMouseOverImage())
             {
                 // set the opponent to the mouse position
                 RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
@@ -904,10 +895,9 @@ void RobotController::GuiLogic()
     else // else the user is pressing shift
     {
         // if the user presses the left mouse button with shift
-        if (input.IsLeftMousePressed())
+        if (ImGui::IsMouseDown(0))
         {
             // set the robot angle
-            cv::Point2f currMousePos = input.GetMousePosition();
             cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
             double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
             RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
@@ -915,12 +905,12 @@ void RobotController::GuiLogic()
     }
 
     // allow the user to use the arrow keys to adjust the robot angle
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_Left))
+    if (ImGui::IsKeyDown(ImGuiKey_LeftArrow))
     {
         RobotOdometry::Robot().UpdateForceSetAngle(Angle(RobotOdometry::Robot().GetAngle() - updateClock.getElapsedTime() * 30 * M_PI / 180.0));
     }
 
-    if (Input::GetInstance().IsKeyPressed(Qt::Key_Right))
+    if (ImGui::IsKeyDown(ImGuiKey_RightArrow))
     {
         RobotOdometry::Robot().UpdateForceSetAngle(Angle(RobotOdometry::Robot().GetAngle() + updateClock.getElapsedTime() * 30 * M_PI / 180.0));
     }
@@ -960,4 +950,9 @@ float& RobotController::GetBackWeaponTargetPowerRef()
 IRobotLink& RobotController::GetRobotLink()
 {
     return robotLink;
+}
+
+cv::Mat& RobotController::GetDrawingImage()
+{
+    return drawingImage;
 }

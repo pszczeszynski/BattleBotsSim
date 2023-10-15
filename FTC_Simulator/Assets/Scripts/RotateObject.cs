@@ -1,11 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class RotateObject : MonoBehaviour
 {
     public bool run = false;
-    public new string tag = "";
     public float speed = 1f;
     public float offspeed = 0f;
     public Transform centerpoint; // If not specified, will rotate around our center
@@ -35,6 +32,7 @@ public class RotateObject : MonoBehaviour
         float currspeed = (run) ? speed : offspeed;
         if (speed != 0f)
         {
+            
             transform.RotateAround(center_of_rotation, transform.TransformDirection(axis), currspeed * (curr_time - previous_time));
         }
 

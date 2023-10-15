@@ -19,7 +19,7 @@
 #include "VisionPreprocessor.h"
 #include "ValueBin.h"
 #include "MatQueue.h"
-
+#include "VisionClassification.h"
 class Vision
 {
 public:

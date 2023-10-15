@@ -1,7 +1,7 @@
 #include "IMUWidget.h"
 #include "../RobotController.h"
-#include <QImage>
-#include <QPixmap>
+#include "../GuiUtils.h"
+#include "imgui.h"
 
 #define REFRESH_INTERVAL_MS 30
 #define WIDGET_WIDTH 250
@@ -13,11 +13,8 @@
 
 IMUWidget* IMUWidget::_instance = nullptr;
 
-IMUWidget::IMUWidget(QWidget *parent) : QLabel(parent)
+IMUWidget::IMUWidget()
 {
-    connect(&_drawTimer, &QTimer::timeout, this, &IMUWidget::Draw);
-    _drawTimer.start(REFRESH_INTERVAL_MS);
-
     IMUWidget::_instance = this;
 }
 
@@ -29,14 +26,7 @@ IMUWidget& IMUWidget::GetInstance()
     return *_instance;
 }
 
-void IMUWidget::SetMat(const cv::Mat& mat)
-{
-    _matMutex.lock();
-    _mat = mat.clone();
-    _matMutex.unlock();
-}
-
-void IMUWidget::_UpdateIMUInfos()
+cv::Mat& IMUWidget::Draw()
 {
     // get the latest message
     IMUData imuData = RobotController::GetInstance().GetIMUData();
@@ -96,30 +86,11 @@ void IMUWidget::_UpdateIMUInfos()
     mat.copyTo(_mat);
     // unlock the mutex
     _matMutex.unlock();
-}
 
-/**
- * Draws the new drawing image
- */
-void IMUWidget::Update()
-{
-    _UpdateIMUInfos();
-}
+    ImGui::Begin("IMU");
+    ImTextureID texture = MatToTexture(_mat);
+    ImGui::Image(texture, ImVec2(WIDGET_WIDTH, WIDGET_HEIGHT));
+    ImGui::End();
 
-void IMUWidget::Draw()
-{
-    // if the mat is empty, do nothing
-    if (_mat.empty())
-    {
-        return;
-    }
-
-    // lock the mutex
-    _matMutex.lock();
-    // Convert to QImage and set it as the image in QLabel
-    QImage imageQt(_mat.data, _mat.cols, _mat.rows, QImage::Format_RGBA8888);
-    QPixmap pixmap = QPixmap::fromImage(imageQt);
-    this->setPixmap(pixmap.scaled(this->size(), Qt::KeepAspectRatio));
-    // unlock the mutex
-    _matMutex.unlock();
+    return _mat;
 }

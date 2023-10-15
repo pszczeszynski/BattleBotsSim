@@ -8,8 +8,7 @@
 #include "Globals.h"
 #include "Clock.h"
 #include <stdlib.h>
-#include "Input/Input.h"
-
+#include "imgui.h"
 
 #define VIDEO_READ
 // #define SAVE_VIDEO
@@ -49,13 +48,16 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         while (true)
         {
             _CaptureFrame();
+            // sleep for 15 ms
+            std::this_thread::sleep_for(std::chrono::milliseconds(15));
+
 
 #ifdef SAVE_VIDEO
-            if (Input::GetInstance().IsKeyPressed(Qt::Key_Enter))
+            if (ImGui::IsKeyDown(ImGuiKey_Enter))
             {
                 saveVideo = true;
             }
-            if (Input::GetInstance().IsKeyPressed(Qt::Key_Backspace))
+            if (ImGui::IsKeyDown(ImGuiKey_Backspace))
             {
                 saveVideo = false;
             }
@@ -266,10 +268,12 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
 bool CameraReceiverSim::_InitializeCamera()
 {
     std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
-    LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
+    // LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
+
+
     // 1. Create shared file
     // Open a handle to the memory-mapped file
-    _hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameLPCWSTR);
+    _hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameW.c_str());
 
     if (_hMapFile == NULL)
     {
@@ -331,7 +335,7 @@ void CameraReceiverSim::_CaptureFrame()
 
     cv::Mat captured;
     // remove alpha
-    cv::cvtColor(_image, captured, cv::COLOR_BGRA2BGR);
+    cv::cvtColor(_image, captured, cv::COLOR_BGRA2RGB);
     // Flip the image vertically
     cv::flip(captured, captured, 0);
 

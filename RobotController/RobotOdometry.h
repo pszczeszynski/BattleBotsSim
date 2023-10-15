@@ -4,6 +4,7 @@
 #include "OpponentProfile.h"
 #include "MathUtils.h"
 #include "Globals.h"
+#include "CVRotation.h"
 
 /**
  * @brief A motion blob is a connected component in the image
@@ -15,6 +16,7 @@ public:
     cv::Rect rect;
     cv::Point2f center; // weighted center (!= rect.center)
     cv::Mat* frame;
+    double rotation = 0; // in radians
 };
 
 class RobotOdometry
@@ -27,7 +29,7 @@ public:
 
     void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
     double UpdateForceSetAngle(double newAngle);
-    void UpdateIMUOnly();
+    void UpdateIMUOnly(cv::Mat& frame);
     void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
 
     // used for calibration
@@ -76,4 +78,7 @@ private:
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
+
+
+    CVRotation _robotCVRotation;
 };

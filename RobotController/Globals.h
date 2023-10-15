@@ -1,5 +1,5 @@
 #pragma once
-#include <QString>
+// #include <QString>
 
 #include <opencv2/opencv.hpp>
 #include <mutex>
@@ -21,7 +21,7 @@ extern std::mutex DRAWING_IMAGE_MUTEX;
 #define END_SAFE_DRAW } DRAWING_IMAGE_MUTEX.unlock();
 
 
-extern QString SAVE_FILE_NAME;
+extern std::string SAVE_FILE_NAME;
 
 // uncomment below to enable timer printing
 // #define ENABLE_TIMERS

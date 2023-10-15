@@ -106,7 +106,8 @@
         "qapplication": "cpp",
         "*.rh": "cpp",
         "qmap": "cpp",
-        "qpalette": "cpp"
+        "qpalette": "cpp",
+        "qvboxlayout": "cpp"
     },
     "cmake.configureOnOpen": true,
     "workbench.colorCustomizations": {
@@ -128,5 +129,9 @@
         "titleBar.inactiveBackground": "#00254d99",
         "titleBar.inactiveForeground": "#e7e7e799"
     },
-    "peacock.color": "#00254d"
+    "peacock.color": "#00254d",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.formatting.provider": "none"
 }

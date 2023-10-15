@@ -1,5 +1,7 @@
 #include "RobotConfig.h"
 
+std::string SAVE_FILE_NAME = "RobotConfig.txt";
+
 #define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
     type name = defaultValue; \
     void load##name(const std::string& value) { name = convertValue<type>(value); } \

@@ -3,6 +3,7 @@
 #include "OpponentProfile.h"
 #include "../Communication/Communication.h"
 #include "RobotController.h"
+#include "imgui.h"
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -165,11 +166,14 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     // calculate angle using the visual information
     double visualAngle = CalcAnglePathTangent();
     // if can use the visual information and the user presses enter (to realign)
-    if (_visualAngleValid && (Input::GetInstance().IsKeyPressed(Qt::Key_Control) || RobotController::GetInstance().gamepad.GetDpadLeft()))
+    if (_visualAngleValid && (ImGui::IsKeyDown(ImGuiKey::ImGuiKey_LeftCtrl) || RobotController::GetInstance().gamepad.GetDpadLeft()))
     {
         // if we have visual information, use the visual angle
         fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);
     }
+
+    // use the ml model to get the angle entirely
+    fusedAngle = _robotCVRotation.GetRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
@@ -178,12 +182,8 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 /**
  * Called when we only have the imu information. This should only be called for our robot (since we have our imu)
 */
-void RobotOdometry::UpdateIMUOnly()
+void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
 {
-    //////////////////////// POS ////////////////////////
-    // predict where we are now using the velocity from the last update and the current velocity
-    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
-
     //////////////////////// VEL ////////////////////////
     // just use the last velocity
     cv::Point2f velocity = _lastVelocity;
@@ -192,10 +192,11 @@ void RobotOdometry::UpdateIMUOnly()
     // set the angle using just the imu
     Angle angle = Angle(_UpdateAndGetIMUAngle());
 
+    angle = Angle(_robotCVRotation.GetRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
+
     // update normally
     _PostUpdate(_position, velocity, angle);
 }
-
 /**
  * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
  * Updates the position of the robot to the given position.

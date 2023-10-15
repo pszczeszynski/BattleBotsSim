@@ -1,41 +1,71 @@
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include <stdio.h>
-#define GL_SILENCE_DEPRECATION
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <GLES2/gl2.h>
-#endif
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include "RobotControllerImGui.h"
+#pragma comment(lib, "legacy_stdio_definitions.lib") // necessary in release builds for imgui to work
 
-// [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
-// To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
-// Your own project should not be affected, as you are likely to link with a newer binary of GLFW that is adequate for your version of Visual Studio.
-#if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
-#pragma comment(lib, "legacy_stdio_definitions")
-#endif
+#include "RobotControllerGUI.h"
+#include "../RobotConfig.h"
+#include "../GuiUtils.h"
+#include "../RobotController.h"
 
-
-////////// GLOBALS //////////
-// GL 3.0 + GLSL 130
-const char *glsl_version = "#version 130";
-
-#define WIDTH 1920
-#define HEIGHT 1080
-#define ENABLE_VSYNC 1
-
-static void glfw_error_callback(int error, const char *description)
+RobotControllerGUI::RobotControllerGUI()
 {
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+    // 1. Setup window
+    window = SetupWindow();
+
+    // 2. Setup ImGui
+    SetupIMGUI(window);
+    ImGuiIO &io = ImGui::GetIO();
+
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+}
+
+bool RobotControllerGUI::Update()
+{
+    if (glfwWindowShouldClose(window))
+    {
+        return false;
+    }
+
+    // Poll and handle events (inputs, window resize, etc.)
+    // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+    // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
+    // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
+    // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+    glfwPollEvents();
+
+    // setup the ImGui frame
+    InitializeImGUIFrame();
+
+    ClearLastFrameTextures();
+    // render all ui elements
+    FieldWidget::GetInstance().Draw();
+    _imuWidget.Draw();
+    _configWidget.Draw();
+    _robotTelemetryWidget.Draw();
+
+
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    // render the ImGui frame
+    Render(window, clear_color);
+
+    return true;
+}
+
+void RobotControllerGUI::Shutdown()
+{
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 }
 
 /**
  * @brief SetupWindow
  * Initializes a GLFW window and returns a pointer to it.
  * @return GLFWwindow* pointer to the GLFW window
-*/
-GLFWwindow *SetupWindow()
+ */
+GLFWwindow *RobotControllerGUI::SetupWindow()
 {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -50,7 +80,7 @@ GLFWwindow *SetupWindow()
     // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // 3.0+ only
 
     // Create window with graphics context
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(IMGUI_WIDTH, IMGUI_HEIGHT, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
     if (window == nullptr)
     {
         // return failure
@@ -58,13 +88,17 @@ GLFWwindow *SetupWindow()
     }
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(ENABLE_VSYNC); // Enable vsync
+    glfwSwapInterval(IMGUI_ENABLE_VSYNC); // Enable vsync
 
     return window;
 }
 
-
-void SetupIMGUI(GLFWwindow* window)
+/**
+ * @brief SetupIMGUI
+ * Initializes the ImGui context and sets up the ImGui style.
+ * @param window pointer to the GLFW window
+ */
+void RobotControllerGUI::SetupIMGUI(GLFWwindow *window)
 {
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -80,7 +114,8 @@ void SetupIMGUI(GLFWwindow* window)
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    // ImGui::StyleColorsLight();
+
+    // set window background to black
 
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
     ImGuiStyle &style = ImGui::GetStyle();
@@ -88,10 +123,16 @@ void SetupIMGUI(GLFWwindow* window)
     {
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        style.Colors[ImGuiCol_WindowBg].x = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].y = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].z = 0.0f;
     }
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
+    // GL 3.0 + GLSL 130
+    const char *glsl_version = "#version 130";
+
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Load Fonts
@@ -110,23 +151,18 @@ void SetupIMGUI(GLFWwindow* window)
     // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
     // ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     // IM_ASSERT(font != nullptr);
+    ImFont *customFont = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\consolab.ttf", 15.0f);
+    // terminal
+
+    // ImGui::PushFont(customFont);
 }
+
 /**
- * @brief ShowPerformanceWindow
- * Shows a window with different performance metrics.
-*/
-void ShowPerformanceWindow(ImGuiIO& io)
-{
-    static float f = 0.0f;
-    static int counter = 0;
-
-    ImGui::Begin("Performance"); // Create a window called "Hello, world!" and append into it.
-
-    ImGui::Text("GUI Stats %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    ImGui::End();
-}
-
-void InitializeImGUIFrame()
+ * @brief InitializeImGUIFrame
+ * Initializes the ImGui frame. Should be called every frame,
+ * before any ImGui elements are rendered.
+ */
+void RobotControllerGUI::InitializeImGUIFrame()
 {
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -134,8 +170,16 @@ void InitializeImGUIFrame()
     ImGui::NewFrame();
 }
 
-void RenderUI(GLFWwindow* window, ImGuiIO& io, ImVec4 clearColor)
+/**
+ * @brief Render
+ * Renders the ImGui UI.
+ * @param window pointer to the GLFW window
+ * @param clearColor color to clear the window with
+ */
+void RobotControllerGUI::Render(GLFWwindow *window, ImVec4 clearColor)
 {
+    ImGuiIO &io = ImGui::GetIO();
+
     // Rendering
     ImGui::Render();
     int display_w, display_h;
@@ -157,49 +201,4 @@ void RenderUI(GLFWwindow* window, ImGuiIO& io, ImVec4 clearColor)
     }
 
     glfwSwapBuffers(window);
-}
-
-// Main code
-int main(int, char **)
-{
-    // 1. Setup window
-    GLFWwindow* window = SetupWindow();
-
-    // 2. Setup ImGui
-    SetupIMGUI(window);
-    ImGuiIO& io = ImGui::GetIO();
-
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-    while (!glfwWindowShouldClose(window))
-    {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        glfwPollEvents();
-
-        // setup the ImGui frame
-        InitializeImGUIFrame();
-
-        // render all ui elements
-        MyApplication::RenderUI();
-
-        // render the performance window
-        ShowPerformanceWindow(io);
-
-        // render the ImGui frame
-        RenderUI(window, io, clear_color);
-    }
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
-    return 0;
 }

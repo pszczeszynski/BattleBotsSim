@@ -5,6 +5,8 @@
 #include <sstream>
 #include "Globals.h"
 
+extern std::string SAVE_FILE_NAME;
+
 #define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
     extern type name;                                    \
     void load##name(const std::string &value);           \

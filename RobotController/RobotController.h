@@ -4,20 +4,15 @@
 
 #include "CameraReceiver.h"
 #include "Vision.h"
-#include <QObject>
-#include <QPixmap>
 #include "RobotOdometry.h"
 #include "RobotLink.h"
-#include "RobotControllerGUI.h"
 #include "Input/Gamepad.h"
 #include "../Communication/Communication.h"
 #include "Extrapolator.h"
 #include "MatQueue.h"
 #include "SelfRighter.h"
-
-class RobotController : public QObject
+class RobotController
 {
-    Q_OBJECT
 public:
     RobotController();
     static RobotController& GetInstance();
@@ -28,16 +23,12 @@ public:
     float& GetFrontWeaponTargetPowerRef();
     float& GetBackWeaponTargetPowerRef();
 
-    MatQueue drawingImageQueue;
-
     IRobotLink& GetRobotLink();
+
+    cv::Mat& GetDrawingImage();
 
     Clock visionClock;
 
-signals:
-    // updates the image of the field in the GUI
-    void RefreshFieldImageSignal();
-public slots:
     void Run();
 private:
     double _CalculateOrbitRadius(cv::Point2f opponentPosEx);
@@ -51,8 +42,6 @@ private:
     void UpdateSpinnerPowers();
 
     void GuiLogic();
-
-    void ProduceDrawingImage();
 
     cv::Mat drawingImage;
 

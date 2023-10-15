@@ -1,6 +1,5 @@
 #include "RobotClassifier.h"
 #include "Globals.h"
-#include "Input/Input.h"
 #include "RobotConfig.h"
 
 RobotClassifier* RobotClassifier::instance = nullptr;
