@@ -4,24 +4,7 @@
 Required tools:
 
 cmake
-qt
 opencv
-cuda
-
-Qt Install:
-Download + sign up for educational license of Qt (I'm using version 6.5.1).
-
-** Make sure not to install the mingw one and instead install msvc2019_64:
-
-![Alt text](doc_images/qt_image0.png)
-
-Add environment variable called Qt6_DIR and set to C:\Qt\6.5.1\msvc2019_64\lib\cmake\Qt6
-
-![Alt text](doc_images/qt_image1.png)
-
-
-Also make sure to add to the path environment variable the bin:
-C:\Qt\6.5.1\msvc2019_64\bin
 
 OPENCV INSTALL:
 0. Install cuda + cudann
