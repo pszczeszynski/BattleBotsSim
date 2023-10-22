@@ -8,7 +8,7 @@
 #include "Motor.h"
 
 #define VERBOSE_RADIO
-#define LOG_DATA
+// #define LOG_DATA
 
 #include "Radio.h"
 #include "IMU.h"
@@ -151,9 +151,9 @@ RobotMessage Update()
 
 /**
  * Waits for a radio packet to be available
- * Times out after 50 ms
+ * Times out after 1 ms
  */
-#define RECEIVE_TIMEOUT_MS 50
+#define RECEIVE_TIMEOUT_MS 1
 void WaitForRadioData()
 {
     static int TIMEOUT_COUNT = 0;
@@ -165,8 +165,8 @@ void WaitForRadioData()
         // if too much time has passed
         if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS)
         {
-            // print error message
-            Serial.println("ERROR: receive timeout");
+            // // print error message
+            // Serial.println("ERROR: receive timeout");
 
             // increment counter
             TIMEOUT_COUNT++;
@@ -180,7 +180,7 @@ void WaitForRadioData()
 #ifdef LOG_DATA
                 logger->logMessage("Re-initializing Radio");
 #endif
-                radio->InitRadio();
+                // radio->InitRadio();
             }
 
             // break because we must move on
@@ -200,6 +200,7 @@ unsigned long lastReceiveTime = 0;
 #define STOP_ROBOT_TIMEOUT_MS 250
 void DriveWithLatestMessage()
 {
+    static long lastPrintTime = 0;
     static int numMessagesReceived = 0;
     if (radio->Available())
     {
@@ -211,6 +212,10 @@ void DriveWithLatestMessage()
         {
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);
+
+            Serial.print("Packets per second: ");
+            Serial.println(1000.0 / (millis() - lastPrintTime));
+            lastPrintTime = millis();
         }
         // increment message count
         numMessagesReceived++;

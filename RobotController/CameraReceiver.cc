@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include "imgui.h"
 
-#define VIDEO_READ
+// #define VIDEO_READ
 // #define SAVE_VIDEO
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////

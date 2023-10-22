@@ -11,14 +11,59 @@
 */
 RobotMessage IRobotLink::Receive()
 {
-    RobotMessage ret {RobotMessageType::INVALID};
+    RobotMessage ret = _ReceiveImpl();
 
-    // mark that we have received a packet
-    receiveClock.markStart();
+    if (ret.type == RobotMessageType::IMU_DATA)
+    {
+        _lastIMUMessage = ret;
+    }
+    else if (ret.type == RobotMessageType::CAN_DATA)
+    {
+        _lastCANMessage = ret;
+    }
+    else if (ret.type == RobotMessageType::INVALID)
+    {
+        // _ReceiveImpl returned invalid message type
+        return ret;
+    }
+    else
+    {
+        // invalid message type from _ReceiveImpl
+        std::cerr << "ERROR: invalid message type" << std::endl;
+        return ret;
+    }
+
+    // valid message set receive delay
+    ret.receiveDelay = _receiveClock.getElapsedTime();
+    // add to message history
+    _messageHistory.push_back(ret);
+
+    // if message history is too long, remove the first element
+    if (_messageHistory.size() > MESSAGE_HISTORY_SIZE)
+    {
+        _messageHistory.pop_front();
+    }
+
+    // restart clock
+    _receiveClock.markStart();
 
     return ret;
 }
 
+RobotMessage IRobotLink::GetLastIMUMessage()
+{
+    return _lastIMUMessage;
+}
+
+RobotMessage IRobotLink::GetLastCANMessage()
+{
+    return _lastCANMessage;
+}
+
+const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
+{
+    return _messageHistory;
+}
 
 #define TRANSMITTER_COM_PORT TEXT("COM9")
 
@@ -201,7 +246,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
         char end = MESSAGE_END_CHAR;
         _WriteSerialMessage((char *)&end, sizeof(end));
 
-        sendClock.markStart();
+        _sendClock.markStart();
     }
     catch (std::exception &e)
     {
@@ -216,7 +261,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
 #define RECEIVE_TIMEOUT_MS 100
 
-RobotMessage RobotLinkReal::Receive()
+RobotMessage RobotLinkReal::_ReceiveImpl()
 {
     if (_comPort == INVALID_HANDLE_VALUE)
     {
@@ -230,17 +275,12 @@ RobotMessage RobotLinkReal::Receive()
     }
 
     _receiver.update();
-
     RobotMessage retrievedStruct = _receiver.getLatestData();
 
     // if latest data is valid
-    if (_receiver.isLatestDataValid())
+    if (!_receiver.isLatestDataValid())
     {
-        // call super method to update clock
-        IRobotLink::Receive();
-    }
-    else
-    {
+        // force invalid since it's not a new message
         return RobotMessage{RobotMessageType::INVALID};
     }
 
@@ -267,7 +307,7 @@ void RobotLinkSim::Drive(DriveCommand &command)
 
 #define ACCELEROMETER_TO_PX_SCALER 1
 
-RobotMessage RobotLinkSim::Receive()
+RobotMessage RobotLinkSim::_ReceiveImpl()
 {
     std::string received = "";
     while (received == "")
@@ -280,9 +320,7 @@ RobotMessage RobotLinkSim::Receive()
     ret.imuData.rotation = message.robot_orientation;
     ret.imuData.rotationVelocity = message.robot_rotation_velocity;
 
-    // call super method to update clock
-    IRobotLink::Receive();
-
     // return the message
     return ret;
 }
+

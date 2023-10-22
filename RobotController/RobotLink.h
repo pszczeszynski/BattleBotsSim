@@ -8,6 +8,7 @@
 #include <fstream>
 #include <functional>
 #include "Clock.h"
+#include <deque>
 
 // interface
 class IRobotLink
@@ -15,8 +16,23 @@ class IRobotLink
 public:
     virtual void Drive(DriveCommand& command) = 0; // sends data to robot
     virtual RobotMessage Receive();
-    Clock receiveClock; // for tracking the receive rate information (so public)
-    Clock sendClock; // for tracking the send rate information (so public)
+    RobotMessage GetLastIMUMessage();
+    RobotMessage GetLastCANMessage();
+    const std::deque<RobotMessage>& GetMessageHistory();
+
+protected:
+    // implemented by the subclass
+    virtual RobotMessage _ReceiveImpl() = 0;
+
+    RobotMessage _lastIMUMessage;
+    RobotMessage _lastCANMessage;
+
+    // store the last 250 messages
+    const int MESSAGE_HISTORY_SIZE = 250;
+    std::deque<RobotMessage> _messageHistory;
+
+    Clock _receiveClock; // for tracking the receive rate information (so public)
+    Clock _sendClock; // for tracking the send rate information (so public)
 };
 
 /**
@@ -27,7 +43,7 @@ class RobotLinkSim : public IRobotLink
 public:
     RobotLinkSim();
     virtual void Drive(DriveCommand& command) override;
-    virtual RobotMessage Receive() override;
+    virtual RobotMessage _ReceiveImpl() override;
 
 private:
     // socket stuff
@@ -41,7 +57,8 @@ class RobotLinkReal : public IRobotLink
 public:
     RobotLinkReal();
     virtual void Drive(DriveCommand &command) override;
-    virtual RobotMessage Receive() override;
+    virtual RobotMessage _ReceiveImpl() override;
+
     ~RobotLinkReal();
 
 private:

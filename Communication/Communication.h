@@ -109,6 +109,9 @@ struct RobotMessage
         IMUData imuData;
         CANData canData;
     };
+
+    // timestamp
+    float receiveDelay;
 };
 
 #pragma pack(pop)

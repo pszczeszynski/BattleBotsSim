@@ -131,8 +131,8 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
-    cv::imshow("Motion", thresholdImg);
-    cv::waitKey(1);
+    // cv::imshow("Motion", thresholdImg);
+    // cv::waitKey(1);
     // find big blobs in the image using a blob detector
 
     // iterate through every pixel in the image and find the largest blob
