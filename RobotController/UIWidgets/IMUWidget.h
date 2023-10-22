@@ -7,21 +7,11 @@
 
 #include <opencv2/opencv.hpp>
 #include <mutex>
+#include "ImageWidget.h"
 
-class IMUWidget
+class IMUWidget : public ImageWidget
 {
-
 public:
     IMUWidget();
-    static IMUWidget& GetInstance();
-    void SetMat(const cv::Mat& mat);
-
-    void Update();
-    cv::Mat& Draw();
-
-private:
-    static IMUWidget* _instance;
-
-    cv::Mat _mat;
-    std::mutex _matMutex;
+    void Draw() override;
 };

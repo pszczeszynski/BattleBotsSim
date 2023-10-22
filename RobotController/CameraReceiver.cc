@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include "imgui.h"
 
-// #define VIDEO_READ
+#define VIDEO_READ
 // #define SAVE_VIDEO
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
@@ -183,10 +183,18 @@ bool CameraReceiver::_InitializeCamera()
     // Disable any automatic settings for more predictable performance
     _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0); // 0.25 usually means "manual mode" in OpenCV
     _cap->set(cv::CAP_PROP_AUTO_WB, 1.0);
+
 #else
+
     // init video reader
-    _cap = new cv::VideoCapture("Recordings/terribleFight.avi");
+    _cap = new cv::VideoCapture("Recordings/Video1.avi");
     _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
+    // // skip first 1 minutes
+    // for (int i = 0; i < 30 * 60; i++)
+    // {
+    //     cv::Mat frame;
+    //     _cap->read(frame);
+    // }
 
 #endif
 

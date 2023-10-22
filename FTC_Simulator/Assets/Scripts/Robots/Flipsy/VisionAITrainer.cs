@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.IO;
 using System.Drawing;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 public class VisionAITrainer : MonoBehaviour
 {
@@ -9,6 +11,10 @@ public class VisionAITrainer : MonoBehaviour
 
     [SerializeField]
     private Camera captureCamera;
+    [SerializeField]
+    private Transform lights;
+    [SerializeField]
+    private Transform postProcessingVolume;
 
     [Range(1, 100000)]
     public int numberOfCaptures = 10;
@@ -79,6 +85,8 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeRobotPosition();
             RandomizeCamera();
             RandomizeRobotRotation();
+            RandomizeLights();
+            RandomizePostProcessingVolume();
 
             CaptureAndSaveData();
         }
@@ -113,6 +121,49 @@ public class VisionAITrainer : MonoBehaviour
         }
 
         Debug.Log("Training data generation completed.");
+    }
+
+    private void RandomizeLights()
+    {
+        // // randomly disable or enable lights
+        // foreach (Transform light in lights)
+        // {
+        //     light.gameObject.SetActive(Random.Range(0, 4) != 0);
+        // }
+
+        // random rotation
+        lights.rotation = Quaternion.Euler(Random.Range(-10, 10), Random.Range(0, 360), Random.Range(-10, 10));
+    }
+
+    private void RandomizePostProcessingVolume()
+    {
+        Volume volume = postProcessingVolume.GetComponent<Volume>();
+        volume.profile.TryGet<Bloom>(out Bloom bloom);
+        // set bloom thresh
+        float bloomThresh = Random.Range(0.75f, 1.1f);
+        bloom.threshold.value = bloomThresh;
+
+        // randomize shadows midtones highlights
+        volume.profile.TryGet<ShadowsMidtonesHighlights>(out ShadowsMidtonesHighlights colorAdjustments);
+        const float MAX_COLOR_ADJUSTMENT = 0.2f;
+        colorAdjustments.shadows.value = new Vector4(
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            0
+        );
+        colorAdjustments.midtones.value = new Vector4(
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            0
+        );
+        colorAdjustments.highlights.value = new Vector4(
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            1.0f - Random.Range(0, MAX_COLOR_ADJUSTMENT),
+            0
+        );
     }
 
     private void RandomizeRobotPosition()

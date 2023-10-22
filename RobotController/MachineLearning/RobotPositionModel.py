@@ -7,22 +7,21 @@ from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras.layers import Dropout
-from Visualization import visualize_rotation_predictions, visualize_testing_rotations
+from Visualization import visualize_position_predictions
 from Utilities import Augmentations, save_onnx_model, save_h5_model, custom_data_gen
-from keras import backend as K
 
 # Constants
-MODEL_NAME = "rotationDetector.h5"
+MODEL_NAME = "positionDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
-IMG_SIZE = (128, 128)
-BATCH_SIZE = 32
+IMG_SIZE = (360, 360)#(1280, 720)
+BATCH_SIZE = 128
 VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 15
 
 # Get sorted list of image files and corresponding json files
 img_files = sorted(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputsProjected", "image_*.jpg")))
+    DATA_PATH, "TrainingInputsPosition", "image_*.jpg")))
 json_files = sorted(glob.glob(os.path.join(
     DATA_PATH, "TrainingKeys", "image_*.json")))
 
@@ -31,10 +30,9 @@ labels_data = []
 for j in json_files:
     with open(j, 'r') as f:
         data = json.load(f)
-        rotation_y = data["rotation"]
-        rotation_y %= 180
-        rotation_y /= 180.0
-    labels_data.append(rotation_y)
+        this_position = np.array([data["transformedPoint"]["x"] / 720, data["transformedPoint"]["y"] / 720])
+
+    labels_data.append(this_position)
 labels_data = np.array(labels_data)
 
 print("Found {} images and {} json files.".format(
@@ -42,9 +40,9 @@ print("Found {} images and {} json files.".format(
 
 # add augmentations to make the model more robust
 augmentations = Augmentations(
-    zoom_range=0.2,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
+    zoom_range=0.0,
+    width_shift_range=0.0,
+    height_shift_range=0.0,
     rotation_range=0.0
 )
 
@@ -56,24 +54,24 @@ val_gen = custom_data_gen(img_files, labels_data,
 
 # Calculate steps per epoch and validation steps
 steps_per_epoch = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.9) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsPosition", "image_*.jpg"))) * 0.9) // BATCH_SIZE
 val_steps = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.1) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsPosition", "image_*.jpg"))) * 0.1) // BATCH_SIZE
 
 # Model Architecture
 model = Sequential([
-    Conv2D(64, (3, 3), activation='relu', input_shape=(*IMG_SIZE, 1)),
+    Conv2D(16, (3, 3), activation='relu', input_shape=(*IMG_SIZE, 1)),
     MaxPooling2D(2, 2),
-    Conv2D(128, (3, 3), activation='relu'),
+    Conv2D(32, (3, 3), activation='relu'),
     MaxPooling2D(2, 2),
-    Conv2D(256, (3, 3), activation='relu'),
+    Conv2D(64, (3, 3), activation='relu'),
     MaxPooling2D(2, 2),
     Flatten(),
-    Dense(1024, activation='relu'),
+    Dense(256, activation='relu'),
     Dropout(0.5),
-    Dense(1024, activation='relu'),
+    Dense(128, activation='relu'),
     Dropout(0.5),
-    Dense(1)  # Single output neuron for normalized rotation y
+    Dense(2)
 ])
 
 # Now compile the model with this custom loss
@@ -112,10 +110,10 @@ def train_model():
 
 
 ##### VISUALIZATION #####
-# train_model()
-save_onnx_model(model, "model.onnx")
+train_model()
+save_onnx_model(model, "position_model.onnx")
 
 # # Call the visualization function after training:
-# visualize_rotation_predictions(val_gen, model, 100, (10, 10), IMG_SIZE)
+# visualize_predictions(val_gen, model, 100, (10, 10), IMG_SIZE)
 
-# visualize_testing_rotations(model, TESTING_PATH, IMG_SIZE)
+visualize_position_predictions(val_gen, model, 10, (5, 2), IMG_SIZE)

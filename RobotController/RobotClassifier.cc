@@ -143,6 +143,31 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
     return distanceScoreNormalized;
 }
 
+/**
+ * Returns the closest blob to the given point and removes it from the list
+*/
+MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob>& blobs, cv::Point2f point)
+{
+    int index = 0;
+    double minDist = 10000000;
+
+    for (int i = 0; i < blobs.size(); i++)
+    {
+        double dist = cv::norm(blobs[i].center - point);
+        if (dist < minDist)
+        {
+            minDist = dist;
+            index = i;
+        }
+    }
+
+    MotionBlob closest = blobs[index];
+    blobs.erase(blobs.begin() + index);
+    return closest;
+}
+
+
+
 #define MATCHING_DIST_THRESHOLD 100 * WIDTH / 720
 #define TIME_UNTIL_BIGGER_THRESH_SECONDS 3
 /**
@@ -219,12 +244,20 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     // otherwise have more than 2 blobs, only use the first 2 blobs
     else if (blobs.size() >= 2)
     {
-        double firstIsRobot = ClassifyBlob(blobs[0], frame, motionImage);
-        double secondIsRobot = ClassifyBlob(blobs[1], frame, motionImage);
+        std::vector<MotionBlob> blobsToChooseFrom = {};
+        std::vector<MotionBlob> filtered = {};
+        // copy over all the blobs
+        std::copy(blobs.begin(), blobs.end(), std::back_inserter(blobsToChooseFrom));
+        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, RobotOdometry::Robot().GetPosition()));
+        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, RobotOdometry::Opponent().GetPosition()));
+
+
+        double firstIsRobot = ClassifyBlob(filtered[0], frame, motionImage);
+        double secondIsRobot = ClassifyBlob(filtered[1], frame, motionImage);
         double preference = firstIsRobot - secondIsRobot;
 
-        MotionBlob& robot = preference <= 0 ? blobs[0] : blobs[1];
-        MotionBlob& opponent = preference <= 0 ? blobs[1] : blobs[0];
+        MotionBlob& robot = preference <= 0 ? filtered[0] : filtered[1];
+        MotionBlob& opponent = preference <= 0 ? filtered[1] : filtered[0];
 
         RecalibrateRobot(robotCalibrationData, robot, frame, motionImage);
         RecalibrateRobot(opponentCalibrationData, opponent, frame, motionImage);

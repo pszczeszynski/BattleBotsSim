@@ -107,8 +107,7 @@ void RobotController::Run()
     cv::VideoWriter video("Recordings/outputVideo.avi", fourcc, fps, frameSize, true); // 'true' for color video
 #endif
 
-    // construct gui application
-    RobotControllerGUI robotControllerGUI;
+    RobotControllerGUI::GetInstance();
 
     // receive until the peer closes the connection
     while (true)
@@ -167,26 +166,12 @@ void RobotController::Run()
         // update the GUI
         GuiLogic();
 
-        robotControllerGUI.Update();
-
-        // // if there was a new image
-        // if (classification.GetHadNewImage())
-        // {
-        //     // send the drawing image to the GUI
-        //     ProduceDrawingImage();
-        // }
+        // update the gui system
+        RobotControllerGUI::GetInstance().Update();
     }
 
-    robotControllerGUI.Shutdown();
+    RobotControllerGUI::GetInstance().Shutdown();
 }
-
-// void RobotController::ProduceDrawingImage()
-// {
-//     drawingImageQueue.produce(drawingImage);
-
-//     // mark the start of the vision update
-//     visionClock.markStart();
-// }
 
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
@@ -324,12 +309,13 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 
     DriveCommand response{0, 0};
     response.turn = DoubleThreshToTarget(deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD,
-                                                TURN_THRESH_2_DEG * TO_RAD, MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
-
+                                         TURN_THRESH_2_DEG * TO_RAD,
+                                         MIN_TURN_POWER_PERCENT / 100.0,
+                                         MAX_TURN_POWER_PERCENT / 100.0);
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
-    double drive_scale = std::max(0.0, 1.0 - abs(response.turn / (MAX_TURN_POWER_PERCENT/ 100.0)) * scaleDownMovement) * 1.0;
+    double drive_scale = std::max(0.0, 1.0 - abs(response.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * scaleDownMovement) * 1.0;
 
     response.movement = goToOtherTarget ? drive_scale : -drive_scale;
 
@@ -820,7 +806,7 @@ void RobotController::GuiLogic()
     const double CORNER_DIST_THRESH = 20.0;
 
     // get the curr mouse position
-    cv::Point2f currMousePos = FieldWidget::GetInstance().GetMousePosOnField();
+    cv::Point2f currMousePos = FieldWidget::GetInstance().GetMousePos();
 
     // if the user isn't pressing shift
     if (!ImGui::IsKeyDown(ImGuiKey_LeftShift))

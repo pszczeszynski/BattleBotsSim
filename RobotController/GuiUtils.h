@@ -7,6 +7,5 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
-bool SpinBox(const char* label, int* value, int step = 1, int min_value = INT_MIN, int max_value = INT_MAX);
 ImTextureID MatToTexture(const cv::Mat& mat);
 void ClearLastFrameTextures();

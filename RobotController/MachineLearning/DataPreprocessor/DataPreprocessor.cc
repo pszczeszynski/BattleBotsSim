@@ -2,21 +2,27 @@
 #include <string>
 #include <filesystem>
 #include <opencv2/opencv.hpp>
-#include "../VisionPreprocessor.h"  // Assuming you have this header file
-#include "../RobotConfig.h"
+#include "../../VisionPreprocessor.h"  // Assuming you have this header file
+#include "../../RobotConfig.h"
 #include <fstream>
 #include <nlohmann/json.hpp>  // Assuming you have the nlohmann JSON library
 
 #define CROP_SIZE 128
 
+#define POSITION
+
 int main()
 {
     // Set input and output directories
-    const std::string inputDir = "./TrainingData/TrainingInputs/";
-    const std::string outputDir = "./TrainingData/TrainingInputsProjected/";
-    const std::string keysDir = "./TrainingData/TrainingKeys/";
+    const std::string inputDir = "../TrainingData/TrainingInputs/";
+    #ifdef POSITION
+    const std::string outputDir = "../TrainingData/TrainingInputsPosition/";
+    #else
+    const std::string outputDir = "../TrainingData/TrainingInputsProjected/";
+    #endif
+    const std::string keysDir = "../TrainingData/TrainingKeys/";
 
-    loadGlobalVariablesFromFile("../RobotConfig.txt");
+    loadGlobalVariablesFromFile("../../RobotConfig.txt");
 
     // Create an instance of VisionPreprocessor
     VisionPreprocessor preprocessor;
@@ -66,13 +72,21 @@ int main()
             // transform that point using the VisionPreprocessor::TransformPoint method to get location on processedImage
             cv::Point2f transformedPoint = preprocessor.TransformPoint(position);  // Assuming VisionPreprocessor has a TransformPoint method
 
+            // add transformedPoint to json
+            keyJson["transformedPoint"]["x"] = transformedPoint.x;
+            keyJson["transformedPoint"]["y"] = transformedPoint.y;
+
             // add random shift up to 10 pixels in each direction
             const int RANDOM_SHIFT_MAX = 10;
-            transformedPoint.x += rand() % (2 * RANDOM_SHIFT_MAX) - RANDOM_SHIFT_MAX;
-            transformedPoint.y += rand() % (2 * RANDOM_SHIFT_MAX) - RANDOM_SHIFT_MAX;
 
+            cv::Point2f pointWithRandomization = transformedPoint;
+            pointWithRandomization.x += rand() % (2 * RANDOM_SHIFT_MAX) - RANDOM_SHIFT_MAX;
+            pointWithRandomization.y += rand() % (2 * RANDOM_SHIFT_MAX) - RANDOM_SHIFT_MAX;
+
+
+#ifndef POSITION
             // crop processedImage to CROP_SIZE by CROP_SIZE around that point
-            cv::Rect roi(transformedPoint.x - CROP_SIZE/2, transformedPoint.y - CROP_SIZE/2, CROP_SIZE, CROP_SIZE);
+            cv::Rect roi(pointWithRandomization.x - CROP_SIZE/2, pointWithRandomization.y - CROP_SIZE/2, CROP_SIZE, CROP_SIZE);
 
             // make sure the roi is within the bounds of the image
             roi.x = std::max(0, roi.x);
@@ -86,11 +100,29 @@ int main()
             cv::Mat black = cv::Mat::zeros(CROP_SIZE, CROP_SIZE, CV_8UC3);
             croppedImage.copyTo(black(cv::Rect(0, 0, croppedImage.cols, croppedImage.rows)));
 
+#else
+            cv::Mat& black = processedImage;
+#endif
+
             // Save the processed image
             if (!cv::imwrite(outputDir + filename, black))
             {
                 std::cerr << "Failed to save processed image: " << outputDir + filename << std::endl;
             }
+
+            // save the json
+            std::ofstream keyFileOut(keypath);
+            if (!keyFileOut.is_open())
+            {
+                std::cerr << "Failed to open key file: " << keypath << std::endl;
+                continue;
+            }
+
+            // write the json to the file
+            keyFileOut << keyJson.dump(4);
+
+            // close the file
+            keyFileOut.close();
         }
     }
 

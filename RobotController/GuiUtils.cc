@@ -1,49 +1,7 @@
 #include "GuiUtils.h"
 
 
-bool SpinBox(const char* label, int* value, int step, int min_value, int max_value)
-{
-    // ID for distinguishing multiple spinboxes
-    ImGui::PushID(label);
-    
-    // Create the input field for the number
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", *value);
-    bool value_changed = false;
-    if (ImGui::InputText("##spinbox_value", buf, sizeof(buf), ImGuiInputTextFlags_CharsDecimal))
-    {
-        int new_value = atoi(buf);
-        if (new_value != *value && new_value >= min_value && new_value <= max_value)
-        {
-            *value = new_value;
-            value_changed = true;
-        }
-    }
-    
-    // SameLine and draw buttons
-    ImGui::SameLine();
-    if (ImGui::Button("-##spinbox_minus") && *value > min_value)
-    {
-        *value -= step;
-        value_changed = true;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("+##spinbox_plus") && *value < max_value)
-    {
-        *value += step;
-        value_changed = true;
-    }
-    
-    // Draw label
-    ImGui::SameLine();
-    ImGui::TextUnformatted(label);
-    
-    ImGui::PopID();
-    
-    return value_changed;  // return true if the value changed, false otherwise
-}
-
-std::vector<GLuint> textures;
+std::vector<GLuint> textures = {};
 
 void ClearLastFrameTextures()
 {

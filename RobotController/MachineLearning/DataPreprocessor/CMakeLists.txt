@@ -12,7 +12,7 @@ cmake_policy(SET CMP0074 NEW)
 find_package(OpenCV REQUIRED)
 
 # Set include directories
-set(JSON_INCLUDE_PATH "../libs/json/include")
+set(JSON_INCLUDE_PATH "../../libs/json/include")
 
 # Include OpenCV directories
 include_directories(${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH})
@@ -22,8 +22,8 @@ include_directories(${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH})
 # Define the sources
 set(SOURCES 
     DataPreprocessor.cc
-    ../VisionPreprocessor.cc
-    ../RobotConfig.cc
+    ../../VisionPreprocessor.cc
+    ../../RobotConfig.cc
 )
 
 # Create the executable

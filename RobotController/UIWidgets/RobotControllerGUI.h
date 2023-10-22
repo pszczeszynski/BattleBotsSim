@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <opencv2/opencv.hpp>
+#include "ImageWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -26,6 +27,9 @@ public:
     bool Update();
     void Shutdown();
 
+    // singleton
+    static RobotControllerGUI& GetInstance();
+
 private:
     void Render();
     GLFWwindow *SetupWindow();
@@ -38,6 +42,7 @@ private:
     IMUWidget _imuWidget;
     ConfigWidget _configWidget;
     RobotTelemetryWidget _robotTelemetryWidget;
+    std::vector<ImageWidget*> _imageWidgets;
 };
 
 static void glfw_error_callback(int error, const char *description)

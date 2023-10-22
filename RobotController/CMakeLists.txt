@@ -77,6 +77,7 @@ set(SOURCES
     VisionPreprocessor.cc
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc
+    UIWidgets/ImageWidget.cc
     CVRotation.cc
 )
 

@@ -9,6 +9,7 @@
 #include <opencv2/flann.hpp>
 #include "Globals.h"
 #include "RobotConfig.h"
+#include "UIWidgets/RobotControllerGUI.h"
 
 
 Vision::Vision(ICameraReceiver &overheadCam)
@@ -107,14 +108,18 @@ VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
     return ret;
 }
 
+/**
+ * Locates the robots in the frame
+*/
 VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFrameL)
 {
-    const cv::Size BLUR_SIZE = cv::Size(14,14);
+    static ImageWidget motionImageWidget{"Motion", true};
 
+    // hyperparameters
+    const cv::Size BLUR_SIZE = cv::Size(14,14);
     const float MIN_AREA = pow(min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE), 2);
     const float MAX_AREA = pow(max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE), 2);
-
-    cv::Point2f center = cv::Point2f(0,0);
+    const int BLOB_SEARCH_SIZE = 10;
 
     // Compute the absolute difference between the current frame and the previous frame
     cv::Mat diff;
@@ -131,22 +136,20 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     // blurr and re-thresh to make it more leanient
     cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
     cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
-    // cv::imshow("Motion", thresholdImg);
-    // cv::waitKey(1);
+
     // find big blobs in the image using a blob detector
 
     // iterate through every pixel in the image and find the largest blob
     std::vector<cv::Rect> potentialRobots = {};
-    for (int y = 0; y < thresholdImg.rows; y += 10)
+    for (int y = 0; y < thresholdImg.rows; y += BLOB_SEARCH_SIZE)
     {
-        for (int x = 0; x < thresholdImg.cols; x += 10)
+        for (int x = 0; x < thresholdImg.cols; x += BLOB_SEARCH_SIZE)
         {
             // if this pixel is white, then it is part of a blob
             if (thresholdImg.at<uchar>(y, x) == 255)
             {
-                // flood fill the blob
+                // flood fill, mark the blob as 100 so that we don't flood fill it again
                 cv::Rect rect;
-                // flood fill but don't change the image
                 cv::floodFill(thresholdImg, cv::Point(x, y), cv::Scalar(100), &rect);
 
                 // if the blob is a reasonable size, add it to the list
@@ -185,12 +188,18 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
         // add the average to the list of robot centers
         motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &frame});
     }
-    
-    // if (motionBlobs.size() > 0)
-    // {
-    //     cv::imshow("threshold", thresholdImg);
-    //     cv::waitKey(1);
-    // }
+
+    // draw the blobs
+    cv::Mat blobsImage;
+    cv::cvtColor(thresholdImg, blobsImage, cv::COLOR_GRAY2BGR);
+    for (const MotionBlob &blob : motionBlobs)
+    {
+        cv::rectangle(blobsImage, blob.rect, cv::Scalar(0, 255, 0), 2);
+        cv::circle(blobsImage, blob.center, 5, cv::Scalar(0, 255, 0), 2);
+    }
+
+    // draw the potential robots
+    motionImageWidget.UpdateMat(blobsImage);
 
     // classify the blobs and save them for later
     return robotClassifier.ClassifyBlobs(motionBlobs, frame, thresholdImg);

@@ -11,22 +11,13 @@
 // the maximum acceleration in m/s^2
 #define MAX_ACCEL_MPSS 15
 
-IMUWidget* IMUWidget::_instance = nullptr;
 
-IMUWidget::IMUWidget()
+IMUWidget::IMUWidget() : ImageWidget("IMU", false)
 {
-    IMUWidget::_instance = this;
+
 }
 
-/**
- * Returns the singleton instance of the IMUWidget
-*/
-IMUWidget& IMUWidget::GetInstance()
-{
-    return *_instance;
-}
-
-cv::Mat& IMUWidget::Draw()
+void IMUWidget::Draw()
 {
     // get the latest message
     IMUData imuData = RobotController::GetInstance().GetIMUData();
@@ -80,17 +71,7 @@ cv::Mat& IMUWidget::Draw()
     cv::line(mat, point1, point3, dottedCircleColor, 1, cv::LINE_AA);
     cv::line(mat, point2, point4, dottedCircleColor, 1, cv::LINE_AA);
 
-    // lock the mutex
-    _matMutex.lock();
-    // copy the mat
-    mat.copyTo(_mat);
-    // unlock the mutex
-    _matMutex.unlock();
-
-    ImGui::Begin("IMU");
-    ImTextureID texture = MatToTexture(_mat);
-    ImGui::Image(texture, ImVec2(WIDGET_WIDTH, WIDGET_HEIGHT));
-    ImGui::End();
-
-    return _mat;
+    // draw the widget
+    ImageWidget::UpdateMat(mat);
+    ImageWidget::Draw();
 }

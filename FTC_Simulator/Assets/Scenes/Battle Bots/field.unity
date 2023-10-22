@@ -8361,7 +8361,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-4480
+  m_Name: pb_Mesh-10362
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -10151,6 +10151,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   robotTransform: {fileID: 428606991}
   captureCamera: {fileID: 1820725278}
+  lights: {fileID: 11334292}
+  postProcessingVolume: {fileID: 1826500114}
   numberOfCaptures: 30000
   movementBoundsX: {x: -6, y: 6}
   movementBoundsY: {x: -6, y: 6}
@@ -13711,7 +13713,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-4424
+  m_Name: pb_Mesh-10306
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -15357,7 +15359,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2068624915
 MonoBehaviour:
   m_ObjectHideFlags: 0

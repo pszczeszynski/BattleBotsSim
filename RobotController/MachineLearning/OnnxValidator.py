@@ -9,7 +9,6 @@ sess = rt.InferenceSession("model.onnx", providers=providers)
 input_name = sess.get_inputs()[0].name
 
 
-
 # go through every file in the folder
 for filename in os.listdir('./TrainingData/TrainingInputsProjected/'):
     path = './TrainingData/TrainingInputsProjected/' + filename
@@ -25,7 +24,6 @@ for filename in os.listdir('./TrainingData/TrainingInputsProjected/'):
     # convert to B x C x H x W
     img = np.transpose(img, (0, 3, 1, 2))
 
-
     print("this image: " + path)
     # print the img shape
     print(img)
@@ -35,7 +33,6 @@ for filename in os.listdir('./TrainingData/TrainingInputsProjected/'):
     print(result)
 
     result = result[0][0][0]
-
 
     # draw and show
     arrow_start = (128 // 2, 128 // 2)
