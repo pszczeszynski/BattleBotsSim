@@ -1,7 +1,7 @@
 #pragma once
-#include <windows.h>
-#include <XInput.h>
-#include "../libs/DS5W/ds5w.h"
+// #include <windows.h>
+// #include <XInput.h>
+//#include "../libs/DS5W/ds5w.h"
 #include <iostream>
 
 class Gamepad
@@ -34,39 +34,39 @@ public:
 };
 
 
-class XBox : public Gamepad
-{
-public:
-    XBox(int index = 0);
+// class XBox : public Gamepad
+// {
+// public:
+//     XBox(int index = 0);
 
-    virtual void Update() override;
+//     virtual void Update() override;
 
-    // Button checkers
-    virtual bool GetButtonA() override;
-    virtual bool GetButtonB() override;
-    virtual bool GetButtonX() override;
-    virtual bool GetButtonY() override;
-    virtual bool GetLeftBumper() override;
-    virtual bool GetRightBumper() override;
-    virtual bool GetDpadLeft() override;
-    virtual bool GetDpadRight() override;
-    virtual bool GetDpadUp() override;
-    virtual bool GetDpadDown() override;
+//     // Button checkers
+//     virtual bool GetButtonA() override;
+//     virtual bool GetButtonB() override;
+//     virtual bool GetButtonX() override;
+//     virtual bool GetButtonY() override;
+//     virtual bool GetLeftBumper() override;
+//     virtual bool GetRightBumper() override;
+//     virtual bool GetDpadLeft() override;
+//     virtual bool GetDpadRight() override;
+//     virtual bool GetDpadUp() override;
+//     virtual bool GetDpadDown() override;
 
-    // Stick values, range from -1.0 to 1.0
-    virtual float GetLeftStickX() override;
-    virtual float GetLeftStickY() override;
-    virtual float GetRightStickX() override;
-    virtual float GetRightStickY() override;
+//     // Stick values, range from -1.0 to 1.0
+//     virtual float GetLeftStickX() override;
+//     virtual float GetLeftStickY() override;
+//     virtual float GetRightStickX() override;
+//     virtual float GetRightStickY() override;
 
-    virtual float GetLeftTrigger() override;
-    virtual float GetRightTrigger() override;
+//     virtual float GetLeftTrigger() override;
+//     virtual float GetRightTrigger() override;
 
-private:
-    int _controllerIndex;
-    XINPUT_STATE _controllerState;
-    const float RANGE = 32767.0f;
-};
+// private:
+//     int _controllerIndex;
+//     XINPUT_STATE _controllerState;
+//     const float RANGE = 32767.0f;
+// };
 
 
 
@@ -101,7 +101,7 @@ public:
     virtual float GetRightTrigger() override;
 private:
     //Array of Controller Infos
-    DS5W::DeviceEnumInfo _infos[16];
+    //DS5W::DeviceEnumInfo _infos[16];
 
     // Number of controllers found
     unsigned int _controllersCount;
@@ -110,9 +110,9 @@ private:
     bool _initialized;
 
     // Context for controller
-    DS5W::DeviceContext _con;
+    //DS5W::DeviceContext _con;
 
     // Inputstate
-    DS5W::DS5InputState _inState;
+    //DS5W::DS5InputState _inState;
     const float RANGE = 255.0f;
 };

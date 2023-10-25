@@ -3,14 +3,14 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <windows.h>
+//#include <windows.h>
 #include <iostream>
 #include "Globals.h"
 #include "Clock.h"
 #include <stdlib.h>
 #include "imgui.h"
 
-#define VIDEO_READ
+//#define VIDEO_READ
 // #define SAVE_VIDEO
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
@@ -41,7 +41,7 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));; // wait 1 second
         }
 
         // start capturing frames
@@ -244,66 +244,66 @@ CameraReceiver::~CameraReceiver()
 }
 
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
-CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height) : _sharedFileName(sharedFileName),
-                                                                                          _width(width),
-                                                                                          _height(height)
-{
-    // create a thread to capture frames
-    _captureThread = std::thread([this]()
-                                 {
-        // try to initialize camera
-        while (!_InitializeCamera())
-        {
-            std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
-        }
+// CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height) : _sharedFileName(sharedFileName),
+//                                                                                           _width(width),
+//                                                                                           _height(height)
+// {
+//     // create a thread to capture frames
+//     _captureThread = std::thread([this]()
+//                                  {
+//         // try to initialize camera
+//         while (!_InitializeCamera())
+//         {
+//             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
+//             Sleep(1000); // wait 1 second
+//         }
 
-        // start capturing frames
-        while (true)
-        {
-            _CaptureFrame();
-        } });
-}
+//         // start capturing frames
+//         while (true)
+//         {
+//             _CaptureFrame();
+//         } });
+// }
 
-bool CameraReceiverSim::_InitializeCamera()
-{
-    std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
-    // LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
+// bool CameraReceiverSim::_InitializeCamera()
+// {
+//     std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
+//     // LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
 
 
-    // 1. Create shared file
-    // Open a handle to the memory-mapped file
-    _hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameW.c_str());
+//     // 1. Create shared file
+//     // Open a handle to the memory-mapped file
+//     _hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, sharedFileNameW.c_str());
 
-    if (_hMapFile == NULL)
-    {
-        std::cerr << "Could not open memory-mapped file" << std::endl;
-        // get error
-        DWORD err = GetLastError();
-        if (err == 6) // ERROR_INVALID_HANDLE
-        {
-            std::cerr << "ERROR_INVALID_HANDLE" << std::endl;
-        }
-        std::cerr << "Error: " << err << std::endl;
-        return false;
-    }
+//     if (_hMapFile == NULL)
+//     {
+//         std::cerr << "Could not open memory-mapped file" << std::endl;
+//         // get error
+//         DWORD err = GetLastError();
+//         if (err == 6) // ERROR_INVALID_HANDLE
+//         {
+//             std::cerr << "ERROR_INVALID_HANDLE" << std::endl;
+//         }
+//         std::cerr << "Error: " << err << std::endl;
+//         return false;
+//     }
 
-    // Map the memory-mapped file to a memory address
-    _lpMapAddress = MapViewOfFile(_hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if (_lpMapAddress == NULL)
-    {
-        std::cerr << "Could not map memory-mapped file" << std::endl;
-        CloseHandle(_hMapFile);
-        return false;
-    }
+//     // Map the memory-mapped file to a memory address
+//     _lpMapAddress = MapViewOfFile(_hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+//     if (_lpMapAddress == NULL)
+//     {
+//         std::cerr << "Could not map memory-mapped file" << std::endl;
+//         CloseHandle(_hMapFile);
+//         return false;
+//     }
 
-    // Create an OpenCV Mat to hold the image data (this points to the shared memory region)
-    _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, _lpMapAddress);
-    std::cout << "done openning shared file: " << _sharedFileName << std::endl;
+//     // Create an OpenCV Mat to hold the image data (this points to the shared memory region)
+//     _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, _lpMapAddress);
+//     std::cout << "done openning shared file: " << _sharedFileName << std::endl;
 
-    // return success
-    return true;
-}
+//     // return success
+//     return true;
+// }
 
 static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 {
@@ -324,55 +324,55 @@ static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
     return cv::countNonZero(grayDiff) == 0;
 }
 
-void CameraReceiverSim::_CaptureFrame()
-{
-    // don't receive at more than 60 fps
-    if (_prevFrameTimer.getElapsedTime() < 0.015)
-    {
-        return;
-    }
-    _prevFrameTimer.markStart();
+// void CameraReceiverSim::_CaptureFrame()
+// {
+//     // don't receive at more than 60 fps
+//     if (_prevFrameTimer.getElapsedTime() < 0.015)
+//     {
+//         return;
+//     }
+//     _prevFrameTimer.markStart();
 
-    cv::Mat captured;
-    // remove alpha
-    cv::cvtColor(_image, captured, cv::COLOR_BGRA2RGB);
-    // Flip the image vertically
-    cv::flip(captured, captured, 0);
+//     cv::Mat captured;
+//     // remove alpha
+//     cv::cvtColor(_image, captured, cv::COLOR_BGRA2RGB);
+//     // Flip the image vertically
+//     cv::flip(captured, captured, 0);
 
-    // lock the mutex
-    _frameMutex.lock();
-    // copy the frame to the previous frame
-    _frame.copyTo(_prevFrame);
-    // copy the frame
-    captured.copyTo(_frame);
-    // increase _framesReady
-    _framesReady++;
-    // unlock the mutex
-    _frameMutex.unlock();
-}
+//     // lock the mutex
+//     _frameMutex.lock();
+//     // copy the frame to the previous frame
+//     _frame.copyTo(_prevFrame);
+//     // copy the frame
+//     captured.copyTo(_frame);
+//     // increase _framesReady
+//     _framesReady++;
+//     // unlock the mutex
+//     _frameMutex.unlock();
+// }
 
-bool CameraReceiverSim::GetFrame(cv::Mat &output)
-{
-    _frameMutex.lock();
-    // if no frames are ready, return false
-    if (_framesReady <= 0)
-    {
-        _frameMutex.unlock();
-        return false;
-    }
+// bool CameraReceiverSim::GetFrame(cv::Mat &output)
+// {
+//     _frameMutex.lock();
+//     // if no frames are ready, return false
+//     if (_framesReady <= 0)
+//     {
+//         _frameMutex.unlock();
+//         return false;
+//     }
 
-    // otherwise copy the frame
-    _frame.copyTo(output);
-    _framesReady = 0;
-    _frameMutex.unlock();
+//     // otherwise copy the frame
+//     _frame.copyTo(output);
+//     _framesReady = 0;
+//     _frameMutex.unlock();
 
-    // return SUCCESS
-    return true;
-}
+//     // return SUCCESS
+//     return true;
+// }
 
-CameraReceiverSim::~CameraReceiverSim()
-{
-    // Unmap the memory-mapped file and close the handle
-    UnmapViewOfFile(_lpMapAddress);
-    CloseHandle(_hMapFile);
-}
+// CameraReceiverSim::~CameraReceiverSim()
+// {
+//     // Unmap the memory-mapped file and close the handle
+//     UnmapViewOfFile(_lpMapAddress);
+//     CloseHandle(_hMapFile);
+// }

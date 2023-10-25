@@ -25,7 +25,7 @@ void RobotTelemetryWidget::Draw()
     ImGui::NextColumn();
     ImGui::Text("RPM");
 
-    CANData& data = RobotController::GetInstance().GetCANData();
+    CANData data = RobotController::GetInstance().GetCANData();
 
     for (int i = 0; i < 4; i++)
     {

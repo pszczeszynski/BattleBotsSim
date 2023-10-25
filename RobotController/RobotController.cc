@@ -3,7 +3,7 @@
 #include "RobotConfig.h"
 #include "RobotController.h"
 #include "RobotClassifier.h"
-#include "RobotLink.h"
+//#include "RobotLink.h"
 #include "Vision.h"
 #include <opencv2/core.hpp>
 #include <algorithm>
@@ -96,7 +96,7 @@ void RobotController::Run()
     // For real robot, send a stop drive command to start
 #ifndef SIMULATION
     DriveCommand c{0, 0};
-    robotLink.Drive(c);
+    //robotLink.Drive(c);
 #endif
 
 #ifdef SAVE_VIDEO
@@ -120,20 +120,20 @@ void RobotController::Run()
         gamepad.Update();
 
         // receive the latest message
-        RobotMessage msg = robotLink.Receive();
+        //RobotMessage msg = robotLink.Receive();
         // save the last message type
-        _lastMessageType = msg.type;
+        //_lastMessageType = msg.type;
         // save the specific type information in a last struct
-        if (msg.type == RobotMessageType::IMU_DATA)
-        {
-            _lastIMUMessage = msg;
-        }
-        else if (msg.type == RobotMessageType::CAN_DATA)
-        {
-            _lastCanMessageMutex.lock();
-            _lastCANMessage = msg;
-            _lastCanMessageMutex.unlock();
-        }
+        // if (msg.type == RobotMessageType::IMU_DATA)
+        // {
+        //     _lastIMUMessage = msg;
+        // }
+        // else if (msg.type == RobotMessageType::CAN_DATA)
+        // {
+        //     _lastCanMessageMutex.lock();
+        //     _lastCANMessage = msg;
+        //     _lastCanMessageMutex.unlock();
+        // }
 
         // get the latest classification (very fast)
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
@@ -154,7 +154,7 @@ void RobotController::Run()
         DriveCommand response = RobotLogic();
         
         // send the response to the robot
-        robotLink.Drive(response);
+        //robotLink.Drive(response);
 
 #ifdef SAVE_VIDEO
         if (!drawingImage.empty())
@@ -947,10 +947,10 @@ float& RobotController::GetBackWeaponTargetPowerRef()
     return _backWeaponPower;
 }
 
-IRobotLink& RobotController::GetRobotLink()
-{
-    return robotLink;
-}
+// IRobotLink& RobotController::GetRobotLink()
+// {
+//     return robotLink;
+// }
 
 cv::Mat& RobotController::GetDrawingImage()
 {

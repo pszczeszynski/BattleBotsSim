@@ -1,6 +1,6 @@
 #pragma once
 
-#include <windows.h>
+//#include <windows.h>
 
 #pragma comment(lib, "ws2_32.lib")
 

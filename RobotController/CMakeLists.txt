@@ -66,11 +66,11 @@ set(SOURCES
     Input/Gamepad.cc
     Globals.cc
     RobotClassifier.cc
-    RobotLink.cc
+    #RobotLink.cc
     RobotOdometry.cc
     RobotStateParser.cc
     SelfRighter.cc
-    ServerSocket.cc
+    #ServerSocket.cc
     Timer.cc
     Clock.cc
     Vision.cc
@@ -91,8 +91,11 @@ add_executable(RobotController ${SOURCES})
 
 find_package(OpenGL REQUIRED)
 
-target_link_libraries(RobotController opencv_world Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
-                      ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES}) # Qt6::Widgets
+#target_link_libraries(RobotController opencv_world Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
+#                      ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES}) # Qt6::Widgets
+
+target_link_libraries(RobotController glfw opencv_core opencv_highgui opencv_dnn ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
+                       ${OPENGL_LIBRARIES}) # Qt6::Widgets
 
 
 add_custom_command(TARGET RobotController POST_BUILD

@@ -23,7 +23,6 @@ bool RobotControllerGUI::Update()
     {
         return false;
     }
-
     // Poll and handle events (inputs, window resize, etc.)
     // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
     // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
@@ -36,7 +35,7 @@ bool RobotControllerGUI::Update()
 
     ClearLastFrameTextures();
     // render all ui elements
-    FieldWidget::GetInstance().Draw();
+    //FieldWidget::GetInstance().Draw();
     _imuWidget.Draw();
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
@@ -151,7 +150,7 @@ void RobotControllerGUI::SetupIMGUI(GLFWwindow *window)
     // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
     // ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     // IM_ASSERT(font != nullptr);
-    ImFont *customFont = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\consolab.ttf", 15.0f);
+    //ImFont *customFont = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\consolab.ttf", 15.0f);
     // terminal
 
     // ImGui::PushFont(customFont);
