@@ -35,7 +35,7 @@ bool RobotControllerGUI::Update()
 
     ClearLastFrameTextures();
     // render all ui elements
-    //FieldWidget::GetInstance().Draw();
+    FieldWidget::GetInstance().Draw();
     _imuWidget.Draw();
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
