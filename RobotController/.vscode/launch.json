@@ -15,6 +15,13 @@
             "environment": [],
             "externalConsole": true,
             "visualizerFile": "c:\\Users\\Peter\\AppData\\Roaming\\Code\\User\\workspaceStorage\\0b639fb29a2752bba620735c693dd9ec\\tonka3000.qtvsctools\\qt.natvis.xml"
-        }
+        },
+        { // python file MachineLearning/RobotRotationModel.py
+            "name": "Robot Rotation Model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/MachineLearning/RobotRotationModel.py",
+            "console": "integratedTerminal"
+        },
     ]
 }

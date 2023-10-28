@@ -459,10 +459,6 @@ DriveCommand RobotController::OrbitMode()
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
 
-    // draw arrowed line from us at our angle
-    cv::Point2f arrowEnd = ourPosition + cv::Point2f(100.0 * cos(ourAngle), 100.0 * sin(ourAngle));
-    cv::arrowedLine(drawingImage, ourPosition, arrowEnd, cv::Scalar(0, 255, 0), 2);
-
 #ifndef HARDCORE
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);

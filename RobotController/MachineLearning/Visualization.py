@@ -1,11 +1,26 @@
 import os
 import glob
-import json
 import numpy as np
-import cv2
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from typing import Tuple
 import tensorflow as tf
+
+def network_output_to_angle(output: np.ndarray) -> np.ndarray:
+    # if only one element, add a dimension
+    if len(output.shape) == 1:
+        output = np.expand_dims(output, axis=0) 
+
+    if output.shape[1] != 2:
+        raise ValueError("angle_components must have shape (N, 2)")
+
+    # the model outputs two values, one for cos and one for sin
+    x_components, y_components = output[:, 0], output[:, 1]
+    x_components = (x_components * 2) - 1
+    y_components = (y_components * 2) - 1
+    # get the angle in radians
+    # and multiply by 0.5 since we multiplied all the labels by 2 to map to 0-360
+    angles = np.arctan2(y_components, x_components) * 0.5
+    return angles
 
 
 def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2, 5), IMG_SIZE: Tuple[int, int] = (128, 128)):
@@ -32,39 +47,37 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
 
     images = np.array(images)
 
-    true_labels = np.array(true_labels)
-
     # Create a blank canvas for the grid
     canvas = np.zeros((IMG_SIZE[0] * grid_dims[0],
                       IMG_SIZE[1] * grid_dims[1], 3), dtype=np.uint8)
 
     # Get predictions
-    predicted_labels = model.predict(images)
+    predictions = model.predict(images)
+    predictions = network_output_to_angle(predictions)
 
-    # multiply all predictions by 2 since we only trained on 0.5 rotations
-    predicted_labels *= 0.5
-    true_labels *= 0.5
+    # Convert true labels to radians
+    true_labels = network_output_to_angle(np.array(true_labels))
 
     for idx in range(min(num_samples, len(images))):
         image = (images[idx] * 255).astype(np.uint8)
         # bgr -> rgb
-        cv2.cvtColor(image, cv2.COLOR_BGR2RGB, image)
+        cv2.cvtColor(image, cv2.COLOR_GRAY2RGB, image)
 
         # Arrow start point (center of image)
         arrow_start = (IMG_SIZE[0] // 2, IMG_SIZE[1] // 2)
 
         # Arrow end point for true labels
         arrow_end_true = (
-            int(arrow_start[0] + 50 * np.cos(2 * np.pi * true_labels[idx])),
-            int(arrow_start[1] + 50 * np.sin(2 * np.pi * true_labels[idx]))
+            int(arrow_start[0] + 50 * np.cos(true_labels[idx])),
+            int(arrow_start[1] + 50 * np.sin(true_labels[idx]))
         )
 
         # Arrow end point for predicted labels
         arrow_end_pred = (
             int(arrow_start[0] + 50 *
-                np.cos(2 * np.pi * predicted_labels[idx])),
+                np.cos(predictions[idx])),
             int(arrow_start[1] + 50 *
-                np.sin(2 * np.pi * predicted_labels[idx]))
+                np.sin(predictions[idx]))
         )
 
         # Draw arrows on the image
@@ -104,8 +117,7 @@ def visualize_testing_rotations(model: tf.keras.Model, TESTING_PATH: str, IMG_SI
         img_array = img_to_array(img)
         img_array /= 255.0
         img_array = np.expand_dims(img_array, axis=0)
-        predicted_label = model.predict(img_array)[0][0]
-        predicted_label *= 0.5
+        predicted_label = network_output_to_angle(model.predict(img_array)[0])
         print("Image: {} Predicted: {}".format(img_files[i], predicted_label))
 
         # draw arrow
@@ -118,8 +130,8 @@ def visualize_testing_rotations(model: tf.keras.Model, TESTING_PATH: str, IMG_SI
 
         # Arrow end point for predicted labels
         arrow_end_pred = (
-            int(arrow_start[0] + 50 * np.cos(2 * np.pi * predicted_label)),
-            int(arrow_start[1] + 50 * np.sin(2 * np.pi * predicted_label))
+            int(arrow_start[0] + 50 * np.cos(predicted_label)),
+            int(arrow_start[1] + 50 * np.sin(predicted_label))
         )
 
         # Draw arrows on the image

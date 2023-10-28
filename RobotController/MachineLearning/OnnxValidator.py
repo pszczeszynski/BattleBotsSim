@@ -5,7 +5,7 @@ import os
 
 # Load the ONNX model
 providers = ['CPUExecutionProvider']
-sess = rt.InferenceSession("model.onnx", providers=providers)
+sess = rt.InferenceSession("rotation_model.onnx", providers=providers)
 input_name = sess.get_inputs()[0].name
 
 

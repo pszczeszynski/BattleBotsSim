@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 
-#define MODEL_PATH "MachineLearning/model.onnx"
+#define MODEL_PATH "MachineLearning/rotation_model.onnx"
 #define POS_MODEL_PATH "MachineLearning/position_model.onnx"
 
 class CVRotation

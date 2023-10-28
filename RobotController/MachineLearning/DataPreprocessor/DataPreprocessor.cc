@@ -9,7 +9,7 @@
 
 #define CROP_SIZE 128
 
-#define POSITION
+// #define POSITION
 
 int main()
 {
@@ -94,18 +94,29 @@ int main()
             roi.width = std::min(processedImage.cols - roi.x, roi.width);
             roi.height = std::min(processedImage.rows - roi.y, roi.height);
 
-            cv::Mat croppedImage = processedImage(roi);
-
             // fill in remaining with black so that the image is always CROP_SIZE by CROP_SIZE
-            cv::Mat black = cv::Mat::zeros(CROP_SIZE, CROP_SIZE, CV_8UC3);
-            croppedImage.copyTo(black(cv::Rect(0, 0, croppedImage.cols, croppedImage.rows)));
+            cv::Mat croppedImageSized = cv::Mat::zeros(CROP_SIZE, CROP_SIZE, CV_8UC3);
+
+            // Check if the roi is completely outside the bounds of the image
+            if (roi.width <= 0 || roi.height <= 0)
+            {
+                std::cerr << "Warning: Crop is completely outside the image bounds!" << std::endl;
+            }
+            else
+            {
+                // Copy the cropped image to the black image
+                cv::Mat croppedImage = processedImage(roi);
+                croppedImage.copyTo(croppedImageSized(cv::Rect(0, 0,
+                                                               croppedImage.cols,
+                                                               croppedImage.rows)));
+            }
 
 #else
             cv::Mat& black = processedImage;
 #endif
 
             // Save the processed image
-            if (!cv::imwrite(outputDir + filename, black))
+            if (!cv::imwrite(outputDir + filename, croppedImageSized))
             {
                 std::cerr << "Failed to save processed image: " << outputDir + filename << std::endl;
             }

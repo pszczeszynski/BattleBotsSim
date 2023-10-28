@@ -3,6 +3,8 @@ using System.IO;
 using System.Drawing;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Collections;
+using System.Collections.Generic;
 
 public class VisionAITrainer : MonoBehaviour
 {
@@ -29,13 +31,13 @@ public class VisionAITrainer : MonoBehaviour
     private Vector3 CAMERA_POSITION_ORIENTATION_RANDOMNESS = new Vector3(1, 1, 1);
 
     [SerializeField]
-    private int ROBOT_CROP_SIZE = 256;
-    [SerializeField]
     private int CAMERA_WIDTH = 1280;
     [SerializeField]
     private int CAMERA_HEIGHT = 720;
     [SerializeField]
     private string SAVE_PATH_RELATIVE = "../../RobotController/MachineLearning/TrainingData/";
+    [SerializeField]
+    private List<Transform> otherRobots;
     private string _imagesSavePath;
     private string _labelsSavePath;
 
@@ -87,6 +89,7 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeRobotRotation();
             RandomizeLights();
             RandomizePostProcessingVolume();
+            RandomizeOtherRobots();
 
             CaptureAndSaveData();
         }
@@ -166,6 +169,35 @@ public class VisionAITrainer : MonoBehaviour
         );
     }
 
+    private void RandomizeOtherRobots()
+    {
+        const float MIN_DIST_TO_MAIN_ROBOT = 1.5f;
+        
+        // move each other robot to a random position + orientation on the field
+        // (within movement bounds)
+        foreach (Transform otherRobot in otherRobots)
+        {
+            // keep randomizing until the robot is far enough from the main robot
+            float x;
+            float y;
+            do
+            {
+                x = Random.Range(movementBoundsX.x, movementBoundsX.y);
+                y = Random.Range(movementBoundsY.x, movementBoundsY.y);
+            } while (Vector2.Distance(new Vector2(x, y),
+                     new Vector2(robotTransform.position.x,
+                                 robotTransform.position.z)) < MIN_DIST_TO_MAIN_ROBOT);
+
+            otherRobot.position = new Vector3(x, otherRobot.position.y, y);
+
+            // add random rotation
+            otherRobot.rotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
+
+            // randomly enable or disable the robot
+            otherRobot.gameObject.SetActive(Random.Range(0, 4) != 0);
+        }
+    }
+
     private void RandomizeRobotPosition()
     {
         float x = Random.Range(movementBoundsX.x, movementBoundsX.y);
@@ -191,28 +223,23 @@ public class VisionAITrainer : MonoBehaviour
 
     private void CaptureAndSaveData()
     {
+        // 1. capture image
         RenderTexture.active = rt;
         captureCamera.targetTexture = rt;
         captureCamera.Render();
-
-
-        Vector2 robotScreenPos = GetRobotScreenPos();
-
-        // float startX = Mathf.Clamp(robotScreenPos.x - ROBOT_CROP_SIZE / 2, 0, CAMERA_WIDTH - ROBOT_CROP_SIZE);
-        // float startY = Mathf.Clamp(robotScreenPos.y - ROBOT_CROP_SIZE / 2, 0, CAMERA_HEIGHT - ROBOT_CROP_SIZE);
-
-        captureTexture.ReadPixels(new Rect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT), 0, 0); // new Rect(startX, startY, ROBOT_CROP_SIZE, ROBOT_CROP_SIZE)
+        captureTexture.ReadPixels(new Rect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT), 0, 0);
         RenderTexture.active = null;
 
+        // 2. save image
         byte[] imageBytes = captureTexture.EncodeToJPG();
         string imageName = $"image_{currentCaptureIndex}.jpg";
         File.WriteAllBytes(Path.Combine(_imagesSavePath, imageName), imageBytes);
         Debug.Log($"Saved image: {imageName}");
-        Debug.Log("Image size: " + imageBytes.Length);
 
+        // 3. save label
         PositionRotationData data = new PositionRotationData
         {
-            position = robotScreenPos,
+            position = GetRobotScreenPos(),
             rotation = robotTransform.rotation.eulerAngles.y
         };
 

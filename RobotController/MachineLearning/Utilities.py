@@ -2,7 +2,7 @@ from typing import List, Tuple, Union
 import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
 import tensorflow as tf
-
+import cv2
 
 def save_onnx_model(model: tf.keras.Model, name: str):
     """
@@ -31,11 +31,13 @@ def save_h5_model(model: tf.keras.Model, name: str):
 
 class Augmentations:
     def __init__(self, zoom_range: float = 0.0, width_shift_range: float = 0.0,
-                 height_shift_range: float = 0.0, rotation_range: float = 0):
+                 height_shift_range: float = 0.0, rotation_range: float = 0,
+                 brightness_range: List[float] = [1.0, 1.0]):
         self.zoom_range = zoom_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
         self.rotation_range = rotation_range
+        self.brightness_range = brightness_range
 
 
 def custom_data_gen(img_files: List[str],
@@ -65,8 +67,9 @@ def custom_data_gen(img_files: List[str],
             zoom_range=augmentations.zoom_range,
             width_shift_range=augmentations.width_shift_range,
             height_shift_range=augmentations.height_shift_range,
-            fill_mode='nearest',
+            fill_mode='constant',
             rotation_range=augmentations.rotation_range,
+            brightness_range=[0.75, 1.25]
         )
     else:
         # No augmentation for validation data, just rescaling
@@ -93,9 +96,21 @@ def custom_data_gen(img_files: List[str],
                                color_mode='grayscale')
                 # convert to numpy array, normalize and append
                 img_array = img_to_array(img)
-                img_array /= 255.0
-                # augmented_img = augmentation.random_transform(img_array)
-                imgs.append(img_array)
+                # apply augmentations
+                augmented_img = augmentation.random_transform(img_array)
+                augmented_img /= 255.0
+
+                # clip from 0 to 1
+                augmented_img = np.clip(augmented_img, 0, 1)
+
+                while np.random.rand() < 0.5:
+                    augmented_img = cv2.blur(augmented_img, (5, 5))
+                    # make sure the image is still the same size
+                    augmented_img = augmented_img[:target_size[0], :target_size[1]]
+                    # Ensure the image has the expected number of channels (e.g., 1 for grayscale)
+                    augmented_img = np.expand_dims(augmented_img, axis=-1)
+
+                imgs.append(augmented_img)
 
             labels = labels_data[i:i+batch_size]
             yield np.array(imgs), labels
