@@ -71,11 +71,11 @@ set(SOURCES
     Input/Gamepad.cc
     Globals.cc
     RobotClassifier.cc
-    #RobotLink.cc
+    RobotLink.cc
     RobotOdometry.cc
     RobotStateParser.cc
     SelfRighter.cc
-    #ServerSocket.cc
+    ServerSocket.cc
     Timer.cc
     Clock.cc
     Vision.cc

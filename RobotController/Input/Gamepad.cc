@@ -26,21 +26,23 @@ int Deck::read_event(int fd, struct js_event *event)
 
 void Deck::Update()
 {
-    if (read_event(js, &event) == 0)
-    {
-        switch (event.type)
+    for(int i = 0; i < 10; i++){
+        if (read_event(js, &event) == 0)
         {
-            case JS_EVENT_BUTTON:
-                buttons[event.number] = event.value;
-                break;
-            case JS_EVENT_AXIS:
-                axes[event.number] = (event.value / RANGE);
-                break;
-            default:
-                /* Ignore init events. */
-                break;
-        }   
+            switch (event.type)
+            {
+                case JS_EVENT_BUTTON:
+                    buttons[event.number] = event.value;
+                    break;
+                case JS_EVENT_AXIS:
+                    axes[event.number] = (event.value / RANGE);
+                    break;
+                default:
+                    break;
+            }   
+        }
     }
+
 }
 
 bool Deck::GetButtonA()
@@ -115,12 +117,12 @@ float Deck::GetRightStickY()
 
 float Deck::GetLeftTrigger()
 {
-    return (axes[leftX] + 1.0) / 2;
+    return (axes[leftTrigger] + 1.0) / 2.0;
 }
 
 float Deck::GetRightTrigger()
 {
-    return (axes[leftX] + 1.0) / 2;
+    return (axes[rightTrigger] + 1.0) / 2.0;
 }
 
 #ifdef WINDOWS

@@ -1,6 +1,7 @@
 #include "ServerSocket.h"
 #include <string>
 
+#ifdef WINDOWS
 /**
  * Constructor
  * @param port The port to listen on
@@ -115,3 +116,83 @@ void ServerSocket::reply_to_last_sender(std::string data)
         std::cerr << "sendto failed with error: " << WSAGetLastError() << std::endl;
     }
 }
+
+#else
+
+#include <unistd.h>
+#include <arpa/inet.h>
+
+ServerSocket::ServerSocket(std::string port) : port(port), listenSocket(-1)
+{
+    setup_receiving_socket();
+}
+
+int ServerSocket::setup_receiving_socket()
+{
+    // Initialize the socket address structure
+    sockaddr_in serverAddress;
+    std::memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(std::stoi(port));
+    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    // Create a UDP socket for listening
+    listenSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (listenSocket == -1)
+    {
+        std::cerr << "socket creation failed" << std::endl;
+        return 1;
+    }
+
+    // Bind the socket to the specified port
+    if (bind(listenSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
+    {
+        std::cerr << "bind failed" << std::endl;
+        close(listenSocket);
+        return 1;
+    }
+
+    return 0;
+}
+
+std::string ServerSocket::receive()
+{
+    last_sender_addr_len = sizeof(last_sender_addr);
+    std::string ret = "";
+
+    // Read all available messages and only keep the last one
+    while (true)
+    {
+        int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0, (struct sockaddr *)&last_sender_addr, &last_sender_addr_len);
+
+        if (numBytesReceived == -1)
+        {
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+            {
+                // No more messages
+                break;
+            }
+            else
+            {
+                // Error occurred
+                return "";
+            }
+        }
+
+        ret.assign(recvbuf, numBytesReceived);
+    }
+
+    return ret;
+}
+
+void ServerSocket::reply_to_last_sender(std::string data)
+{
+    int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (struct sockaddr *)&last_sender_addr, last_sender_addr_len);
+
+    if (iSendResult == -1)
+    {
+        std::cerr << "sendto failed" << std::endl;
+    }
+}
+
+#endif

@@ -1,13 +1,21 @@
 #pragma once
 
 #include "RobotStateParser.h"
-//#include "windows.h"
 #include "ServerSocket.h"
 #include "../Communication/Communication.h"
 #include "../Communication/GenericReceiver.h"
 #include <fstream>
 #include <functional>
 #include "Clock.h"
+
+#ifdef WINDOWS
+#include "windows.h"
+#else
+#include <iostream>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 
 // interface
 class IRobotLink
@@ -48,8 +56,13 @@ private:
     void _WriteSerialMessage(const char *message, int messageLength);
     void _InitComPort();
 
+#ifdef WINDOWS
     HANDLE _comPort;
     DCB _dcbSerialParams;
+#else
+    int _comPort;  // File descriptor for the serial port
+    termios _ttySerialParams;
+#endif
     Clock _sendingClock;
     GenericReceiver<RobotMessage> _receiver;
 };

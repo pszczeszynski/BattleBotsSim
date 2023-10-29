@@ -77,7 +77,7 @@ private:
     const char device[15] = "/dev/input/js0";
     int js;
     struct js_event event;
-    const int RANGE = 32767;
+    const float RANGE = 32767.0;
 
     const int aButton = 0;
     const int bButton = 1;
