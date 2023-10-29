@@ -4,6 +4,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_arra
 import tensorflow as tf
 import cv2
 
+
 def save_onnx_model(model: tf.keras.Model, name: str):
     """
     A utility function for saving a Keras model as an ONNX model.
@@ -32,12 +33,90 @@ def save_h5_model(model: tf.keras.Model, name: str):
 class Augmentations:
     def __init__(self, zoom_range: float = 0.0, width_shift_range: float = 0.0,
                  height_shift_range: float = 0.0, rotation_range: float = 0,
-                 brightness_range: List[float] = [1.0, 1.0]):
+                 brightness_range: List[float] = [1.0, 1.0],
+                 max_overlay_objects: int = 0, object_size: Tuple[int, int] = (10, 10)):
         self.zoom_range = zoom_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
         self.rotation_range = rotation_range
         self.brightness_range = brightness_range
+        self.max_overlay_objects = max_overlay_objects
+        self.object_size = object_size
+
+
+def add_random_objects(img, max_objects=3, object_size=(10, 10)):
+    """
+    Add random small objects on top of the original image.
+
+    Parameters:
+    - img: The original image. Should be normalized between 0 and 1.
+    - max_objects: The maximum number of objects to add.
+    - object_size: The size of each random object.
+
+    Returns:
+    - The augmented image. (but it is also modified in place)
+    """
+
+    # Number of objects to add
+    num_objects = np.random.randint(0, max_objects + 1)
+
+    for _ in range(num_objects):
+        # Generate a random object
+        random_object = np.random.rand(object_size[0], object_size[1], img.shape[2])
+
+        # Randomly select a position in the original image to place this object
+        x_pos = np.random.randint(0, img.shape[1] - object_size[1])
+        y_pos = np.random.randint(0, img.shape[0] - object_size[0])
+
+        # Overlay the object onto the original image
+        img[y_pos:y_pos+object_size[0], x_pos:x_pos+object_size[1]] = random_object
+
+    return img
+
+
+def prepare_and_augment_image(img: np.ndarray, augmentations: Augmentations) -> np.ndarray:
+    """
+    A utility function for augmenting an image.
+
+    Parameters:
+    - img: The image to augment.
+    - augmentations: The augmentations to apply.
+
+    Returns:
+    - The augmented image.
+    """
+    augmentation = ImageDataGenerator(
+        zoom_range=augmentations.zoom_range,
+        width_shift_range=augmentations.width_shift_range,
+        height_shift_range=augmentations.height_shift_range,
+        fill_mode='constant',
+        rotation_range=augmentations.rotation_range,
+        brightness_range=augmentations.brightness_range
+    )
+
+    # apply augmentations
+    augmented_img = augmentation.random_transform(img)
+    augmented_img /= 255.0
+
+    # add random objects on top of the image to stress out the model
+    add_random_objects(
+        augmented_img, augmentations.max_overlay_objects, augmentations.object_size)
+
+    # clip from 0 to 1
+    augmented_img = np.clip(augmented_img, 0, 1)
+
+    # save the original size so that blurring doesn't change the size
+    original_size = augmented_img.shape[:2]
+
+    # randomly blur the image
+    while np.random.rand() < 0.5:
+        augmented_img = cv2.blur(augmented_img, (5, 5))
+        # make sure the image is still the same size
+        augmented_img = augmented_img[:original_size[0], :original_size[1]]
+        # Ensure the image has the expected number of channels (e.g., 1 for grayscale)
+        augmented_img = np.expand_dims(augmented_img, axis=-1)
+
+    return augmented_img
 
 
 def custom_data_gen(img_files: List[str],
@@ -59,24 +138,14 @@ def custom_data_gen(img_files: List[str],
     - validation_split: The percentage of data to use for validation.
     
     Returns:
-    - A tuple containing a batch of image data as a numpy array and a list of corresponding labels.
+    - A tuple containing a batch of image data as a numpy array and a list of
+    corresponding labels.
     """
-    # Data Augmentation for training data
-    if subset == "training":
-        augmentation = ImageDataGenerator(
-            zoom_range=augmentations.zoom_range,
-            width_shift_range=augmentations.width_shift_range,
-            height_shift_range=augmentations.height_shift_range,
-            fill_mode='constant',
-            rotation_range=augmentations.rotation_range,
-            brightness_range=[0.75, 1.25]
-        )
-    else:
-        # No augmentation for validation data, just rescaling
-        augmentation = ImageDataGenerator()
 
     # Determine split indices for training and validation
     split_idx = int(len(img_files) * (1.0 - validation_split))
+
+    # Split the data depending on the subset
     if subset == "training":
         img_files = img_files[:split_idx]
         labels_data = labels_data[:split_idx]
@@ -96,20 +165,12 @@ def custom_data_gen(img_files: List[str],
                                color_mode='grayscale')
                 # convert to numpy array, normalize and append
                 img_array = img_to_array(img)
-                # apply augmentations
-                augmented_img = augmentation.random_transform(img_array)
-                augmented_img /= 255.0
 
-                # clip from 0 to 1
-                augmented_img = np.clip(augmented_img, 0, 1)
+                # augment the image (including normalizing)
+                augmented_img = prepare_and_augment_image(
+                    img_array, augmentations)
 
-                while np.random.rand() < 0.5:
-                    augmented_img = cv2.blur(augmented_img, (5, 5))
-                    # make sure the image is still the same size
-                    augmented_img = augmented_img[:target_size[0], :target_size[1]]
-                    # Ensure the image has the expected number of channels (e.g., 1 for grayscale)
-                    augmented_img = np.expand_dims(augmented_img, axis=-1)
-
+                # append to imgs
                 imgs.append(augmented_img)
 
             labels = labels_data[i:i+batch_size]

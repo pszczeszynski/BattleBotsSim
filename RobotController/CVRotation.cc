@@ -75,6 +75,8 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
 
 double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
+    static double lastRotation = 0;
+
     cv::Mat fieldImagePreprocessed;
     // convert bgr to rgb
     cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
@@ -101,7 +103,6 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     cv::Mat croppedImageFlipped;
     cv::flip(croppedImage, croppedImageFlipped, 1);
 
-
     cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
     cv::Mat blobFlip = cv::dnn::blobFromImage(croppedImageFlipped, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
 
@@ -127,8 +128,8 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     //     return 0;
     // }
 
-    float avgAngle = InterpolateAngles(Angle(rotation), Angle(rotation2), 0.5);
 
+    float avgAngle = InterpolateAngles(Angle(rotation), Angle(rotation2), 0.5);
 
     // put arrow on train image
     cv::Point2f arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation), 100 * sin(rotation));
@@ -142,6 +143,22 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     cv::imshow("cropped", croppedImage);
     cv::waitKey(1);
 
+
+    // add 180 if closer to last rotation
+    if (abs(angle_wrap(avgAngle - lastRotation)) > M_PI / 2)
+    {
+        avgAngle = angle_wrap(avgAngle + M_PI);
+    }
+
+    float deltaAngle = angle_wrap(avgAngle - lastRotation);
+    const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
+    if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
+    {
+        avgAngle = InterpolateAngles(Angle(lastRotation), Angle(avgAngle), 0.3f);
+    }
+
+
+    lastRotation = avgAngle;
 
     return avgAngle;
 }

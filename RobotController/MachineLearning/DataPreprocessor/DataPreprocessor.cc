@@ -112,7 +112,7 @@ int main()
             }
 
 #else
-            cv::Mat& black = processedImage;
+            cv::Mat& croppedImageSized = processedImage;
 #endif
 
             // Save the processed image

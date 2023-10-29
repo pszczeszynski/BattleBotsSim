@@ -55,14 +55,16 @@ augmentations = Augmentations(
     width_shift_range=0.2,
     height_shift_range=0.2,
     rotation_range=0.0,
-    brightness_range=(1.0, 1.0)
+    brightness_range=(0.75, 1.25),
+    max_overlay_objects=10,
+    object_size=(10, 10)
 )
 
 train_gen = custom_data_gen(img_files, labels_data,
                             IMG_SIZE, BATCH_SIZE, "training",
                             VALIDATION_SPLIT, augmentations)
 val_gen = custom_data_gen(img_files, labels_data,
-                          IMG_SIZE, BATCH_SIZE, "validation", VALIDATION_SPLIT)
+                          IMG_SIZE, BATCH_SIZE, "validation", VALIDATION_SPLIT, augmentations)
 
 # Calculate steps per epoch and validation steps
 steps_per_epoch = int(len(glob.glob(os.path.join(

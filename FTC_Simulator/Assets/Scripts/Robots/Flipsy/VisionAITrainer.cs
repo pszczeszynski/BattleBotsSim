@@ -37,11 +37,15 @@ public class VisionAITrainer : MonoBehaviour
     [SerializeField]
     private string SAVE_PATH_RELATIVE = "../../RobotController/MachineLearning/TrainingData/";
     [SerializeField]
+    private bool replaceExisting = true;
+
+    [SerializeField]
     private List<Transform> otherRobots;
+    private int currentCaptureIndex = 0;
+
     private string _imagesSavePath;
     private string _labelsSavePath;
 
-    private int currentCaptureIndex = 0;
 
     private Texture2D captureTexture;
     private RenderTexture rt;
@@ -53,6 +57,23 @@ public class VisionAITrainer : MonoBehaviour
 
     private void Start()
     {
+        if (!replaceExisting)
+        {
+            // get max index of existing images
+            int maxIndex = 0;
+            foreach (string file in Directory.GetFiles(Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs")))
+            {
+                string fileName = Path.GetFileNameWithoutExtension(file);
+                string[] split = fileName.Split('_');
+                int index = int.Parse(split[1]);
+                if (index > maxIndex)
+                    maxIndex = index;
+            }
+
+            currentCaptureIndex = maxIndex + 1;
+
+            Debug.Log("Starting with image: " + currentCaptureIndex);
+        }
 
         // disable all physics
         foreach (Rigidbody rb in FindObjectsOfType<Rigidbody>())
@@ -77,12 +98,9 @@ public class VisionAITrainer : MonoBehaviour
         _originalCameraRotation = captureCamera.transform.rotation;
     }
 
-    private int i = 0;
     public void Update()
     {
-        i ++;
-
-        if (i < numberOfCaptures)
+        if (currentCaptureIndex < numberOfCaptures)
         {
             RandomizeRobotPosition();
             RandomizeCamera();
@@ -93,7 +111,7 @@ public class VisionAITrainer : MonoBehaviour
 
             CaptureAndSaveData();
         }
-        else if (i == numberOfCaptures)
+        else if (currentCaptureIndex == numberOfCaptures)
         {
             Debug.Log("Training data generation completed.");
             captureCamera.transform.position = _originalCameraPosition;

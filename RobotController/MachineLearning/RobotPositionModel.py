@@ -43,7 +43,10 @@ augmentations = Augmentations(
     zoom_range=0.0,
     width_shift_range=0.0,
     height_shift_range=0.0,
-    rotation_range=0.0
+    rotation_range=0.0,
+    brightness_range=(0.75, 1.25),
+    max_overlay_objects=50,
+    object_size=(10, 10)
 )
 
 train_gen = custom_data_gen(img_files, labels_data,
