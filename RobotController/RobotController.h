@@ -46,10 +46,14 @@ private:
     cv::Mat drawingImage;
 
 public:
+#ifdef WINDOWS
 #ifdef XBOX
     XBox gamepad;
 #else
     DualSense gamepad;
+#endif
+#else 
+    Deck gamepad;
 #endif
 private:
 

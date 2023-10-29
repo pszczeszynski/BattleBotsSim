@@ -30,6 +30,11 @@ if(XBOX)
     add_definitions(-DXBOX)
 endif()
 
+option(WINDOWS "Build for windows" OFF)
+if(WINDOWS)
+    add_definitions(-DWINDOWS)
+endif()
+
 # # TODO: make this not hardcoded
 # list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.5.1/msvc2019_64")
 

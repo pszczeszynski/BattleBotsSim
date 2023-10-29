@@ -3,93 +3,215 @@
 Gamepad::Gamepad() {}
 
 
-// XBox::XBox(int index) : _controllerIndex(index){}
+Deck::Deck()
+{
+    js = open(device, O_RDONLY);
 
-// void XBox::Update()
-// {
-//     ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
-//     XInputGetState(_controllerIndex, &_controllerState);
-// }
+    if (js == -1)
+        std::cout << "Failed to init deck\n";
+}
 
-// bool XBox::GetButtonA()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
-// }
+int Deck::read_event(int fd, struct js_event *event)
+{
+    ssize_t bytes;
 
-// bool XBox::GetButtonB()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0;
-// }
+    bytes = read(fd, event, sizeof(*event));
 
-// bool XBox::GetButtonX()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
-// }
+    if (bytes == sizeof(*event))
+        return 0;
 
-// bool XBox::GetButtonY()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
-// }
+    /* Error, could not read full event. */
+    return -1;
+}
 
-// bool XBox::GetLeftBumper()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
-// }
+void Deck::Update()
+{
+    if (read_event(js, &event) == 0)
+    {
+        switch (event.type)
+        {
+            case JS_EVENT_BUTTON:
+                buttons[event.number] = event.value;
+                break;
+            case JS_EVENT_AXIS:
+                axes[event.number] = (event.value / RANGE);
+                break;
+            default:
+                /* Ignore init events. */
+                break;
+        }   
+    }
+}
 
-// bool XBox::GetRightBumper()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
-// }
+bool Deck::GetButtonA()
+{
+    return (buttons[aButton]);
+}
 
-// bool XBox::GetDpadLeft()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
-// }
+bool Deck::GetButtonB()
+{
+    return (buttons[bButton]);
+}
 
-// bool XBox::GetDpadRight()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
-// }
+bool Deck::GetButtonX()
+{
+    return (buttons[xButton]);
+}
 
-// bool XBox::GetDpadUp()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
-// }
+bool Deck::GetButtonY()
+{
+    return (buttons[yButton]);
+}
 
-// bool XBox::GetDpadDown()
-// {
-//     return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
-// }
+bool Deck::GetLeftBumper()
+{
+    return (buttons[leftBumper]);
+}
 
-// float XBox::GetLeftStickX()
-// {
-//     return _controllerState.Gamepad.sThumbLX / RANGE;
-// }
+bool Deck::GetRightBumper()
+{
+    return (buttons[rightBumper]);
+}
 
-// float XBox::GetLeftStickY()
-// {
-//     return _controllerState.Gamepad.sThumbLY / RANGE;
-// }
+bool Deck::GetDpadLeft()
+{
+    return (axes[dpadLeftRight] < -0.9);
+}
 
-// float XBox::GetRightStickX()
-// {
-//     return _controllerState.Gamepad.sThumbRX / RANGE;
-// }
+bool Deck::GetDpadRight()
+{
+    return (axes[dpadLeftRight] > 0.9);
+}
 
-// float XBox::GetRightStickY()
-// {
-//     return _controllerState.Gamepad.sThumbRY / RANGE;
-// }
+bool Deck::GetDpadUp()
+{
+    return (axes[dpadUpDown] < -0.9);
+}
 
-// float XBox::GetLeftTrigger()
-// {
-//     return _controllerState.Gamepad.bLeftTrigger / 255.0f;
-// }
+bool Deck::GetDpadDown()
+{
+    return (axes[dpadUpDown] < -0.9);
+}
 
-// float XBox::GetRightTrigger()
-// {
-//     return _controllerState.Gamepad.bRightTrigger / 255.0f;
-// }
+float Deck::GetLeftStickX()
+{
+    return axes[leftX];
+}
+
+float Deck::GetLeftStickY()
+{
+    return axes[leftY];
+}
+
+float Deck::GetRightStickX()
+{
+    return axes[rightX];
+}
+
+float Deck::GetRightStickY()
+{
+    return axes[rightY];
+}
+
+float Deck::GetLeftTrigger()
+{
+    return (axes[leftX] + 1.0) / 2;
+}
+
+float Deck::GetRightTrigger()
+{
+    return (axes[leftX] + 1.0) / 2;
+}
+
+#ifdef WINDOWS
+
+XBox::XBox(int index) : _controllerIndex(index){}
+
+void XBox::Update()
+{
+    ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
+    XInputGetState(_controllerIndex, &_controllerState);
+}
+
+bool XBox::GetButtonA()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
+}
+
+bool XBox::GetButtonB()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0;
+}
+
+bool XBox::GetButtonX()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
+}
+
+bool XBox::GetButtonY()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
+}
+
+bool XBox::GetLeftBumper()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
+}
+
+bool XBox::GetRightBumper()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
+}
+
+bool XBox::GetDpadLeft()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
+}
+
+bool XBox::GetDpadRight()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
+}
+
+bool XBox::GetDpadUp()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
+}
+
+bool XBox::GetDpadDown()
+{
+    return (_controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+}
+
+float XBox::GetLeftStickX()
+{
+    return _controllerState.Gamepad.sThumbLX / RANGE;
+}
+
+float XBox::GetLeftStickY()
+{
+    return _controllerState.Gamepad.sThumbLY / RANGE;
+}
+
+float XBox::GetRightStickX()
+{
+    return _controllerState.Gamepad.sThumbRX / RANGE;
+}
+
+float XBox::GetRightStickY()
+{
+    return _controllerState.Gamepad.sThumbRY / RANGE;
+}
+
+float XBox::GetLeftTrigger()
+{
+    return _controllerState.Gamepad.bLeftTrigger / 255.0f;
+}
+
+float XBox::GetRightTrigger()
+{
+    return _controllerState.Gamepad.bRightTrigger / 255.0f;
+}
 
 
 
@@ -257,3 +379,4 @@ float DualSense::GetRightTrigger()
     //if (_initialized) return _inState.rightTrigger / 255.0f;
     return 0;
 }
+#endif
