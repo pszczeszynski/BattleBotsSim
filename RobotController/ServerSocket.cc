@@ -131,7 +131,7 @@ int ServerSocket::setup_receiving_socket()
 {
     // Initialize the socket address structure
     sockaddr_in serverAddress;
-    std::memset(&serverAddress, 0, sizeof(serverAddress));
+    //std::memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(std::stoi(port));
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -160,7 +160,10 @@ std::string ServerSocket::receive()
     last_sender_addr_len = sizeof(last_sender_addr);
     std::string ret = "";
 
+    fcntl(listenSocket, F_SETFL, O_NONBLOCK);
+
     // Read all available messages and only keep the last one
+
     while (true)
     {
         int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0, (struct sockaddr *)&last_sender_addr, &last_sender_addr_len);

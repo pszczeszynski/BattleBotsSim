@@ -39,6 +39,7 @@ public:
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 
 class ServerSocket
 {

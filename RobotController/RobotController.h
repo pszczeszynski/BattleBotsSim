@@ -1,11 +1,11 @@
 #pragma once
-//#include "ServerSocket.h"
+#include "ServerSocket.h"
 #include "Clock.h"
 
 #include "CameraReceiver.h"
 #include "Vision.h"
 #include "RobotOdometry.h"
-//#include "RobotLink.h"
+#include "RobotLink.h"
 #include "Input/Gamepad.h"
 #include "../Communication/Communication.h"
 #include "Extrapolator.h"
@@ -23,7 +23,7 @@ public:
     float& GetFrontWeaponTargetPowerRef();
     float& GetBackWeaponTargetPowerRef();
 
-    //IRobotLink& GetRobotLink();
+    IRobotLink& GetRobotLink();
 
     cv::Mat& GetDrawingImage();
 
@@ -65,11 +65,12 @@ private:
     RobotSimState exState;
 
 #ifdef SIMULATION
-    CameraReceiverSim overheadCamL_sim;
-    //RobotLinkSim robotLink;
+    CameraReceiver overheadCamL_real;
+    //CameraReceiverSim overheadCamL_sim;
+    RobotLinkSim robotLink;
 #else
     CameraReceiver overheadCamL_real;
-    //RobotLinkReal robotLink;
+    RobotLinkReal robotLink;
 #endif
 
     Vision vision;

@@ -71,7 +71,7 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 
 #ifdef SIMULATION
             // sleep for 15 ms
-            Sleep(15);
+            std::this_thread::sleep_for(std::chrono::milliseconds(15));
 #endif
             
         } });
