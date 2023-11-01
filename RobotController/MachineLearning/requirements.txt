@@ -1,0 +1,9 @@
+numpy
+keras
+opencv-python
+tensorflow
+onnxruntime
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch
+torchvision
+ultralytics
