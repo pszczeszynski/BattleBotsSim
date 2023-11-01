@@ -1,0 +1,6 @@
+train: test1/train/images
+val: test1/val/images
+test: test1/test/images
+
+nc: 1
+names: ['orbitron']
