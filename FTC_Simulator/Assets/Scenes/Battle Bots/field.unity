@@ -10457,7 +10457,7 @@ MonoBehaviour:
   numberOfCaptures: 50000
   movementBoundsX: {x: -8, y: 8}
   movementBoundsY: {x: -9, y: 9}
-  CAMERA_POSITION_ORIENTATION_RANDOMNESS: {x: 1, y: 1, z: 0}
+  CAMERA_POSITION_ORIENTATION_RANDOMNESS: {x: 0, y: 0, z: 0}
   CAMERA_WIDTH: 1280
   CAMERA_HEIGHT: 720
   SAVE_PATH_RELATIVE: ../../RobotController/MachineLearning/TrainingData/

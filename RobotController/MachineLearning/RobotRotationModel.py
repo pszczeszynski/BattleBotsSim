@@ -57,7 +57,8 @@ augmentations = Augmentations(
     rotation_range=0.0,
     brightness_range=(0.75, 1.25),
     max_overlay_objects=10,
-    object_size=(10, 10)
+    object_size=(10, 10),
+    blur_probability=0.5
 )
 
 train_gen = custom_data_gen(img_files, labels_data,

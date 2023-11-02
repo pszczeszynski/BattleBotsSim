@@ -9,7 +9,8 @@
 
 #define CROP_SIZE 128
 
-// #define POSITION
+#define POSITION
+#define OVERWRITE
 
 int main()
 {

@@ -9,15 +9,18 @@ from keras.callbacks import EarlyStopping
 from keras.layers import Dropout
 from Visualization import visualize_position_predictions
 from Utilities import Augmentations, save_onnx_model, save_h5_model, custom_data_gen
+from keras.callbacks import ReduceLROnPlateau
 
 # Constants
 MODEL_NAME = "positionDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
-IMG_SIZE = (360, 360)#(1280, 720)
-BATCH_SIZE = 128
+IMG_SIZE = (224, 224)#(1280, 720)
+BATCH_SIZE = 32
 VALIDATION_SPLIT = 0.1
-EARLY_STOPPING_PATIENCE = 15
+EARLY_STOPPING_PATIENCE = 7
+REDUCE_LR_PATIENCE = 3
+REDUCE_LR_FACTOR = 0.3
 
 # Get sorted list of image files and corresponding json files
 img_files = sorted(glob.glob(os.path.join(
@@ -46,14 +49,15 @@ augmentations = Augmentations(
     rotation_range=0.0,
     brightness_range=(0.75, 1.25),
     max_overlay_objects=50,
-    object_size=(10, 10)
+    object_size=(10, 10),
+    blur_probability=0.2
 )
 
 train_gen = custom_data_gen(img_files, labels_data,
                             IMG_SIZE, BATCH_SIZE, "training",
                             VALIDATION_SPLIT, augmentations)
 val_gen = custom_data_gen(img_files, labels_data,
-                          IMG_SIZE, BATCH_SIZE, "validation", VALIDATION_SPLIT)
+                          IMG_SIZE, BATCH_SIZE, "validation", VALIDATION_SPLIT, augmentations)
 
 # Calculate steps per epoch and validation steps
 steps_per_epoch = int(len(glob.glob(os.path.join(
@@ -63,16 +67,16 @@ val_steps = int(len(glob.glob(os.path.join(
 
 # Model Architecture
 model = Sequential([
-    Conv2D(16, (3, 3), activation='relu', input_shape=(*IMG_SIZE, 1)),
+    Conv2D(64, (3, 3), activation='relu', input_shape=(*IMG_SIZE, 1)),
     MaxPooling2D(2, 2),
-    Conv2D(32, (3, 3), activation='relu'),
+    Conv2D(128, (3, 3), activation='relu'),
     MaxPooling2D(2, 2),
-    Conv2D(64, (3, 3), activation='relu'),
+    Conv2D(256, (3, 3), activation='relu'),
     MaxPooling2D(2, 2),
     Flatten(),
-    Dense(256, activation='relu'),
+    Dense(1024, activation='relu'),
     Dropout(0.5),
-    Dense(128, activation='relu'),
+    Dense(1024, activation='relu'),
     Dropout(0.5),
     Dense(2)
 ])
@@ -93,6 +97,13 @@ def train_model():
     early_stop = EarlyStopping(
         monitor='val_loss', patience=EARLY_STOPPING_PATIENCE, restore_best_weights=True)
 
+    # Set up learning rate reduction on plateau
+    reduce_lr = ReduceLROnPlateau(
+        monitor='val_loss', factor=REDUCE_LR_FACTOR,
+        patience=REDUCE_LR_PATIENCE,
+        verbose=1, mode='min',
+        min_delta=0.0001, cooldown=0, min_lr=0)
+
     try:
         # Train the model
         model.fit(
@@ -101,7 +112,7 @@ def train_model():
             steps_per_epoch=steps_per_epoch,
             validation_data=val_gen,
             validation_steps=val_steps,
-            callbacks=[early_stop]
+            callbacks=[early_stop, reduce_lr]
         )
     except KeyboardInterrupt:
         print("Training stopped!")
@@ -119,4 +130,4 @@ save_onnx_model(model, "position_model.onnx")
 # # Call the visualization function after training:
 # visualize_predictions(val_gen, model, 100, (10, 10), IMG_SIZE)
 
-visualize_position_predictions(val_gen, model, 10, (5, 2), IMG_SIZE)
+visualize_position_predictions(val_gen, model, 10, (2, 5), IMG_SIZE)

@@ -34,7 +34,8 @@ class Augmentations:
     def __init__(self, zoom_range: float = 0.0, width_shift_range: float = 0.0,
                  height_shift_range: float = 0.0, rotation_range: float = 0,
                  brightness_range: List[float] = [1.0, 1.0],
-                 max_overlay_objects: int = 0, object_size: Tuple[int, int] = (10, 10)):
+                 max_overlay_objects: int = 0, object_size: Tuple[int, int] = (10, 10),
+                 blur_probability: float = 0.0):
         self.zoom_range = zoom_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
@@ -42,6 +43,7 @@ class Augmentations:
         self.brightness_range = brightness_range
         self.max_overlay_objects = max_overlay_objects
         self.object_size = object_size
+        self.blur_probability = blur_probability
 
 
 def add_random_objects(img, max_objects=3, object_size=(10, 10)):
@@ -109,7 +111,7 @@ def prepare_and_augment_image(img: np.ndarray, augmentations: Augmentations) -> 
     original_size = augmented_img.shape[:2]
 
     # randomly blur the image
-    while np.random.rand() < 0.5:
+    while np.random.rand() < augmentations.blur_probability:
         augmented_img = cv2.blur(augmented_img, (5, 5))
         # make sure the image is still the same size
         augmented_img = augmented_img[:original_size[0], :original_size[1]]
