@@ -2,10 +2,8 @@ numpy
 keras
 opencv-python
 tensorflow
-onnxruntime-gpu
+onnxruntime
 --extra-index-url https://download.pytorch.org/whl/cu118
 torch
 torchvision
 ultralytics
-imageio
-tensorlayer
