@@ -7,7 +7,6 @@ CVRotation::CVRotation()
 {
     // Load the model
     _net = cv::dnn::readNetFromONNX(MODEL_PATH);
-    _posNet = cv::dnn::readNetFromONNX(POS_MODEL_PATH);
 }
 
 void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
@@ -28,27 +27,6 @@ void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
         input(validROI).copyTo(cropped(cv::Rect(validROI.x - roi.x, validROI.y - roi.y,
                                                 validROI.width, validROI.height)));
     }
-}
-
-cv::Point2f GetPosPrediction(cv::Mat &fieldImage, cv::dnn::Net &posNet)
-{
-    cv::Mat resized = cv::Mat(360, 360, CV_8UC3, cv::Scalar(0, 0, 0));
-    // resize to 360x360
-    cv::resize(fieldImage, resized, cv::Size(360, 360));
-
-    cv::imshow("fieldImage", resized);
-    cv::waitKey(1);
-
-    cv::Mat blob = cv::dnn::blobFromImage(resized, 1.0, cv::Size(360, 360), cv::Scalar(0, 0, 0), false, false);
-    const int* sz = blob.size.p;
-
-    posNet.setInput(blob);
-    cv::Mat result = posNet.forward();
-
-    float x = result.at<float>(0, 0) * 720;
-    float y = (result.at<float>(0, 1)) * 720;
-
-    return cv::Point2f(x, y);
 }
 
 float ConvertNetworkOutputToRad(cv::Mat& output)
@@ -78,78 +56,63 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     static double lastRotation = 0;
 
     cv::Mat fieldImagePreprocessed;
-    // convert bgr to rgb
+    // convert to grayscale
     cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
 
-    // // equalize hist
-    // cv::equalizeHist(fieldImagePreprocessed, fieldImagePreprocessed);
-    // // blur just a little
-    // cv::blur(fieldImagePreprocessed, fieldImagePreprocessed, cv::Size(2, 2));
+    // normalize the image
+    fieldImagePreprocessed.convertTo(fieldImagePreprocessed, CV_32FC1, 1.0 / 255.0);
 
-
-    fieldImagePreprocessed.convertTo(fieldImagePreprocessed, CV_32FC1, 1.0 / 255.0);  // Normalize to [0, 1]
-
-    // cv::Point2f robotPosPrediction = GetPosPrediction(fieldImagePreprocessed, _posNet);
-    // cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
-    // // draw on image
-    // cv::circle(drawingImage, robotPosPrediction, 5, cv::Scalar(0, 0, 255), -1);
-
-
+    // crop the image, but make sure we don't go out of bounds
     cv::Rect roi(robotPos.x - CROP_SIZE/2, robotPos.y - CROP_SIZE/2, CROP_SIZE, CROP_SIZE);
-
     cv::Mat croppedImage;
     _CropImage(fieldImagePreprocessed, croppedImage, roi);
 
+    // flip the image horizontally for another prediction
     cv::Mat croppedImageFlipped;
     cv::flip(croppedImage, croppedImageFlipped, 1);
 
+    // convert to blobs
     cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
     cv::Mat blobFlip = cv::dnn::blobFromImage(croppedImageFlipped, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
 
-
+    // set the input to the network
     _net.setInput(blob);
     cv::Mat result1 = _net.forward();
     float rotation = ConvertNetworkOutputToRad(result1);
 
+    // now, flip the image and do it again
     _net.setInput(blobFlip);
     cv::Mat result2 = _net.forward();
     float rotation2 = angle_wrap(-ConvertNetworkOutputToRad(result2));
 
+    // compute deltas for both the predicted rotation and the flipped rotation
     float diff = angle_wrap(rotation - rotation2);
     float diff2 = angle_wrap(rotation2 - angle_wrap(rotation - M_PI));
 
+    // return whichever angle is closer to the last angle
     if (abs(diff2) < abs(diff))
     {
         rotation = angle_wrap(rotation - M_PI);
     }
 
-    // if (abs(diff) > 15 * TO_RAD)
-    // {
-    //     return 0;
-    // }
-
-
+    // compute the average of the two angles
     float avgAngle = InterpolateAngles(Angle(rotation), Angle(rotation2), 0.5);
 
-    // put arrow on train image
-    cv::Point2f arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation), 100 * sin(rotation));
-    cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 0, 255), 2);
+    // // put arrow on train image
+    // cv::Point2f arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation), 100 * sin(rotation));
+    // cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 0, 255), 2);
 
-    // put arrow on train image
-    arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation2), 100 * sin(rotation2));
-    cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 255, 0), 2);
+    // // put arrow on train image
+    // arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation2), 100 * sin(rotation2));
+    // cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 255, 0), 2);
 
-    // show cropped image
-    cv::imshow("cropped", croppedImage);
-    cv::waitKey(1);
-
-
-    // add 180 if closer to last rotation
+    // add 180 if closer to last rotation since the robot is symmetrical
     if (abs(angle_wrap(avgAngle - lastRotation)) > M_PI / 2)
     {
         avgAngle = angle_wrap(avgAngle + M_PI);
     }
 
+    // if the angle changed by more than 15 degrees, blend it with the last angle
     float deltaAngle = angle_wrap(avgAngle - lastRotation);
     const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
     if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
@@ -157,7 +120,7 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
         avgAngle = InterpolateAngles(Angle(lastRotation), Angle(avgAngle), 0.3f);
     }
 
-
+    // save the last rotation
     lastRotation = avgAngle;
 
     return avgAngle;

@@ -15,3 +15,4 @@ RobotController/MachineLearning/model.onnx
 RobotController/imgui.ini
 *.pyc
 FTC_Simulator/UserSettings/Layouts/default-2021.dwlt
+RobotController/MachineLearning/BehaviorCloning/TrainingData
