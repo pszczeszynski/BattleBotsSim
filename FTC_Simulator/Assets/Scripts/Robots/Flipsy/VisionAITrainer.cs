@@ -279,16 +279,7 @@ public class VisionAITrainer : MonoBehaviour
         RenderTexture.active = rt;
         captureCamera.targetTexture = rt;
         captureCamera.Render();
-
-
-        Vector4 robotScreenPos = GetRobotScreenPos();
-
-        Debug.Log(robotScreenPos);
-
-        // float startX = Mathf.Clamp(robotScreenPos.x - ROBOT_CROP_SIZE / 2, 0, CAMERA_WIDTH - ROBOT_CROP_SIZE);
-        // float startY = Mathf.Clamp(robotScreenPos.y - ROBOT_CROP_SIZE / 2, 0, CAMERA_HEIGHT - ROBOT_CROP_SIZE);
-
-        captureTexture.ReadPixels(new Rect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT), 0, 0); // new Rect(startX, startY, ROBOT_CROP_SIZE, ROBOT_CROP_SIZE)
+        captureTexture.ReadPixels(new Rect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT), 0, 0);
         RenderTexture.active = null;
 
         // 2. save image
@@ -304,7 +295,6 @@ public class VisionAITrainer : MonoBehaviour
             rotation = robotTransform.rotation.eulerAngles.y
         };
 
-        Debug.Log(data);
         string json = JsonUtility.ToJson(data);
         File.WriteAllText(Path.Combine(_labelsSavePath, $"image_{currentCaptureIndex}.json"), json);
 
