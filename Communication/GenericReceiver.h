@@ -6,68 +6,105 @@
 template <typename T>
 class GenericReceiver
 {
+    enum class State {
+        Idle,
+        Receiving,
+        MessageComplete,
+        Error
+    };
+
+    State currentState = State::Idle;
+    CircularDeque<char> serialBuffer;
+
     T latestData;
     bool latestDataValid = false;
-    CircularDeque<char> serialBuffer;
 
 public:
     GenericReceiver(int buffer_size, std::function<bool(char&)> single_char_read_lambda)
-        : serialBuffer(buffer_size), readChar(single_char_read_lambda) {}
+        : serialBuffer(buffer_size), readChar(single_char_read_lambda) 
+    {
+    }
 
 private:
     std::function<bool(char&)> readChar;
 
-    void readData()
+
+    void readUntilNextPacket()
     {
-        latestDataValid = false;
         char c;
-        
-        while (readChar(c))
-        {
-            serialBuffer.push_back(c);
-        }
 
-        bool dataProcessed = true;
-        while ((serialBuffer.Size() > sizeof(T)) && dataProcessed)
+        // read until we get a message
+        while (!latestDataValid)
         {
-            dataProcessed = false;
-
-            unsigned int bufferStartIndex = 0;
-            for (; bufferStartIndex < serialBuffer.Size(); bufferStartIndex++)
+            // keep calling read char until we get a character
+            while (!readChar(c))
             {
-                if (serialBuffer[bufferStartIndex] == MESSAGE_START_CHAR)
-                {
-                    bufferStartIndex += 1;
-                    break;
-                }
             }
 
-            unsigned int bufferEndIndex = serialBuffer.Size();
-            if (bufferStartIndex < serialBuffer.Size())
+            switch (currentState)
             {
-                for (bufferEndIndex = bufferStartIndex + sizeof(T); bufferEndIndex < serialBuffer.Size(); bufferEndIndex++)
-                {
-                    if (serialBuffer[bufferEndIndex] == MESSAGE_END_CHAR)
+                case State::Idle:
+                    if (c == MESSAGE_START_CHAR)
                     {
-                        break;
+                        currentState = State::Receiving;
+                        serialBuffer.clear(); // Clear buffer to start fresh
                     }
-                }
-            }
+                    else
+                    {
+                        break; // If not start char, stay in Idle
+                    }
 
-            if (bufferEndIndex < serialBuffer.Size())
-            {
-                serialBuffer.copy_to((char *)&latestData, bufferStartIndex, sizeof(T));
-                dataProcessed = true;
-                serialBuffer.pop_front(bufferEndIndex + 1);
-                latestDataValid = true;
+                case State::Receiving:
+                    serialBuffer.push_back(c);
+                    if (c == MESSAGE_END_CHAR)
+                    {
+                        if (serialBuffer.Size() == sizeof(T) + 2) // Including start and end char
+                        {
+                            currentState = State::MessageComplete;
+                        }
+                        else
+                        {
+                            currentState = State::Error; // Message size mismatch
+                        }
+                    }
+                    else if (serialBuffer.Size() > sizeof(T) + 2)
+                    {
+                        currentState = State::Error; // Buffer overflow
+                    }
+                    else
+                    {
+                        break; // Normal case, continue receiving
+                    }
+
+                case State::MessageComplete:
+                    processMessage();
+                    currentState = State::Idle; // Reset state
+                    break;
+
+                case State::Error:
+                    serialBuffer.clear();
+                    currentState = State::Idle; // Reset state after error
+                    break;
             }
         }
     }
 
-public:
-    T getLatestData() const
+    void processMessage()
     {
-        return latestData;
+        // Assuming message format: [START_CHAR][DATA][END_CHAR]
+        serialBuffer.pop_front(1); // Remove start char
+        serialBuffer.pop_back(); // Remove end char
+        serialBuffer.copy_to((char *)&latestData, 0, sizeof(T));
+        latestDataValid = true;
+        serialBuffer.clear(); // Clear buffer after processing message
+    }
+
+public:
+    T getLatestData()
+    {
+        T& ret = latestData;
+        latestDataValid = false;
+        return ret;
     }
 
     bool isLatestDataValid() const
@@ -77,6 +114,6 @@ public:
 
     void update()
     {
-        readData();
+        readUntilNextPacket();
     }
 };

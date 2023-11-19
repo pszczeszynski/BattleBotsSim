@@ -44,7 +44,7 @@ public:
         arr[rear] = element;
     }
 
-    void pop_front(int n)
+    void pop_front(int n = 1)
     {
         if (isEmpty())
         {
@@ -58,6 +58,29 @@ public:
             front = (front + 1) % capacity;
             size--;
         }
+    }
+
+    void pop_back(int n = 1)
+    {
+        if (isEmpty())
+        {
+            std::cout << "Deque is empty. Unable to pop elements.\n";
+            return;
+        }
+
+        int elementsToRemove = n < size ? n : size; // min
+        for (int i = 0; i < elementsToRemove; i++)
+        {
+            rear = (rear - 1) % capacity;
+            size--;
+        }
+    }
+
+    void clear()
+    {
+        front = 0;
+        rear = -1;
+        size = 0;
     }
 
     bool isFull() const
