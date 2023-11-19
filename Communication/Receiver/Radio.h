@@ -1,15 +1,16 @@
 #pragma once
-#include <RF24.h>
-
 
 /**
  * Radio.h
- * 
+ *
  * This is used for both the transmitter and the receiver, and thus
  * should be the same on both. Please don't change just one.
-*/
+ */
 
-enum SendOutput {
+#define RADIO_BAUD 230400
+
+enum SendOutput
+{
     SEND_SUCCESS,
     FIFO_FAIL,
     HW_FAULT
@@ -22,13 +23,10 @@ public:
     Radio();
     void InitRadio();
 
-    SendOutput Send(SendType& message);
+    SendOutput Send(SendType &message);
     ReceiveType Receive();
 
     bool Available();
-
-private:
-    RF24 radio{14, 10};
 };
 
 template <typename SendType, typename ReceiveType>
@@ -40,15 +38,7 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
-    Serial.println("Initializing radio");
-    const byte address[6] = "00001";
-    radio.begin();
-    radio.openReadingPipe(1, address);
-    radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_MAX);
-    radio.startListening();
-    radio.setAutoAck(false);
-    radio.setDataRate(RF24_1MBPS);
+    Serial1.begin(RADIO_BAUD);
 }
 
 unsigned long lastTimeReceivedMessage = 0;
@@ -61,65 +51,63 @@ unsigned long lastTimeReceivedMessage = 0;
 template <typename SendType, typename ReceiveType>
 SendOutput Radio<SendType, ReceiveType>::Send(SendType &message)
 {
-    radio.stopListening();
-    radio.write(&message, sizeof(SendType));
-    SendOutput ret = SEND_SUCCESS;
+    // convert to char array
+    char *msgChars = (char*) &message;
 
-    // check time
-    unsigned long currentTime = millis();
-    // Wait for fifo to be empty
-    // while NOT (the transmitting fifo (first arg) is empty (second arg))
-    while (!radio.isFifo(true, true))
+    // Send each byte of the array via Serial (which is connected to the radio)
+    for (int i = 0; i < sizeof(message); i++)
     {
-        // spin
-
-        // error check
-        if (millis() - currentTime > SEND_FIFO_TIMEOUT_MS)
-        {
-#ifdef VERBOSE_RADIO
-            Serial.println("Radio fifo failed to clear");
-#endif
-            // reinit
-            InitRadio();
-            ret = FIFO_FAIL;
-            break;
-        }
+        Serial1.write(msgChars[i]);
     }
 
-    // if the radio has failed
-    if (radio.failureDetected)
-    {
-#ifdef VERBOSE_RADIO
-        Serial.println("Radio hardware failure detected");
-#endif
-        // reinit
-        InitRadio();
-        // reset failure flag
-        radio.failureDetected = false;
-        ret = HW_FAULT;
-    }
+    Serial1.flush();
 
-    radio.startListening();
-    return ret;
+    Serial.println("Sent message");
+
+
+    // return success
+    return SEND_SUCCESS;
 }
 
 template <typename SendType, typename ReceiveType>
 ReceiveType Radio<SendType, ReceiveType>::Receive()
 {
     ReceiveType receiveMessage;
-    // initialize to 0
+    // Clear the receiveMessage object
     memset(&receiveMessage, 0, sizeof(ReceiveType));
 
-    if (radio.available())
+    Serial.println("Available: " + String(Serial1.available()));
+
+    // Check if there is enough data in the buffer
+    if (Serial1.available() >= sizeof(ReceiveType))
     {
-        radio.read(&receiveMessage, sizeof(ReceiveType));
+        // Read the message
+        size_t bytesRead = Serial1.readBytes((char *)&receiveMessage, sizeof(ReceiveType));
+
+        // Check if the read was successful
+        if (bytesRead == sizeof(ReceiveType))
+        {
+            return receiveMessage; // Data was read successfully
+        }
+        else
+        {
+            // Handle the error, bytesRead was not as expected
+            // You may want to clear the buffer or take other actions
+            Serial.println("ERROR: bytesRead was not as expected");
+        }
+    }
+    else
+    {
+        // Handle the error, not enough data in the buffer
+        Serial.println("ERROR: not enough data in the radio buffer");
     }
 
-    return receiveMessage;
+    return receiveMessage; // Data was not read
 }
 
 template <typename SendType, typename ReceiveType>
 bool Radio<SendType, ReceiveType>::Available()
 {
-    return radio.available();
+    // Check if there is enough data in the buffer
+    return Serial1.available() >= sizeof(ReceiveType);
 }

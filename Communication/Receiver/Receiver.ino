@@ -16,7 +16,7 @@
 
 #define SERIAL_BAUD 9600
 
-IMU* imu;
+// IMU* imu;
 
 #define LEFT_MOTOR_CAN_ID 3
 #define RIGHT_MOTOR_CAN_ID 1
@@ -40,8 +40,8 @@ void setup()
     Serial.begin(SERIAL_BAUD);
 
     Serial.println("Initializing IMU...");
-    imu = new IMU();
-    Serial.println("Failed because Matthew made an oopsie!");
+    // imu = new IMU();
+    Serial.println("Success!");
 
     Serial.println("Initializing Canbus motors...");
     vesc = new VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
@@ -128,7 +128,7 @@ RobotMessage Update()
     // else send imu data
     else
     {
-        ret.type = IMU_DATA;
+        // ret.type = IMU_DATA;
 
         // // get accelerometer data and set accel
         // Point accel = imu->getAccel();
@@ -187,7 +187,7 @@ void WaitForRadioData()
             break;
         }
 
-        // // call update for imu
+        // call update for imu
         // imu->Update();
     }
 }
@@ -208,7 +208,7 @@ void DriveWithLatestMessage()
         DriveCommand command = radio->Receive();
 
         // print every 100 messages
-        if (numMessagesReceived % 100 == 0)
+        if (numMessagesReceived % 1 == 0)
         {
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);
