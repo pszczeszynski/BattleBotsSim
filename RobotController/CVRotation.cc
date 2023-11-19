@@ -2,7 +2,7 @@
 #include <opencv2/dnn.hpp>
 #include "MathUtils.h"
 #include "RobotController.h"
-
+#include "Clock.h"
 CVRotation::CVRotation()
 {
     // Load the model
@@ -53,6 +53,10 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
 
 double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
+    // get time
+    Clock clock;
+    clock.markStart();
+
     static double lastRotation = 0;
 
     cv::Mat fieldImagePreprocessed;
@@ -77,7 +81,9 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 
     // set the input to the network
     _net.setInput(blob);
+    Clock clock2;
     cv::Mat result1 = _net.forward();
+    std::cout << "rotation prediction time single: " << clock2.getElapsedTime() << std::endl;
     float rotation = ConvertNetworkOutputToRad(result1);
 
     // now, flip the image and do it again
@@ -123,5 +129,6 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     // save the last rotation
     lastRotation = avgAngle;
 
+    // std::cout << "rotation prediction time: " << clock.getElapsedTime() << std::endl;
     return avgAngle;
 }

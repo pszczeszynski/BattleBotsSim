@@ -330,14 +330,6 @@ DriveCommand RobotController::DriveToPosition(const cv::Point2f &targetPos, bool
 }
 
 
-/**
- * OrbitMode
- * Orbits the robot around the opponent at a fixed distance.
- * @param message The current state of the robot
- */
-#define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
-#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
-#define USE_TANGENT_POINTS_DIST ORBIT_RADIUS * 2
 
 // Function to draw the rectangle and display the value underneath
 void drawAndDisplayValue(cv::Mat &image, double value, double xPosition, cv::Scalar color)
@@ -435,6 +427,14 @@ cv::Point2f RobotController::_NoMoreAggressiveThanTangent(cv::Point2f ourPositio
     return currentTargetPoint;
 }
 
+/**
+ * OrbitMode
+ * Orbits the robot around the opponent at a fixed distance.
+ * @param message The current state of the robot
+ */
+#define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
+#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
+#define USE_TANGENT_POINTS_DIST ORBIT_RADIUS * 2
 DriveCommand RobotController::OrbitMode()
 {
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
@@ -550,6 +550,16 @@ DriveCommand RobotController::OrbitMode()
 
     return response;
 }
+
+DriveCommand RobotController::AvoidMode()
+{
+    DriveCommand ret{0, 0};
+
+    _movementStrategy.AvoidStrategy();
+
+    return ret;
+}
+
 
 #define SECONDS_UNTIL_FULL_POWER 15.6
 void RobotController::UpdateSpinnerPowers()
@@ -757,6 +767,7 @@ DriveCommand RobotController::RobotLogic()
 
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = OrbitMode();
+    DriveCommand responseAvoid = AvoidMode();
 
     // start with just manual control
     DriveCommand ret = responseManual;

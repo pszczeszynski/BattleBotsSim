@@ -79,6 +79,7 @@ set(SOURCES
     UIWidgets/IMUWidget.cc
     UIWidgets/ImageWidget.cc
     CVRotation.cc
+    MovementStrategy.cc
 )
 
 # Create the object files

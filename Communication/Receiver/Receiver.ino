@@ -110,7 +110,7 @@ RobotMessage Update()
     RobotMessage ret{RobotMessageType::INVALID};
 
     // call update for imu
-    imu->Update();
+    // imu->Update();
 
     // increase update count and wrap around
     updateCount ++;
@@ -130,16 +130,16 @@ RobotMessage Update()
     {
         ret.type = IMU_DATA;
 
-        // get accelerometer data and set accel
-        Point accel = imu->getAccel();
-        ret.imuData.accelX = accel.x;
-        ret.imuData.accelY = accel.y;
+        // // get accelerometer data and set accel
+        // Point accel = imu->getAccel();
+        // ret.imuData.accelX = accel.x;
+        // ret.imuData.accelY = accel.y;
 
-        // get gyro data and set gyro
-        ret.imuData.rotation = imu->getRotation();
+        // // get gyro data and set gyro
+        // ret.imuData.rotation = imu->getRotation();
 
-        // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+        // // calculate rotation velocity
+        // ret.imuData.rotationVelocity = imu->getRotationVelocity();
     }
 
 #ifdef LOG_DATA
@@ -187,8 +187,8 @@ void WaitForRadioData()
             break;
         }
 
-        // call update for imu
-        imu->Update();
+        // // call update for imu
+        // imu->Update();
     }
 }
 
