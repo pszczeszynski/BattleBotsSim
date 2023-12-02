@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef ENABLE_IMU
 #include <Arduino.h>
 #include "ICM_20948.h"
 #include "Communication.h"
@@ -48,3 +48,4 @@ private:
 
     double _prevTimeMS = 0;
 };
+#endif

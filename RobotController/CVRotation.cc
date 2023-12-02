@@ -53,6 +53,7 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
 
 double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
+    return 0;
     // get time
     Clock clock;
     clock.markStart();

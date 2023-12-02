@@ -1,5 +1,6 @@
 #include "IMU.h"
 
+#ifdef ENABLE_IMU
 #include <Arduino.h>
 
 IMU::IMU()
@@ -360,3 +361,4 @@ void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
         Serial.print(val, decimals);
     }
 }
+#endif

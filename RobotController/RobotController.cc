@@ -109,6 +109,7 @@ void RobotController::Run()
 
     RobotControllerGUI::GetInstance();
 
+    int attemptReceiveCount = 0;
     // receive until the peer closes the connection
     while (true)
     {
@@ -120,6 +121,14 @@ void RobotController::Run()
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
+
+        attemptReceiveCount ++;
+
+        if (attemptReceiveCount % 100 == 0)
+        {
+            std::cout << "attemptReceiveCount: " << attemptReceiveCount << std::endl;
+        }
+
         // save the last message type
         _lastMessageType = msg.type;
         // save the specific type information in a last struct
@@ -555,7 +564,7 @@ DriveCommand RobotController::AvoidMode()
 {
     DriveCommand ret{0, 0};
 
-    _movementStrategy.AvoidStrategy();
+    // _movementStrategy.AvoidStrategy();
 
     return ret;
 }

@@ -9,6 +9,10 @@
 #include <functional>
 #include "Clock.h"
 #include <deque>
+#include <thread>
+#include <mutex>
+// condition variable
+#include <condition_variable>
 
 // interface
 class IRobotLink
@@ -28,7 +32,7 @@ protected:
     RobotMessage _lastCANMessage;
 
     // store the last 250 messages
-    const int MESSAGE_HISTORY_SIZE = 250;
+    const int MESSAGE_HISTORY_SIZE = 10;
     std::deque<RobotMessage> _messageHistory;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
@@ -68,5 +72,12 @@ private:
     HANDLE _comPort;
     DCB _dcbSerialParams;
     Clock _sendingClock;
+
+    std::thread _receiverThread;
+    std::mutex _lastMessageMutex;
+    std::condition_variable _lastMessageCV;
+    bool _lastMessageNew = false;
+    RobotMessage _lastMessage;
     GenericReceiver<RobotMessage> _receiver;
+    CircularDeque<char> _serialBuffer;
 };

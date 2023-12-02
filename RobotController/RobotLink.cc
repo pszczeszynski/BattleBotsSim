@@ -11,6 +11,7 @@
 */
 RobotMessage IRobotLink::Receive()
 {
+    static int valid_count = 0;
     RobotMessage ret = _ReceiveImpl();
 
     if (ret.type == RobotMessageType::IMU_DATA)
@@ -31,6 +32,12 @@ RobotMessage IRobotLink::Receive()
         // invalid message type from _ReceiveImpl
         std::cerr << "ERROR: invalid message type" << std::endl;
         return ret;
+    }
+
+    valid_count++;
+    if (valid_count % 100 == 0)
+    {
+        std::cout << "valid count: " << valid_count << std::endl;
     }
 
     // valid message set receive delay
@@ -65,41 +72,170 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
     return _messageHistory;
 }
 
-#define TRANSMITTER_COM_PORT TEXT("COM9")
+#define TRANSMITTER_COM_PORT TEXT("COM7")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
 
-RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
-                                          {
+
+int total_count = 0;
+
+#define SERIAL_BUFFER_SIZE 500
+bool readComPort(HANDLE comPort, char &receivedChar)
+{
+    static DWORD totalBytesRead = 0;
+    static DWORD totalStartTime = GetTickCount(); // Start time for overall tracking
+    static DWORD lastReportTime = totalStartTime;
+
+    DWORD startTime = GetTickCount(); // Start time for this read
     DWORD dwBytesRead = 0;
     DWORD dwErrors = 0;
     COMSTAT comStat;
 
-    // Get and clear current errors on the com port.
-    if (!ClearCommError(_comPort, &dwErrors, &comStat))
+    Clock clearCommErrTime;
+    if (!ClearCommError(comPort, &dwErrors, &comStat))
     {
-        // attempt to reinitialize com port
-        _InitComPort();
-        std::cerr << "Error clearing COM port" << std::endl;
+        // std::cerr << "COULDNT CLEAR COMM ERR" << std::endl;
+        // Handle error
         return false;
     }
 
-    // If there is nothing to read, return false early.
+
     if (comStat.cbInQue == 0)
     {
+        // No data to read
+        return false;
+    }
+    // std::cout << "clearCommErrTime: " << clearCommErrTime.getElapsedTime() * 1000 << std::endl;
+
+    // if (comStat.cbInQue > 400)
+    // {
+        std::cout << std::endl << "comStat.cbInQue: " << comStat.cbInQue << std::endl;
+    // }
+
+    // if (comStat.cbInQue > 5)
+    // {
+    //     comStat.cbInQue = 5;
+    // }
+
+    Clock readFileTime;
+    // clear entire com buffer
+    // clear buffer, move pointer to end
+    char buffer[5000];
+    ReadFile(comPort, buffer, comStat.cbInQue, &dwBytesRead, NULL);
+    receivedChar = 'a';
+
+
+    // std::cout << "read file time: " << readFileTime.getElapsedTime() * 1000 << "ms" << std::endl;
+
+    return true;
+
+
+
+
+    // Read a single character
+    if (!ReadFile(comPort, &receivedChar, 1, &dwBytesRead, NULL) || dwBytesRead == 0)
+    {
+        // Handle error or no data read
         return false;
     }
 
-    // check if there is data to read
-    if(!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
+    DWORD endTime = GetTickCount(); // End time for this read
+    DWORD timeDelta = endTime - startTime;
+
+    // Update total bytes read and time elapsed
+    totalBytesRead += dwBytesRead;
+    DWORD totalElapsedTime = endTime - totalStartTime;
+
+    // Report every 5 seconds
+    if (endTime - lastReportTime >= 5000)
     {
-        std::cerr << "Error reading from COM port" << std::endl;
+        if (totalElapsedTime > 0)
+        {
+            double avgBytesPerSec = (totalBytesRead * 1000.0) / totalElapsedTime;
+            std::cout << "Average Bytes/sec over " << totalElapsedTime / 1000.0 << " seconds: " << avgBytesPerSec << std::endl;
+        }
+        lastReportTime = endTime;
     }
-    return dwBytesRead > 0; })
+
+    return true;
+}
+
+RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
+                                           {
+                                            //    static char buffer[SERIAL_BUFFER_SIZE];
+                                            //    static int bufferSize = 0;
+                                            //    static int bufferIndex = 0;
+
+                                            //    if (bufferIndex >= bufferSize)
+                                            //    {
+                                                return readComPort(_comPort, c);
+                                            //    }
+
+                                            //    if (bufferIndex < bufferSize)
+                                            //    {
+                                            //        c = buffer[bufferIndex++];
+                                            //        return true;
+                                            //    }
+
+                                            //    return false;
+                                           }),
+                                 _serialBuffer(SERIAL_BUFFER_SIZE)
 {
+    std::cout << "size of robot message: " << sizeof(RobotMessage) << std::endl;
     _InitComPort();
     _sendingClock.markStart();
+
+    _receiverThread = std::thread([this]()
+                                  {
+
+        Clock lastMessagePrintClock;
+        lastMessagePrintClock.markStart();
+        int count = 0;
+        while (true)
+        {
+            Clock updateTimer;
+
+            _receiver.update();
+            continue;
+            if (updateTimer.getElapsedTime() > 0.02)
+            {
+                std::cout << "update time: " << updateTimer.getElapsedTime() * 1000 << std::endl;
+            }
+
+            // if there is a new message
+            if (_receiver.isLatestDataValid())
+            {
+                Clock lockTimer;
+                _lastMessageMutex.lock();
+
+                if (lockTimer.getElapsedTime() > 0.02)
+                {
+                    std::cout << "lock time: " << lockTimer.getElapsedTime() * 1000 << std::endl;
+                }
+
+                _lastMessage = _receiver.getLatestData();
+                _lastMessageNew = true;
+                _lastMessageMutex.unlock();
+                // yield
+                // notify anyone waiting on the message
+                _lastMessageCV.notify_all();
+
+                // // sleep for 3ms
+                // std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+                count ++;
+
+                if (count % 100 == 0)
+                {
+                    std::cout << "count: " << count << std::endl;
+
+                    std::cout << "PARSED PACKETS/SEC: " << 100.0 / lastMessagePrintClock.getElapsedTime() << std::endl;
+                    lastMessagePrintClock.markStart();
+                }
+            }
+        }
+    });
 }
 
 void RobotLinkReal::_InitComPort()
@@ -134,8 +270,11 @@ void RobotLinkReal::_InitComPort()
 
     _dcbSerialParams = {0};
     _dcbSerialParams.DCBlength = sizeof(_dcbSerialParams);
-    _dcbSerialParams.BaudRate = CBR_115200; // set the baud rate
+    _dcbSerialParams.BaudRate = 460800; // set the baud rate
     _dcbSerialParams.ByteSize = 8;
+    _dcbSerialParams.fRtsControl = RTS_CONTROL_DISABLE;
+    _dcbSerialParams.fDtrControl = DTR_CONTROL_DISABLE;
+    
     _dcbSerialParams.StopBits = ONESTOPBIT;
     _dcbSerialParams.Parity = NOPARITY;
 
@@ -145,6 +284,12 @@ void RobotLinkReal::_InitComPort()
     timeouts.ReadTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
+
+
+    if (!SetupComm(_comPort, sizeof(RobotMessage) * 3, sizeof(RobotMessage) * 3)) { // Smaller buffer sizes
+        std::cerr << "Error setting COM buffer sizes" << std::endl;
+    }
+
 
     if (!SetCommTimeouts(_comPort, &timeouts))
     {
@@ -174,6 +319,9 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    return;
+
+
     // std::cout << "command.movement: " << command.movement << std::endl;
     command.movement *= -1.0;
     command.turn *= -1.0;
@@ -263,26 +411,48 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
 {
-    if (_comPort == INVALID_HANDLE_VALUE)
-    {
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
+    // if (_comPort == INVALID_HANDLE_VALUE)
+    // {
+    //     SAFE_DRAW
+    //     cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+    //     END_SAFE_DRAW
 
-        // attempt to reopen
-        _InitComPort();
-        return RobotMessage{RobotMessageType::INVALID};
+    //     // attempt to reopen
+    //     _InitComPort();
+    //     return RobotMessage{RobotMessageType::INVALID};
+    // }
+
+    return RobotMessage{RobotMessageType::INVALID};
+
+    // this is the lock that will be used to wait for a new message
+    static std::unique_lock<std::mutex> lock(_lastMessageMutex);
+    if (!_lastMessageNew)
+    {
+        // TODO: add timeout and return invalid if timeout
+        // wait for a new message
+        _lastMessageCV.wait(lock, [&]{ return _lastMessageNew; });
     }
 
-    _receiver.update();
-    RobotMessage retrievedStruct = _receiver.getLatestData();
+    // from here on, we know that _lastMessageNew is true
 
-    // if latest data is valid
-    if (!_receiver.isLatestDataValid())
-    {
-        // force invalid since it's not a new message
-        return RobotMessage{RobotMessageType::INVALID};
-    }
+    // // if latest data is valid
+    // if (!_lastMessageNew)
+    // {
+    //     // unlock the mutex
+    //     _lastMessageMutex.unlock();
+    //     // force invalid since it's not a new message
+    //     return RobotMessage{RobotMessageType::INVALID};
+    // }
+
+    // copy over the latest data
+    RobotMessage retrievedStruct = _lastMessage;
+    // mark as consumed
+    _lastMessageNew = false;
+    // unlock the mutex
+    // _lastMessageMutex.unlock();
+
+    // TODO: deleteme, set type as imu_data
+    retrievedStruct.type = RobotMessageType::IMU_DATA;
 
     return retrievedStruct;
 }
