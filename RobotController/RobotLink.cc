@@ -134,8 +134,11 @@ void RobotLinkReal::_InitComPort()
 
     _dcbSerialParams = {0};
     _dcbSerialParams.DCBlength = sizeof(_dcbSerialParams);
-    _dcbSerialParams.BaudRate = CBR_115200; // set the baud rate
+    _dcbSerialParams.BaudRate = 460800; // set the baud rate
     _dcbSerialParams.ByteSize = 8;
+    _dcbSerialParams.fRtsControl = RTS_CONTROL_DISABLE;
+    _dcbSerialParams.fDtrControl = DTR_CONTROL_DISABLE;
+    
     _dcbSerialParams.StopBits = ONESTOPBIT;
     _dcbSerialParams.Parity = NOPARITY;
 
@@ -145,6 +148,12 @@ void RobotLinkReal::_InitComPort()
     timeouts.ReadTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
+
+
+    if (!SetupComm(_comPort, sizeof(RobotMessage) * 3, sizeof(RobotMessage) * 3)) { // Smaller buffer sizes
+        std::cerr << "Error setting COM buffer sizes" << std::endl;
+    }
+
 
     if (!SetCommTimeouts(_comPort, &timeouts))
     {
