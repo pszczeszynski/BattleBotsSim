@@ -11,6 +11,8 @@
 #include "Extrapolator.h"
 #include "MatQueue.h"
 #include "SelfRighter.h"
+#include "MovementStrategy.h"
+
 class RobotController
 {
 public:
@@ -36,14 +38,16 @@ private:
 
     DriveCommand RobotLogic();
     DriveCommand OrbitMode();
+    DriveCommand AvoidMode();
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
     void UpdateSpinnerPowers();
-
     void GuiLogic();
 
     cv::Mat drawingImage;
+
+    MovementStrategy _movementStrategy;
 
 public:
 #ifdef XBOX
