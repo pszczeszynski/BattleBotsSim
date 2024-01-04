@@ -89,6 +89,7 @@ cv::Point2f MovementStrategy::AvoidStrategy()
     strategyGraphicSmallFloat.convertTo(strategyGraphicSmallFloat, CV_32FC1);
     // scale by 1 / 255
     strategyGraphicSmallFloat *= 1.0 / 255.0;
+#ifdef ASTAR
     // get path from current position to opponent position
     std::vector<cv::Point2f> path = PathFindingAStar(ourPos, opponentPos, strategyGraphicSmallFloat);
 
@@ -98,7 +99,7 @@ cv::Point2f MovementStrategy::AvoidStrategy()
         cv::Point2f point = path[i];
         strategyGraphicSmall.at<cv::Vec3b>(point.y, point.x) = cv::Vec3b(0, 255, 0);
     }
-
+#endif
     ///////////////// END PATH FINDING //////////////////////
 
 
@@ -210,6 +211,24 @@ std::vector<cv::Point2f> ReconstructPath(Node *goalNode)
 }
 
 /**
+ * Calculates the gCost of moving from current to neighbor
+*/
+float CalculateGCost(Node* current, Node* neighbor, cv::Point2f targetApproachDirection)
+{
+    const float MOMENTUM_COST_WEIGHT = 0.5f;
+    const float DIRECTIONAL_COST_WEIGHT = 0.5f;
+    const float DISTANCE_COST_WEIGHT = 0.5f;
+
+    float momentumCost = cv::norm(current->velocity - neighbor->velocity);
+    float directionalCost = 0/* Calculate cost based on how much the path deviates from targetApproachDirection */;
+    float distanceCost = cv::norm(current->position - neighbor->position);
+
+    return momentumCost * MOMENTUM_COST_WEIGHT +
+           directionalCost * DIRECTIONAL_COST_WEIGHT +
+           distanceCost * DISTANCE_COST_WEIGHT;
+}
+
+/**
  * Gets the neighbors of a node
  * 
  * @param node The node to get the neighbors of
@@ -271,24 +290,6 @@ bool IsReachable(cv::Point2f point, cv::Mat &wallsMap)
     // Check if the cost at the point is below the threshold
     // wallsMap is a single-channel floating-point image
     return wallsMap.at<float>(point.y, point.x) < COST_THRESHOLD;
-}
-
-/**
- * Calculates the gCost of moving from current to neighbor
-*/
-float CalculateGCost(Node* current, Node* neighbor, cv::Point2f targetApproachDirection)
-{
-    const float MOMENTUM_COST_WEIGHT = 0.5f;
-    const float DIRECTIONAL_COST_WEIGHT = 0.5f;
-    const float DISTANCE_COST_WEIGHT = 0.5f;
-
-    float momentumCost = cv::norm(current->velocity - neighbor->velocity);
-    float directionalCost = /* Calculate cost based on how much the path deviates from targetApproachDirection */;
-    float distanceCost = cv::norm(current->position - neighbor->position);
-
-    return momentumCost * MOMENTUM_COST_WEIGHT +
-           directionalCost * DIRECTIONAL_COST_WEIGHT +
-           distanceCost * DISTANCE_COST_WEIGHT;
 }
 
 /**

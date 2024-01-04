@@ -80,6 +80,10 @@ set(SOURCES
     UIWidgets/ImageWidget.cc
     CVRotation.cc
     MovementStrategy.cc
+    Strategies/Avoid.cc
+    Strategies/Kill.cc
+    Strategies/Orbit.cc
+    Strategies/RobotMovement.cc
 )
 
 # Create the object files

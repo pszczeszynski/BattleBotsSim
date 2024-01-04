@@ -108,3 +108,46 @@ std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Poi
 
     return intersections;
 }
+
+
+/**
+ * Uses the error between a currentPos and targetPos
+ * and returns a power to drive towards the target at (with 2 thresholds)
+ *
+ * @param error The target position
+ * @param threshold1 The first threshold (full power)
+ * @param threshold2 The second threshold (min power)
+ * @param minPower The minimum power to drive at
+ */
+double DoubleThreshToTarget(double error,
+                            double threshold1, double threshold2,
+                            double minPower, double maxPower)
+
+{
+    double distance = std::abs(error);
+    double ret = 0;
+
+    if (distance >= threshold1)
+    {
+        // Move towards the target with full power
+        ret = maxPower;
+    }
+    else if (distance < threshold1 && distance > threshold2)
+    {
+        // Scale linearly from maxPower to minPower
+        ret = ((distance - threshold2) / (threshold1 - threshold2)) * (maxPower - minPower) + minPower;
+    }
+    else
+    {
+        // Scale linearly from minPower to 0
+        ret = (distance / threshold2) * minPower;
+    }
+
+    // invert if we need to
+    if (error < 0)
+    {
+        ret *= -1;
+    }
+
+    return ret;
+}

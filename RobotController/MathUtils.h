@@ -19,6 +19,10 @@ cv::Point2f InterpolatePoints(const cv::Point2f& p1, const cv::Point2f& p2, doub
 
 std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Point2f center2, float r2);
 
+double DoubleThreshToTarget(double error,
+                            double threshold1, double threshold2,
+                            double minPower, double maxPower);
+
 class Point2f
 {
 public:
