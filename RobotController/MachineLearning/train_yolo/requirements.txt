@@ -7,3 +7,5 @@ onnxruntime
 torch
 torchvision
 ultralytics
+imageio
+tensorlayer

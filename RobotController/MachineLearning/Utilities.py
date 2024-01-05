@@ -40,6 +40,7 @@ class Augmentations:
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
         self.rotation_range = rotation_range
+        self.shear_range = shear_range
         self.brightness_range = brightness_range
         self.max_overlay_objects = max_overlay_objects
         self.object_size = object_size
@@ -91,6 +92,7 @@ def prepare_and_augment_image(img: np.ndarray, augmentations: Augmentations) -> 
         zoom_range=augmentations.zoom_range,
         width_shift_range=augmentations.width_shift_range,
         height_shift_range=augmentations.height_shift_range,
+        shear_range=augmentations.shear_range,
         fill_mode='constant',
         rotation_range=augmentations.rotation_range,
         brightness_range=augmentations.brightness_range
