@@ -18,6 +18,7 @@ public:
     static std::vector<ImageWidget*>& Instances();
     virtual void Draw();
     cv::Point2f GetMousePos();
+    bool IsMouseOver();
     void UpdateMat(cv::Mat& image);
 
 protected:

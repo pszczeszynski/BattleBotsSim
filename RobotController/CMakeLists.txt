@@ -78,6 +78,7 @@ set(SOURCES
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc
     UIWidgets/ImageWidget.cc
+    UIWidgets/KillWidget.cc
     CVRotation.cc
     MovementStrategy.cc
     Strategies/Avoid.cc

@@ -18,7 +18,7 @@ DriveCommand Kill::Execute(Gamepad &gamepad)
     currentState.position = RobotOdometry::Robot().GetPosition();
     currentState.angle = RobotOdometry::Robot().GetAngle();
     currentState.velocity = RobotOdometry::Robot().GetVelocity();
-    double angleExtrapolate = GTP_ANGLE_EXTRAPOLATE_MS;
+    double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
     currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * angleExtrapolate / POSITION_EXTRAPOLATE_MS;
 
     // predict where the robot will be in a couple milliseconds

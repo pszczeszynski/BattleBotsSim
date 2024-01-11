@@ -13,6 +13,8 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <opencv2/opencv.hpp>
 #include "ImageWidget.h"
+#include "KillWidget.h"
+#include "FieldWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -42,7 +44,8 @@ private:
     IMUWidget _imuWidget;
     ConfigWidget _configWidget;
     RobotTelemetryWidget _robotTelemetryWidget;
-    std::vector<ImageWidget*> _imageWidgets;
+    KillWidget _killWidget;
+    FieldWidget _fieldWidget;
 };
 
 static void glfw_error_callback(int error, const char *description)

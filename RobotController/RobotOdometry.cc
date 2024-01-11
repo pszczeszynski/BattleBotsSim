@@ -305,8 +305,31 @@ cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
     return smoothedVisualVelocity;
 }
 
+Angle _AdjustAngleWithArrowKeys(Angle angle)
+{
+    static Clock updateClock;
+    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 30 * M_PI / 180.0);
+    updateClock.markStart();
+    if (ImGui::IsKeyDown(ImGuiKey_LeftArrow))
+    {
+        return angle - angleUserAdjust;
+    }
+    else if (ImGui::IsKeyDown(ImGuiKey_RightArrow))
+    {
+        return angle + angleUserAdjust;
+    }
+
+    return angle;
+}
+
 void RobotOdometry::_PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle angle)
 {
+    // if this is the robot, adjust the angle with the arrow keys
+    if (this == &Robot())
+    {
+        angle = _AdjustAngleWithArrowKeys(angle);
+    }
+
     // update our velocity, position, and angle
     _lastVelocity = velocity;
     _position = newPos;

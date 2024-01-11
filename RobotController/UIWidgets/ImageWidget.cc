@@ -54,7 +54,7 @@ void ImageWidget::UpdateMat(cv::Mat& image)
 
 /**
  * Draws the widget
-*/
+ */
 void ImageWidget::Draw()
 {
     // make sure not to draw if the image is empty
@@ -82,17 +82,24 @@ void ImageWidget::Draw()
 
     // End child and main window
     ImGui::EndChild();
-    ImGui::End();    
+    ImGui::End();
 }
-
 
 /**
  * Gets the mouse position relative to this window
-*/
+ */
 cv::Point2f ImageWidget::GetMousePos()
 {
     ImVec2 mousePosVec2 = ImGui::GetMousePos();
     cv::Point2f mousePosAbsolute{mousePosVec2.x, mousePosVec2.y};
     cv::Point2f windowPos = cv::Point2f(_windowPos.x, _windowPos.y);
     return mousePosAbsolute - windowPos;
+}
+
+/**
+ * Returns true if the mouse is over this window
+ */
+bool ImageWidget::IsMouseOver()
+{
+    return GetMousePos().inside(cv::Rect2f(0, 0, _image.cols, _image.rows));
 }

@@ -46,6 +46,7 @@ bool RobotControllerGUI::Update()
 
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
+    _killWidget.Draw();
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     // render the ImGui frame

@@ -45,7 +45,6 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Master Move Scale (%)", &MASTER_MOVE_SCALE_PERCENT, 0, 100);
     ImGui::SliderInt("Master Turn Scale (%)", &MASTER_TURN_SCALE_PERCENT, 0, 100);
-    ImGui::SliderInt("Angle Extrapolate (ms)", &GTP_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     EndSetMaxWidthWithMargin();
     ImGui::End();
 

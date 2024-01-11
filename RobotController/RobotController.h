@@ -42,7 +42,6 @@ private:
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
     void UpdateSpinnerPowers();
-    void GuiLogic();
 
     cv::Mat drawingImage;
 

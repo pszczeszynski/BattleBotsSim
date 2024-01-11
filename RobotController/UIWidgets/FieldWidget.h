@@ -7,11 +7,9 @@
 class FieldWidget : public ImageWidget
 {
 public:
-    // singleton
-    static FieldWidget& GetInstance();
-
     void Draw() override;
+    FieldWidget();
 
 private:
-    FieldWidget();
+    void _AdjustFieldCrop();
 };
