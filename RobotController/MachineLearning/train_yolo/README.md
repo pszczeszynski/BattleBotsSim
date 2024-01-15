@@ -4,8 +4,8 @@ Open in VSCode, make sure the `MachineLearning` directory has the `TestingData` 
 
 Go to the `train_yolo` directory, activate a virtual environment, and run `pip install -r requirements.txt` to install all dependencies.
 
-Open `train_yolo.ipynb`, edit the second cell with the desired train test split and run it to create the yolo training directory structure and annotation files
+Edit `data_generation.py` with the train and test size, as well as the directory name for the training data, make sure this matches the name in `data.yaml`.
 
-The third, fourth, and fifth cells are for visualisation, and the first cell is just to check the gpu.
+Run `data_generation.py` to format, augment, and grayscale images and create the file hierarchy
 
 Edit `train_yolo.py` with the device to run training on (cuda or cpu) and run `python train_yolo.py` to train.
