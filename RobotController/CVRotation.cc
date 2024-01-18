@@ -3,11 +3,14 @@
 #include "MathUtils.h"
 #include "RobotController.h"
 #include "UIWidgets/ClockWidget.h"
-
+#include <opencv2/dnn/dnn.hpp>
 CVRotation::CVRotation()
 {
     // Load the model
     _net = cv::dnn::readNetFromONNX(MODEL_PATH);
+    _net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+    _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA); // Fix the undefined identifier
+
 }
 
 void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
