@@ -4,6 +4,7 @@
 #include "../RobotConfig.h"
 #include "../GuiUtils.h"
 #include "../RobotController.h"
+#include "ClockWidget.h"
 // #include <algorithm>
 
 RobotControllerGUI::RobotControllerGUI()
@@ -26,6 +27,9 @@ RobotControllerGUI& RobotControllerGUI::GetInstance()
 
 bool RobotControllerGUI::Update()
 {
+    static ClockWidget guiClock("GUI drawing");
+    guiClock.markStart();
+
     if (glfwWindowShouldClose(window))
     {
         return false;
@@ -48,10 +52,13 @@ bool RobotControllerGUI::Update()
     _robotTelemetryWidget.Draw();
     _killWidget.Draw();
 
+    ClockWidget::DrawAll();
+
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     // render the ImGui frame
     Render(window, clear_color);
 
+    guiClock.markEnd();
     return true;
 }
 

@@ -2,6 +2,7 @@
 #include <opencv2/dnn.hpp>
 #include "MathUtils.h"
 #include "RobotController.h"
+#include "UIWidgets/ClockWidget.h"
 
 CVRotation::CVRotation()
 {
@@ -54,7 +55,9 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
 double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
     static double lastRotation = 0;
+    static ClockWidget clock("CVRotation");
 
+    clock.markStart();
     cv::Mat fieldImagePreprocessed;
     // convert to grayscale
     cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
@@ -98,13 +101,6 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
     // compute the average of the two angles
     float avgAngle = InterpolateAngles(Angle(rotation), Angle(rotation2), 0.5);
 
-    // // put arrow on train image
-    // cv::Point2f arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation), 100 * sin(rotation));
-    // cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 0, 255), 2);
-
-    // // put arrow on train image
-    // arrowEnd = cv::Point2f(64, 64) + cv::Point2f(100 * cos(rotation2), 100 * sin(rotation2));
-    // cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 255, 0), 2);
 
     // add 180 if closer to last rotation since the robot is symmetrical
     if (abs(angle_wrap(avgAngle - lastRotation)) > M_PI / 2)
@@ -122,6 +118,8 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 
     // save the last rotation
     lastRotation = avgAngle;
+
+    clock.markEnd();
 
     return avgAngle;
 }

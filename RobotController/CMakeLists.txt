@@ -79,6 +79,7 @@ set(SOURCES
     UIWidgets/IMUWidget.cc
     UIWidgets/ImageWidget.cc
     UIWidgets/KillWidget.cc
+    UIWidgets/ClockWidget.cc
     CVRotation.cc
     MovementStrategy.cc
     Strategies/Avoid.cc
