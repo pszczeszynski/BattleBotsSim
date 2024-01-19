@@ -107,7 +107,8 @@
         "*.rh": "cpp",
         "qmap": "cpp",
         "qpalette": "cpp",
-        "qvboxlayout": "cpp"
+        "qvboxlayout": "cpp",
+        "typeindex": "cpp"
     },
     "cmake.configureOnOpen": true,
     "workbench.colorCustomizations": {

@@ -22,3 +22,7 @@ RobotClassifier:
 Opencv debugging:
 cv::imshow("window name", cv::Mat&);
 cv::waitKey(1);
+
+Console from /c/Gregory/xRC_BB/BattleBotsSim/RobotController
+./build.bat SIMULATION XBOX
+./build/Release/RobotController.exe

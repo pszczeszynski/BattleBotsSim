@@ -26,10 +26,12 @@ int main()
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
-                                     vision{overheadCamL_sim}
+                                     vision{overheadCamL_sim},
+                                     camDecoder{overheadCamL_sim}
 #else
                                      overheadCamL_real{1},
-                                     vision{overheadCamL_real}
+                                     vision{overheadCamL_real},
+                                      camDecoder{overheadCamL_real}
 #endif
 {
 }
@@ -135,26 +137,27 @@ void RobotController::Run()
             _lastCanMessageMutex.unlock();
         }
 
+
         // get the latest classification (very fast)
-        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
+        //VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
         // in simulation, add a 5 millisecond wait and continue if we don't get a new image
 #ifdef SIMULATION
-        if (!classification.GetHadNewImage())
-        {
-            Sleep(5);
-            continue;
-        }
+        //if (!classification.GetHadNewImage())
+        //{
+        //    Sleep(5);
+        //    continue;
+       // }
 #endif
 
         // update the robot tracker positions
-        UpdateRobotTrackers(classification);
+        //UpdateRobotTrackers(classification);
 
         // run our robot controller loop
-        DriveCommand response = RobotLogic();
+        //DriveCommand response = RobotLogic();
         
         // send the response to the robot
-        robotLink.Drive(response);
+       //robotLink.Drive(response);
 
 #ifdef SAVE_VIDEO
         if (!drawingImage.empty())
@@ -165,16 +168,16 @@ void RobotController::Run()
 #endif
 
         // update the GUI
-        GuiLogic();
+        //GuiLogic();
 
-        robotControllerGUI.Update();
+        //robotControllerGUI.Update();
 
-        // // if there was a new image
-        // if (classification.GetHadNewImage())
-        // {
+         // if there was a new image
+        //if (classification.GetHadNewImage())
+        //{
         //     // send the drawing image to the GUI
         //     ProduceDrawingImage();
-        // }
+        //}
     }
 
     robotControllerGUI.Shutdown();

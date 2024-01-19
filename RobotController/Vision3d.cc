@@ -124,8 +124,6 @@ void Vision3d::convertPointCloudToOverhead(std::vector<cv::Point3f> pointCloud, 
 
     // convert to 8 bit
     dstOverhead.convertTo(dstOverhead, CV_8UC3);
-
-    cv::imshow("overhead", dstOverhead);
 }
 
 /**

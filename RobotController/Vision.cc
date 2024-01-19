@@ -9,6 +9,33 @@
 #include <opencv2/flann.hpp>
 #include "Globals.h"
 #include "RobotConfig.h"
+#include <winuser.h>
+
+// opencv function to updat escreen without the windows waitKey delay
+bool DoEvents()
+{
+    MSG msg;
+    BOOL result;
+
+    while (::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+    {
+        result = ::GetMessage(&msg, NULL, 0, 0);
+        if (result == 0) // WM_QUIT
+        {
+            ::PostQuitMessage((int) msg.wParam);
+            return false;
+        }
+        else if (result == -1)
+            return true;    //error occured
+        else
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+        }
+    }
+
+    return true;
+}
 
 
 Vision::Vision(ICameraReceiver &overheadCam)
@@ -16,6 +43,8 @@ Vision::Vision(ICameraReceiver &overheadCam)
       _lastDrawingImage(cv::Mat::zeros(WIDTH, HEIGHT, CV_8UC3))
 {
     // create the processing thread in a loop
+
+    /*
     processingThread = std::thread([&]()
                                    {
         // holds the data of the current frame
@@ -33,6 +62,11 @@ Vision::Vision(ICameraReceiver &overheadCam)
                 continue; // try to get a frame again
             }
 
+            cv::imshow("ReadFrame", currFrame);
+            //cv::waitkey(1);
+            //DoEvents();
+            cv::pollKey();
+
             // run the pipeline
             VisionClassification classification = RunPipeline(currFrame);
 
@@ -42,6 +76,7 @@ Vision::Vision(ICameraReceiver &overheadCam)
             currFrame.copyTo(_lastDrawingImage);
             _classificationMutex.unlock();
         } });
+        */
 }
 
 /**

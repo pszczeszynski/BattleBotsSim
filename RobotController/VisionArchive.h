@@ -82,7 +82,6 @@ void detectLines(cv::Mat& mat, cv::Mat& dst)
 
     // cv::Canny(dst, dst, 30, 90, 3);
 
-    // cv::imshow("canny", dst);
 
     return;
 

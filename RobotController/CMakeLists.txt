@@ -69,11 +69,14 @@ set(SOURCES
     RobotLink.cc
     RobotOdometry.cc
     RobotStateParser.cc
+    RobotTracker.cc
     SelfRighter.cc
     ServerSocket.cc
+    ThreadPool.cc
     Timer.cc
     Clock.cc
     Vision.cc
+	CameraDecoder.cc
     VisionPreprocessor.cc
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc

@@ -44,10 +44,5 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 
     cv::arrowedLine(croppedImage, cv::Point2f(64, 64), arrowEnd, cv::Scalar(0, 0, 255), 2);
 
-    // show cropped image
-    cv::imshow("cropped", croppedImage);
-    cv::waitKey(1);
-
-
     return rotation;
 }

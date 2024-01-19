@@ -100,6 +100,7 @@ MonoBehaviour:
   - {fileID: 4430705016149961532}
   - {fileID: -3159478295890530998}
   - {fileID: 8891427663039237182}
+  - {fileID: 5711105633294736944}
 --- !u!114 &2513886774059343557
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -135,7 +136,7 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 1
   dirtTexture:
-    m_OverrideState: 1
+    m_OverrideState: 0
     m_Value: {fileID: 2800000, guid: 5e56f6b1a168403439ce79224eb9090d, type: 3}
     dimension: 1
   dirtIntensity:
@@ -194,6 +195,46 @@ MonoBehaviour:
   scale:
     m_OverrideState: 0
     m_Value: 1
+--- !u!114 &5711105633294736944
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdfbdbb87d3286943a057f7791b43141, type: 3}
+  m_Name: ChannelMixer
+  m_EditorClassIdentifier: 
+  active: 1
+  redOutRedIn:
+    m_OverrideState: 1
+    m_Value: 100
+  redOutGreenIn:
+    m_OverrideState: 1
+    m_Value: 0
+  redOutBlueIn:
+    m_OverrideState: 1
+    m_Value: 0
+  greenOutRedIn:
+    m_OverrideState: 1
+    m_Value: 0
+  greenOutGreenIn:
+    m_OverrideState: 1
+    m_Value: 100
+  greenOutBlueIn:
+    m_OverrideState: 1
+    m_Value: 0
+  blueOutRedIn:
+    m_OverrideState: 1
+    m_Value: 0
+  blueOutGreenIn:
+    m_OverrideState: 1
+    m_Value: 0
+  blueOutBlueIn:
+    m_OverrideState: 1
+    m_Value: 100
 --- !u!114 &6023632638177502903
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -218,7 +259,7 @@ MonoBehaviour:
         serializedVersion: 2
         m_Curve:
         - serializedVersion: 3
-          time: 0
+          time: 0.0008795107
           value: 0
           inSlope: 1
           outSlope: 1
@@ -227,37 +268,37 @@ MonoBehaviour:
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.035185184
-          value: 0.04633206
-          inSlope: 1.8337456
-          outSlope: 1.8337456
+          time: 0.2647317
+          value: 0.36699015
+          inSlope: 1.3020167
+          outSlope: 1.3020167
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.360587
-          value: 0.64912283
-          inSlope: 0.48107848
-          outSlope: 0.48107848
+          time: 0.5021987
+          value: 0.76504844
+          inSlope: 1.5769767
+          outSlope: 1.5769767
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.5298507
-          value: 1
-          inSlope: 1
-          outSlope: 1
+          time: 0.7044854
+          value: 0.99805814
+          inSlope: 0
+          outSlope: 0
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 1
-          value: 1
-          inSlope: 1
-          outSlope: 1
+          time: 0.9903253
+          value: 0.99805814
+          inSlope: -0
+          outSlope: -0
           tangentMode: 0
           weightedMode: 0
           inWeight: 0

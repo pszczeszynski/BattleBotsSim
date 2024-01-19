@@ -4,6 +4,7 @@
 
 #include "CameraReceiver.h"
 #include "Vision.h"
+#include "CameraDecoder.h"
 #include "RobotOdometry.h"
 #include "RobotLink.h"
 #include "Input/Gamepad.h"
@@ -69,6 +70,7 @@ private:
 #endif
 
     Vision vision;
+    CameraDecoder camDecoder; 
 
     SelfRighter _selfRighter;
 
