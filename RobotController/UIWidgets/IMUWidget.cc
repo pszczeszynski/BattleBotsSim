@@ -17,7 +17,7 @@ IMUWidget::IMUWidget() : ImageWidget("IMU", false)
 
 }
 
-void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scalar color, float radius)
+void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scalar color, float radius, int thickness = 1)
 {
     cv::Point2f point1(center.x + radius * cos(rotation),
                        center.y + radius * sin(rotation));
@@ -27,8 +27,20 @@ void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scal
                        center.y + radius * sin(rotation + M_PI));
     cv::Point2f point4(center.x + radius * cos(rotation + 3 * M_PI / 2),
                        center.y + radius * sin(rotation + 3 * M_PI / 2));
-    cv::line(mat, point1, point3, color, 1, cv::LINE_AA);
-    cv::line(mat, point2, point4, color, 1, cv::LINE_AA);
+    cv::line(mat, point1, point3, color, thickness, cv::LINE_AA);
+    cv::line(mat, point2, point4, color, thickness, cv::LINE_AA);
+}
+
+/**
+ * \brief
+ * Interpolates between red and green based on the value
+ * \param value The value to interpolate between 0 and 1
+*/
+cv::Scalar InterpolateRedToGreen(float value)
+{
+    float red = 255 * (1 - value);
+    float green = 255 * value;
+    return cv::Scalar(0, green, red, 255);
 }
 
 void IMUWidget::Draw()
@@ -81,12 +93,13 @@ void IMUWidget::Draw()
     // get the cv rotation
     double cvRotation = CVRotation::GetInstance().GetLastComputedRotation();
     // draw a dotted cross, rotated by the rotation
-    cv::Scalar cvCrossColor = cv::Scalar(0, 255, 0, 255);
+    cv::Scalar cvCrossColor = InterpolateRedToGreen(CVRotation::GetInstance().GetLastConfidence());
     cv::Point2f cvCenter(WIDGET_RADIUS, WIDGET_RADIUS);
     float cvRadius = WIDGET_RADIUS - 40;
+    cvRadius *= CVRotation::GetInstance().GetLastConfidence();
 
     // draw the dotted cross
-    DrawCrossRotated(mat, cvCenter, cvRotation, cvCrossColor, cvRadius);
+    DrawCrossRotated(mat, cvCenter, cvRotation, cvCrossColor, cvRadius, 3);
 
     // draw the widget
     ImageWidget::UpdateMat(mat);

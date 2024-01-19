@@ -39,18 +39,31 @@ void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
     }
 }
 
-float ConvertNetworkOutputToRad(cv::Mat& output)
+cv::Point2f ConvertNetworkOutputToXY(cv::Mat& output)
 {
     // INTERPRET THE RESULTS
-    float normalized_cos = output.at<float>(0, 0);
-    float normalized_sin = output.at<float>(0, 1);
+    float normalized_x = output.at<float>(0, 0);
+    float normalized_y = output.at<float>(0, 1);
 
     // Convert normalized values back to the range [-1, 1]
-    float cos_component = (normalized_cos * 2.0) - 1.0;
-    float sin_component = (normalized_sin * 2.0) - 1.0;
+    float x_component = (normalized_x * 2.0) - 1.0;
+    float y_component = (normalized_y * 2.0) - 1.0;
+
+    return cv::Point2f(x_component, y_component);
+}
+
+/**
+ * \brief
+ * Converts the output of the neural network to a rotation in radians
+ * \param output The output of the neural network
+ * \return The rotation in radians
+*/
+float ConvertNetworkOutputToRad(cv::Mat& output)
+{
+    cv::Point2f xy = ConvertNetworkOutputToXY(output);
 
     // Compute the angle using atan2
-    float rotation = atan2(sin_component, cos_component);
+    float rotation = atan2(xy.y, xy.x);
 
     // Ensure the angle is within the desired range
     rotation = angle_wrap(rotation) * 0.5;
@@ -89,25 +102,29 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     // set the input to the network
     _net.setInput(blob);
     cv::Mat result1 = _net.forward();
-    float rotation = ConvertNetworkOutputToRad(result1);
+    _netXY1 = ConvertNetworkOutputToXY(result1);
+    float rotation1 = angle_wrap(ConvertNetworkOutputToRad(result1));
 
     // now, flip the image and do it again
     _net.setInput(blobFlip);
     cv::Mat result2 = _net.forward();
+    _netXY2 = ConvertNetworkOutputToXY(result2);
     float rotation2 = angle_wrap(-ConvertNetworkOutputToRad(result2));
 
     // compute deltas for both the predicted rotation and the flipped rotation
-    float diff = angle_wrap(rotation - rotation2);
-    float diff2 = angle_wrap(rotation2 - angle_wrap(rotation - M_PI));
+    float diff = angle_wrap(rotation1 - rotation2);
+    float diff2 = angle_wrap(rotation2 - angle_wrap(rotation1 - M_PI));
 
     // return whichever angle is closer to the last angle
     if (abs(diff2) < abs(diff))
     {
-        rotation = angle_wrap(rotation - M_PI);
+        rotation1 = angle_wrap(rotation1 - M_PI);
     }
 
+
+
     // compute the average of the two angles
-    float avgAngle = InterpolateAngles(Angle(rotation), Angle(rotation2), 0.5);
+    float avgAngle = InterpolateAngles(Angle(rotation1), Angle(rotation2), 0.5);
 
 
     // add 180 if closer to last rotation since the robot is symmetrical
@@ -123,6 +140,7 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     // {
     //     avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.3f);
     // }
+    _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
 
     _lastRotation = avgAngle;
 
@@ -138,4 +156,19 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
 double CVRotation::GetLastComputedRotation()
 {
     return _lastRotation;
+}
+
+double CVRotation::GetLastConfidence()
+{
+    // compute magnitude of _netXY1
+    double mag1 = cv::norm(_netXY1);
+    double mag2 = cv::norm(_netXY2);
+    double magnitudeConfidence = (mag1 + mag2) / 2.0;
+
+    // compute angle between _netXY1 and _netXY2
+    const double MAX_DISAGREEMENT = 15 * TO_RAD;
+    double angleConfidence = 1.0 - _lastDisagreementRad / MAX_DISAGREEMENT;
+    angleConfidence = max(0.0, angleConfidence);
+
+    return magnitudeConfidence * 1.0;// + angleConfidence * 0.3;
 }
