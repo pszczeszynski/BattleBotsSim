@@ -16,6 +16,7 @@
 #include "Strategies/RobotMovement.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/KillWidget.h"
+#include "UIWidgets/ClockWidget.h"
 
 int main()
 {
@@ -78,6 +79,7 @@ static void LogFPS()
 {
     static int frames = 0;
     static Clock c;
+
     // get the elapsed time
     double elapsed = c.getElapsedTime();
 
@@ -135,20 +137,20 @@ void RobotController::Run()
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
         // in simulation, add a 5 millisecond wait and continue if we don't get a new image
-#ifdef SIMULATION
-        if (!classification.GetHadNewImage())
-        {
-            Sleep(5);
-            continue;
-        }
-#endif
+// #ifdef SIMULATION
+//         if (!classification.GetHadNewImage())
+//         {
+//             Sleep(5);
+//             continue;
+//         }
+// #endif
 
         // update the robot tracker positions
         UpdateRobotTrackers(classification);
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
-        
+
         // send the response to the robot
         robotLink.Drive(response);
 
@@ -454,7 +456,7 @@ DriveCommand RobotController::RobotLogic()
     Kill killMode = Kill{};
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
-    DriveCommand responseAvoid = AvoidMode();
+    // DriveCommand responseAvoid = AvoidMode();
 
     // start with just manual control
     DriveCommand ret = responseManual;

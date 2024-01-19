@@ -17,6 +17,20 @@ IMUWidget::IMUWidget() : ImageWidget("IMU", false)
 
 }
 
+void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scalar color, float radius)
+{
+    cv::Point2f point1(center.x + radius * cos(rotation),
+                       center.y + radius * sin(rotation));
+    cv::Point2f point2(center.x + radius * cos(rotation + M_PI / 2),
+                       center.y + radius * sin(rotation + M_PI / 2));
+    cv::Point2f point3(center.x + radius * cos(rotation + M_PI),
+                       center.y + radius * sin(rotation + M_PI));
+    cv::Point2f point4(center.x + radius * cos(rotation + 3 * M_PI / 2),
+                       center.y + radius * sin(rotation + 3 * M_PI / 2));
+    cv::line(mat, point1, point3, color, 1, cv::LINE_AA);
+    cv::line(mat, point2, point4, color, 1, cv::LINE_AA);
+}
+
 void IMUWidget::Draw()
 {
     // get the latest message
@@ -55,21 +69,24 @@ void IMUWidget::Draw()
     /////////// GYRO VISUALIZATION ///////////
     // get the gyro data
     float rotation = imuData.rotation;
-
-    // draw a dotted circle, rotated by the rotation
-    cv::Scalar dottedCircleColor = cv::Scalar(255, 255, 255, 255);
+    // draw a dotted cross, rotated by the rotation
+    cv::Scalar crossColor = cv::Scalar(255, 255, 255, 255);
     cv::Point2f center(WIDGET_RADIUS, WIDGET_RADIUS);
     float radius = WIDGET_RADIUS - 20;
-    cv::Point2f point1(center.x + radius * cos(rotation),
-                       center.y + radius * sin(rotation));
-    cv::Point2f point2(center.x + radius * cos(rotation + M_PI / 2),
-                       center.y + radius * sin(rotation + M_PI / 2));
-    cv::Point2f point3(center.x + radius * cos(rotation + M_PI),
-                       center.y + radius * sin(rotation + M_PI));
-    cv::Point2f point4(center.x + radius * cos(rotation + 3 * M_PI / 2),
-                       center.y + radius * sin(rotation + 3 * M_PI / 2));
-    cv::line(mat, point1, point3, dottedCircleColor, 1, cv::LINE_AA);
-    cv::line(mat, point2, point4, dottedCircleColor, 1, cv::LINE_AA);
+
+    // draw the cross
+    DrawCrossRotated(mat, center, rotation, crossColor, radius);
+
+    ////////// CV ROTATION VISUALIZATION //////////
+    // get the cv rotation
+    double cvRotation = CVRotation::GetInstance().GetLastComputedRotation();
+    // draw a dotted cross, rotated by the rotation
+    cv::Scalar cvCrossColor = cv::Scalar(0, 255, 0, 255);
+    cv::Point2f cvCenter(WIDGET_RADIUS, WIDGET_RADIUS);
+    float cvRadius = WIDGET_RADIUS - 40;
+
+    // draw the dotted cross
+    DrawCrossRotated(mat, cvCenter, cvRotation, cvCrossColor, cvRadius);
 
     // draw the widget
     ImageWidget::UpdateMat(mat);

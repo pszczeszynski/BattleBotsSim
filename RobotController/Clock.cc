@@ -18,13 +18,6 @@ void Clock::markStart()
 	auto currentTime = std::chrono::high_resolution_clock::now();
 
 	startTime = currentTime;
-
-	double elapsedTimeSinceLastReset = std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - lastResetTime).count();
-	if (elapsedTimeSinceLastReset >= 1.0) // One second has passed
-	{
-		resetCounters();
-		lastResetTime = currentTime;
-	}
 }
 
 void Clock::markEnd()
@@ -33,9 +26,9 @@ void Clock::markEnd()
 	// every 3 seconds, reset the average time
 	if (_totalTime > 3.0)
 	{
-		_totalTime = 0.0;
-		_totalFrames = 0;
+		resetCounters();
 	}
+
 	if (timeDifference > maxTimeDifference)
 	{
 		maxTimeDifference = timeDifference;
@@ -59,6 +52,8 @@ void Clock::resetCounters()
 {
 	_lastMaxTimeDifference = maxTimeDifference;
 	maxTimeDifference = 0.0;
+	_totalTime = 0.0;
+	_totalFrames = 0;
 }
 
 double Clock::getAverageTime()

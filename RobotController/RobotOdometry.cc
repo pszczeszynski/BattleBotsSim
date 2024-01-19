@@ -173,7 +173,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     }
 
     // use the ml model to get the angle entirely
-    fusedAngle = _robotCVRotation.GetRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
+    fusedAngle = CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
@@ -192,7 +192,7 @@ void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
     // set the angle using just the imu
     Angle angle = Angle(_UpdateAndGetIMUAngle());
 
-    angle = Angle(_robotCVRotation.GetRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
+    angle = Angle(CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
 
     // update normally
     _PostUpdate(_position, velocity, angle);

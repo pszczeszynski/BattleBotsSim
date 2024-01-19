@@ -8,8 +8,12 @@ class CVRotation
 {
 public:
     CVRotation();
-    double GetRobotRotation(cv::Mat& fieldImage, cv::Point2f robotPos);
+    static CVRotation& GetInstance();
+
+    double ComputeRobotRotation(cv::Mat& fieldImage, cv::Point2f robotPos);
+    double GetLastComputedRotation();
     void _CropImage(cv::Mat& src, cv::Mat& dst, cv::Rect roi);
 private:
+    double _lastRotation = 0;
     cv::dnn::Net _net;
 };

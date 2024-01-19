@@ -4,13 +4,19 @@
 #include "RobotController.h"
 #include "UIWidgets/ClockWidget.h"
 #include <opencv2/dnn/dnn.hpp>
+
 CVRotation::CVRotation()
 {
     // Load the model
     _net = cv::dnn::readNetFromONNX(MODEL_PATH);
     _net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
-    _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA); // Fix the undefined identifier
+    _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+}
 
+CVRotation& CVRotation::GetInstance()
+{
+    static CVRotation instance;
+    return instance;
 }
 
 void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
@@ -55,9 +61,8 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
 
 #define CROP_SIZE 128
 
-double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
+double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
-    static double lastRotation = 0;
     static ClockWidget clock("CVRotation");
 
     clock.markStart();
@@ -106,23 +111,31 @@ double CVRotation::GetRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 
 
     // add 180 if closer to last rotation since the robot is symmetrical
-    if (abs(angle_wrap(avgAngle - lastRotation)) > M_PI / 2)
+    if (abs(angle_wrap(avgAngle - _lastRotation)) > M_PI / 2)
     {
         avgAngle = angle_wrap(avgAngle + M_PI);
     }
 
-    // if the angle changed by more than 15 degrees, blend it with the last angle
-    float deltaAngle = angle_wrap(avgAngle - lastRotation);
-    const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
-    if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
-    {
-        avgAngle = InterpolateAngles(Angle(lastRotation), Angle(avgAngle), 0.3f);
-    }
+    // // if the angle changed by more than 15 degrees, blend it with the last angle
+    // float deltaAngle = angle_wrap(avgAngle - _lastRotation);
+    // const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
+    // if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
+    // {
+    //     avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.3f);
+    // }
 
-    // save the last rotation
-    lastRotation = avgAngle;
+    _lastRotation = avgAngle;
 
     clock.markEnd();
 
     return avgAngle;
+}
+
+/**
+ * \brief
+ * Gets the last computed rotation without recomputing it
+*/
+double CVRotation::GetLastComputedRotation()
+{
+    return _lastRotation;
 }
