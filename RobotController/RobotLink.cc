@@ -30,6 +30,7 @@ RobotMessage IRobotLink::Receive()
     {
         // invalid message type from _ReceiveImpl
         std::cerr << "ERROR: invalid message type" << std::endl;
+        ret = RobotMessage{RobotMessageType::INVALID};
         return ret;
     }
 
@@ -65,13 +66,14 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
     return _messageHistory;
 }
 
-#define TRANSMITTER_COM_PORT TEXT("COM9")
+#define TRANSMITTER_COM_PORT TEXT("COM3")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
 
-RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
-                                          {
+RobotLinkReal::RobotLinkReal() : _receiver(
+                                     200, [this](char &c)
+                                     {
     DWORD dwBytesRead = 0;
     DWORD dwErrors = 0;
     COMSTAT comStat;
@@ -82,6 +84,7 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
         // attempt to reinitialize com port
         _InitComPort();
         std::cerr << "Error clearing COM port" << std::endl;
+
         return false;
     }
 
@@ -92,7 +95,7 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
     }
 
     // check if there is data to read
-    if(!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
+    if (!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
     {
         std::cerr << "Error reading from COM port" << std::endl;
     }
@@ -100,6 +103,23 @@ RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
 {
     _InitComPort();
     _sendingClock.markStart();
+
+    _receiverThread = std::thread([this]()
+                                  {
+        while (true)
+        {
+            // read until next packet
+            _receiver.update();
+            RobotMessage msg = _receiver.getLatestData();
+            if (msg.type != RobotMessageType::INVALID)
+            {
+                _lastMessageMutex.lock();
+                std::cout << "Received message of type " << (int)msg.type << std::endl;
+                _lastMessage = msg;
+                _lastMessageMutex.unlock();
+            }
+        }
+    });
 }
 
 void RobotLinkReal::_InitComPort()
@@ -272,26 +292,22 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
 {
-    if (_comPort == INVALID_HANDLE_VALUE)
-    {
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
+    // if (_comPort == INVALID_HANDLE_VALUE)
+    // {
+    //     SAFE_DRAW
+    //     cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+    //     END_SAFE_DRAW
 
-        // attempt to reopen
-        _InitComPort();
-        return RobotMessage{RobotMessageType::INVALID};
-    }
+    //     // attempt to reopen
+    //     _InitComPort();
+    //     return RobotMessage{RobotMessageType::INVALID};
+    // }
 
-    _receiver.update();
-    RobotMessage retrievedStruct = _receiver.getLatestData();
+    // _receiver.update();
 
-    // if latest data is valid
-    if (!_receiver.isLatestDataValid())
-    {
-        // force invalid since it's not a new message
-        return RobotMessage{RobotMessageType::INVALID};
-    }
+    _lastMessageMutex.lock();
+    RobotMessage retrievedStruct = _lastMessage;
+    _lastMessageMutex.unlock();
 
     return retrievedStruct;
 }

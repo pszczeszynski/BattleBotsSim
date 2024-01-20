@@ -268,8 +268,13 @@ void loop()
     // Compute response message
     RobotMessage message = Update();
 
+    Serial.println("sending message");
     // send the message
     SendOutput result = radio->Send(message);
+    if (result != SEND_SUCCESS)
+    {
+        Serial.println("failed to send");
+    }
 
 #ifdef LOG_DATA
     if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");

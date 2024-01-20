@@ -1,7 +1,7 @@
 #pragma once
 #include <RF24.h>
 
-
+#define VERBOSE_RADIO
 /**
  * Radio.h
  * 

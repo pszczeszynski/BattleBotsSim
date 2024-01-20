@@ -65,11 +65,11 @@ private:
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
 #else
-    CameraReceiver overheadCamL_real;
+    // CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
 #endif
 
-    Vision vision;
+    // Vision vision;
 
     SelfRighter _selfRighter;
 

@@ -41,6 +41,12 @@ private:
             {
             }
 
+            bool readStatus = readChar(c);
+            if (!readStatus)
+            {
+                return;
+            }
+
             switch (currentState)
             {
                 case State::Idle:
