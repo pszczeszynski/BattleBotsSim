@@ -28,13 +28,13 @@ int main()
     return 0;
 }
 
-RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0))//,
+RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                    //  overheadCamL_real{1},
-                                    //  vision{overheadCamL_real}
+                                     overheadCamL_real{0},
+                                     vision{overheadCamL_real}
 #endif
 {
 }

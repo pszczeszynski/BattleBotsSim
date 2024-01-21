@@ -123,15 +123,24 @@ public:
 
     /**
      * Copies the elements in the deque to the destination array
+     * 
+     * @param dest Destination array
+     * @param start Index of the first element to copy
+     * @param num_bytes Number of bytes to copy
+     * @return the number of elements copied (or -1 if the number of elements to copy exceeds the size of the deque)
     */
-    void copy_to(T *dest, int start, int num_bytes) const
+    int copy_to(T *dest, int start, int num_bytes) const
     {
         // Calculating number of elements to copy based on bytes
         int num_elements = num_bytes / sizeof(T);
         // Check if the number of elements to copy exceeds the size of the deque
         if (num_elements > size || start + num_elements > size)
         {
-            std::cerr << "Not enough elements in the deque to copy." << std::endl;
+            std::cerr << "ERROR copy_to: Not enough elements in the deque to copy." << std::endl;
+            std::cerr << "  Number of elements to copy: " << num_elements << std::endl;
+            std::cerr << "  Deque size: " << size << std::endl;
+            // return failure
+            return -1;
         }
 
         // Calculate real start index in the array
@@ -151,6 +160,9 @@ public:
             std::memcpy(dest, arr + real_start, num_bytes_until_end);
             std::memcpy(dest + (num_bytes_until_end / sizeof(T)), arr, num_bytes_at_start);
         }
+
+        // return the number of elements copied
+        return num_elements;
     }
 
     T &operator[](int index)

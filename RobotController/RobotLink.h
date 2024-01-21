@@ -74,4 +74,5 @@ private:
     std::thread _receiverThread;
     RobotMessage _lastMessage;
     std::mutex _lastMessageMutex;
+    std::mutex _comPortMutex;
 };

@@ -208,7 +208,7 @@ void DriveWithLatestMessage()
         DriveCommand command = radio->Receive();
 
         // print every 100 messages
-        if (numMessagesReceived % 100 == 0)
+        if (numMessagesReceived % 1 == 0)
         {
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);

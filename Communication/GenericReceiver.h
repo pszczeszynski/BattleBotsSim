@@ -28,6 +28,17 @@ public:
 private:
     std::function<bool(char&)> readChar;
 
+    void _handleCompleteMessage()
+    {
+        processMessage();
+        currentState = State::Idle; // Reset state
+    }
+
+    void _handleError()
+    {
+        serialBuffer.clear();
+        currentState = State::Idle; // Reset state
+    }
 
     void readUntilNextPacket()
     {
@@ -39,12 +50,7 @@ private:
             // keep calling read char until we get a character
             while (!readChar(c))
             {
-            }
-
-            bool readStatus = readChar(c);
-            if (!readStatus)
-            {
-                return;
+                
             }
 
             switch (currentState)
@@ -53,7 +59,7 @@ private:
                     if (c == MESSAGE_START_CHAR)
                     {
                         currentState = State::Receiving;
-                        serialBuffer.clear(); // Clear buffer to start fresh
+                        serialBuffer.clear(); // Clear buffer to start fresh, fall through to Receiving
                     }
                     else
                     {
@@ -66,31 +72,21 @@ private:
                     {
                         if (serialBuffer.Size() == sizeof(T) + 2) // Including start and end char
                         {
-                            currentState = State::MessageComplete;
+                            _handleCompleteMessage();
                         }
                         else
                         {
-                            currentState = State::Error; // Message size mismatch
+                            // std::cout << "hit end char but shouldn't have. size of serial buffer: " << serialBuffer.Size() << std::endl;
+                            // _handleError();
                         }
                     }
                     else if (serialBuffer.Size() > sizeof(T) + 2)
                     {
-                        currentState = State::Error; // Buffer overflow
-                    }
-                    else
-                    {
-                        break; // Normal case, continue receiving
+                        // std::cout << "didn't find end char. size of serial buffer: " << serialBuffer.Size() << std::endl;
+                        _handleError();
                     }
 
-                case State::MessageComplete:
-                    processMessage();
-                    currentState = State::Idle; // Reset state
-                    break;
-
-                case State::Error:
-                    serialBuffer.clear();
-                    currentState = State::Idle; // Reset state after error
-                    break;
+                    break; // Normal case, continue receiving
             }
         }
     }
@@ -98,9 +94,15 @@ private:
     void processMessage()
     {
         // Assuming message format: [START_CHAR][DATA][END_CHAR]
-        serialBuffer.pop_front(1); // Remove start char
+        serialBuffer.pop_front(); // Remove start char
         serialBuffer.pop_back(); // Remove end char
-        serialBuffer.copy_to((char *)&latestData, 0, sizeof(T));
+        int copy_result = serialBuffer.copy_to((char *)&latestData, 0, sizeof(T));
+
+        if (copy_result != sizeof(T))
+        {
+            return;
+        }
+
         latestDataValid = true;
         serialBuffer.clear(); // Clear buffer after processing message
     }
@@ -118,7 +120,7 @@ public:
         return latestDataValid;
     }
 
-    void update()
+    void waitUntilData()
     {
         readUntilNextPacket();
     }
