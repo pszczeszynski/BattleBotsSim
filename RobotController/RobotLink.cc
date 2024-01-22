@@ -30,6 +30,7 @@ RobotMessage IRobotLink::Receive()
     {
         // invalid message type from _ReceiveImpl
         std::cerr << "ERROR: invalid message type" << std::endl;
+        ret = RobotMessage{RobotMessageType::INVALID};
         return ret;
     }
 
@@ -65,41 +66,73 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
     return _messageHistory;
 }
 
-#define TRANSMITTER_COM_PORT TEXT("COM9")
+#define TRANSMITTER_COM_PORT TEXT("COM5")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
 
-RobotLinkReal::RobotLinkReal() : _receiver(200, [this](char &c)
-                                          {
+RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
+                                     200, [this](char &c)
+                                     {
     DWORD dwBytesRead = 0;
     DWORD dwErrors = 0;
     COMSTAT comStat;
+
+    _comPortMutex.lock();
 
     // Get and clear current errors on the com port.
     if (!ClearCommError(_comPort, &dwErrors, &comStat))
     {
         // attempt to reinitialize com port
         _InitComPort();
+        _comPortMutex.unlock();
+
         std::cerr << "Error clearing COM port" << std::endl;
+
         return false;
     }
 
     // If there is nothing to read, return false early.
     if (comStat.cbInQue == 0)
     {
+        _comPortMutex.unlock();
+        // sleep for 1 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        
         return false;
     }
 
     // check if there is data to read
-    if(!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
+    if (!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
     {
         std::cerr << "Error reading from COM port" << std::endl;
     }
+
+    _comPortMutex.unlock();
+
     return dwBytesRead > 0; })
 {
+    _comPortMutex.lock();
     _InitComPort();
+    _comPortMutex.unlock();
     _sendingClock.markStart();
+
+    _receiverThread = std::thread([this]()
+                                  {
+        while (true)
+        {
+            // read until next packet
+            _receiver.waitUntilData();
+            RobotMessage msg = _receiver.getLatestData();
+            if (msg.type != RobotMessageType::INVALID)
+            {
+                _lastMessageMutex.lock();
+                std::cout << "Received message of type " << (int)msg.type << std::endl;
+                _lastMessage = msg;
+                _lastMessageMutex.unlock();
+            }
+        }
+    });
 }
 
 void RobotLinkReal::_InitComPort()
@@ -149,11 +182,10 @@ void RobotLinkReal::_InitComPort()
     timeouts.WriteTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
 
-
-    if (!SetupComm(_comPort, sizeof(RobotMessage) * 3, sizeof(RobotMessage) * 3)) { // Smaller buffer sizes
+    // Smaller buffer sizes
+    if (!SetupComm(_comPort, sizeof(RobotMessage) * 3, sizeof(RobotMessage) * 3)) {
         std::cerr << "Error setting COM buffer sizes" << std::endl;
     }
-
 
     if (!SetCommTimeouts(_comPort, &timeouts))
     {
@@ -198,11 +230,13 @@ void RobotLinkReal::Drive(DriveCommand &command)
         return;
     }
 
+    _comPortMutex.lock();
     // if com port is invalid, attempt to reopen
     if (_comPort == INVALID_HANDLE_VALUE)
     {
         // attempt to reopen
         _InitComPort();
+        _comPortMutex.unlock();
         return;
     }
 
@@ -233,6 +267,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
     {
         // attempt to reopen
         _InitComPort();
+        _comPortMutex.unlock();
         return;
     }
 
@@ -264,34 +299,19 @@ void RobotLinkReal::Drive(DriveCommand &command)
         cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
         END_SAFE_DRAW
         _InitComPort();
-        return;
     }
+
+    _comPortMutex.unlock();
+
 }
 
 #define RECEIVE_TIMEOUT_MS 100
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
 {
-    if (_comPort == INVALID_HANDLE_VALUE)
-    {
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
-
-        // attempt to reopen
-        _InitComPort();
-        return RobotMessage{RobotMessageType::INVALID};
-    }
-
-    _receiver.update();
-    RobotMessage retrievedStruct = _receiver.getLatestData();
-
-    // if latest data is valid
-    if (!_receiver.isLatestDataValid())
-    {
-        // force invalid since it's not a new message
-        return RobotMessage{RobotMessageType::INVALID};
-    }
+    _lastMessageMutex.lock();
+    RobotMessage retrievedStruct = _lastMessage;
+    _lastMessageMutex.unlock();
 
     return retrievedStruct;
 }

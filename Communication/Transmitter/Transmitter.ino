@@ -29,7 +29,7 @@ void setup()
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
 
-    Serial.begin(115200);
+    Serial.begin(460800);
     Serial.clear();
     
     Serial.println("Initializing radio...");
@@ -60,7 +60,7 @@ void loop()
 {
     static unsigned long lastReceiveTime = 0;
 
-    serialReceiver.update();
+    serialReceiver.waitUntilData();
 
     // if there are commands
     if (serialReceiver.isLatestDataValid())

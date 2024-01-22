@@ -62,7 +62,7 @@ int main()
     // Continually read from the simulated serial port until the queue is empty
     while (!serialQueue.empty())
     {
-        receiver.update();
+        receiver.waitUntilData();
 
         if (receiver.isLatestDataValid())
         {

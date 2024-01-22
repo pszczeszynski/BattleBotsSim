@@ -9,6 +9,8 @@
 #include <functional>
 #include "Clock.h"
 #include <deque>
+#include <thread>
+#include <mutex>
 
 // interface
 class IRobotLink
@@ -69,4 +71,8 @@ private:
     DCB _dcbSerialParams;
     Clock _sendingClock;
     GenericReceiver<RobotMessage> _receiver;
+    std::thread _receiverThread;
+    RobotMessage _lastMessage;
+    std::mutex _lastMessageMutex;
+    std::mutex _comPortMutex;
 };

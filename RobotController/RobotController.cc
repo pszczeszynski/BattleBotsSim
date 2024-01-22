@@ -33,7 +33,7 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{1},
+                                     overheadCamL_real{0},
                                      vision{overheadCamL_real}
 #endif
 {
@@ -134,7 +134,7 @@ void RobotController::Run()
         }
 
         // get the latest classification (very fast)
-        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
+        VisionClassification classification;// = vision.ConsumeLatestClassification(drawingImage);
 
         // in simulation, add a 5 millisecond wait and continue if we don't get a new image
 // #ifdef SIMULATION
