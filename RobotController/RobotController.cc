@@ -134,7 +134,7 @@ void RobotController::Run()
         }
 
         // get the latest classification (very fast)
-        VisionClassification classification;// = vision.ConsumeLatestClassification(drawingImage);
+        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
         // in simulation, add a 5 millisecond wait and continue if we don't get a new image
 // #ifdef SIMULATION

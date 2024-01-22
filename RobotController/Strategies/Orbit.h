@@ -2,6 +2,7 @@
 #include "Strategy.h"
 #include "../Input/Gamepad.h"
 #include <opencv2/opencv.hpp>
+#include "../Extrapolator.h"
 
 class Orbit : public Strategy
 {
@@ -19,4 +20,6 @@ private:
                                              double orbitRadius,
                                              cv::Point2f currentTargetPoint,
                                              bool circleDirection);
+
+    RobotSimState _ExtrapolateOurPos(double seconds_position, double seconds_angle);
 };

@@ -9,6 +9,27 @@ Orbit::Orbit()
 {
 }
 
+RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_angle)
+{
+    #define NUM_PREDICTION_ITERS 1
+
+    // simulates the movement of the robot
+    RobotSimulator robotSimulator;
+
+    RobotSimState currentState;
+    currentState.position = RobotOdometry::Robot().GetPosition();
+    currentState.angle = RobotOdometry::Robot().GetAngle();
+    currentState.velocity = RobotOdometry::Robot().GetVelocity();
+    double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
+    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * seconds_angle / seconds_position;
+
+    // predict where the robot will be in a couple milliseconds
+    RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
+
+    return exState;
+}
+
+
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
@@ -116,7 +137,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 #endif
 
     bool allowReverse = false;
-    RobotSimState exState;
+    RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
 
     // choose the direction to drive in
     RobotMovement::DriveDirection direction;
@@ -131,7 +152,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 
     DriveCommand response = DriveToPosition(exState, targetPoint, direction);
 
-
     // if on inside of circle and pointed outwards
     if (distToCenter < orbitRadius && abs(angle_wrap(angleToOpponent + M_PI - ourAngle)) < 45 * TO_RAD)
     {
@@ -139,11 +159,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
         response.movement = 1.0;
         response.turn *= 0.5;
     }
-
-    // drawAndDisplayValue(drawingImage, cv::norm(RobotOdometry::Robot().GetVelocity()), 50, cv::Scalar(0, 255, 0));
-
-    // // draw the result response.movement
-    // drawAndDisplayValue(drawingImage, response.movement, WIDTH / 2, cv::Scalar(255, 0, 0));
 
     return response;
 }

@@ -2,6 +2,7 @@
 #include "../Clock.h"
 #include "../RobotOdometry.h"
 #include "../RobotConfig.h"
+#include "../RobotController.h"
 
 /**
  * Drive the robot to a specified position
@@ -35,6 +36,8 @@ DriveCommand RobotMovement::DriveToPosition(RobotSimState exState,
     if (direction == DriveDirection::Auto)
     {
         curr_direction = abs(deltaAngleRad1_noex) < abs(deltaAngleRad2_noex);
+        // put text on drawing image of curr_direction
+        cv::putText(RobotController::GetInstance().GetDrawingImage(), curr_direction ? "1" : "2", cv::Point(100, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
     }
 
     double deltaAngleRad = curr_direction ? deltaAngleRad1 : deltaAngleRad2;
@@ -47,7 +50,7 @@ DriveCommand RobotMovement::DriveToPosition(RobotSimState exState,
 
     double scaleDownMovement = SCALE_DOWN_MOVEMENT_PERCENT / 100.0;
     // Slow down when far away from the target angle
-    double drive_scale = std::max(0.0, 1.0 - abs(response.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * scaleDownMovement) * 1.0;
+    double drive_scale = max(0.0, 1.0 - abs(response.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * scaleDownMovement) * 1.0;
 
     response.movement = curr_direction ? drive_scale : -drive_scale;
     response.turn *= -1;
