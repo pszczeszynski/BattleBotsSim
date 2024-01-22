@@ -39,8 +39,8 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     ImGui::SliderInt("Turn Thresh 1 Deg", &TURN_THRESH_1_DEG, 0, 360);
     ImGui::SliderInt("Turn Thresh 2 Deg", &TURN_THRESH_2_DEG, 0, 360);
-    ImGui::SliderInt("Max Turn Power (%)", &MIN_TURN_POWER_PERCENT, 0, 100);
-    ImGui::SliderInt("Min Turn Power (%)", &MAX_TURN_POWER_PERCENT, 0, 100);
+    ImGui::SliderInt("Min Turn Power (%)", &MIN_TURN_POWER_PERCENT, 0, 100);
+    ImGui::SliderInt("Max Turn Power (%)", &MAX_TURN_POWER_PERCENT, 0, 100);
     ImGui::SliderInt("Scale Down Movement (%)", &SCALE_DOWN_MOVEMENT_PERCENT, 0, 100);
     ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Master Move Scale (%)", &MASTER_MOVE_SCALE_PERCENT, 0, 100);

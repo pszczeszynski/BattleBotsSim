@@ -196,7 +196,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &12792710
 Transform:
   m_ObjectHideFlags: 0
@@ -7796,7 +7796,7 @@ PrefabInstance:
     - target: {fileID: 747842985271085878, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: downForce
-      value: 0
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 877715672128950764, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -8657,7 +8657,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5442
+  m_Name: pb_Mesh-5450
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -13273,7 +13273,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5386
+  m_Name: pb_Mesh-5394
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
