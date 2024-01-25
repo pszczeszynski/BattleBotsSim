@@ -10,39 +10,65 @@
 #include "Globals.h"
 #include "RobotConfig.h"
 #include "UIWidgets/RobotControllerGUI.h"
+#include <winuser.h>
 
+// opencv function to updat escreen without the windows waitKey delay
+bool DoEvents()
+{
+    MSG msg;
+    BOOL result;
+
+    while (::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+    {
+        result = ::GetMessage(&msg, NULL, 0, 0);
+        if (result == 0) // WM_QUIT
+        {
+            ::PostQuitMessage((int) msg.wParam);
+            return false;
+        }
+        else if (result == -1)
+            return true;    //error occured
+        else
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+        }
+    }
+
+    return true;
+}
 
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam),
       _lastDrawingImage(cv::Mat::zeros(WIDTH, HEIGHT, CV_8UC3))
 {
-    // create the processing thread in a loop
-    processingThread = std::thread([&]()
-                                   {
-        // holds the data of the current frame
-        cv::Mat currFrame;
-        while (true)
-        {
-            // get the current frame from the camera
-            bool hadFrame = overheadCam.GetFrame(currFrame);
+    // // create the processing thread in a loop
+    // processingThread = std::thread([&]()
+    //                                {
+    //     // holds the data of the current frame
+    //     cv::Mat currFrame;
+    //     while (true)
+    //     {
+    //         // get the current frame from the camera
+    //         bool hadFrame = overheadCam.GetFrame(currFrame);
 
-            // if we didn't get a frame, return no classification
-            if (!hadFrame)
-            {
-                // sleep for 1ms
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue; // try to get a frame again
-            }
+    //         // if we didn't get a frame, return no classification
+    //         if (!hadFrame)
+    //         {
+    //             // sleep for 1ms
+    //             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    //             continue; // try to get a frame again
+    //         }
 
-            // run the pipeline
-            VisionClassification classification = RunPipeline(currFrame);
+    //         // run the pipeline
+    //         VisionClassification classification = RunPipeline(currFrame);
 
-            // save the classification
-            _classificationMutex.lock();
-            _classification = classification;
-            currFrame.copyTo(_lastDrawingImage);
-            _classificationMutex.unlock();
-        } });
+    //         // save the classification
+    //         _classificationMutex.lock();
+    //         _classification = classification;
+    //         currFrame.copyTo(_lastDrawingImage);
+    //         _classificationMutex.unlock();
+    //     } });
 }
 
 /**

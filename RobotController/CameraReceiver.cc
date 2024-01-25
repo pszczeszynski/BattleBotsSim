@@ -72,6 +72,13 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 #ifdef SIMULATION
             // sleep for 15 ms
             Sleep(15);
+
+#else 
+
+#ifdef _DEBUG
+           std::this_thread::sleep_for(std::chrono::milliseconds(30));
+#endif
+
 #endif
             
         } });
@@ -183,18 +190,10 @@ bool CameraReceiver::_InitializeCamera()
     // Disable any automatic settings for more predictable performance
     _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0); // 0.25 usually means "manual mode" in OpenCV
     _cap->set(cv::CAP_PROP_AUTO_WB, 1.0);
-
 #else
-
     // init video reader
-    _cap = new cv::VideoCapture("Recordings/Video1.avi");
+    _cap = new cv::VideoCapture("C:/Gregory/BattleBots/Videos/terriblecut.mp4");
     _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
-    // // skip first 1 minutes
-    // for (int i = 0; i < 30 * 60; i++)
-    // {
-    //     cv::Mat frame;
-    //     _cap->read(frame);
-    // }
 
 #endif
 
@@ -334,8 +333,8 @@ static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 
 void CameraReceiverSim::_CaptureFrame()
 {
-    // don't receive at more than 60 fps
-    if (_prevFrameTimer.getElapsedTime() < 0.015)
+    // don't receive at more than 200 fps
+    if (_prevFrameTimer.getElapsedTime() < 1.0/200.0)
     {
         return;
     }
