@@ -60,11 +60,12 @@ void loop()
 {
     static unsigned long lastReceiveTime = 0;
 
-    serialReceiver.waitUntilData();
+    serialReceiver.readUntilEnd();
 
     // if there are commands
     if (serialReceiver.isLatestDataValid())
     {
+        Serial.println("sending");
         // get the latest data from the serial receiver
         DriveCommand command = serialReceiver.getLatestData();
         // send over radio to receiver

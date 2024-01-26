@@ -23,7 +23,7 @@ RobotMessage IRobotLink::Receive()
     }
     else if (ret.type == RobotMessageType::INVALID)
     {
-        // _ReceiveImpl returned invalid message type
+        // do nothing
         return ret;
     }
     else
@@ -66,7 +66,7 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
     return _messageHistory;
 }
 
-#define TRANSMITTER_COM_PORT TEXT("COM5")
+#define TRANSMITTER_COM_PORT TEXT("COM3")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -127,8 +127,9 @@ RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
             if (msg.type != RobotMessageType::INVALID)
             {
                 _lastMessageMutex.lock();
-                std::cout << "Received message of type " << (int)msg.type << std::endl;
+                // std::cout << "Received message of type " << (int)msg.type << std::endl;
                 _lastMessage = msg;
+                _newestMessageID++;
                 _lastMessageMutex.unlock();
             }
         }
@@ -215,7 +216,6 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
 
 void RobotLinkReal::Drive(DriveCommand &command)
 {
-    // std::cout << "command.movement: " << command.movement << std::endl;
     command.movement *= -1.0;
     command.turn *= -1.0;
     // command.turn *= -1;
@@ -309,9 +309,22 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
 {
+    bool isNew = false;
     _lastMessageMutex.lock();
     RobotMessage retrievedStruct = _lastMessage;
+
+    if (_lastConsumedMessageID != _newestMessageID)
+    {
+        isNew = true;
+    }
+    _lastConsumedMessageID = _newestMessageID;
+
     _lastMessageMutex.unlock();
+
+    if (!isNew)
+    {
+        return RobotMessage{RobotMessageType::INVALID};
+    }
 
     return retrievedStruct;
 }

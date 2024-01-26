@@ -73,6 +73,8 @@ private:
     GenericReceiver<RobotMessage> _receiver;
     std::thread _receiverThread;
     RobotMessage _lastMessage;
+    unsigned long _newestMessageID;
+    unsigned long _lastConsumedMessageID;
     std::mutex _lastMessageMutex;
     std::mutex _comPortMutex;
 };

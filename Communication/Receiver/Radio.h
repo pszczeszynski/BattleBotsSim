@@ -28,7 +28,7 @@ public:
     bool Available();
 
 private:
-    RF24 radio{14, 10};
+    RF24 radio{7, 9};
 };
 
 template <typename SendType, typename ReceiveType>
@@ -40,15 +40,16 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
-    Serial.println("Initializing radio");
+    Serial.println("radio ctor2");
     const byte address[6] = "00001";
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_MAX);
+    radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
+    Serial.println("finished radio ctor");
 }
 
 unsigned long lastTimeReceivedMessage = 0;

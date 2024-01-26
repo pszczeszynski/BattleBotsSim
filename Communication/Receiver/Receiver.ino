@@ -40,7 +40,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
 
     Serial.println("Initializing IMU...");
-    imu = new IMU();
+    // imu = new IMU();
     Serial.println("Failed because Matthew made an oopsie!");
 
     Serial.println("Initializing Canbus motors...");
@@ -56,7 +56,7 @@ void setup()
     Serial.println("Success!");
 
     Serial.println("Initializing SD card...");
-    logger = new Logger(const_cast<char *>("dataLog.txt"));
+    // logger = new Logger(const_cast<char *>("dataLog.txt"));
     Serial.println("Success!");
 
     vesc->Drive(0, 0);
@@ -110,7 +110,7 @@ RobotMessage Update()
     RobotMessage ret{RobotMessageType::INVALID};
 
     // call update for imu
-    imu->Update();
+    // imu->Update();
 
     // increase update count and wrap around
     updateCount ++;
@@ -130,16 +130,16 @@ RobotMessage Update()
     {
         ret.type = IMU_DATA;
 
-        // get accelerometer data and set accel
-        Point accel = imu->getAccel();
-        ret.imuData.accelX = accel.x;
-        ret.imuData.accelY = accel.y;
+        // // get accelerometer data and set accel
+        // Point accel = imu->getAccel();
+        // ret.imuData.accelX = accel.x;
+        // ret.imuData.accelY = accel.y;
 
-        // get gyro data and set gyro
-        ret.imuData.rotation = imu->getRotation();
+        // // get gyro data and set gyro
+        // ret.imuData.rotation = imu->getRotation();
 
-        // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+        // // calculate rotation velocity
+        // ret.imuData.rotationVelocity = imu->getRotationVelocity();
     }
 
 #ifdef LOG_DATA
@@ -183,12 +183,13 @@ void WaitForRadioData()
                 // radio->InitRadio();
             }
 
+            Serial.println("radio timeout");
             // break because we must move on
             break;
         }
 
-        // call update for imu
-        imu->Update();
+        // // call update for imu
+        // imu->Update();
     }
 }
 
@@ -202,14 +203,21 @@ void DriveWithLatestMessage()
 {
     static long lastPrintTime = 0;
     static int numMessagesReceived = 0;
+    Serial.print("is radio available? ");
+    Serial.println((int) radio->Available());
     if (radio->Available())
     {
         // receive latest drive command
         DriveCommand command = radio->Receive();
 
         // print every 100 messages
-        if (numMessagesReceived % 100 == 0)
+        if (numMessagesReceived % 1 == 0)
         {
+            for (int i = 0; i < sizeof(DriveCommand); i ++)
+            {
+                Serial.print(((char*) &command)[i]);
+            }
+            Serial.println("");
             Serial.print("Received drive command movement: ");
             Serial.println(command.movement);
 
@@ -270,13 +278,14 @@ void loop()
 
     // send the message
     SendOutput result = radio->Send(message);
+    Serial.println("sent message");
     if (result != SEND_SUCCESS)
     {
         Serial.println("failed to send");
     }
 
-#ifdef LOG_DATA
-    if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
-    else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
-#endif
+// #ifdef LOG_DATA
+//     if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
+//     else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
+// #endif
 }
