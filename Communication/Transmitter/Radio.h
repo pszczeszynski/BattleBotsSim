@@ -1,7 +1,7 @@
 #pragma once
 #include <RF24.h>
 
-
+#define VERBOSE_RADIO
 /**
  * Radio.h
  * 
@@ -28,7 +28,7 @@ public:
     bool Available();
 
 private:
-    RF24 radio{14, 10};
+    RF24 radio{14, 10}; // CE, CSN
 };
 
 template <typename SendType, typename ReceiveType>

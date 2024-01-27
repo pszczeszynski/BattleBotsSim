@@ -14,7 +14,6 @@
 #include "Radio.h"
 #include <RF24.h>
 #include <cstring> // for std::memcpy
-#include <EEPROM.h>
 
 #define LED_PORT 16
 Radio<DriveCommand, RobotMessage>* radio;
@@ -37,6 +36,7 @@ void setup()
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
+
 }
 
 GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
@@ -55,56 +55,69 @@ GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
 //===============================================================================
 //  Main
 //===============================================================================
+long int total_packets = 0;
 #define NO_MESSAGE_REINIT_TIME 70
 void loop()
 {
     static unsigned long lastReceiveTime = 0;
 
+    // read all existing data from serial
     serialReceiver.readUntilEnd();
 
     // if there are commands
     if (serialReceiver.isLatestDataValid())
     {
-        Serial.println("sending");
+
+        // Serial.println("sending");
         // get the latest data from the serial receiver
         DriveCommand command = serialReceiver.getLatestData();
         // send over radio to receiver
         radio->Send(command);
     }
 
-    bool available = radio->Available();
     // while there is data available to read
-    while (available)
+    while (radio->Available())
     {
         // read data from rc
         RobotMessage message = radio->Receive();
         if (message.type != RobotMessageType::INVALID)
         {
-            // turn on arduino led
-            digitalWrite(LED_PORT, HIGH);
 
             lastReceiveTime = millis();
 
+            total_packets ++;
+
             // print data to serial for driver station
-            Serial.print(MESSAGE_START_CHAR);
+            Serial.print("<<<");
             Serial.write((char*) &message, sizeof(message));
-            Serial.print(MESSAGE_END_CHAR);
+            Serial.print(">>>");
+
+            // flush
+            Serial.flush();
         }
-
-        // check available again
-        available = radio->Available();
     }
 
-    // if we had no data, set the led off
-    if (!available)
+    static unsigned long lastPrintTime = 0;
+
+    if (millis() - lastPrintTime > 1000)
     {
-        digitalWrite(LED_PORT, LOW);
+        // print packets / sec
+        // Serial.print("Packets / sec: ");
+        // Serial.println(total_packets * 1000.0 / (millis() - lastPrintTime));
+        total_packets = 0;
+        lastPrintTime = millis();
     }
 
-    if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
-    {
-        // Serial.println("ERROR: no messages -> re-init");
-        radio->InitRadio();
-        lastReceiveTime = millis();
-    }
+    // // if we had no data, set the led off
+    // if (!available)
+    // {
+    //     digitalWrite(LED_PORT, LOW);
+    // }
+
+    // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
+    // {
+    //     // Serial.println("ERROR: no messages -> re-init");
+    //     radio->InitRadio();
+    //     lastReceiveTime = millis();
+    // }
 }

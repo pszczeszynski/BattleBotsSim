@@ -16,6 +16,17 @@
 
 #define SERIAL_BAUD 9600
 
+// time to wait for received packets. If too short, likely to miss packets from driver station
+#define RECEIVE_TIMEOUT_MS 5
+
+// time to wait before stopping the robot if no packets are received
+#define STOP_ROBOT_TIMEOUT_MS 250
+
+// time in between printing drive commands for debugging
+#define PRINT_DRIVE_COMMAND_MS 500
+
+// #define USE_IMU
+
 IMU* imu;
 
 #define LEFT_MOTOR_CAN_ID 3
@@ -31,17 +42,18 @@ Motor* selfRightMotor;
 Radio<RobotMessage, DriveCommand>* radio;
 Logger* logger;
 
-//===============================================================================
-//  Initialization
-//===============================================================================
 void setup()
 {
     // Start serial port to display messages on Serial Monitor Window
     Serial.begin(SERIAL_BAUD);
 
+#ifdef USE_IMU
     Serial.println("Initializing IMU...");
-    // imu = new IMU();
-    Serial.println("Failed because Matthew made an oopsie!");
+    imu = new IMU();
+    Serial.println("Success!");
+#else
+    Serial.println("Not using IMU");
+#endif
 
     Serial.println("Initializing Canbus motors...");
     vesc = new VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
@@ -55,9 +67,13 @@ void setup()
     radio = new Radio<RobotMessage, DriveCommand>();
     Serial.println("Success!");
 
+#ifdef LOG_DATA
     Serial.println("Initializing SD card...");
-    // logger = new Logger(const_cast<char *>("dataLog.txt"));
+    logger = new Logger(const_cast<char *>("dataLog.txt"));
     Serial.println("Success!");
+#else
+    Serial.println("Not logging data");
+#endif
 
     vesc->Drive(0, 0);
     vesc->DriveWeapons(0, 0);
@@ -109,8 +125,10 @@ RobotMessage Update()
     static int updateCount = 0;
     RobotMessage ret{RobotMessageType::INVALID};
 
+#ifdef USE_IMU
     // call update for imu
-    // imu->Update();
+    imu->Update();
+#endif
 
     // increase update count and wrap around
     updateCount ++;
@@ -130,16 +148,24 @@ RobotMessage Update()
     {
         ret.type = IMU_DATA;
 
-        // // get accelerometer data and set accel
-        // Point accel = imu->getAccel();
-        // ret.imuData.accelX = accel.x;
-        // ret.imuData.accelY = accel.y;
+#ifdef USE_IMU
+        // get accelerometer data and set accel
+        Point accel = imu->getAccel();
+        ret.imuData.accelX = accel.x;
+        ret.imuData.accelY = accel.y;
 
-        // // get gyro data and set gyro
-        // ret.imuData.rotation = imu->getRotation();
+        // get gyro data and set gyro
+        ret.imuData.rotation = imu->getRotation();
 
-        // // calculate rotation velocity
-        // ret.imuData.rotationVelocity = imu->getRotationVelocity();
+        // calculate rotation velocity
+        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+#else
+        ret.imuData.accelX = 0;
+        ret.imuData.accelY = 0;
+        ret.imuData.rotation = 0;
+        ret.imuData.rotationVelocity = 0;
+#endif
+
     }
 
 #ifdef LOG_DATA
@@ -151,9 +177,8 @@ RobotMessage Update()
 
 /**
  * Waits for a radio packet to be available
- * Times out after 1 ms
+ * Times out after 4 ms
  */
-#define RECEIVE_TIMEOUT_MS 1
 void WaitForRadioData()
 {
     static int TIMEOUT_COUNT = 0;
@@ -165,31 +190,14 @@ void WaitForRadioData()
         // if too much time has passed
         if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS)
         {
-            // // print error message
-            // Serial.println("ERROR: receive timeout");
-
-            // increment counter
-            TIMEOUT_COUNT++;
-
-            if (TIMEOUT_COUNT % 10 == 0)
-            {
-                // reset counter
-                TIMEOUT_COUNT = 0;
-
-                // attempt to reinitialize the radio
-#ifdef LOG_DATA
-                logger->logMessage("Re-initializing Radio");
-#endif
-                // radio->InitRadio();
-            }
-
-            Serial.println("radio timeout");
             // break because we must move on
             break;
         }
 
-        // // call update for imu
-        // imu->Update();
+#ifdef USE_IMU
+        // call update for imu while waiting
+        imu->Update();
+#endif
     }
 }
 
@@ -198,32 +206,42 @@ void WaitForRadioData()
  * There is a watchdog timer that auto stops after 250 ms
  */
 unsigned long lastReceiveTime = 0;
-#define STOP_ROBOT_TIMEOUT_MS 250
 void DriveWithLatestMessage()
 {
     static long lastPrintTime = 0;
     static int numMessagesReceived = 0;
-    Serial.print("is radio available? ");
-    Serial.println((int) radio->Available());
+    static int messagesSinceLastPrint = 0;
+
+
+    // if there is a message available
     if (radio->Available())
     {
         // receive latest drive command
         DriveCommand command = radio->Receive();
 
-        // print every 100 messages
-        if (numMessagesReceived % 1 == 0)
+        messagesSinceLastPrint++;
+        // print every half second
+        if (millis() - lastPrintTime > PRINT_DRIVE_COMMAND_MS)
         {
-            for (int i = 0; i < sizeof(DriveCommand); i ++)
-            {
-                Serial.print(((char*) &command)[i]);
-            }
-            Serial.println("");
-            Serial.print("Received drive command movement: ");
+            Serial.println("Received drive command");
+            // print out all fields
+            Serial.print("Movement: ");
             Serial.println(command.movement);
+            Serial.print("Turn: ");
+            Serial.println(command.turn);
+            Serial.print("Front Weapon Power: ");
+            Serial.println(command.frontWeaponPower);
+            Serial.print("Back Weapon Power: ");
+            Serial.println(command.backWeaponPower);
+            Serial.print("Self Righter Power: ");
+            Serial.println(command.selfRighterPower);
+            Serial.print("Valid: ");
+            Serial.println(command.valid);
 
             Serial.print("Packets per second: ");
-            Serial.println(1000.0 / (millis() - lastPrintTime));
+            Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
             lastPrintTime = millis();
+            messagesSinceLastPrint = 0;
         }
         // increment message count
         numMessagesReceived++;
@@ -260,15 +278,11 @@ void DriveWithLatestMessage()
     }
 }
 
-
-
-//===============================================================================
-//  Main
-//===============================================================================
 void loop()
 {
     // wait for a message to be available
     WaitForRadioData();
+    // delay(3);
 
     // drive with the latest message if there is one
     DriveWithLatestMessage();
@@ -278,14 +292,14 @@ void loop()
 
     // send the message
     SendOutput result = radio->Send(message);
-    Serial.println("sent message");
+
     if (result != SEND_SUCCESS)
     {
-        Serial.println("failed to send");
+        Serial.println("Failed to send radio message. Result: " + (String) result);
+#ifdef LOG_DATA
+        if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
+        else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
+#endif
     }
 
-// #ifdef LOG_DATA
-//     if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
-//     else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
-// #endif
 }

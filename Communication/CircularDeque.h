@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <cstring>
+#include <string>
 
 template <typename T>
 class CircularDeque
@@ -174,5 +175,20 @@ public:
         }
 
         return arr[(front + index) % capacity];
+    }
+
+    /**
+     * Checks if the deque ends with the given sequence
+    */
+    bool endsWith(const std::string& seq) const
+    {
+        if (seq.length() > size) return false;
+
+        for (int i = 0; i < seq.length(); ++i)
+        {
+            if (arr[(rear - i + capacity) % capacity] != seq[seq.length() - 1 - i])
+                return false;
+        }
+        return true;
     }
 };

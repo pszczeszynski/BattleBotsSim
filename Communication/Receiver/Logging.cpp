@@ -115,17 +115,20 @@ bool Logger::logMessage(String message)
         // open the file.
         dataFile = SD.open(fileName, FILE_WRITE);
         // if the file is available, write to it:
-        if (dataFile) {
-            dataFile.println(message);
-            checkOverflow(dataFile);
-            dataFile.close();
-            // Serial.println("End Log");
-            return true;
-        } else {
-            // if the file isn't open, pop up an error:
-            // Serial.println("Error opening datalog.txt");
-            // Serial.println("End Log");
-            return false;
+        if (dataFile)
+        {
+          dataFile.println(message);
+          checkOverflow(dataFile);
+          dataFile.close();
+          // Serial.println("End Log");
+          return true;
+        }
+        else
+        {
+          // if the file isn't open, pop up an error:
+          // Serial.println("Error opening datalog.txt");
+          // Serial.println("End Log");
+          return false;
         }
     }
 

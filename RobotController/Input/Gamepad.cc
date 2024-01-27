@@ -92,7 +92,7 @@ float XBox::GetRightTrigger()
 }
 
 
-
+/*
 DualSense::DualSense() 
 {
     _controllersCount = 0;
@@ -256,3 +256,4 @@ float DualSense::GetRightTrigger()
     if (_initialized) return _inState.rightTrigger / 255.0f;
     return 0;
 }
+*/

@@ -4,6 +4,7 @@
 #include "Globals.h"
 #include "MathUtils.h"
 #include "RobotConfig.h"
+#include "UIWidgets/ClockWidget.h"
 
 /**
  * Doesn't do anything except call the timer markStart
@@ -71,6 +72,10 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
 
+char lastChar = '\0';
+Clock intermessageClock;
+int messageCount = 0;
+
 RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
                                      200, [this](char &c)
                                      {
@@ -95,10 +100,7 @@ RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
     // If there is nothing to read, return false early.
     if (comStat.cbInQue == 0)
     {
-        _comPortMutex.unlock();
-        // sleep for 1 ms
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        
+        _comPortMutex.unlock();        
         return false;
     }
 
@@ -127,7 +129,6 @@ RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
             if (msg.type != RobotMessageType::INVALID)
             {
                 _lastMessageMutex.lock();
-                // std::cout << "Received message of type " << (int)msg.type << std::endl;
                 _lastMessage = msg;
                 _newestMessageID++;
                 _lastMessageMutex.unlock();
@@ -183,11 +184,6 @@ void RobotLinkReal::_InitComPort()
     timeouts.WriteTotalTimeoutMultiplier = 0;
     timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
 
-    // Smaller buffer sizes
-    if (!SetupComm(_comPort, sizeof(RobotMessage) * 3, sizeof(RobotMessage) * 3)) {
-        std::cerr << "Error setting COM buffer sizes" << std::endl;
-    }
-
     if (!SetCommTimeouts(_comPort, &timeouts))
     {
         std::cerr << "Error setting COM port timeouts" << std::endl;
@@ -212,83 +208,40 @@ void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
     {
         throw std::runtime_error("Failed to write message");
     }
+
 }
 
 void RobotLinkReal::Drive(DriveCommand &command)
 {
+    static ClockWidget clockWidget{"Send drive command"};
     command.movement *= -1.0;
     command.turn *= -1.0;
-    // command.turn *= -1;
     double temp = command.movement;
     command.movement = command.turn;
     command.turn = temp;
 
-
-    // if we have sent a packet too recently, return
-    if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
-    {
-        return;
-    }
-
-    _comPortMutex.lock();
-    // if com port is invalid, attempt to reopen
-    if (_comPort == INVALID_HANDLE_VALUE)
-    {
-        // attempt to reopen
-        _InitComPort();
-        _comPortMutex.unlock();
-        return;
-    }
-
-    // if there are errors on the com port, attempt to reopen
-    DWORD dwErrors = 0;
-    COMSTAT comStat;
-    if (!ClearCommError(_comPort, &dwErrors, &comStat))
-    {
-        // Handle the error with ClearCommError itself
-        DWORD dwError = GetLastError();
-        std::cerr << "ERROR: can't getting errors from COM port" << std::endl;
-    }
-    else
-    {
-        if (dwErrors & CE_BREAK)
-            std::cout << "ERROR: The hardware detected a break condition.\n";
-        if (dwErrors & CE_FRAME)
-            std::cout << "ERROR: The hardware detected a framing error.\n";
-        if (dwErrors & CE_OVERRUN)
-            std::cout << "ERROR: A character-buffer overrun has occurred.\n";
-        if (dwErrors & CE_RXOVER)
-            std::cout << "ERROR: An input buffer overflow has occurred.\n";
-        if (dwErrors & CE_RXPARITY)
-            std::cout << "ERROR: The hardware detected a parity error.\n";
-    }
-
-    if (dwErrors != 0)
-    {
-        // attempt to reopen
-        _InitComPort();
-        _comPortMutex.unlock();
-        return;
-    }
-
-    _sendingClock.markStart();
     // force command to be between -1 and 1
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
     // set valid to true
     command.valid = true;
 
-    // now write the message
+    // if we have sent a packet too recently, return
+    if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    {
+        return;
+    }
+    _sendingClock.markStart();
+
+    clockWidget.markStart();
+
     try
     {
-        // Write MESSAGE_START_CHAR
-        char start = MESSAGE_START_CHAR;
-        _WriteSerialMessage((char *)&start, sizeof(start));
-        // Write command
+        const char *start = "<<<";
+        _WriteSerialMessage(start, 3);
         _WriteSerialMessage((char *)&command, sizeof(command));
-        // Write MESSAGE_END_CHAR
-        char end = MESSAGE_END_CHAR;
-        _WriteSerialMessage((char *)&end, sizeof(end));
+        const char *end = ">>>";
+        _WriteSerialMessage(end, 3);
 
         _sendClock.markStart();
     }
@@ -301,14 +254,13 @@ void RobotLinkReal::Drive(DriveCommand &command)
         _InitComPort();
     }
 
-    _comPortMutex.unlock();
-
+    clockWidget.markEnd();
 }
 
 #define RECEIVE_TIMEOUT_MS 100
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
-{
+{    
     bool isNew = false;
     _lastMessageMutex.lock();
     RobotMessage retrievedStruct = _lastMessage;
@@ -316,8 +268,8 @@ RobotMessage RobotLinkReal::_ReceiveImpl()
     if (_lastConsumedMessageID != _newestMessageID)
     {
         isNew = true;
+        _lastConsumedMessageID = _newestMessageID;
     }
-    _lastConsumedMessageID = _newestMessageID;
 
     _lastMessageMutex.unlock();
 

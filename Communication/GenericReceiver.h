@@ -3,6 +3,9 @@
 #include "Communication.h"
 #include <functional>
 
+const std::string MESSAGE_START_SEQ = "<<<";
+const std::string MESSAGE_END_SEQ = ">>>";
+
 template <typename T>
 class GenericReceiver
 {
@@ -37,65 +40,98 @@ private:
 
     void _processChar(char c)
     {
+        // add char to buffer
+        serialBuffer.push_back(c);
+
+        // Serial.println("deque size: " + String(serialBuffer.Size()));
+        // Serial.print("deque contents: ");
+
+        // // print contents of deque
+        // for (int i = 0; i < serialBuffer.Size(); i++)
+        // {
+        //     Serial.print(serialBuffer[i]);
+        // }
+        // Serial.println("");
+
+#define LED_PORT 16
+#define HIGH 0x1
+#define LOW  0x0
+
         switch (currentState)
         {
         case State::Idle:
-            if (c == MESSAGE_START_CHAR)
+            if (serialBuffer.Size() >= MESSAGE_START_SEQ.length())
             {
-                currentState = State::Receiving;
-                serialBuffer.clear(); // Clear buffer to start fresh, fall through to Receiving
+                // Check if the last characters in the buffer match the start sequence
+                if (serialBuffer.endsWith(MESSAGE_START_SEQ))
+                {
+                    // // turn on arduino led
+                    // digitalWrite(LED_PORT, HIGH);
+                    // delay(10);
+                    // digitalWrite(LED_PORT, LOW);
+                    // delay(100);
+
+                    // Serial.println("Start sequence detected");
+                    currentState = State::Receiving;
+                }
+                else
+                {
+                    // Serial.println("removing front since didn't find start sequence");
+                    serialBuffer.pop_front(); // Keep the buffer size equal to the start sequence length - 1
+                }
             }
-            else
-            {
-                break; // If not start char, stay in Idle
-            }
+            break;
 
         case State::Receiving:
-            serialBuffer.push_back(c);
-            if (c == MESSAGE_END_CHAR)
+            // // turn on arduino led
+            // digitalWrite(LED_PORT, HIGH);
+            // delay(10);
+            // digitalWrite(LED_PORT, LOW);
+            // delay(100);
+
+            if (serialBuffer.endsWith(MESSAGE_END_SEQ))
             {
-                if (serialBuffer.Size() == sizeof(T) + 2) // Including start and end char
+                // Serial.println("end sequence detected");
+
+                if (serialBuffer.Size() >= sizeof(T) + MESSAGE_START_SEQ.length() + MESSAGE_END_SEQ.length())
                 {
+                    // // turn on arduino led
+                    // digitalWrite(LED_PORT, HIGH);
+                    // delay(10);
+                    // digitalWrite(LED_PORT, LOW);
+
+                    // Serial.println("Message complete");
                     processMessage();
                     currentState = State::Idle; // Reset state
                 }
                 else
                 {
-                    // std::cout << "hit end char but shouldn't have. size of serial buffer: " << serialBuffer.Size() << std::endl;
-                    // _handleError();
+                    // // turn on arduino led
+                    // digitalWrite(LED_PORT, HIGH);
+                    // delay(10);
+                    // digitalWrite(LED_PORT, LOW);
+                    // delay(300);
+                    // // turn on arduino led
+                    // digitalWrite(LED_PORT, HIGH);
+                    // delay(10);
+                    // digitalWrite(LED_PORT, LOW);
+
+                    // Serial.println("Error: Incomplete message received");
+                    // Serial.println("Expected message size: " + String(sizeof(T) + MESSAGE_START_SEQ.length() + MESSAGE_END_SEQ.length()));
+                    // Serial.println("Actual message size: " + String(serialBuffer.Size()));
+                    _handleError();
                 }
             }
-            else if (serialBuffer.Size() > sizeof(T) + 2)
-            {
-                // std::cout << "didn't find end char. size of serial buffer: " << serialBuffer.Size() << std::endl;
-                _handleError();
-            }
-
-            break; // Normal case, continue receiving
-        }
-    }
-
-    void readUntilNextPacket()
-    {
-        char c;
-
-        // read until we get a message
-        while (!latestDataValid)
-        {
-            // keep calling read char until we get a character
-            while (!readChar(c))
-            {
-            }
-
-            _processChar(c);
+            // Additional checks can be added here for maximum message size, etc.
+            break;
         }
     }
 
     void processMessage()
     {
-        // Assuming message format: [START_CHAR][DATA][END_CHAR]
-        serialBuffer.pop_front(); // Remove start char
-        serialBuffer.pop_back();  // Remove end char
+        // Assuming message format: [START_SEQ][DATA][END_SEQ]
+        serialBuffer.pop_front(MESSAGE_START_SEQ.length()); // Remove start sequence
+        serialBuffer.pop_back(MESSAGE_END_SEQ.length());    // Remove end sequence
         int copy_result = serialBuffer.copy_to((char *)&latestData, 0, sizeof(T));
 
         if (copy_result != sizeof(T))
@@ -120,17 +156,49 @@ public:
         return latestDataValid;
     }
 
+    /**
+     * @brief Reads data from the serial port until a message is received
+     * @note This function blocks until a message is received
+    */
     void waitUntilData()
     {
-        readUntilNextPacket();
-    }
-
-    bool readUntilEndOrNextPacket()
-    {
         char c;
-        while (readChar(c))
+
+        // read until we get a message
+        while (!latestDataValid)
         {
+            // keep calling read char until we get a character
+            while (!readChar(c))
+            {
+                // Serial.println("waiting for char in waitUntilData");
+            }
+
             _processChar(c);
         }
+    }
+
+
+    /**
+     * @brief Reads all available data from the serial port and processes it
+     * @note This function does not block
+    */
+    void readUntilEnd()
+    {
+        char c;
+        while (true)
+        {
+            bool result = readChar(c);
+            // print result with status
+            // Serial.print("readChar result: ");
+            // Serial.println(result);
+            if (!result)
+            {
+                // Serial.println("breaking");
+                break;
+            }
+
+            _processChar(c);
+        }
+        // Serial.println("exiting readUntilEnd");
     }
 };

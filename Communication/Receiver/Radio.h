@@ -40,16 +40,14 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
-    Serial.println("radio ctor2");
     const byte address[6] = "00001";
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_MIN);
+    radio.setPALevel(RF24_PA_LOW);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
-    Serial.println("finished radio ctor");
 }
 
 unsigned long lastTimeReceivedMessage = 0;

@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <XInput.h>
-#include "../libs/DS5W/ds5w.h"
+// #include "../libs/DS5W/ds5w.h"
 #include <iostream>
 
 class Gamepad
@@ -68,7 +68,7 @@ private:
     const float RANGE = 32767.0f;
 };
 
-
+/*
 
 class DualSense : public Gamepad
 {
@@ -116,3 +116,4 @@ private:
     DS5W::DS5InputState _inState;
     const float RANGE = 255.0f;
 };
+*/
