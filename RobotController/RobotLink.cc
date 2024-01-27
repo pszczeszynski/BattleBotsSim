@@ -237,11 +237,12 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     try
     {
-        const char *start = "<<<";
-        _WriteSerialMessage(start, 3);
+        // write the start sequence
+        _WriteSerialMessage(MESSAGE_START_SEQ.c_str(), MESSAGE_START_SEQ.length());
+        // write the command
         _WriteSerialMessage((char *)&command, sizeof(command));
-        const char *end = ">>>";
-        _WriteSerialMessage(end, 3);
+        // write the end sequence
+        _WriteSerialMessage(MESSAGE_END_SEQ.c_str(), MESSAGE_END_SEQ.length());
 
         _sendClock.markStart();
     }

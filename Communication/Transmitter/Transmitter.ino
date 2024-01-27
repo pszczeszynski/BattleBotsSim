@@ -68,13 +68,13 @@ void loop()
     if (serialReceiver.isLatestDataValid())
     {
 
-        // Serial.println("sending");
         // get the latest data from the serial receiver
         DriveCommand command = serialReceiver.getLatestData();
         // send over radio to receiver
         radio->Send(command);
     }
 
+    bool hadData = false;
     // while there is data available to read
     while (radio->Available())
     {
@@ -82,37 +82,29 @@ void loop()
         RobotMessage message = radio->Receive();
         if (message.type != RobotMessageType::INVALID)
         {
-
             lastReceiveTime = millis();
 
             total_packets ++;
 
             // print data to serial for driver station
-            Serial.print("<<<");
+            Serial.print(MESSAGE_START_SEQ.c_str());
             Serial.write((char*) &message, sizeof(message));
-            Serial.print(">>>");
+            Serial.print(MESSAGE_END_SEQ.c_str());
 
             // flush
             Serial.flush();
+
+            // set the led on
+            digitalWrite(LED_PORT, HIGH);
+            hadData = true;
         }
     }
 
-    static unsigned long lastPrintTime = 0;
-
-    if (millis() - lastPrintTime > 1000)
+    // if we had no data, set the led off
+    if (!hadData)
     {
-        // print packets / sec
-        // Serial.print("Packets / sec: ");
-        // Serial.println(total_packets * 1000.0 / (millis() - lastPrintTime));
-        total_packets = 0;
-        lastPrintTime = millis();
+        digitalWrite(LED_PORT, LOW);
     }
-
-    // // if we had no data, set the led off
-    // if (!available)
-    // {
-    //     digitalWrite(LED_PORT, LOW);
-    // }
 
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
     // {
