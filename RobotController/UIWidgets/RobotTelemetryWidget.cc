@@ -6,9 +6,21 @@ RobotTelemetryWidget::RobotTelemetryWidget()
 {
 }
 
-void RobotTelemetryWidget::Draw()
+void CenterText(const char* text)
 {
-    ImGui::Begin("Robot Telemetry");
+    // Center the text
+    float windowWidth = ImGui::GetWindowWidth();
+    float textWidth = ImGui::CalcTextSize(text).x;
+    ImGui::SetCursorPosX((windowWidth - textWidth) / 2);
+
+    ImGui::Text(text);
+}
+
+void DrawRadioPacketLoss()
+{
+    // Center the text
+    CenterText("Radio Packet Loss");
+
     const std::deque<RobotMessage> &messageHistory = 
         RobotController::GetInstance().GetRobotLink().GetMessageHistory();
 
@@ -21,9 +33,9 @@ void RobotTelemetryWidget::Draw()
 
     // Calculate position for the labels
     ImVec2 graphPos = ImGui::GetCursorScreenPos(); 
-    float graphHeight = 120.0f;
-    float maxYValue = 0.05f; 
-    int numLabels = 3; // Number of labels you want
+    float graphHeight = 150.0f;
+    float maxYValue = 0.05f;
+    int numLabels = 3;
     float step = maxYValue / (numLabels - 1);
 
     // Draw y-axis labels
@@ -56,43 +68,98 @@ void RobotTelemetryWidget::Draw()
     float xOffset = 45.0f;
     ImGui::SameLine(xOffset);
 
-    // display as graph
-    ImGui::PlotLines("Packet Loss", delays.data(), delays.size(), 0, NULL, 0.0f, maxYValue, ImVec2(0, graphHeight));
+    // Get the width available for the graph
+    float graphWidth = ImGui::GetContentRegionAvail().x - xOffset;
 
-    // add text for average delay
+    // Display as graph
+    ImGui::PlotLines("", delays.data(), delays.size(), 0, NULL, 0.0f, maxYValue, ImVec2(graphWidth, graphHeight));
+
+
+    // Add text for average delay
     float averageDelay = 0;
     for (float delay : delays)
     {
         averageDelay += delay;
     }
     averageDelay /= delays.size();
+
+    // add small vertical space
+    ImGui::Spacing();
+    ImGui::Spacing();
+
     ImGui::Text("Average Delay: %.2fms", averageDelay * 1000);
+}
 
-
-    // TABLE COLUMN HEADERS
-    ImGui::Columns(4, "Telemetry");
+void DrawCANDataTable()
+{
+    // add Separator
     ImGui::Separator();
-    ImGui::Text("Voltage");
-    ImGui::NextColumn();
-    ImGui::Text("Current");
-    ImGui::NextColumn();
-    ImGui::Text("ESC Temperature");
-    ImGui::NextColumn();
-    ImGui::Text("RPM");
-
     CANData& data = RobotController::GetInstance().GetCANData();
 
-    for (int i = 0; i < 4; i++)
+    // Increase the font size
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10)); // Increase spacing for bigger text
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 10)); // Increase padding for bigger text
+
+    // Center the text
+    CenterText("Robot CAN Data");
+
+    ImGui::PopStyleVar(2);
+
+    const char* rowLabels[] = { "L Drive", "R Drive", "F Weapon", "B Weapon" };
+
+    if (ImGui::BeginTable("table1", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
     {
-        ImGui::Text(std::to_string((int) data.motorVoltage[i]).c_str());
-        ImGui::NextColumn();
-        ImGui::Text(std::to_string((int) data.motorCurrent[i]).c_str());
-        ImGui::NextColumn();
-        ImGui::Text(std::to_string((int) data.escFETTemp[i]).c_str());
-        ImGui::NextColumn();
-        ImGui::Text(std::to_string((int) data.motorRPM[i]).c_str());
-        ImGui::NextColumn();
+        // add column headers
+        ImGui::TableSetupColumn("");
+        ImGui::TableSetupColumn("Voltage");
+        ImGui::TableSetupColumn("Current");
+        ImGui::TableSetupColumn("ESC Temperature");
+        ImGui::TableSetupColumn("RPM");
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < 4; i++)
+        {
+            ImGui::TableNextRow();
+            // Set the row label
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", rowLabels[i]);
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%d V", static_cast<int>(data.motorVoltage[i]));
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%d Amps", static_cast<int>(data.motorCurrent[i]));
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%d °C", static_cast<int>(data.escFETTemp[i]));
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%d RPM", static_cast<int>(data.motorRPM[i]));
+            ImGui::Separator();
+        }
+        ImGui::EndTable();
     }
 
     ImGui::End();
+}
+
+
+void RobotTelemetryWidget::Draw()
+{
+    ImGui::Begin("Robot Telemetry");
+
+    DrawRadioPacketLoss();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+
+    DrawCANDataTable();
 }
