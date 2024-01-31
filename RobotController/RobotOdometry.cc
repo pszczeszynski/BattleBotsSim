@@ -4,6 +4,7 @@
 #include "../Communication/Communication.h"
 #include "RobotController.h"
 #include "imgui.h"
+#include "CVPosition.h"
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -174,6 +175,19 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 
     // use the ml model to get the angle entirely
     fusedAngle = CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
+
+    // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
+    // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
+    if (this == &RobotOdometry::Robot())
+    {
+        cv::Point2f visualPosition = CVPosition::GetInstance().ComputeRobotPosition(RobotController::GetInstance().GetDrawingImage());
+        visualPos = visualPosition;
+
+        // draw the position on the drawing image
+        SAFE_DRAW
+        cv::circle(drawingImage, visualPosition, 5, cv::Scalar(0, 0, 255), -1);
+        END_SAFE_DRAW
+    }
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
