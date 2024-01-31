@@ -48,11 +48,7 @@ private:
     MovementStrategy _movementStrategy;
 
 public:
-#ifdef XBOX
     XBox gamepad;
-#else
-    DualSense gamepad;
-#endif
 private:
 
     RobotMessage _lastIMUMessage;
