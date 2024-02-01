@@ -5,7 +5,6 @@
 #include "Communication.h"
 
 #define WIRE_PORT Wire // Your desired Wire port. 
-#define AD0_VAL 0x69
 
 #define TO_RAD 0.01745329251
 

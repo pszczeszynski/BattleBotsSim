@@ -5,13 +5,14 @@
 IMU::IMU()
 {
     WIRE_PORT.begin();
-    WIRE_PORT.setClock(400000);
+    WIRE_PORT.setClock(100000);
 
     // attempt to initialize the imu in a loop until it works
     bool initialized = false;
     while (!initialized)
     {
-        myICM.begin(WIRE_PORT, AD0_VAL);
+        // use i2c addres 0x68 (which is false). If true, 0x69 (this was how the the port for the old boards)
+        myICM.begin(WIRE_PORT, false);
 
         Serial.print(F("Initialization of the sensor returned: "));
         Serial.println(myICM.statusString());
