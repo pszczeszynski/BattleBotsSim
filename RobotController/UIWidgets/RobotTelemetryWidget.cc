@@ -1,6 +1,7 @@
 #include "RobotTelemetryWidget.h"
 #include <vector>
 #include "../RobotController.h"
+#include "imgui_internal.h"
 
 RobotTelemetryWidget::RobotTelemetryWidget()
 {
@@ -138,13 +139,38 @@ void DrawCANDataTable()
             ImGui::Separator();
 
             ImGui::TableSetColumnIndex(4);
-            ImGui::Text("%d RPM", static_cast<int>(data.motorRPM[i]));
+            ImGui::Text("%d RPM", (int)(static_cast<int>(data.motorERPM[i]) * ((int)ERPM_FIELD_SCALAR) * ERPM_TO_RPM));
             ImGui::Separator();
         }
         ImGui::EndTable();
     }
+}
 
-    ImGui::End();
+// Make sure MAX_RPM and MAX_POWER are defined
+#define MAX_POWER 1.0
+
+void DrawRPMProgressBar(float targetPower, int currRPM)
+{
+    // Calculate the percentages
+    float rpmPercentage = static_cast<float>(currRPM) / MAX_WEAPON_RPM;
+    float powerPercentage = static_cast<float>(targetPower) / MAX_POWER;
+
+    // Choose the progress bar color
+    ImU32 barColor = currRPM < static_cast<int>(powerPercentage * MAX_WEAPON_RPM) * 0.9 ? IM_COL32(255, 0, 0, 255) : IM_COL32(0, 255, 0, 255);
+
+    // Draw the progress bar
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
+    ImGui::ProgressBar(rpmPercentage, ImVec2(-1, 0), ""); // '-1' for full width, '0' for default height
+    ImGui::PopStyleColor();
+
+    // Calculate the position for the target power line
+    ImVec2 min = ImGui::GetItemRectMin();
+    ImVec2 max = ImGui::GetItemRectMax();
+    float powerLineX = min.x + (max.x - min.x) * powerPercentage;
+
+    // Draw the target power line
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    window->DrawList->AddLine(ImVec2(powerLineX, min.y), ImVec2(powerLineX, max.y), IM_COL32(255, 0, 255, 255), 2.0f);
 }
 
 
@@ -162,4 +188,30 @@ void RobotTelemetryWidget::Draw()
 
 
     DrawCANDataTable();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    #define FRONT_WEAPON_INDEX 2
+    #define BACK_WEAPON_INDEX 3
+
+
+    // Add text
+
+    // center
+    CenterText("Weapons");
+
+    ImGui::Text("Front Weapon RPM: %d", (int)(Weapons::GetInstance().GetFrontWeaponRPM()));
+    // Draw the RPM progress bars
+    DrawRPMProgressBar(Weapons::GetInstance().GetFrontWeaponTargetPower(),
+                       Weapons::GetInstance().GetFrontWeaponRPM());
+
+    ImGui::Spacing();
+
+    ImGui::Text("Back Weapon RPM: %d", (int)(Weapons::GetInstance().GetBackWeaponRPM()));
+    DrawRPMProgressBar(Weapons::GetInstance().GetBackWeaponTargetPower(),
+                       Weapons::GetInstance().GetBackWeaponRPM());
+
+    ImGui::End();
+
 }

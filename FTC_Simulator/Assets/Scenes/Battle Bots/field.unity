@@ -7798,10 +7798,15 @@ PrefabInstance:
       propertyPath: downForce
       value: 1000
       objectReference: {fileID: 0}
+    - target: {fileID: 747842985271085878, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: SPINNER_SPEED
+      value: -36000
+      objectReference: {fileID: 0}
     - target: {fileID: 877715672128950764, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: m_Motor.targetVelocity
-      value: -20000
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 997706341347674867, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -7821,7 +7826,7 @@ PrefabInstance:
     - target: {fileID: 2514197319520313974, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: m_Motor.targetVelocity
-      value: -20000
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2585695460364735457, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -8657,7 +8662,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5450
+  m_Name: pb_Mesh-5448
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -13273,7 +13278,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5394
+  m_Name: pb_Mesh-5392
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -13982,7 +13987,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1826500113
 MonoBehaviour:
   m_ObjectHideFlags: 0

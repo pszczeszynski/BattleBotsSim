@@ -91,11 +91,17 @@ enum MotorIndexes
     b_weapon
 };
 
+
+// what to multiply the scaled rpm from the package by to get actual rpm
+#define ERPM_FIELD_SCALAR 1000.0
+#define ERPM_TO_RPM (1.0 / 6.0)
+#define RPM_TO_ERPM 6.0
+
 struct CANData
 {
     unsigned char motorCurrent[4];
     unsigned char motorVoltage[4];
-    unsigned char motorRPM[4];
+    unsigned char motorERPM[4];
     unsigned char escFETTemp[4];
 };
 

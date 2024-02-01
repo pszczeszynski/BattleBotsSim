@@ -12,6 +12,7 @@
 #include "MatQueue.h"
 #include "SelfRighter.h"
 #include "MovementStrategy.h"
+#include "Weapons.h"
 
 class RobotController
 {
@@ -22,12 +23,10 @@ public:
     IMUData& GetIMUData();
     CANData GetCANData();
 
-    float& GetFrontWeaponTargetPowerRef();
-    float& GetBackWeaponTargetPowerRef();
-
     IRobotLink& GetRobotLink();
 
     cv::Mat& GetDrawingImage();
+    Gamepad& GetGamepad();
 
     Clock visionClock;
 
@@ -41,7 +40,6 @@ private:
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
     void UpdateRobotTrackers(VisionClassification classification);
-    void UpdateSpinnerPowers();
 
     cv::Mat drawingImage;
 
@@ -54,7 +52,6 @@ private:
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
     std::mutex _lastCanMessageMutex;
-
     RobotMessageType _lastMessageType;
 
 #ifdef SIMULATION
@@ -68,9 +65,6 @@ private:
     Vision vision;
 
     SelfRighter _selfRighter;
-
-    float _frontWeaponPower = 0;
-    float _backWeaponPower = 0;
 
     bool _orbiting = false;
     bool _killing = false;

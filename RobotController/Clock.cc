@@ -15,9 +15,7 @@ Clock::Clock()
  */
 void Clock::markStart()
 {
-	auto currentTime = std::chrono::high_resolution_clock::now();
-
-	startTime = currentTime;
+	startTime = std::chrono::high_resolution_clock::now();
 }
 
 void Clock::markEnd()

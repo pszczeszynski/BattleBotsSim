@@ -86,6 +86,7 @@ set(SOURCES
     Strategies/Kill.cc
     Strategies/Orbit.cc
     Strategies/RobotMovement.cc
+    Weapons.cc
 )
 
 # Create the object files

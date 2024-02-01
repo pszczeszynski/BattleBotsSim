@@ -296,7 +296,7 @@ RobotLinkSim::RobotLinkSim()
 
 void RobotLinkSim::Drive(DriveCommand &command)
 {
-    UnityDriveCommand message = {command.movement, command.turn};
+    UnityDriveCommand message = {command.movement, command.turn, (double) command.frontWeaponPower, (double) command.backWeaponPower};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
@@ -304,6 +304,12 @@ void RobotLinkSim::Drive(DriveCommand &command)
 
 RobotMessage RobotLinkSim::_ReceiveImpl()
 {
+    static Clock lastCanDataClock;
+
+    RobotMessage ret{RobotMessageType::INVALID};
+    // zero out ret
+    memset(&ret, 0, sizeof(ret));
+
     std::string received = "";
     while (received == "")
     {
@@ -311,9 +317,23 @@ RobotMessage RobotLinkSim::_ReceiveImpl()
     }
     UnityRobotState message = RobotStateParser::parse(received);
 
-    RobotMessage ret{RobotMessageType::IMU_DATA};
-    ret.imuData.rotation = message.robot_orientation;
-    ret.imuData.rotationVelocity = message.robot_rotation_velocity;
+    // if we have already had a can message in last 1/2 second
+    if (lastCanDataClock.getElapsedTime() < 0.5)
+    {
+        ret.type = RobotMessageType::IMU_DATA;
+        ret.imuData.rotation = message.robot_orientation;
+        ret.imuData.rotationVelocity = message.robot_rotation_velocity;
+    }
+    else
+    {
+        std::cout << "CAN DATA RECEIVED" << std::endl;
+        ret.type = RobotMessageType::CAN_DATA;
+        ret.canData.motorERPM[2] = (int) abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
+        ret.canData.motorERPM[3] = (int) abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
+
+        std::cout << "RPM: " << message.spinner_1_RPM << " " << message.spinner_2_RPM << std::endl;
+        lastCanDataClock.markStart();
+    }
 
     // return the message
     return ret;

@@ -140,7 +140,7 @@ RobotMessage Update()
         ret.type = CAN_DATA;
         vesc->GetCurrents(ret.canData.motorCurrent);
         vesc->GetVolts(ret.canData.motorVoltage);
-        vesc->GetRPMs(ret.canData.motorRPM);
+        vesc->GetRPMs(ret.canData.motorERPM);
         vesc->GetFETTemps(ret.canData.escFETTemp);
     }
     // else send imu data

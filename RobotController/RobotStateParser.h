@@ -23,6 +23,10 @@ struct UnityRobotState
     Point opponent_position;
     // orientation of the opponent's robot
     double opponent_orientation;
+
+    // spinner rpms
+    double spinner_1_RPM;
+    double spinner_2_RPM;
 };
 
 /**
@@ -32,6 +36,8 @@ struct UnityDriveCommand
 {
     double drive_amount;
     double turn_amount;
+    double front_weapon_power;
+    double back_weapon_power;
 };
 
 class RobotStateParser

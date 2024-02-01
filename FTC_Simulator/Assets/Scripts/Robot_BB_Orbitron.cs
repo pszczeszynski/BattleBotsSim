@@ -16,6 +16,10 @@ public struct RobotControllerMessage
     // other robot
     public Vector3 opponent_position;
     public double opponent_rotation;
+
+    // spinner RPMs
+    public double spinner_1_RPM;
+    public double spinner_2_RPM;
 }
 
 public class Robot_BB_Orbitron : RobotInterface3D
@@ -72,17 +76,15 @@ public class Robot_BB_Orbitron : RobotInterface3D
 
     private double maxInterval = 0;
     private long prevTime = 0;
-    private void RobotControllerUpdate()
+
+
+    /// <summary>
+    /// Send the robot's current state to the robot controller
+    /// </summary> 
+    private void SendRobotDataToRC()
     {
-        // don't execute this on the client
-        if (GLOBALS.CLIENT_MODE) { return; }
-
-        ApplyDownForce();
-
-
         // get the robot's rigidbody
         Rigidbody rb = robot_body.GetComponent<Rigidbody>();
-
 
         double robot_rotation = robot_body.rotation.eulerAngles[1];
         double robot_rotation_velocity = rb.angularVelocity.y;
@@ -93,6 +95,12 @@ public class Robot_BB_Orbitron : RobotInterface3D
         // integrate the gyro velocity to get the gyro rotation
         gyroRotationRad += Time.deltaTime * robotRotationWithNoise;
 
+
+
+        // get the spinner RPMs
+        double spinner_1_RPM = spinner1.velocity * 60 / 360;
+        double spinner_2_RPM = spinner2.velocity * 60 / 360;
+
         // create a message to send to the robot controller
         RobotControllerMessage rcMessage = new RobotControllerMessage
         {
@@ -100,12 +108,24 @@ public class Robot_BB_Orbitron : RobotInterface3D
             robot_rotation = robot_rotation * Mathf.Deg2Rad,
             robot_rotation_velocity = robotRotationWithNoise,
             opponent_position = opponent_body.position,
-            opponent_rotation = opponent_body.rotation.eulerAngles[1]
+            opponent_rotation = opponent_body.rotation.eulerAngles[1],
+            spinner_1_RPM = spinner_1_RPM,
+            spinner_2_RPM = spinner_2_RPM
         };
 
         // send the robot controller the current state
         string message = JsonUtility.ToJson(rcMessage);
         _robotControllerLink.SendMessage(message);
+    }
+
+    private void RobotControllerUpdate()
+    {
+        // don't execute this on the client
+        if (GLOBALS.CLIENT_MODE) { return; }
+
+        ApplyDownForce();
+
+        SendRobotDataToRC();
 
         frames ++;
 
@@ -146,6 +166,16 @@ public class Robot_BB_Orbitron : RobotInterface3D
         {
             movement_amount += (float)input.Value.drive_amount;
             turn_amount += (float)input.Value.turn_amount;
+
+            UnityEngine.Debug.Log("spinner 1 power: " + input.Value.front_weapon_power);
+            UnityEngine.Debug.Log("spinner 2 power: " + input.Value.back_weapon_power);
+            JointMotor motor1 = spinner1.motor;
+            motor1.targetVelocity = (float)input.Value.front_weapon_power * SPINNER_SPEED;
+            spinner1.motor = motor1;
+            
+            JointMotor motor2 = spinner2.motor;
+            motor2.targetVelocity = (float)input.Value.back_weapon_power * SPINNER_SPEED;
+            spinner2.motor = motor1;
         }
 
         _tankDrive.Drive(movement_amount, turn_amount);

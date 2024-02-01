@@ -68,8 +68,8 @@ CANData RobotController::GetCANData()
     // unlock the mutex
     _lastCanMessageMutex.unlock();
 
-    frontWeaponCurrRPMPercent = ret.motorRPM[2] / 88.0f;
-    backWeaponCurrRPMPercent = ret.motorRPM[3] / 88.0f;
+    frontWeaponCurrRPMPercent = ret.motorERPM[2] / 88.0f;
+    backWeaponCurrRPMPercent = ret.motorERPM[3] / 88.0f;
     // return the data
     return ret;
 }
@@ -254,125 +254,10 @@ DriveCommand RobotController::AvoidMode()
     return ret;
 }
 
-#define SECONDS_UNTIL_FULL_POWER 15.6
-void RobotController::UpdateSpinnerPowers()
+Gamepad& RobotController::GetGamepad()
 {
-    static Clock updateTimer;
-    static bool rampUpF = false;
-    static bool rampUpB = false;
-    static bool overrideRampLimit = false;
-
-    // get the delta time
-    double deltaTimeS = updateTimer.getElapsedTime();
-    // mark the start of the update
-    updateTimer.markStart();
-    // reset the delta time if it is too large
-    if (deltaTimeS > 10)
-    {
-        deltaTimeS = 0;
-    }
-
-    double scaleFront = _frontWeaponPower < 0.1 ? 1 : (_frontWeaponPower < 0.55 ? 2.2 : 1.2);
-    double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.55 ? 2.2 : 1.2);
-
-    // if a pressed
-    if (gamepad.GetButtonA() || ImGui::IsKeyDown(ImGuiKey_W))
-    {
-        rampUpB = true;
-    }
-
-    // if b pressed
-    if (gamepad.GetButtonB() || ImGui::IsKeyDown(ImGuiKey_S))
-    {
-        rampUpB = false;
-    }
-
-    // if x pressed
-    if (gamepad.GetButtonX() || ImGui::IsKeyDown(ImGuiKey_I))
-    {
-        rampUpF = true;
-    }
-
-    // if y pressed
-    if (gamepad.GetButtonY() || ImGui::IsKeyDown(ImGuiKey_K))
-    {
-        rampUpF = false;
-    }
-
-    // if user toggles off the weapon, then set the power to 0
-    if (ImGui::IsKeyDown(ImGuiKey_9))
-    {
-        if (rampUpF)
-        {
-            _frontWeaponPower = std::min(_frontWeaponPower, 0.55f);
-        }
-        else
-        {
-            _frontWeaponPower = 0;
-        }
-    }
-
-    // if user toggles off the weapon, then set the power to 0
-    if (ImGui::IsKeyDown(ImGuiKey_0))
-    {
-        if (rampUpF)
-        {
-            _backWeaponPower = std::min(_backWeaponPower, 0.55f);
-        }
-        else
-        {
-            _backWeaponPower = 0;
-        }
-    }
-
-    if (ImGui::IsKeyDown(ImGuiKey_O))
-    {
-        overrideRampLimit = true;
-    }
-
-    if (ImGui::IsKeyDown(ImGuiKey_L))
-    {
-        overrideRampLimit = false;
-    }
-
-    // if we are ramping up and past 50% power with no curren (because of a fault), then keep it at 50%
-    if (rampUpF)
-    {
-        _lastCanMessageMutex.lock();
-        bool hasNoCurrent = _lastCANMessage.canData.motorCurrent[2] == 0.0f;
-        _lastCanMessageMutex.unlock();
-
-        // if we have no current and we are ramping up, back off to the current rpm percent (mins a bit)
-        if (hasNoCurrent && !overrideRampLimit && _frontWeaponPower > 0.5)
-        {
-            _frontWeaponPower = std::max(0.5, frontWeaponCurrRPMPercent - 0.02);
-        }
-    }
-
-    // same thing for the other one
-    if (rampUpB)
-    {
-        _lastCanMessageMutex.lock();
-        bool hasNoCurrent = _lastCANMessage.canData.motorCurrent[3] == 0.0f;
-        _lastCanMessageMutex.unlock();
-
-        // if we have no current and we are ramping up, back off to the current rpm percent (minus a bit)
-        if (hasNoCurrent && !overrideRampLimit && _backWeaponPower > 0.5)
-        {
-            _backWeaponPower = std::max(0.5, backWeaponCurrRPMPercent - 0.02);
-        }
-    }
-
-    _frontWeaponPower += (rampUpF ? 1 : -1) * scaleFront * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
-    _backWeaponPower += (rampUpB ? 1 : -1) * scaleBack * deltaTimeS / SECONDS_UNTIL_FULL_POWER;
-
-    // force weapon powers to be between 0 and 1
-    if (_frontWeaponPower > 1) { _frontWeaponPower = 1; }
-    if (_frontWeaponPower < 0) { _frontWeaponPower = 0; }
-    if (_backWeaponPower > 1) { _backWeaponPower = 1; }
-    if (_backWeaponPower < 0) { _backWeaponPower = 0; }
+    return gamepad;
 }
-
 
 /**
  * Allows the spacebar to control switching the robot positions should the trackers swap
@@ -404,11 +289,12 @@ DriveCommand RobotController::ManualMode()
     response.turn = -gamepad.GetLeftStickX();
 
     // update the spinner powers
-    UpdateSpinnerPowers();
+    Weapons& weapons = Weapons::GetInstance();
+    weapons.UpdateSpinnerPowers();
 
     // apply weapon powers
-    response.frontWeaponPower = _frontWeaponPower;
-    response.backWeaponPower = _backWeaponPower;
+    response.frontWeaponPower = weapons.GetFrontWeaponTargetPower();
+    response.backWeaponPower = weapons.GetBackWeaponTargetPower();
 
     float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
     power += ImGui::IsKeyDown(ImGuiKey_J) - ImGui::IsKeyDown(ImGuiKey_U);
@@ -484,16 +370,6 @@ DriveCommand RobotController::RobotLogic()
 
     // return the response
     return ret;
-}
-
-float& RobotController::GetFrontWeaponTargetPowerRef()
-{
-    return _frontWeaponPower;
-}
-
-float& RobotController::GetBackWeaponTargetPowerRef()
-{
-    return _backWeaponPower;
 }
 
 IRobotLink& RobotController::GetRobotLink()
