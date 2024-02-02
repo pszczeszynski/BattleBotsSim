@@ -11,6 +11,8 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include "hid/hid.h"
+#include <chrono>
 
 // interface
 class IRobotLink
@@ -29,12 +31,14 @@ protected:
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
 
-    // store the last 250 messages
-    const int MESSAGE_HISTORY_SIZE = 250;
+    // store the last 1000 messages
+    const int MESSAGE_HISTORY_SIZE = 1000;
     std::deque<RobotMessage> _messageHistory;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
+    std::vector<RobotMessage> _mainThreadUnconsumedMessages;
+
 };
 
 /**
@@ -64,17 +68,21 @@ public:
     ~RobotLinkReal();
 
 private:
-    void _WriteSerialMessage(const char *message, int messageLength);
-    void _InitComPort();
-
-    HANDLE _comPort;
-    DCB _dcbSerialParams;
     Clock _sendingClock;
-    GenericReceiver<RobotMessage> _receiver;
-    std::thread _receiverThread;
+    std::thread _radioThread;
     RobotMessage _lastMessage;
+
+    std::vector<RobotMessage> _unconsumedMessages;
+
     unsigned long _newestMessageID;
     unsigned long _lastConsumedMessageID;
     std::mutex _lastMessageMutex;
+
+    // these fields are mutex protected
+    std::mutex _sendMessageMutex;
+    DriveCommand _messageToSend;
+    bool _requestSend;
+
+
     std::mutex _comPortMutex;
 };

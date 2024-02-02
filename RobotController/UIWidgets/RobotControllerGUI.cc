@@ -28,37 +28,47 @@ RobotControllerGUI& RobotControllerGUI::GetInstance()
 bool RobotControllerGUI::Update()
 {
     static ClockWidget guiClock("GUI drawing");
-    guiClock.markStart();
+    static Clock timeSinceLastRender;
 
-    if (glfwWindowShouldClose(window))
+    if (timeSinceLastRender.getElapsedTime() > 0.0)//1.0 / 60.0)
     {
-        return false;
+        guiClock.markStart();
+
+        if (glfwWindowShouldClose(window))
+        {
+            guiClock.markEnd();
+            return false;
+        }
+
+        // Poll and handle events
+        glfwPollEvents();
+
+        // setup the ImGui frame
+        InitializeImGUIFrame();
+
+        // make sure to clear the last frame's textures
+        ClearLastFrameTextures();
+
+        // draw all the widgets
+        for (ImageWidget* widget : ImageWidget::Instances())
+        {
+            widget->Draw();
+        }
+
+        _configWidget.Draw();
+        _robotTelemetryWidget.Draw();
+        _killWidget.Draw();
+
+        ClockWidget::DrawAll();
+
+        timeSinceLastRender.markStart();
+        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+        // render the ImGui frame
+        Render(window, clear_color);
+
+        guiClock.markEnd();
     }
 
-    // Poll and handle events
-    glfwPollEvents();
-    // setup the ImGui frame
-    InitializeImGUIFrame();
-    // make sure to clear the last frame's textures
-    ClearLastFrameTextures();
-
-    // draw all the widgets
-    for (ImageWidget* widget : ImageWidget::Instances())
-    {
-        widget->Draw();
-    }
-
-    _configWidget.Draw();
-    _robotTelemetryWidget.Draw();
-    _killWidget.Draw();
-
-    ClockWidget::DrawAll();
-
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    // render the ImGui frame
-    Render(window, clear_color);
-
-    guiClock.markEnd();
     return true;
 }
 
@@ -187,7 +197,7 @@ void RobotControllerGUI::Render(GLFWwindow *window, ImVec4 clearColor)
     // change the current OpenGL context, so we save/restore it to make it
     // easier to paste this code elsewhere. For this specific demo app we could
     // also call glfwMakeContextCurrent(window) directly)
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    if (io.ConfigFlags)// & ImGuiConfigFlags_ViewportsEnable)
     {
         GLFWwindow *backup_current_context = glfwGetCurrentContext();
         ImGui::UpdatePlatformWindows();

@@ -21,11 +21,6 @@ void Clock::markStart()
 void Clock::markEnd()
 {
 	double timeDifference = getElapsedTime();
-	// every 3 seconds, reset the average time
-	if (_totalTime > 3.0)
-	{
-		resetCounters();
-	}
 
 	if (timeDifference > maxTimeDifference)
 	{
@@ -34,6 +29,12 @@ void Clock::markEnd()
 
 	_totalTime += timeDifference;
 	++_totalFrames;
+
+	// every 3 seconds, reset the average time
+	if (_totalFrames > 1000.0)
+	{
+		resetCounters();
+	}
 }
 
 /**

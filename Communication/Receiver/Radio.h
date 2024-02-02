@@ -29,7 +29,7 @@ public:
 
 private:
     RF24 radio{7, 9};
-};
+};//
 
 template <typename SendType, typename ReceiveType>
 Radio<SendType, ReceiveType>::Radio()
@@ -44,7 +44,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_LOW);
+    radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
@@ -52,7 +52,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
 
 unsigned long lastTimeReceivedMessage = 0;
 
-#define SEND_FIFO_TIMEOUT_MS 100
+#define SEND_FIFO_TIMEOUT_MS 1
 
 /**
  * Receives a message from the driver station

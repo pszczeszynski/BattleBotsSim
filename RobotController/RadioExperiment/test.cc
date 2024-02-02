@@ -5,7 +5,7 @@
 #include <iostream>
 #include <chrono>
 
-#define TRANSMITTER_COM_PORT TEXT("COM5")
+#define TRANSMITTER_COM_PORT TEXT("COM7")
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
 
@@ -102,6 +102,15 @@ bool readChar(char& c)
     
     DWORD bytesRead;
     ReadFile(_comPort, &c, 1, &bytesRead, NULL);
+
+    if (bytesRead == 0)
+    {
+        // attempt to reinitialize com port
+        _InitComPort();
+        std::cerr << "Error reading from COM port" << std::endl;
+
+        return false;
+    }
     return true;
 }
 
@@ -194,7 +203,7 @@ int main()
             std::cout << "Error reading char" << std::endl;
             continue;
         }
-        // std::cout << c;
+        std::cout << c;
     }
 
 

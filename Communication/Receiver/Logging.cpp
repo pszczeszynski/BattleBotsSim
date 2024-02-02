@@ -74,8 +74,8 @@ String Logger::formatRobotMessage(RobotMessage robotMessage)
             message += DoubleToString(robotMessage.canData.motorCurrent[i]);
             message += "; V : ";
             message += DoubleToString(robotMessage.canData.motorVoltage[i]);
-            message += "; RPM : ";
-            message += DoubleToString(robotMessage.canData.motorRPM[i]);
+            message += "; ERPM : ";
+            message += DoubleToString(robotMessage.canData.motorERPM[i]);
             message += "; TEMP : ";
             message += DoubleToString(robotMessage.canData.escFETTemp[i]);
             message += " }\n";

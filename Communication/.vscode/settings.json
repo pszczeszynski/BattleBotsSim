@@ -49,7 +49,11 @@
         "xlocnum": "cpp",
         "xmemory": "cpp",
         "xstddef": "cpp",
-        "xtr1common": "cpp"
+        "xtr1common": "cpp",
+        "array": "cpp",
+        "format": "cpp",
+        "ranges": "cpp",
+        "span": "cpp"
     },
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#920320",

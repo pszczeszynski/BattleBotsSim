@@ -28,7 +28,7 @@ public:
     bool Available();
 
 private:
-    RF24 radio{14, 10}; // CE, CSN
+    RF24 radio{7, 9}; // CE, CSN
 };
 
 template <typename SendType, typename ReceiveType>
@@ -47,7 +47,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_MAX);
+    radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
@@ -111,10 +111,11 @@ ReceiveType Radio<SendType, ReceiveType>::Receive()
     ReceiveType receiveMessage;
     // initialize to 0
     memset(&receiveMessage, 0, sizeof(ReceiveType));
-
+    // Serial.println("is radio available" + (String)radio.available());
     if (radio.available())
     {
         radio.read(&receiveMessage, sizeof(ReceiveType));
+        Serial.println("Received message");
     }
 
     return receiveMessage;

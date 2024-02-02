@@ -28,8 +28,8 @@ void setup()
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
 
-    Serial.begin(460800);
-    Serial.clear();
+    Serial.begin(9600);//460800);
+    // Serial.clear();
     
     Serial.println("Initializing radio...");
     radio = new Radio<DriveCommand, RobotMessage>();
@@ -39,17 +39,9 @@ void setup()
 
 }
 
-GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
-                                             {
-                                            // if there is data available
-                                            if (Serial.available())
-                                            {
-                                                // read the data
-                                                c = Serial.read();
-                                                return true;
-                                            }
-                                            // else return false
-                                            return false; });
+// RawHID packets are always 64 bytes
+byte buffer[64];
+unsigned int packetCount = 0;
 
 
 //===============================================================================
@@ -57,53 +49,67 @@ GenericReceiver<DriveCommand> serialReceiver(sizeof(DriveCommand)*2, [](char &c)
 //===============================================================================
 long int total_packets = 0;
 #define NO_MESSAGE_REINIT_TIME 70
+
+#define SEND_TIMEOUT 1
 void loop()
 {
     static unsigned long lastReceiveTime = 0;
+    static unsigned long lastTime = 0;
 
-    // read all existing data from serial
-    serialReceiver.readUntilEnd();
+    int n;
+    // n = RawHID.recv(buffer, 0); // 0 timeout = do not wait
 
-    // if there are commands
-    if (serialReceiver.isLatestDataValid())
-    {
+    // if (n > sizeof(DriveCommand))
+    // {
+    //     DriveCommand command;
+    //     // reinterpret the buffer as a DriveCommand
+    //     std::memcpy(&command, buffer, sizeof(command));
+    //     // send over radio to receiver
+    //     radio->Send(command);
 
-        // get the latest data from the serial receiver
-        DriveCommand command = serialReceiver.getLatestData();
-        // send over radio to receiver
-        radio->Send(command);
-    }
+    //     Serial.println("Sent message");
+    // }
+
+
 
     bool hadData = false;
-    // while there is data available to read
-    while (radio->Available())
+    // read data from rc
+    RobotMessage message = radio->Receive();
+
+    if (message.type != RobotMessageType::INVALID)
     {
-        // read data from rc
-        RobotMessage message = radio->Receive();
-        if (message.type != RobotMessageType::INVALID)
+        Serial.println("Time " + String(millis() % 1000));
+        Serial.send_now();
+
+        // Serial.println("data was valid");
+        lastReceiveTime = millis();
+
+        total_packets ++;
+
+
+        char sendBuffer[64];
+        // zero out
+        memset(sendBuffer, 0, sizeof(sendBuffer));
+        std::memcpy(sendBuffer, &message, sizeof(RobotMessage));
+
+        // Serial.println("about to send via hid");
+        n = RawHID.send(sendBuffer, SEND_TIMEOUT);
+        // Serial.println("sent via hid");
+        if (n <= 0)
         {
-            lastReceiveTime = millis();
-
-            total_packets ++;
-
-            // print data to serial for driver station
-            Serial.print(MESSAGE_START_SEQ.c_str());
-            Serial.write((char*) &message, sizeof(message));
-            Serial.print(MESSAGE_END_SEQ.c_str());
-
-            // flush
-            Serial.flush();
-
-            // set the led on
-            digitalWrite(LED_PORT, HIGH);
-            hadData = true;
+            // Serial.println("Error forwarding message");
         }
+
+        // Serial.println("forwarded message to computer");
+        hadData = true;
     }
+
+    // Serial.println("end of loop()");
 
     // if we had no data, set the led off
     if (!hadData)
-    {
-        digitalWrite(LED_PORT, LOW);
+    {//
+        // digitalWrite(LED_PORT, LOW);
     }
 
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)

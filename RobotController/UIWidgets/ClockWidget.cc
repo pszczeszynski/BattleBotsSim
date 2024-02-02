@@ -1,4 +1,4 @@
-#include "ClockWidget.h"
+ #include "ClockWidget.h"
 // imgui
 #include "imgui.h"
 #include <numeric>
@@ -34,6 +34,7 @@ void ClockWidget::DrawAll()
     ImGui::Begin("Profiling");
 
     std::vector<double> averageTimes;
+    std::vector<double> maxTimes;
     std::vector<std::string> labels;
 
     // draw each clock
@@ -44,6 +45,7 @@ void ClockWidget::DrawAll()
         
         // add the average time and label
         averageTimes.push_back(averageTime);
+        maxTimes.push_back(clock->getMaxTimeDifference());
         labels.push_back(clock->getLabel());
     }
 
@@ -58,7 +60,7 @@ void ClockWidget::DrawAll()
     // draw the bars and times
     for (int i : indices)
     {
-        ImGui::Text("%s: %dms", labels[i].c_str(), (int) (averageTimes[i] * 1000.0));
+        ImGui::Text("%s: %.2fms \t\t\t max: %.2fms", labels[i].c_str(), averageTimes[i] * 1000.0, maxTimes[i] * 1000.0);
         
         if (totalTime > 0.0)
         {

@@ -6,10 +6,14 @@
 #include "RobotConfig.h"
 #include "UIWidgets/ClockWidget.h"
 
+#define USB_RETRY_TIME 50
+#define HID_BUFFER_SIZE 64
+#define SEND_TIMEOUT_MS 0 // after this time, give up sending and go back to receiving
+#define RECEIVE_TIMEOUT_MS 5
 /**
  * Doesn't do anything except call the timer markStart
  * Must be called for any robotlink
-*/
+ */
 RobotMessage IRobotLink::Receive()
 {
     RobotMessage ret = _ReceiveImpl();
@@ -35,13 +39,20 @@ RobotMessage IRobotLink::Receive()
         return ret;
     }
 
-    // valid message set receive delay
-    ret.receiveDelay = _receiveClock.getElapsedTime();
-    // add to message history
-    _messageHistory.push_back(ret);
+
+    for (RobotMessage& msg : _mainThreadUnconsumedMessages)
+    {
+        // valid message set receive delay
+        ret.receiveDelay = _receiveClock.getElapsedTime();
+
+        // add to message history
+        _messageHistory.push_back(ret);
+    }
+
+    _mainThreadUnconsumedMessages.clear();
 
     // if message history is too long, remove the first element
-    if (_messageHistory.size() > MESSAGE_HISTORY_SIZE)
+    while (_messageHistory.size() > MESSAGE_HISTORY_SIZE)
     {
         _messageHistory.pop_front();
     }
@@ -67,7 +78,8 @@ const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
     return _messageHistory;
 }
 
-#define TRANSMITTER_COM_PORT TEXT("COM3")
+//
+#define TRANSMITTER_COM_PORT TEXT("COM8")
 
 #define COM_READ_TIMEOUT_MS 100
 #define COM_WRITE_TIMEOUT_MS 100
@@ -76,139 +88,116 @@ char lastChar = '\0';
 Clock intermessageClock;
 int messageCount = 0;
 
-RobotLinkReal::RobotLinkReal() : _comPortMutex{}, _receiver(
-                                     200, [this](char &c)
-                                     {
-    DWORD dwBytesRead = 0;
-    DWORD dwErrors = 0;
-    COMSTAT comStat;
 
-    _comPortMutex.lock();
+ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
-    // Get and clear current errors on the com port.
-    if (!ClearCommError(_comPort, &dwErrors, &comStat))
-    {
-        // attempt to reinitialize com port
-        _InitComPort();
-        _comPortMutex.unlock();
-
-        std::cerr << "Error clearing COM port" << std::endl;
-
-        return false;
-    }
-
-    // If there is nothing to read, return false early.
-    if (comStat.cbInQue == 0)
-    {
-        _comPortMutex.unlock();        
-        return false;
-    }
-
-    // check if there is data to read
-    if (!ReadFile(_comPort, &c, 1, &dwBytesRead, NULL))
-    {
-        std::cerr << "Error reading from COM port" << std::endl;
-    }
-
-    _comPortMutex.unlock();
-
-    return dwBytesRead > 0; })
+RobotLinkReal::RobotLinkReal()
 {
-    _comPortMutex.lock();
-    _InitComPort();
-    _comPortMutex.unlock();
     _sendingClock.markStart();
 
-    _receiverThread = std::thread([this]()
-                                  {
-        while (true)
-        {
-            // read until next packet
-            _receiver.waitUntilData();
-            RobotMessage msg = _receiver.getLatestData();
-            if (msg.type != RobotMessageType::INVALID)
+    _radioThread = std::thread([this]()
+                               {
+            while (true)
             {
-                _lastMessageMutex.lock();
-                _lastMessage = msg;
-                _newestMessageID++;
-                _lastMessageMutex.unlock();
-            }
-        }
-    });
-}
+                int i, device_handle, num;
+                char c;
+                char buf[HID_BUFFER_SIZE];
 
-void RobotLinkReal::_InitComPort()
-{
-    static int numTries = 0;
-    const int NUM_TRIES_BEFORE_PRINTING_ERROR = 5000;
+                // C-based example is 16C0:0480:FFAB:0200
+                device_handle = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
+                // opened sucessfully
 
-    // close it if it is open
-    CloseHandle(_comPort);
+                // while not opened
+                while (device_handle <= 0)
+                {
+                    // Arduino-based example is 16C0:0486:FFAB:0200
+                    device_handle = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
+                    if (device_handle <= 0)
+                    {
+                        std::cout << "no rawhid device found" << std::endl;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
+                    }
+                }
 
-    _comPort = CreateFile(TRANSMITTER_COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (_comPort == INVALID_HANDLE_VALUE)
-    {
-        // increase numTries
-        numTries++;
-        numTries %= NUM_TRIES_BEFORE_PRINTING_ERROR;
+                printf("found rawhid device with handle %d\n", device_handle);
 
-        // if we have tried NUM_TRIES_BEFORE_PRINTING_ERROR times, print error
-        if (numTries % NUM_TRIES_BEFORE_PRINTING_ERROR == 1)
-        {
-            std::cerr << "ERROR: can't open comport" << std::endl;
-        }
+                // keep reading until error or device goes offline
+                while (true)
+                {
+                    Clock c0;
+                    receiveThreadLoopTime.markStart();
 
-        // break out of function
-        return;
-    }
-    else
-    {
-        numTries = 0;
-        std::cout << "Transmitter COM Port opened successfully" << std::endl;
-    }
+                    // check if any Raw HID packet has arrived
+                    num = rawhid_recv(0, buf, HID_BUFFER_SIZE, RECEIVE_TIMEOUT_MS);
+                    double c0_duration = c0.getElapsedTime();
 
-    _dcbSerialParams = {0};
-    _dcbSerialParams.DCBlength = sizeof(_dcbSerialParams);
-    _dcbSerialParams.BaudRate = 460800; // set the baud rate
-    _dcbSerialParams.ByteSize = 8;
-    _dcbSerialParams.fRtsControl = RTS_CONTROL_DISABLE;
-    _dcbSerialParams.fDtrControl = DTR_CONTROL_DISABLE;
-    
-    _dcbSerialParams.StopBits = ONESTOPBIT;
-    _dcbSerialParams.Parity = NOPARITY;
 
-    COMMTIMEOUTS timeouts = {0};
-    timeouts.ReadIntervalTimeout = MAXDWORD;
-    timeouts.ReadTotalTimeoutConstant = COM_READ_TIMEOUT_MS;
-    timeouts.ReadTotalTimeoutMultiplier = 0;
-    timeouts.WriteTotalTimeoutMultiplier = 0;
-    timeouts.WriteTotalTimeoutConstant = COM_WRITE_TIMEOUT_MS;
+                    Clock c1;
 
-    if (!SetCommTimeouts(_comPort, &timeouts))
-    {
-        std::cerr << "Error setting COM port timeouts" << std::endl;
-    }
+                    if (num < 0)
+                    {
+                        printf("\nerror reading, device went offline\n");
+                        rawhid_close(0);
+                        receiveThreadLoopTime.markEnd();
+                        break;
+                    }
 
-    if (!SetCommState(_comPort, &_dcbSerialParams))
-    {
-        std::cerr << "Error setting serial port state" << std::endl;
-    }
-}
+                    double c1_duration = c1.getElapsedTime();
 
-/**
- * Writes a message to the serial port.
- * @param message The message to write.
- * @param messageLength The length of the message to write.
- * @throws std::runtime_error if the message could not be written.
-*/
-void RobotLinkReal::_WriteSerialMessage(const char *message, int messageLength)
-{
-    DWORD dwBytesWritten = 0;
-    if (!WriteFile(_comPort, message, messageLength, &dwBytesWritten, NULL))
-    {
-        throw std::runtime_error("Failed to write message");
-    }
 
+                    Clock c3;
+                    // if there is enough data for a RobotMessage
+                    if (num >= sizeof(RobotMessage))
+                    {
+                        // std::cout << "Received " << num << " bytes" << std::endl;
+                        // reinterpret the buffer as a RobotMessage
+                        RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+                        if (msg.type != RobotMessageType::INVALID)
+                        {
+                            // std::cout << "Received message" << std::endl;
+
+                            Clock c;
+                            _lastMessageMutex.lock();
+
+                            if (c.getElapsedTime() > 0.01)
+                            {
+                                std::cout << "TOOK A LONG TIME TO GET MUTEX: " << c.getElapsedTime() << std::endl;
+                            }
+                            _lastMessage = msg;
+                            _newestMessageID++;
+                            _unconsumedMessages.push_back(msg);
+                            _lastMessageMutex.unlock();
+                        }
+                    }
+
+                    double c3_duration = c3.getElapsedTime();
+
+                    // if the main thread wants to send a message
+                    // try lock
+
+
+                    // _sendMessageMutex.lock();
+                    // if (_requestSend)
+                    // {
+                    //     std::cout << "about to send" << std::endl;
+                    //     // send the message
+                    //     rawhid_send(0, &_messageToSend, sizeof(_messageToSend), SEND_TIMEOUT_MS);
+                    //     std::cout << "sent" << std::endl;
+                    //     // reset requestSend
+                    //     _requestSend = false;
+                    //     // unlock
+                    // }
+                    // _sendMessageMutex.unlock();
+                    Clock c4;
+                    receiveThreadLoopTime.markEnd();
+                    double c4_duration = c4.getElapsedTime();
+
+                    if (c0.getElapsedTime() > 0.017)
+                    {
+                        std::cout << "c0: " << c0_duration << " c1: " << c1_duration << " c3: " << c3_duration << " c4: " << c4_duration << std::endl;
+                    }
+                } 
+            } });
 }
 
 void RobotLinkReal::Drive(DriveCommand &command)
@@ -237,22 +226,25 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     try
     {
-        // write the start sequence
-        _WriteSerialMessage(MESSAGE_START_SEQ.c_str(), MESSAGE_START_SEQ.length());
-        // write the command
-        _WriteSerialMessage((char *)&command, sizeof(command));
-        // write the end sequence
-        _WriteSerialMessage(MESSAGE_END_SEQ.c_str(), MESSAGE_END_SEQ.length());
+        std::cout << "about to acquire send mutex" << std::endl;
+        // acquire sending mutex
+        _sendMessageMutex.lock();
+        std::cout << "acquired send mutex" << std::endl;
+        // set message to send
+        _messageToSend = command;
+        std::cout << "set message to send" << std::endl;
+        // set requestSend to true
+        _requestSend = true;
+        std::cout << "set request send" << std::endl;
+        // release sending mutex
+        _sendMessageMutex.unlock();
+        std::cout << "released send mutex" << std::endl;
 
         _sendClock.markStart();
     }
     catch (std::exception &e)
     {
-        std::cerr << "Failed to write command: " << e.what() << std::endl;
-        SAFE_DRAW
-        cv::putText(drawingImage, "Failed COM WRITE!", cv::Point(drawingImage.cols * 0.8, drawingImage.rows * 0.8), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-        END_SAFE_DRAW
-        _InitComPort();
+        std::cerr << "Error sending message: " << e.what() << std::endl;
     }
 
     clockWidget.markEnd();
@@ -261,10 +253,19 @@ void RobotLinkReal::Drive(DriveCommand &command)
 #define RECEIVE_TIMEOUT_MS 100
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
-{    
+{
     bool isNew = false;
+
+    _mainThreadUnconsumedMessages.clear();
+
     _lastMessageMutex.lock();
     RobotMessage retrievedStruct = _lastMessage;
+
+    for (RobotMessage &msg : _unconsumedMessages)
+    {
+        _mainThreadUnconsumedMessages.push_back(msg);
+    }
+    _unconsumedMessages.clear();
 
     if (_lastConsumedMessageID != _newestMessageID)
     {
@@ -284,7 +285,7 @@ RobotMessage RobotLinkReal::_ReceiveImpl()
 
 RobotLinkReal::~RobotLinkReal()
 {
-    CloseHandle(_comPort);
+
 }
 
 /////////////////// SIMULATION //////////////////////
@@ -296,7 +297,7 @@ RobotLinkSim::RobotLinkSim()
 
 void RobotLinkSim::Drive(DriveCommand &command)
 {
-    UnityDriveCommand message = {command.movement, command.turn, (double) command.frontWeaponPower, (double) command.backWeaponPower};
+    UnityDriveCommand message = {command.movement, command.turn, (double)command.frontWeaponPower, (double)command.backWeaponPower};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
@@ -328,8 +329,8 @@ RobotMessage RobotLinkSim::_ReceiveImpl()
     {
         std::cout << "CAN DATA RECEIVED" << std::endl;
         ret.type = RobotMessageType::CAN_DATA;
-        ret.canData.motorERPM[2] = (int) abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
-        ret.canData.motorERPM[3] = (int) abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
+        ret.canData.motorERPM[2] = (int)abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
+        ret.canData.motorERPM[3] = (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
 
         std::cout << "RPM: " << message.spinner_1_RPM << " " << message.spinner_2_RPM << std::endl;
         lastCanDataClock.markStart();
@@ -338,4 +339,3 @@ RobotMessage RobotLinkSim::_ReceiveImpl()
     // return the message
     return ret;
 }
-

@@ -14,10 +14,10 @@
 #include "IMU.h"
 #include "Logging.h"
 
-#define SERIAL_BAUD 9600
+#define SERIAL_BAUD 460800
 
 // time to wait for received packets. If too short, likely to miss packets from driver station
-#define RECEIVE_TIMEOUT_MS 5
+#define RECEIVE_TIMEOUT_MS 0
 
 // time to wait before stopping the robot if no packets are received
 #define STOP_ROBOT_TIMEOUT_MS 250
@@ -26,6 +26,7 @@
 #define PRINT_DRIVE_COMMAND_MS 500
 
 // #define USE_IMU
+
 
 IMU* imu;
 
@@ -46,6 +47,8 @@ void setup()
 {
     // Start serial port to display messages on Serial Monitor Window
     Serial.begin(SERIAL_BAUD);
+
+    Serial.println("hello");
 
 #ifdef USE_IMU
     Serial.println("Initializing IMU...");
@@ -223,23 +226,23 @@ void DriveWithLatestMessage()
         // print every half second
         if (millis() - lastPrintTime > PRINT_DRIVE_COMMAND_MS)
         {
-            Serial.println("Received drive command");
-            // print out all fields
-            Serial.print("Movement: ");
-            Serial.println(command.movement);
-            Serial.print("Turn: ");
-            Serial.println(command.turn);
-            Serial.print("Front Weapon Power: ");
-            Serial.println(command.frontWeaponPower);
-            Serial.print("Back Weapon Power: ");
-            Serial.println(command.backWeaponPower);
-            Serial.print("Self Righter Power: ");
-            Serial.println(command.selfRighterPower);
-            Serial.print("Valid: ");
-            Serial.println(command.valid);
+            // Serial.println("Received drive command");
+            // // print out all fields
+            // Serial.print("Movement: ");
+            // Serial.println(command.movement);
+            // Serial.print("Turn: ");
+            // Serial.println(command.turn);
+            // Serial.print("Front Weapon Power: ");
+            // Serial.println(command.frontWeaponPower);
+            // Serial.print("Back Weapon Power: ");
+            // Serial.println(command.backWeaponPower);
+            // Serial.print("Self Righter Power: ");
+            // Serial.println(command.selfRighterPower);
+            // Serial.print("Valid: ");
+            // Serial.println(command.valid);
 
-            Serial.print("Packets per second: ");
-            Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
+            // Serial.print("Packets per second: ");
+            // Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
             lastPrintTime = millis();
             messagesSinceLastPrint = 0;
         }
@@ -280,15 +283,25 @@ void DriveWithLatestMessage()
 
 void loop()
 {
-    // wait for a message to be available
-    WaitForRadioData();
-    // delay(3);
+    Serial.println("Sending");
+    // SLEEP FOR 5 ms
+    delay(10);
 
-    // drive with the latest message if there is one
-    DriveWithLatestMessage();
+    // hello
+
+    // // wait for a message to be available
+    // WaitForRadioData();
+
+    // // drive with the latest message if there is one
+    // DriveWithLatestMessage();
 
     // Compute response message
-    RobotMessage message = Update();
+    RobotMessage message;// = Update();
+
+    // zero out
+    memset(&message, 0, sizeof(RobotMessage));
+
+    message.type = IMU_DATA;
 
     // send the message
     SendOutput result = radio->Send(message);
@@ -301,5 +314,4 @@ void loop()
         else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
 #endif
     }
-
 }
