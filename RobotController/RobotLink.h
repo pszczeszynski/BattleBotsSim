@@ -13,6 +13,7 @@
 #include <mutex>
 #include "hid/hid.h"
 #include <chrono>
+#include <deque>
 
 // interface
 class IRobotLink
@@ -72,7 +73,7 @@ private:
     std::thread _radioThread;
     RobotMessage _lastMessage;
 
-    std::vector<RobotMessage> _unconsumedMessages;
+    std::deque<RobotMessage> _unconsumedMessages;
 
     unsigned long _newestMessageID;
     unsigned long _lastConsumedMessageID;

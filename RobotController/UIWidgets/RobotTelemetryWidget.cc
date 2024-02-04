@@ -25,6 +25,7 @@ void DrawRadioPacketLoss()
     const std::deque<RobotMessage> &messageHistory = 
         RobotController::GetInstance().GetRobotLink().GetMessageHistory();
 
+
     // extract just delays
     std::vector<float> delays;
     for (const RobotMessage &message : messageHistory)
@@ -74,6 +75,39 @@ void DrawRadioPacketLoss()
 
     // Display as graph
     ImGui::PlotLines("", delays.data(), delays.size(), 0, NULL, 0.0f, maxYValue, ImVec2(graphWidth, graphHeight));
+
+    // add a second line for the packet id
+    std::vector<float> relativePacketIDs;
+    for (int i = 1; i < messageHistory.size(); i++)
+    {
+        relativePacketIDs.push_back(messageHistory[i].packetID - messageHistory[i-1].packetID);
+    }
+
+    // add third line for relative times
+    std::vector<float> relativeTimes;
+    for (int i = 1; i < messageHistory.size(); i++)
+    {
+        relativeTimes.push_back(messageHistory[i].packetTimeMS - messageHistory[i-1].packetTimeMS);
+    }
+
+    // add text 
+    ImGui::Spacing();
+    // say "relative packet id"
+    ImGui::Text("Relative Packet ID");
+    // Change the color to red
+    ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    ImGui::PlotLines("", relativePacketIDs.data(), relativePacketIDs.size(), 0, NULL, -4.0, 4.0, ImVec2(graphWidth, graphHeight));
+
+    ImGui::Spacing();
+    // say "relative time"
+    ImGui::Text("Relative Time (MS) from transmitter teensy");
+    // Change the color to red
+    ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+
+    ImGui::PlotLines("", relativeTimes.data(), relativeTimes.size(), 0, NULL, -25, 25.0, ImVec2(graphWidth, graphHeight));
+
+    //
 
 
     // Add text for average delay

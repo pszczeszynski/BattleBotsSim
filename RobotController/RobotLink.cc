@@ -9,7 +9,7 @@
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
 #define SEND_TIMEOUT_MS 0 // after this time, give up sending and go back to receiving
-#define RECEIVE_TIMEOUT_MS 5
+#define RECEIVE_TIMEOUT_MS 20
 /**
  * Doesn't do anything except call the timer markStart
  * Must be called for any robotlink
@@ -39,15 +39,48 @@ RobotMessage IRobotLink::Receive()
         return ret;
     }
 
+    // check sequenatial packet ID's
+    for (int i = 0; i < _mainThreadUnconsumedMessages.size(); i++)
+    {
+        RobotMessage& msg = _mainThreadUnconsumedMessages[i];
 
+        // valid message set receive delay
+        msg.receiveDelay = _receiveClock.getElapsedTime();
+        // restart clock
+        _receiveClock.markStart();
+        if (i > 0)
+        {
+            // check if id's are sequential
+            if (msg.packetID != _mainThreadUnconsumedMessages[i-1].packetID + 1)
+            {
+                std::cerr << "ERROR: packet ID's are not sequential (LOCATION 2)" << std::endl;
+            }
+        }
+    }
+
+
+    // copy over unconsumed, starting at the OLDEST unconsumed message
     for (RobotMessage& msg : _mainThreadUnconsumedMessages)
     {
-        // valid message set receive delay
-        ret.receiveDelay = _receiveClock.getElapsedTime();
-
         // add to message history
-        _messageHistory.push_back(ret);
+        _messageHistory.push_back(msg);
     }
+
+    // check sequenatial packet ID's
+    for (int i = 0; i < _messageHistory.size(); i++)
+    {
+        RobotMessage& msg = _messageHistory[i];
+
+        if (i > 0)
+        {
+            // check if id's are sequential
+            if (msg.packetID != _messageHistory[i-1].packetID + 1)
+            {
+                std::cerr << "ERROR: packet ID's are not sequential (LOCATION 3)" << std::endl;
+            }
+        }
+    }
+
 
     _mainThreadUnconsumedMessages.clear();
 
@@ -56,9 +89,6 @@ RobotMessage IRobotLink::Receive()
     {
         _messageHistory.pop_front();
     }
-
-    // restart clock
-    _receiveClock.markStart();
 
     return ret;
 }
@@ -149,24 +179,23 @@ RobotLinkReal::RobotLinkReal()
                     // if there is enough data for a RobotMessage
                     if (num >= sizeof(RobotMessage))
                     {
-                        // std::cout << "Received " << num << " bytes" << std::endl;
                         // reinterpret the buffer as a RobotMessage
                         RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+
                         if (msg.type != RobotMessageType::INVALID)
                         {
-                            // std::cout << "Received message" << std::endl;
-
-                            Clock c;
-                            _lastMessageMutex.lock();
-
-                            if (c.getElapsedTime() > 0.01)
-                            {
-                                std::cout << "TOOK A LONG TIME TO GET MUTEX: " << c.getElapsedTime() << std::endl;
-                            }
-                            _lastMessage = msg;
+                            // msg.packetID = _newestMessageID;
                             _newestMessageID++;
+
+                            // copy over data to shared memory
+                            _lastMessageMutex.lock();
+                            _lastMessage = msg;
                             _unconsumedMessages.push_back(msg);
                             _lastMessageMutex.unlock();
+                        }
+                        else
+                        {
+                            std::cerr << "ERROR: invalid message type" << std::endl;
                         }
                     }
 
@@ -254,33 +283,43 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
 RobotMessage RobotLinkReal::_ReceiveImpl()
 {
-    bool isNew = false;
-
     _mainThreadUnconsumedMessages.clear();
 
+    // lock mutex
     _lastMessageMutex.lock();
-    RobotMessage retrievedStruct = _lastMessage;
-
-    for (RobotMessage &msg : _unconsumedMessages)
+    // copy over all un-seen messages
+    for (int i = 0; i < _unconsumedMessages.size(); i++)
     {
+        RobotMessage& msg = _unconsumedMessages[i];
+        // add to main thread unconsumed messages
         _mainThreadUnconsumedMessages.push_back(msg);
+
+        if (i > 0)
+        {
+            // check if id's are sequential
+            if (msg.packetID != _unconsumedMessages[i-1].packetID + 1)
+            {
+                std::cerr << "ERROR: packet ID's are not sequential (LOCATION 1)" << std::endl;
+            }
+        }
     }
+
+
+
+
+    // reset unconsumed messages since we have copied them over
     _unconsumedMessages.clear();
-
-    if (_lastConsumedMessageID != _newestMessageID)
-    {
-        isNew = true;
-        _lastConsumedMessageID = _newestMessageID;
-    }
-
+    // unlock mutex
     _lastMessageMutex.unlock();
 
-    if (!isNew)
+    // if there are no messages, return an invalid message
+    if (_mainThreadUnconsumedMessages.empty())
     {
         return RobotMessage{RobotMessageType::INVALID};
     }
 
-    return retrievedStruct;
+    // return the latest message
+    return _mainThreadUnconsumedMessages.back();
 }
 
 RobotLinkReal::~RobotLinkReal()

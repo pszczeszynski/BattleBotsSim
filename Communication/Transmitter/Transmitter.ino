@@ -55,6 +55,7 @@ void loop()
 {
     static unsigned long lastReceiveTime = 0;
     static unsigned long lastTime = 0;
+    static int curr_packet_id = 0;
 
     int n;
     // n = RawHID.recv(buffer, 0); // 0 timeout = do not wait
@@ -71,10 +72,17 @@ void loop()
     // }
 
 
-
+    delay(10);
     bool hadData = false;
     // read data from rc
-    RobotMessage message = radio->Receive();
+    RobotMessage message;// = radio->Receive();
+    message.type = IMU_DATA;
+    message.packetID = curr_packet_id;
+    curr_packet_id ++;
+    curr_packet_id %= 10000000;
+
+    // debugging, add timestamp
+    message.packetTimeMS = millis() % 10000;
 
     if (message.type != RobotMessageType::INVALID)
     {
