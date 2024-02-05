@@ -5,6 +5,7 @@
 #include "RobotController.h"
 #include "imgui.h"
 #include "CVPosition.h"
+#include <iostream>
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -180,12 +181,14 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
     if (this == &RobotOdometry::Robot())
     {
-        cv::Point2f visualPosition = CVPosition::GetInstance().ComputeRobotPosition(RobotController::GetInstance().GetDrawingImage());
-        visualPos = visualPosition;
+        std::vector<int> visualPosition = CVPosition::GetInstance().ComputeRobotPosition(RobotController::GetInstance().GetDrawingImage());
+        visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+
+        std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
 
         // draw the position on the drawing image
         SAFE_DRAW
-        cv::circle(drawingImage, visualPosition, 5, cv::Scalar(0, 0, 255), -1);
+        cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
         END_SAFE_DRAW
     }
 
