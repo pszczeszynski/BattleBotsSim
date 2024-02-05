@@ -2,6 +2,8 @@
 
 Open in VSCode, make sure the `MachineLearning` directory has the `TestingData` directory with data inside
 
+Go to the `DataPreprocessor` directory, run `./buildPreprocessor.bat` and `./build/Release/DataPreprocessor.exe` to warp the images to 720x720
+
 Go to the `train_yolo` directory, activate a virtual environment, and run `pip install -r requirements.txt` to install all dependencies.
 
 Edit `data_generation.py` with the train and test size, as well as the directory name for the training data, make sure this matches the name in `data.yaml`.
