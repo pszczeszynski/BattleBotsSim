@@ -91,9 +91,6 @@ int AcquireImages(CameraPtr pCam)
         int image_width = (int) pCam->Width.GetValue();   // Max 1440 for this camera
         int image_height = (int) pCam->Height.GetValue();   // Max 1080 for this camera
 
-        // Create a window
-        // cv::namedWindow("Camera Stream", cv::WINDOW_NORMAL);
-
         // Start acquisition
         pCam->BeginAcquisition();
 
@@ -114,8 +111,6 @@ int AcquireImages(CameraPtr pCam)
                 start = now;
             }
 
-            // cout << "TIME: " << duration.count() << endl;
-
             framecount += 1;
 
             // Get Next Image
@@ -124,52 +119,17 @@ int AcquireImages(CameraPtr pCam)
 
             // Get char data
             unsigned char* img_data = (unsigned char*)pResultImage->GetData();             
-            
+
             // Create a Mat
             cv::Mat bayerImage(image_height, image_width, CV_8UC1, img_data);
 
             cv::Mat colorImage;
             cv::cvtColor(bayerImage, colorImage, cv::COLOR_BayerRGGB2BGR);
-            //string output = "output";
-            //output += std::to_string(count);
-            //output += ".jpg";
-   
-
-            //cv::imwrite(output, colorImage);
             count += 1;
 
             cv::imshow("Video", colorImage);
 
             DoEvents();
-            // cv::waitKey(1);
-           
-
-            // Show Image 
-            // cv::imshow("Camera Stream", rgbImage);
-
-
-
-            // If not complete, get next
-            //if (!pResultImage->IsIncomplete()) 
-            //{ 
-            //    cout << "incomplete" << endl;
-            //    continue; 
-            //}
-            //else
-            //{
-            //    cout << ".";
-            // }
-
-
-
-
-            // Assuming image is 640 x 480
-            // data[0] = Row 0, Column 0 = red pixel (R)
-            // data[1] = Row 0, Column 1 = green pixel (G)
-            // data[640] = Row 1, Column 0 = green pixel (G)
-            // data[641] = Row 1, Column 1 = blue pixel (B)
-            
-
         }
 
         pCam->EndAcquisition();        

@@ -10,6 +10,7 @@
                 "${workspaceFolder}/libs/GLM/",
                 "${workspaceFolder}/libs/GLEW/include/",
                 "${workspaceFolder}/libs/IMGUI/",
+                "C:/Program Files/FLIR Systems/Spinnaker/include/"
             ],
             "defines": [
                 "_DEBUG",
