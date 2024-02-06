@@ -7,6 +7,12 @@
 #include <thread>
 #include "Clock.h"
 
+#include "Spinnaker.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+#include <conio.h>
+#include <sstream>
+#include <chrono>
+
 class ICameraReceiver
 {
 public:
@@ -60,6 +66,9 @@ private:
     cv::Mat _frame;
     long int _framesReady;
     int _cameraIndex;
+    int pcam_image_width;
+    int pcam_image_height;
 
-    cv::VideoCapture *_cap = nullptr;
+    Spinnaker::CameraPtr pCam = nullptr;
+    Spinnaker::SystemPtr _system = nullptr;
 };
