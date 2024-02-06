@@ -7,6 +7,12 @@
 #include <thread>
 #include "Clock.h"
 
+#include "Spinnaker.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+#include <conio.h>
+#include <sstream>
+#include <chrono>
+
 class ICameraReceiver
 {
 public:
@@ -50,7 +56,6 @@ public:
     CameraReceiver(int cameraIndex);
     bool GetFrame(cv::Mat &output);
     ~CameraReceiver();
-    double readVideoRate = 1.0f; // While reading video, this will allow us to slow or speed it up
 
 private:
     bool _InitializeCamera();
@@ -61,7 +66,9 @@ private:
     cv::Mat _frame;
     long int _framesReady;
     int _cameraIndex;
+    int pcam_image_width;
+    int pcam_image_height;
 
-    cv::VideoCapture *_cap = nullptr;
-    double maxFrameRate = 120f; // Maximum frame rate we will try to get images. This will be automatically be set to read in video file framerate.
+    Spinnaker::CameraPtr pCam = nullptr;
+    Spinnaker::SystemPtr _system = nullptr;
 };

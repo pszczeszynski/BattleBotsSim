@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include "imgui.h"
 #include "Input/InputState.h"
-#include "UIWidgets/ClockWidget.h"
 
 #define VIDEO_READ
 // #define SAVE_VIDEO
@@ -20,11 +19,10 @@
 #define NUMBER_LONG_READS_THRESH 2
 int NUMBER_OF_LONG_READS = 0;
 
-
 bool saveVideo = false;
+
 CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 {
-    static ClockWidget cameraFPS{"Camera FPS"};
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
 
@@ -46,14 +44,11 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
             Sleep(1000); // wait 1 second
         }
-
+        std::cout << "Camera initialized" << std::endl;
         // start capturing frames
         while (true)
         {
-            cameraFPS.markEnd();
-            cameraFPS.markStart();
             _CaptureFrame();
-
 
 #ifdef SAVE_VIDEO
             if (InputState::GetInstance().IsKeyDown(ImGuiKey_Enter))
@@ -71,148 +66,199 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
                 _frameMutex.unlock();
             }
 #endif
-  
+
+#ifdef SIMULATION
+            // sleep for 15 ms
+            Sleep(15);
+#endif
+            
         } });
 }
 
+int ConfigureCamera(Spinnaker::CameraPtr pCam)
+{
+
+    std::cout << "Configuring camera" << std::endl;
+    //
+    // NOTE: In general, a fault will occur if you disable a function and try to set its options
+    //
+    try
+    {
+
+        std::cout << "Initing camera" << std::endl;
+        pCam->Init();
+
+        std::cout << "Setting up camera" << std::endl;
+
+        // Disable heartbeat (a GiGe standard requiring program to reconfirm periodically its alive)
+        pCam->GevGVCPHeartbeatDisable();
+
+        // ******** General Settings ***************
+        // Set exposure mode
+        // pCam->ExposureAuto.SetValue(ExposureAutoEnums::ExposureAuto_Once);  // turn off auto
+        pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed); // set it to fixed time
+        // pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
+
+        // Set Gain Mode
+        pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn off auto gain
+        // pCam->Gain.SetValue(8.0); // Set gain in dB (between 0 and 47.99)
+
+        // Turn off Gama correction
+        pCam->GammaEnable.SetValue(false);
+        // pCam->Gamma.SetValue(1.0f, false); // Gamma correction if enabled. 0 to 4 nominal range
+
+        // Turn off white balance
+        pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
+
+        // Allocate all bandwidth to this one camera 125000000 is max, reduce to 122000000 for margin
+        pCam->DeviceLinkThroughputLimit.SetValue(122000000);
+
+        // Turn off trigger
+        pCam->TriggerMode.SetValue(Spinnaker::TriggerMode_Off);
+
+        // Turn off sequencer
+        pCam->SequencerConfigurationMode.SetValue(Spinnaker::SequencerConfigurationMode_Off);
+        pCam->SequencerFeatureEnable.SetValue(false);
+        // pCam->SequencerMode.SetValue( SequencerModeEnums::SequencerMode_Off);
+
+        // ******** Image Settings ***************
+        // Reducing image size saves bandwidth for faster refresh rate
+        // We need to reset offsets first before changing this
+        pCam->OffsetX.SetValue(0);
+        pCam->OffsetY.SetValue(0);
+
+        // Now setting width/height should cause issues
+        int my_width = 1440;
+        int my_height = 600;
+
+        try
+        {
+            pCam->Width.SetValue(my_width);   // Max 1440 for this camera
+            pCam->Height.SetValue(my_height); // Max 1080 for this camera
+        }
+        catch (Spinnaker::Exception &e)
+        {
+            std::cout << "Error: " << e.what() << std::endl;
+            return -1;
+        }
+
+        pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
+        pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
+
+        pCam->IspEnable.SetValue(false);                         // Turn off image processing
+        pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
+
+        // ******* Output Data Settings *******
+
+        pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_BayerRG8); // Only some of the formats work, this is one of them and is fast.
+
+        // Compression may be useful, but not tested for delay
+        pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
+
+        // Set Acquisition to continouse
+        pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
+
+        //
+        // Make it always return latest image (This option is not available via the easy access mode)
+
+        Spinnaker::GenApi::INodeMap &sNodeMap = pCam->GetTLStreamNodeMap();
+        Spinnaker::GenApi::CEnumerationPtr ptrHandlingMode = sNodeMap.GetNode("StreamBufferHandlingMode");
+        ptrHandlingMode->SetIntValue(Spinnaker::StreamBufferHandlingMode_NewestOnly);
+
+        // Save settings to user register 0
+        // pCam->UserSetSelector = UserSetSelectorEnums::UserSetSelector_UserSet0;
+        // pCam->UserSetSave();
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        std::cout << "********* CONFIG ERROR *********" << std::endl;
+        std::cout << "Error: " << e.what() << std::endl
+                  << std::endl;
+        return -1;
+    }
+
+    return 0;
+}
+
+#define GET_FRAME_TIMEOUT_MS 500
 void CameraReceiver::_CaptureFrame()
 {
-    // if camera disconnected, try to reconnect
-    if (!_cap->isOpened())
-    {
-        std::cerr << "ERROR: camera disconnected!" << std::endl;
-        _InitializeCamera();
-        return;
-    }
+    std::cout << "Capturing frame" << std::endl;
+    // Get Next Image
+    Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
+    // Get char data
+    unsigned char *img_data = (unsigned char *)pResultImage->GetData();
+    // Create a Mat with the data
+    cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
 
-    // temporary frame
-    cv::Mat frame = cv::Mat(HEIGHT, WIDTH, CV_8UC3);
-    Clock readTimer;
-    readTimer.markStart();
-    // wait for a frame
-    bool result = _cap->read(frame);
-
-    if (!result)
-    {
-        std::cerr << "ERROR: failed to read frame!" << std::endl;
-        _InitializeCamera();
-        return;
-    }
-
-    // if read took too long, warn
-    if (readTimer.getElapsedTime() > BAD_READ_TIME_THRESH_SECONDS)
-    {
-        std::cout << "WARNING: read took too long!" << std::endl;
-        NUMBER_OF_LONG_READS++;
-    }
-    else
-    {
-        // reset counter
-        NUMBER_OF_LONG_READS = 0;
-    }
-
-    // check if too many long reads
-    if (NUMBER_OF_LONG_READS >= NUMBER_LONG_READS_THRESH)
-    {
-        std::cout << "ERROR: too many long reads!" << std::endl;
-        NUMBER_OF_LONG_READS = 0;
-        _InitializeCamera();
-        return;
-    }
-
-    // check if frame is empty
-    if (frame.empty())
-    {
-        std::cout << "ERROR: frame is empty!" << std::endl;
-        _InitializeCamera();
-        return;
-    }
-
-    // check for black frame
-    if (frame.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0))
-    {
-        std::cout << "ERROR: black frame!" << std::endl;
-        _InitializeCamera();
-        return;
-    }
-
-    // convert to RGB
     // lock the mutex
     _frameMutex.lock();
-    cv::cvtColor(frame, _frame, cv::COLOR_BGR2RGB);
-
-    // flip image
+    cv::cvtColor(bayerImage, _frame, cv::COLOR_BayerRGGB2BGR);
     // increase _framesReady
     _framesReady++;
     // unlock the mutex
     _frameMutex.unlock();
+
+    std::cout << "Frame captured" << std::endl;
 }
 
 bool CameraReceiver::_InitializeCamera()
 {
-    std::cout << "Initializing Camera..." << std::endl;
+    // Retrieve singleton reference to system object
+    _system = Spinnaker::System::GetInstance();
 
-    // check if camera is already initialized
-    if (_cap != nullptr)
+    // Retrieve list of cameras from the system
+    Spinnaker::CameraList camList = _system->GetCameras();
+
+    const unsigned int numCameras = camList.GetSize();
+    std::cout << "Number of cameras detected: " << numCameras << std::endl
+              << std::endl;
+
+    // Finish if there are no cameras
+    if (numCameras == 0)
     {
-        // release the camera
-        _cap->release();
-        // delete the camera
-        delete _cap;
-        _cap = nullptr;
-    }
+        // Clear camera list before releasing system
+        camList.Clear();
 
+        // Release system
+        _system->ReleaseInstance();
 
-#ifndef VIDEO_READ
-    // Now we can create the video capture
-    _cap = new cv::VideoCapture(_cameraIndex, cv::CAP_DSHOW);
-
-    // Set core properties first
-    _cap->set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-    _cap->set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
-
-    _cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    // Disable buffering to minimize latency
-    _cap->set(cv::CAP_PROP_BUFFERSIZE, 1);
-
-    // Disable any automatic settings for more predictable performance
-    _cap->set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0); // 0.25 usually means "manual mode" in OpenCV
-    _cap->set(cv::CAP_PROP_AUTO_WB, 1.0);
-#else
-    // init video reader
-    _cap = new cv::VideoCapture("Recordings/Training.mp4");
-
-    // Get the frame rate of the video
-    maxFrameRate = _cap.get(cv::CAP_PROP_FPS) * readVideoRate;
-
-    // Will read the frames in at the rate of the video instead of hard coding it
-    //  _cap->set(cv::CAP_PROP_FPS, 90); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
-    // // skip first 1 minutes
-    // for (int i = 0; i < 30 * 60; i++)
-    // {
-    //     cv::Mat frame;
-    //     _cap->read(frame);
-    // }
-
-#endif
-
-    // check if camera opened successfully
-    if (!_cap->isOpened())
-    {
-        std::cout << "ERROR: failed to open camera!" << std::endl;
         return false;
     }
 
-    // _cap->set(cv::CAP_PROP_AUTOFOCUS, 0.25);
+    std::cout << "about to get by index" << std::endl;
+    // Get the first camera
+    pCam = camList.GetByIndex(0);
 
-    // // Set exposure and white balance after disabling automatic modes
-    // _cap->set(cv::CAP_PROP_EXPOSURE, 0.1);
-    // _cap->set(cv::CAP_PROP_WB_TEMPERATURE, 2500);
+    std::cout << "got by index" << std::endl;
 
-    std::cout << "Successfully initialized camera!" << std::endl;
+    // Initialize
+    if (ConfigureCamera(pCam) < 0)
+    {
 
-    return _cap->isOpened();
+        std::cout << "Failed to configure camera" << std::endl;
+        // Failed, exit
+        pCam = nullptr;
+
+        // Release system
+        _system->ReleaseInstance();
+        getchar();
+
+        // return failure
+        return false;
+    }
+
+    std::cout << "about to begin acquisition" << std::endl;
+    // Start acquisition
+    pCam->BeginAcquisition();
+
+    pcam_image_width = (int)pCam->Width.GetValue();   // Max 1440 for this camera
+    pcam_image_height = (int)pCam->Height.GetValue(); // Max 1080 for this camera
+
+    std::cout << "acquisition started" << std::endl;
+
+    // return success
+    return true;
 }
 
 /**
@@ -246,8 +292,6 @@ bool CameraReceiver::GetFrame(cv::Mat &output)
 
 CameraReceiver::~CameraReceiver()
 {
-    _cap->release();
-    delete _cap;
 }
 
 ////////////////////////////////////////// SIMULATION //////////////////////////////////////////
@@ -276,7 +320,6 @@ bool CameraReceiverSim::_InitializeCamera()
 {
     std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
     // LPCWSTR sharedFileNameLPCWSTR = sharedFileNameW.c_str();
-
 
     // 1. Create shared file
     // Open a handle to the memory-mapped file
@@ -333,8 +376,8 @@ static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
 
 void CameraReceiverSim::_CaptureFrame()
 {
-    // don't receive at more than 200 fps
-    if (_prevFrameTimer.getElapsedTime() < 1.0/200.0)
+    // don't receive at more than 60 fps
+    if (_prevFrameTimer.getElapsedTime() < 0.015)
     {
         return;
     }
