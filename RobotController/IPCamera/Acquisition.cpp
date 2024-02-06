@@ -202,7 +202,7 @@ int ConfigureCamera(CameraPtr pCam)
         // Set exposure mode
         //pCam->ExposureAuto.SetValue(ExposureAutoEnums::ExposureAuto_Once);  // turn off auto
         pCam->ExposureMode.SetValue(ExposureMode_Timed); // set it to fixed time
-        pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
+        // pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
 
         // Set Gain Mode
         pCam->GainAuto.SetValue(GainAutoEnums::GainAuto_Once); // Turn off auto gain
@@ -237,8 +237,15 @@ int ConfigureCamera(CameraPtr pCam)
         int my_width = 1440;
         int my_height = 600;
 
-        pCam->Width.SetValue(my_width);   // Max 1440 for this camera
-        pCam->Height.SetValue(my_height);   // Max 1080 for this camera
+        try {
+            pCam->Width.SetValue(my_width);   // Max 1440 for this camera
+            pCam->Height.SetValue(my_height);   // Max 1080 for this camera
+        }
+        catch (Spinnaker::Exception& e)
+        {
+            cout << "Error: " << e.what() << endl;
+            return -1;
+        }
 
         pCam->OffsetX.SetValue((1440 - my_width) / 2); // Set to center of ccd
         pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
