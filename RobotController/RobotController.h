@@ -61,7 +61,7 @@ private:
     RobotLinkReal robotLink;
 #endif
 
-    // Vision vision;
+    Vision vision;
 
     SelfRighter _selfRighter;
 

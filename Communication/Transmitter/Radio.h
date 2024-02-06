@@ -28,6 +28,7 @@ public:
     bool Available();
 
 private:
+    //RF24 radio{14, 10}; // CE, CSN
     RF24 radio{7, 9}; // CE, CSN
 };
 
@@ -115,7 +116,6 @@ ReceiveType Radio<SendType, ReceiveType>::Receive()
     if (radio.available())
     {
         radio.read(&receiveMessage, sizeof(ReceiveType));
-        Serial.println("Received message");
     }
 
     return receiveMessage;

@@ -7,6 +7,12 @@
 #include "Communication.h"
 #include "Motor.h"
 
+#define VENDOR_ID               0x16C0
+#define PRODUCT_ID              0x0480
+#define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
+#define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
+
+
 #define VERBOSE_RADIO
 // #define LOG_DATA
 
@@ -25,7 +31,7 @@
 // time in between printing drive commands for debugging
 #define PRINT_DRIVE_COMMAND_MS 500
 
-// #define USE_IMU
+#define USE_IMU
 
 
 IMU* imu;
@@ -241,8 +247,8 @@ void DriveWithLatestMessage()
             // Serial.print("Valid: ");
             // Serial.println(command.valid);
 
-            // Serial.print("Packets per second: ");
-            // Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
+            Serial.print("Packets per second: ");
+            Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
             lastPrintTime = millis();
             messagesSinceLastPrint = 0;
         }
@@ -283,23 +289,14 @@ void DriveWithLatestMessage()
 
 void loop()
 {
-    Serial.println("Sending");
-    // SLEEP FOR 5 ms
-    delay(10);
+    // wait for a message to be available
+    WaitForRadioData();
 
-    // hello
-
-    // // wait for a message to be available
-    // WaitForRadioData();
-
-    // // drive with the latest message if there is one
-    // DriveWithLatestMessage();
+    // drive with the latest message if there is one
+    DriveWithLatestMessage();
 
     // Compute response message
-    RobotMessage message;// = Update();
-
-    // zero out
-    memset(&message, 0, sizeof(RobotMessage));
+    RobotMessage message = Update();
 
     message.type = IMU_DATA;
 

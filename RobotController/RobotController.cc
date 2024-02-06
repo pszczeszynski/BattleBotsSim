@@ -32,10 +32,10 @@ int main()
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"}
-                                    //  vision{overheadCamL_sim}
+                                     vision{overheadCamL_sim},
 #else
-                                     overheadCamL_real{0}
-                                    //  vision{overheadCamL_real}
+                                     overheadCamL_real{0},
+                                     vision{overheadCamL_real}
 #endif
 {
 }
@@ -130,8 +130,8 @@ void RobotController::Run()
             _lastCanMessageMutex.unlock();
         }
 
-        // // get the latest classification (very fast)
-        // VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
+        // get the latest classification (very fast)
+        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
         // in simulation, add a 5 millisecond wait and continue if we don't get a new image
 // #ifdef SIMULATION
@@ -142,15 +142,15 @@ void RobotController::Run()
 //         }
 // #endif
 
-        // // update the robot tracker positions
-        // UpdateRobotTrackers(classification);
+        // update the robot tracker positions
+        UpdateRobotTrackers(classification);
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
 
-        // // send the response to the robot
-        // robotLink.Drive(response);
+        // send the response to the robot
+        robotLink.Drive(response);
 
     }
 

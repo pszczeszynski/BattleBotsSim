@@ -117,8 +117,8 @@ struct RobotMessage
     };
 
     // timestamp
-    float packetTimeMS;
-    int packetID;
+    // float packetTimeMS;
+    // int packetID;
     float receiveDelay;
 };
 

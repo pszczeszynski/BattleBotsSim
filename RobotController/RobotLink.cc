@@ -6,11 +6,12 @@
 #include "RobotConfig.h"
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
+#include "UIWidgets/GraphWidget.h"
 
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
-#define SEND_TIMEOUT_MS 0 // after this time, give up sending and go back to receiving
-#define RECEIVE_TIMEOUT_MS 20
+#define SEND_TIMEOUT_MS 1 // after this time, give up sending and go back to receiving
+#define RECEIVE_TIMEOUT_MS 5
 
 /**
  * Doesn't do anything except call the timer markStart
@@ -32,7 +33,7 @@ RobotMessage IRobotLink::Receive()
     bool hadValidMessage = false;
 
     // go through all the new messages
-    for (RobotMessage& msg : newMessages)
+    for (RobotMessage &msg : newMessages)
     {
         // save the last IMU and CAN message
         if (msg.type == RobotMessageType::IMU_DATA)
@@ -56,13 +57,12 @@ RobotMessage IRobotLink::Receive()
     }
 
     // copy over new messages to the message history
-    for (RobotMessage& msg : newMessages)
+    for (RobotMessage &msg : newMessages)
     {
         // display delay
         radioPacketLoss.AddData(_receiveClock.getElapsedTime() * 1000);
         _receiveClock.markStart();
     }
-
 
     // return the last message
     return newMessages.back();
@@ -78,8 +78,6 @@ RobotMessage IRobotLink::GetLastCANMessage()
     return _lastCANMessage;
 }
 
-
-//
 #define TRANSMITTER_COM_PORT TEXT("COM8")
 
 #define COM_READ_TIMEOUT_MS 100
@@ -99,40 +97,35 @@ RobotLinkReal::RobotLinkReal()
                                {
             while (true)
             {
-                int i, device_handle, num;
+                int i, devices_opened, num;
                 char c;
                 char buf[HID_BUFFER_SIZE];
 
                 // C-based example is 16C0:0480:FFAB:0200
-                device_handle = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
+                devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
                 // opened sucessfully
 
                 // while not opened
-                while (device_handle <= 0)
+                while (devices_opened <= 0)
                 {
                     // Arduino-based example is 16C0:0486:FFAB:0200
-                    device_handle = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
-                    if (device_handle <= 0)
+                    devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
+                    if (devices_opened <= 0)
                     {
-                        std::cout << "no rawhid device found" << std::endl;
+                        std::cerr << "no rawhid device found" << std::endl;
                         std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
                     }
                 }
 
-                printf("found rawhid device with handle %d\n", device_handle);
+                printf("found rawhid device with handle %d\n", devices_opened);
 
                 // keep reading until error or device goes offline
                 while (true)
                 {
-                    Clock c0;
                     receiveThreadLoopTime.markStart();
 
                     // check if any Raw HID packet has arrived
                     num = rawhid_recv(0, buf, HID_BUFFER_SIZE, RECEIVE_TIMEOUT_MS);
-                    double c0_duration = c0.getElapsedTime();
-
-
-                    Clock c1;
 
                     if (num < 0)
                     {
@@ -142,10 +135,6 @@ RobotLinkReal::RobotLinkReal()
                         break;
                     }
 
-                    double c1_duration = c1.getElapsedTime();
-
-
-                    Clock c3;
                     // if there is enough data for a RobotMessage
                     if (num >= sizeof(RobotMessage))
                     {
@@ -165,31 +154,37 @@ RobotLinkReal::RobotLinkReal()
                         }
                     }
 
-                    double c3_duration = c3.getElapsedTime();
 
                     // if the main thread wants to send a message
                     // try lock
+                    int status = 0;
 
-
-                    // _sendMessageMutex.lock();
-                    // if (_requestSend)
-                    // {
-                    //     std::cout << "about to send" << std::endl;
-                    //     // send the message
-                    //     rawhid_send(0, &_messageToSend, sizeof(_messageToSend), SEND_TIMEOUT_MS);
-                    //     std::cout << "sent" << std::endl;
-                    //     // reset requestSend
-                    //     _requestSend = false;
-                    //     // unlock
-                    // }
-                    // _sendMessageMutex.unlock();
-                    Clock c4;
-                    receiveThreadLoopTime.markEnd();
-                    double c4_duration = c4.getElapsedTime();
-
-                    if (c0.getElapsedTime() > 0.017)
+                    _sendMessageMutex.lock();
+                    if (_requestSend)
                     {
-                        std::cout << "c0: " << c0_duration << " c1: " << c1_duration << " c3: " << c3_duration << " c4: " << c4_duration << std::endl;
+                        static ClockWidget sendTime("Send time");
+                        static GraphWidget statusCode("Radio status code", -5, 100, "");
+                        sendTime.markStart();
+
+                        // copy over the message to send
+                        memcpy(buf, &_messageToSend, sizeof(DriveCommand));
+
+                        // send the message
+                        status = rawhid_send(0, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
+
+                        statusCode.AddData(status);
+                        sendTime.markEnd();
+                        // reset requestSend
+                        _requestSend = false;
+                    }
+    
+                    _sendMessageMutex.unlock();
+
+                    if (status < 0)
+                    {
+                        std::cerr << "Error sending message" << std::endl;
+                        rawhid_close(0);
+                        break;
                     }
                 } 
             } });
@@ -221,19 +216,14 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     try
     {
-        std::cout << "about to acquire send mutex" << std::endl;
         // acquire sending mutex
         _sendMessageMutex.lock();
-        std::cout << "acquired send mutex" << std::endl;
         // set message to send
         _messageToSend = command;
-        std::cout << "set message to send" << std::endl;
         // set requestSend to true
         _requestSend = true;
-        std::cout << "set request send" << std::endl;
         // release sending mutex
         _sendMessageMutex.unlock();
-        std::cout << "released send mutex" << std::endl;
 
         _sendClock.markStart();
     }
@@ -267,7 +257,6 @@ std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 
 RobotLinkReal::~RobotLinkReal()
 {
-
 }
 
 /////////////////// SIMULATION //////////////////////

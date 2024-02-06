@@ -17,3 +17,5 @@ RobotController/imgui.ini
 FTC_Simulator/UserSettings/Layouts/default-2021.dwlt
 RobotController/MachineLearning/BehaviorCloning/TrainingData
 FTC_Simulator/UserSettings/Layouts/default-2021.dwlt
+RobotController/MachineLearning/train_yolo/datasets
+RobotController/MachineLearning/train_yolo/runs

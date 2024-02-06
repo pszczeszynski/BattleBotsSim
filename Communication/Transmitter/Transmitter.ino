@@ -15,6 +15,17 @@
 #include <RF24.h>
 #include <cstring> // for std::memcpy
 
+// #define VENDOR_ID               0x16C0
+// #define PRODUCT_ID              0x0480
+// #define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
+// #define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
+
+#define RAWHID_TX_SIZE          64      // transmit packet size
+#define RAWHID_TX_INTERVAL      1       // max # of ms between transmit packets
+#define RAWHID_RX_SIZE          64      // receive packet size
+#define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
+
+
 #define LED_PORT 16
 Radio<DriveCommand, RobotMessage>* radio;
 const byte address[6] = "00001"; // Define address/pipe to use.
@@ -28,8 +39,7 @@ void setup()
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
 
-    Serial.begin(9600);//460800);
-    // Serial.clear();
+    Serial.begin(460800);
     
     Serial.println("Initializing radio...");
     radio = new Radio<DriveCommand, RobotMessage>();
@@ -51,6 +61,7 @@ long int total_packets = 0;
 #define NO_MESSAGE_REINIT_TIME 70
 
 #define SEND_TIMEOUT 1
+#define RECEIVE_TIMEOUT 1
 void loop()
 {
     static unsigned long lastReceiveTime = 0;
@@ -58,66 +69,35 @@ void loop()
     static int curr_packet_id = 0;
 
     int n;
-    // n = RawHID.recv(buffer, 0); // 0 timeout = do not wait
+    n = RawHID.recv(buffer, RECEIVE_TIMEOUT);
 
-    // if (n > sizeof(DriveCommand))
-    // {
-    //     DriveCommand command;
-    //     // reinterpret the buffer as a DriveCommand
-    //     std::memcpy(&command, buffer, sizeof(command));
-    //     // send over radio to receiver
-    //     radio->Send(command);
+    if (n > sizeof(DriveCommand))
+    {
+        DriveCommand command;
+        // reinterpret the buffer as a DriveCommand
+        std::memcpy(&command, buffer, sizeof(command));
+        // send over radio to receiver
+        radio->Send(command);
 
-    //     Serial.println("Sent message");
-    // }
+        Serial.println("Sent message");
+    }
 
-
-    delay(10);
     bool hadData = false;
     // read data from rc
-    RobotMessage message;// = radio->Receive();
-    message.type = IMU_DATA;
-    message.packetID = curr_packet_id;
-    curr_packet_id ++;
-    curr_packet_id %= 10000000;
-
-    // debugging, add timestamp
-    message.packetTimeMS = millis() % 10000;
+    RobotMessage message = radio->Receive();
 
     if (message.type != RobotMessageType::INVALID)
     {
-        Serial.println("Time " + String(millis() % 1000));
-        Serial.send_now();
-
-        // Serial.println("data was valid");
         lastReceiveTime = millis();
-
         total_packets ++;
 
-
         char sendBuffer[64];
-        // zero out
         memset(sendBuffer, 0, sizeof(sendBuffer));
         std::memcpy(sendBuffer, &message, sizeof(RobotMessage));
 
-        // Serial.println("about to send via hid");
         n = RawHID.send(sendBuffer, SEND_TIMEOUT);
-        // Serial.println("sent via hid");
-        if (n <= 0)
-        {
-            // Serial.println("Error forwarding message");
-        }
 
-        // Serial.println("forwarded message to computer");
         hadData = true;
-    }
-
-    // Serial.println("end of loop()");
-
-    // if we had no data, set the led off
-    if (!hadData)
-    {//
-        // digitalWrite(LED_PORT, LOW);
     }
 
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)

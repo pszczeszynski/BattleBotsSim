@@ -28,6 +28,7 @@ public:
     bool Available();
 
 private:
+    //RF24 radio{14, 10};
     RF24 radio{7, 9};
 };//
 
