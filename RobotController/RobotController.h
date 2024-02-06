@@ -52,7 +52,6 @@ private:
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
     std::mutex _lastCanMessageMutex;
-    RobotMessageType _lastMessageType;
 
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;

@@ -17,47 +17,44 @@ void CenterText(const char* text)
     ImGui::Text(text);
 }
 
-void DrawRadioPacketLoss()
+/**
+ * \brief
+ * Draws a graph with the given data
+ * 
+*/
+void DrawGraph(const char *title, const std::vector<float> &data, float minYValue, float maxYValue,
+               const char *unit, const ImVec2 &graphSize = ImVec2(0, 150.0f),
+               const ImVec4 &graphColor = ImVec4(0.2f, 0.6f, 0.86f, 1.0f)) // Default graph color
 {
+    // Ensure there are always 3 labels
+    const int numLabels = 3;
+
     // Center the text
-    CenterText("Radio Packet Loss");
+    CenterText(title);
 
-    const std::deque<RobotMessage> &messageHistory = 
-        RobotController::GetInstance().GetRobotLink().GetMessageHistory();
-
-
-    // extract just delays
-    std::vector<float> delays;
-    for (const RobotMessage &message : messageHistory)
-    {
-        delays.push_back(message.receiveDelay);
-    }
-
-    // Calculate position for the labels
-    ImVec2 graphPos = ImGui::GetCursorScreenPos(); 
-    float graphHeight = 150.0f;
-    float maxYValue = 0.05f;
-    int numLabels = 3;
-    float step = maxYValue / (numLabels - 1);
+    ImVec2 graphPos = ImGui::GetCursorScreenPos();
+    float graphHeight = graphSize.y;
+    float range = maxYValue - minYValue;  // Total range of the data
+    float step = range / (numLabels - 1); // Step value for each label
 
     // Draw y-axis labels
     for (int i = 0; i < numLabels; i++)
     {
         char label[32];
-        snprintf(label, sizeof(label), "%.0fms", i * step * 1000); // Convert to ms
+        // Adjust label to include the min value in the calculation
+        snprintf(label, sizeof(label), "%.0f%s", minYValue + i * step, unit);
 
         float yPosition;
-
-        if (i == 0) // Bottommost label
-        {
+        if (i == 0)
+        { // Bottommost label
             yPosition = graphPos.y + graphHeight - ImGui::GetTextLineHeight();
         }
-        else if (i == numLabels - 1) // Topmost label
-        {
+        else if (i == numLabels - 1)
+        { // Topmost label
             yPosition = graphPos.y;
         }
-        else // Middle labels
-        {
+        else
+        { // Middle label
             yPosition = graphPos.y + graphHeight - i * (graphHeight / (numLabels - 1)) - ImGui::GetTextLineHeight() * 0.5;
         }
 
@@ -70,11 +67,30 @@ void DrawRadioPacketLoss()
     float xOffset = 45.0f;
     ImGui::SameLine(xOffset);
 
-    // Get the width available for the graph
     float graphWidth = ImGui::GetContentRegionAvail().x - xOffset;
 
-    // Display as graph
-    ImGui::PlotLines("", delays.data(), delays.size(), 0, NULL, 0.0f, maxYValue, ImVec2(graphWidth, graphHeight));
+    // Set the color for the graph line
+    ImGui::PushStyleColor(ImGuiCol_PlotLines, graphColor);
+
+    // Display the graph, adjusting for the minimum value
+    ImGui::PlotLines("", data.data(), data.size(), 0, nullptr, minYValue, maxYValue, ImVec2(graphWidth, graphHeight));
+
+    // Pop the style color to revert to the previous setting
+    ImGui::PopStyleColor();
+}
+
+void DrawRadioPacketLoss()
+{
+    // Get the message history
+    std::deque<RobotMessage> messageHistory = RobotController::GetInstance().GetRobotLink().GetMessageHistory();
+
+    std::vector<float> lossData;
+    for (const RobotMessage &message : messageHistory)
+    {
+        lossData.push_back(message.receiveDelay);
+    }
+    DrawGraph("Radio Packet Loss", lossData, 0.0f, 50.0f, "ms");
+
 
     // add a second line for the packet id
     std::vector<float> relativePacketIDs;
@@ -83,46 +99,49 @@ void DrawRadioPacketLoss()
         relativePacketIDs.push_back(messageHistory[i].packetID - messageHistory[i-1].packetID);
     }
 
-    // add third line for relative times
-    std::vector<float> relativeTimes;
-    for (int i = 1; i < messageHistory.size(); i++)
-    {
-        relativeTimes.push_back(messageHistory[i].packetTimeMS - messageHistory[i-1].packetTimeMS);
-    }
+    DrawGraph("Relative Packet ID", relativePacketIDs, -1.0f, 1.0f, "");
 
-    // add text 
-    ImGui::Spacing();
-    // say "relative packet id"
-    ImGui::Text("Relative Packet ID");
-    // Change the color to red
-    ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+    // // add third line for relative times
+    // std::vector<float> relativeTimes;
+    // for (int i = 1; i < messageHistory.size(); i++)
+    // {
+    //     relativeTimes.push_back(messageHistory[i].packetTimeMS - messageHistory[i-1].packetTimeMS);
+    // }
 
-    ImGui::PlotLines("", relativePacketIDs.data(), relativePacketIDs.size(), 0, NULL, -4.0, 4.0, ImVec2(graphWidth, graphHeight));
+    // // add text 
+    // ImGui::Spacing();
+    // // say "relative packet id"
+    // ImGui::Text("Relative Packet ID");
+    // // Change the color to red
+    // ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 
-    ImGui::Spacing();
-    // say "relative time"
-    ImGui::Text("Relative Time (MS) from transmitter teensy");
-    // Change the color to red
-    ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+    // ImGui::PlotLines("", relativePacketIDs.data(), relativePacketIDs.size(), 0, NULL, -4.0, 4.0, ImVec2(graphWidth, graphHeight));
 
-    ImGui::PlotLines("", relativeTimes.data(), relativeTimes.size(), 0, NULL, -25, 25.0, ImVec2(graphWidth, graphHeight));
+    // ImGui::Spacing();
+    // // say "relative time"
+    // ImGui::Text("Relative Time (MS) from transmitter teensy");
+    // // Change the color to red
+    // ImGui::GetStyle().Colors[ImGuiCol_PlotLines] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
 
-    //
+    // ImGui::PlotLines("", relativeTimes.data(), relativeTimes.size(), 0, NULL, -25, 25.0, ImVec2(graphWidth, graphHeight));
+
+    // //
 
 
-    // Add text for average delay
-    float averageDelay = 0;
-    for (float delay : delays)
-    {
-        averageDelay += delay;
-    }
-    averageDelay /= delays.size();
+    // // Add text for average delay
+    // float averageDelay = 0;
+    // for (float delay : delays)
+    // for (float delay : delays)
+    // {
+    //     averageDelay += delay;
+    // }
+    // averageDelay /= delays.size();
 
-    // add small vertical space
-    ImGui::Spacing();
-    ImGui::Spacing();
+    // // add small vertical space
+    // ImGui::Spacing();
+    // ImGui::Spacing();
 
-    ImGui::Text("Average Delay: %.2fms", averageDelay * 1000);
+    // ImGui::Text("Average Delay: %.2fms", averageDelay * 1000);
 }
 
 void DrawCANDataTable()
@@ -213,7 +232,6 @@ void RobotTelemetryWidget::Draw()
     ImGui::Begin("Robot Telemetry");
 
     DrawRadioPacketLoss();
-
     ImGui::Spacing();
     ImGui::Spacing();
     ImGui::Spacing();
@@ -229,8 +247,6 @@ void RobotTelemetryWidget::Draw()
     #define FRONT_WEAPON_INDEX 2
     #define BACK_WEAPON_INDEX 3
 
-
-    // Add text
 
     // center
     CenterText("Weapons");

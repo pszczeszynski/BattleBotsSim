@@ -118,8 +118,6 @@ void RobotController::Run()
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
-        // save the last message type
-        _lastMessageType = msg.type;
 
         // save the specific type information in a last struct
         if (msg.type == RobotMessageType::IMU_DATA)

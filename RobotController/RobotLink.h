@@ -27,7 +27,7 @@ public:
 
 protected:
     // implemented by the subclass
-    virtual RobotMessage _ReceiveImpl() = 0;
+    virtual std::vector<RobotMessage> _ReceiveImpl() = 0;
 
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
@@ -38,8 +38,6 @@ protected:
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
-    std::vector<RobotMessage> _mainThreadUnconsumedMessages;
-
 };
 
 /**
@@ -50,7 +48,7 @@ class RobotLinkSim : public IRobotLink
 public:
     RobotLinkSim();
     virtual void Drive(DriveCommand& command) override;
-    virtual RobotMessage _ReceiveImpl() override;
+    virtual std::vector<RobotMessage> _ReceiveImpl() override;
 
 private:
     // socket stuff
@@ -64,20 +62,16 @@ class RobotLinkReal : public IRobotLink
 public:
     RobotLinkReal();
     virtual void Drive(DriveCommand &command) override;
-    virtual RobotMessage _ReceiveImpl() override;
+    virtual std::vector<RobotMessage> _ReceiveImpl() override;
 
     ~RobotLinkReal();
 
 private:
     Clock _sendingClock;
     std::thread _radioThread;
-    RobotMessage _lastMessage;
 
     std::deque<RobotMessage> _unconsumedMessages;
-
-    unsigned long _newestMessageID;
-    unsigned long _lastConsumedMessageID;
-    std::mutex _lastMessageMutex;
+    std::mutex _unconsumedMessagesMutex;
 
     // these fields are mutex protected
     std::mutex _sendMessageMutex;
