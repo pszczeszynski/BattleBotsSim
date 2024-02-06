@@ -20,7 +20,7 @@
 
 #define IMGUI_WIDTH 1
 #define IMGUI_HEIGHT 1
-#define IMGUI_ENABLE_VSYNC 0
+#define IMGUI_ENABLE_VSYNC 1
 
 class RobotControllerGUI
 {
@@ -44,7 +44,6 @@ private:
     IMUWidget _imuWidget;
     ConfigWidget _configWidget;
     RobotTelemetryWidget _robotTelemetryWidget;
-    KillWidget _killWidget;
     FieldWidget _fieldWidget;
 };
 

@@ -57,19 +57,13 @@ void DrawProgressBarWithTarget(float currentValue, float maxValue, float targetV
 
 void ClockWidget::DrawAll()
 {
-    static ClockWidget loopClock("Total loop time");
     static float timeScale = DEFAULT_TIME_SCALE;
-
-
-    loopClock.markEnd();
-    loopClock.markStart();
 
     std::vector<ClockWidget*>& instances = Instances();
 
     // create window called Profiling
     ImGui::Begin("Profiling");
     // center text
-    // ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize("Time Scale: 10.00ms").x) / 2);
     ImGui::Text("Time Scale: %.2fms", timeScale * 1000.0);
 
     // Add an input box for the time scale

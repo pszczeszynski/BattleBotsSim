@@ -1,17 +1,16 @@
 #include "KillWidget.h"
 #include "../RobotConfig.h"
 
-KillWidget* KillWidget::instance = nullptr;
+KillWidget KillWidget::instance;
 
 KillWidget::KillWidget()
 {
     _buttonPressed = false;
-    instance = this;
 }
 
 KillWidget& KillWidget::GetInstance()
 {
-    return *KillWidget::instance;
+    return instance;
 }
 
 /**

@@ -11,6 +11,6 @@ public:
     
 
 private:
-    static KillWidget* instance;
+    static KillWidget instance;
     bool _buttonPressed;
 };

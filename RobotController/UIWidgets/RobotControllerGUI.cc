@@ -6,6 +6,7 @@
 #include "../RobotController.h"
 #include "ClockWidget.h"
 #include "GraphWidget.h"
+#include "../Input/InputState.h"
 // #include <algorithm>
 
 RobotControllerGUI::RobotControllerGUI()
@@ -31,47 +32,46 @@ bool RobotControllerGUI::Update()
     static ClockWidget guiClock("GUI drawing");
     static Clock timeSinceLastRender;
 
-    if (timeSinceLastRender.getElapsedTime() > 0.0)//1.0 / 60.0)
+    guiClock.markStart();
+
+    if (glfwWindowShouldClose(window))
     {
-        guiClock.markStart();
-
-        if (glfwWindowShouldClose(window))
-        {
-            guiClock.markEnd();
-            return false;
-        }
-
-        // Poll and handle events
-        glfwPollEvents();
-
-        // setup the ImGui frame
-        InitializeImGUIFrame();
-
-        // make sure to clear the last frame's textures
-        ClearLastFrameTextures();
-
-        // draw all the widgets
-        for (ImageWidget* widget : ImageWidget::Instances())
-        {
-            widget->Draw();
-        }
-
-        // draw all the graphs
-        GraphWidget::DrawAll();
-
-        _configWidget.Draw();
-        _robotTelemetryWidget.Draw();
-        _killWidget.Draw();
-
-        ClockWidget::DrawAll();
-
-        timeSinceLastRender.markStart();
-        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-        // render the ImGui frame
-        Render(window, clear_color);
-
         guiClock.markEnd();
+        return false;
     }
+
+    InputState::GetInstance().UpdateAllKeyStates();
+
+    // Poll and handle events
+    glfwPollEvents();
+
+    // setup the ImGui frame
+    InitializeImGUIFrame();
+
+    // make sure to clear the last frame's textures
+    ClearLastFrameTextures();
+
+    // draw all the widgets
+    for (ImageWidget* widget : ImageWidget::Instances())
+    {
+        widget->Draw();
+    }
+
+    // draw all the graphs
+    GraphWidget::DrawAll();
+
+    _configWidget.Draw();
+    _robotTelemetryWidget.Draw();
+    KillWidget::GetInstance().Draw();
+
+    ClockWidget::DrawAll();
+
+    timeSinceLastRender.markStart();
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    // render the ImGui frame
+    Render(window, clear_color);
+
+    guiClock.markEnd();
 
     return true;
 }

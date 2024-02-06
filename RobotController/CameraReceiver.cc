@@ -9,6 +9,7 @@
 #include "Clock.h"
 #include <stdlib.h>
 #include "imgui.h"
+#include "Input/InputState.h"
 
 #define VIDEO_READ
 // #define SAVE_VIDEO
@@ -48,16 +49,14 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         while (true)
         {
             _CaptureFrame();
-            // sleep for 15 ms
-            std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
 
 #ifdef SAVE_VIDEO
-            if (ImGui::IsKeyDown(ImGuiKey_Enter))
+            if (InputState::GetInstance().IsKeyDown(ImGuiKey_Enter))
             {
                 saveVideo = true;
             }
-            if (ImGui::IsKeyDown(ImGuiKey_Backspace))
+            if (InputState::GetInstance().IsKeyDown(ImGuiKey_Backspace))
             {
                 saveVideo = false;
             }

@@ -93,6 +93,7 @@ set(SOURCES
     Strategies/RobotMovement.cc
     Weapons.cc
     hid/hid.cc
+    Input/InputState.cc
 )
 
 # Create the object files

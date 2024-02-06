@@ -4,6 +4,7 @@
 #include "../Communication/Communication.h"
 #include "RobotController.h"
 #include "imgui.h"
+#include "Input/InputState.h"
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -310,11 +311,11 @@ Angle _AdjustAngleWithArrowKeys(Angle angle)
     static Clock updateClock;
     Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 30 * M_PI / 180.0);
     updateClock.markStart();
-    if (ImGui::IsKeyDown(ImGuiKey_LeftArrow))
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
     {
         return angle - angleUserAdjust;
     }
-    else if (ImGui::IsKeyDown(ImGuiKey_RightArrow))
+    else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow))
     {
         return angle + angleUserAdjust;
     }

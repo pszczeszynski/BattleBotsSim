@@ -3,6 +3,7 @@
 #include "Input/Gamepad.h"
 #include "RobotController.h"
 #include "imgui.h"
+#include "Input/InputState.h"
 
 Weapons& Weapons::GetInstance()
 {
@@ -42,7 +43,6 @@ void Weapons::UpdateSpinnerPowers()
     static bool overrideRampLimit = false;
 
     Gamepad& gamepad = RobotController::GetInstance().GetGamepad();
-
     CANData lastCANData = RobotController::GetInstance().GetCANData();
 
     // get the delta time
@@ -59,31 +59,31 @@ void Weapons::UpdateSpinnerPowers()
     double scaleBack = _backWeaponPower < 0.1 ? 1 : (_backWeaponPower < 0.55 ? 2.2 : 1.2);
 
     // if a pressed
-    if (gamepad.GetButtonA() || ImGui::IsKeyDown(ImGuiKey_W))
+    if (gamepad.GetButtonA() || InputState::GetInstance().IsKeyDown(ImGuiKey_W))
     {
         rampUpB = true;
     }
 
     // if b pressed
-    if (gamepad.GetButtonB() || ImGui::IsKeyDown(ImGuiKey_S))
+    if (gamepad.GetButtonB() || InputState::GetInstance().IsKeyDown(ImGuiKey_S))
     {
         rampUpB = false;
     }
 
     // if x pressed
-    if (gamepad.GetButtonX() || ImGui::IsKeyDown(ImGuiKey_I))
+    if (gamepad.GetButtonX() || InputState::GetInstance().IsKeyDown(ImGuiKey_I))
     {
         rampUpF = true;
     }
 
     // if y pressed
-    if (gamepad.GetButtonY() || ImGui::IsKeyDown(ImGuiKey_K))
+    if (gamepad.GetButtonY() || InputState::GetInstance().IsKeyDown(ImGuiKey_K))
     {
         rampUpF = false;
     }
 
     // if user toggles off the weapon, then set the power to 0
-    if (ImGui::IsKeyDown(ImGuiKey_9))
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_9))
     {
         if (rampUpF)
         {
@@ -96,7 +96,7 @@ void Weapons::UpdateSpinnerPowers()
     }
 
     // if user toggles off the weapon, then set the power to 0
-    if (ImGui::IsKeyDown(ImGuiKey_0))
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_0))
     {
         if (rampUpF)
         {
@@ -108,12 +108,12 @@ void Weapons::UpdateSpinnerPowers()
         }
     }
 
-    if (ImGui::IsKeyDown(ImGuiKey_O))
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_O))
     {
         overrideRampLimit = true;
     }
 
-    if (ImGui::IsKeyDown(ImGuiKey_L))
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_L))
     {
         overrideRampLimit = false;
     }

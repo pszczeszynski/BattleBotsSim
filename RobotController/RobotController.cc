@@ -17,6 +17,7 @@
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/KillWidget.h"
 #include "UIWidgets/ClockWidget.h"
+#include "Input/InputState.h"
 
 int main()
 {
@@ -74,24 +75,6 @@ CANData RobotController::GetCANData()
     return ret;
 }
 
-#define FPS_PRINT_TIME_SECONDS 5
-static void LogFPS()
-{
-    static int frames = 0;
-    static Clock c;
-
-    // get the elapsed time
-    double elapsed = c.getElapsedTime();
-
-    // if enough time has passed, print the fps
-    if (elapsed > FPS_PRINT_TIME_SECONDS && frames > 0)
-    {
-        std::cout << "fps: " << frames / elapsed << std::endl;
-        frames = 0;
-        c.markStart();
-    }
-    frames ++;
-}
 
 void RobotController::Run()
 {
@@ -105,16 +88,32 @@ void RobotController::Run()
     robotLink.Drive(c);
 #endif
 
-    RobotControllerGUI::GetInstance();
+    // run the gui in a separate thread
+    std::thread guiThread = std::thread([]() {
+        RobotControllerGUI::GetInstance();
+
+        while (true)
+        {
+            // update the gui
+            RobotControllerGUI::GetInstance().Update();
+        }
+    });
+
+    // // sleep for 0.5 seconds to allow the gui to start
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+
+    ClockWidget loopClock("Total loop time");
 
     // receive until the peer closes the connection
     while (true)
     {
-        // log the frame rate
-        LogFPS();
+        loopClock.markEnd();
+        loopClock.markStart();
 
         // update the gamepad
         gamepad.Update();
+
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
@@ -149,14 +148,13 @@ void RobotController::Run()
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
-        // send the response to the robot
-        robotLink.Drive(response);
 
-        // update the gui system
-        RobotControllerGUI::GetInstance().Update();
+        // // send the response to the robot
+        // robotLink.Drive(response);
+
     }
 
-    RobotControllerGUI::GetInstance().Shutdown();
+//     RobotControllerGUI::GetInstance().Shutdown();
 }
 
 /**
@@ -263,7 +261,7 @@ Gamepad& RobotController::GetGamepad()
 void SpaceSwitchesRobots()
 {
     static bool spacePressedLast = false;
-    bool spacePressed = ImGui::IsKeyDown(ImGuiKey_Space);
+    bool spacePressed = InputState::GetInstance().IsKeyDown(ImGuiKey_Space);
 
     // if the space bar was just pressed down
     if (spacePressed && !spacePressedLast)
@@ -288,6 +286,7 @@ DriveCommand RobotController::ManualMode()
 
     // update the spinner powers
     Weapons& weapons = Weapons::GetInstance();
+
     weapons.UpdateSpinnerPowers();
 
     // apply weapon powers
@@ -295,7 +294,8 @@ DriveCommand RobotController::ManualMode()
     response.backWeaponPower = weapons.GetBackWeaponTargetPower();
 
     float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
-    power += ImGui::IsKeyDown(ImGuiKey_J) - ImGui::IsKeyDown(ImGuiKey_U);
+
+    power += InputState::GetInstance().IsKeyDown(ImGuiKey_J) - InputState::GetInstance().IsKeyDown(ImGuiKey_U);
 
     // control the self righter
     _selfRighter.Move(power, response, drawingImage);
@@ -338,6 +338,7 @@ DriveCommand RobotController::RobotLogic()
 
     Orbit orbitMode = Orbit{};
     Kill killMode = Kill{};
+
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
     // DriveCommand responseAvoid = AvoidMode();

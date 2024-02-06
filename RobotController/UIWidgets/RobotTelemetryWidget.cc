@@ -23,7 +23,7 @@ void DrawCANDataTable()
 {
     // add Separator
     ImGui::Separator();
-    CANData& data = RobotController::GetInstance().GetCANData();
+    CANData data = RobotController::GetInstance().GetCANData();
 
     // Increase the font size
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10)); // Increase spacing for bigger text
