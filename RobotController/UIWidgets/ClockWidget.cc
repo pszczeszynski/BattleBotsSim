@@ -4,6 +4,7 @@
 #include <numeric>
 #include <algorithm>
 #include "imgui_internal.h"
+#include <iostream>
 
 std::vector<ClockWidget*>& ClockWidget::Instances()
 {
@@ -121,5 +122,59 @@ void ClockWidget::DrawAll()
         ImGui::SameLine(0, 0);
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10);
         ImGui::Text("Max: %.2fms", maxTime * 1000.0);
+
+        std::string showLabel = "Show##" + labels[i];
+        std::string hideLabel = "Hide##" + labels[i];
+
+
+        // draw a button to show the graph i
+        ImGui::SameLine();
+        if (ImGui::Button(showLabel.c_str()))
+        {
+            std::cout << "Drawing graph for " << instances[i]->getLabel() << std::endl;
+
+            instances[i]->_showGraph = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(hideLabel.c_str()))
+        {
+            std::cout << "Hiding graph for " << instances[i]->getLabel() << std::endl;
+
+            instances[i]->_showGraph = false;
+        }
     }
+
+    // for each clock, draw the graph if it is shown
+    for (ClockWidget* clock : instances)
+    {
+        if (clock->_showGraph)
+        {
+            if (clock->_graph == nullptr)
+            {
+                clock->_graph = new GraphWidget(clock->getLabel(), 0.0, timeScale * 1000, "ms", 1000);
+            }
+        }
+        else
+        {
+            if (clock->_graph != nullptr)
+            {
+                delete clock->_graph;
+                clock->_graph = nullptr;
+            }
+        }
+    }
+}
+
+double ClockWidget::markEnd()
+{
+    // call super method
+    double timeDifference = Clock::markEnd();
+
+    // check if have graph
+    if (_graph != nullptr)
+    {
+        _graph->AddData(timeDifference * 1000.0);
+    }
+
+    return timeDifference;
 }

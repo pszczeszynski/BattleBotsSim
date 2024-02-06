@@ -5,6 +5,7 @@
 #include "../GuiUtils.h"
 #include "../RobotController.h"
 #include "ClockWidget.h"
+#include "GraphWidget.h"
 // #include <algorithm>
 
 RobotControllerGUI::RobotControllerGUI()
@@ -54,6 +55,9 @@ bool RobotControllerGUI::Update()
         {
             widget->Draw();
         }
+
+        // draw all the graphs
+        GraphWidget::DrawAll();
 
         _configWidget.Draw();
         _robotTelemetryWidget.Draw();

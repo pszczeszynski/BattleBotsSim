@@ -10,8 +10,8 @@ class Clock
 {
 public:
 	Clock();
-	void markStart();
-	void markEnd();
+	virtual void markStart();
+	virtual double markEnd();
 	double getElapsedTime();
 	double getMaxTimeDifference() const { return _lastMaxTimeDifference; }
 

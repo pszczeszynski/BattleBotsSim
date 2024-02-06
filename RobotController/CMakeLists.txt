@@ -84,6 +84,7 @@ set(SOURCES
     UIWidgets/ImageWidget.cc
     UIWidgets/KillWidget.cc
     UIWidgets/ClockWidget.cc
+    UIWidgets/GraphWidget.cc
     CVRotation.cc
     MovementStrategy.cc
     Strategies/Avoid.cc

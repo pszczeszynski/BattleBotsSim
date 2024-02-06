@@ -5,6 +5,7 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "UIWidgets/ClockWidget.h"
+#include "UIWidgets/GraphWidget.h"
 
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
@@ -17,6 +18,8 @@
  */
 RobotMessage IRobotLink::Receive()
 {
+    static GraphWidget radioPacketLoss("Radio Packet Loss", 0, 50, "ms");
+
     // get all new messages
     std::vector<RobotMessage> newMessages = _ReceiveImpl();
 
@@ -55,18 +58,11 @@ RobotMessage IRobotLink::Receive()
     // copy over new messages to the message history
     for (RobotMessage& msg : newMessages)
     {
-        msg.receiveDelay = _receiveClock.getElapsedTime();
+        // display delay
+        radioPacketLoss.AddData(_receiveClock.getElapsedTime() * 1000);
         _receiveClock.markStart();
-
-        // add to message history
-        _messageHistory.push_back(msg);
     }
 
-    // if message history is too long, remove the first element
-    while (_messageHistory.size() > MESSAGE_HISTORY_SIZE)
-    {
-        _messageHistory.pop_front();
-    }
 
     // return the last message
     return newMessages.back();
@@ -82,10 +78,6 @@ RobotMessage IRobotLink::GetLastCANMessage()
     return _lastCANMessage;
 }
 
-const std::deque<RobotMessage> &IRobotLink::GetMessageHistory()
-{
-    return _messageHistory;
-}
 
 //
 #define TRANSMITTER_COM_PORT TEXT("COM8")

@@ -18,7 +18,11 @@ void Clock::markStart()
 	startTime = std::chrono::high_resolution_clock::now();
 }
 
-void Clock::markEnd()
+/**
+ * \brief
+ * Marks the end time and returns the time difference in seconds
+ */
+double Clock::markEnd()
 {
 	double timeDifference = getElapsedTime();
 
@@ -35,6 +39,8 @@ void Clock::markEnd()
 	{
 		resetCounters();
 	}
+
+	return timeDifference;
 }
 
 /**

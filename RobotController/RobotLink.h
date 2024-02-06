@@ -32,9 +32,6 @@ protected:
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
 
-    // store the last 1000 messages
-    const int MESSAGE_HISTORY_SIZE = 1000;
-    std::deque<RobotMessage> _messageHistory;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
