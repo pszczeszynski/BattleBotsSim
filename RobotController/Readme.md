@@ -6,6 +6,8 @@ Required tools:
 cmake
 opencv
 cuda
+flir camera sdk
+
 
 OPENCV INSTALL:
 0. Install cuda + cudann
@@ -69,3 +71,8 @@ Make sure you have the Cmake Tools Extension installed
 Ctrl + Shift + P -> Cmake Select kit -> Amd64 (or whichever is you)
 
 Then Ctrl + Shift + P -> Cmake Configure
+
+
+
+FLIR Camera SDK:
+https://www.flir.com/support-center/iis/machine-vision/downloads/spinnaker-sdk-download/?pn=Spinnaker+SDK&vn=Spinnaker_SDK
