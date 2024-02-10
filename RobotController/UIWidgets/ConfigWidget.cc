@@ -1,33 +1,10 @@
 #include "ConfigWidget.h"
 #include "../RobotConfig.h"
 #include "../GuiUtils.h"
+#include "UIUtilities.h"
 
 ConfigWidget::ConfigWidget()
 {
-}
-
-void SetMaxWidthWithMargin(int margin)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    // Calculate desired width based on current window width
-    ImVec2 availableSpace = ImGui::GetContentRegionAvail();
-    float sliderWidth = availableSpace.x - margin;  // you can adjust 'some_offset' based on your needs
-
-    // Set the width of the SliderInt
-    ImGui::PushItemWidth(sliderWidth);
-}
-
-void EndSetMaxWidthWithMargin()
-{
-    ImGui::PopItemWidth();
-}
-
-void InputTextWithString(std::string label, std::string& value)
-{
-    char buf[256];
-    strcpy(buf, value.c_str());
-    ImGui::InputText(label.c_str(), buf, IM_ARRAYSIZE(buf));
-    value = std::string(buf);
 }
 
 
@@ -73,7 +50,10 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     // add edit number text box for MIN_INTER_SEND_TIME_MS. Center the number
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);
+    ImGui::End();
 
+    ImGui::Begin("Config File");
+    // SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
 
     // filename
     InputTextWithString("Save File Name", SAVE_FILE_NAME);
@@ -90,6 +70,6 @@ void ConfigWidget::Draw()
         loadGlobalVariablesFromFile(SAVE_FILE_NAME);
     }
 
-    EndSetMaxWidthWithMargin();
+    // EndSetMaxWidthWithMargin();
     ImGui::End();
 }

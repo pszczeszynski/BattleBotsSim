@@ -15,6 +15,7 @@
 #include "ImageWidget.h"
 #include "KillWidget.h"
 #include "FieldWidget.h"
+#include "VariantsWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -45,6 +46,7 @@ private:
     ConfigWidget _configWidget;
     RobotTelemetryWidget _robotTelemetryWidget;
     FieldWidget _fieldWidget;
+    VariantsWidget _variantsWidget;
 };
 
 static void glfw_error_callback(int error, const char *description)

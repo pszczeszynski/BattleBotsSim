@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "imgui.h"
 #include "Input/InputState.h"
+#include "UIWidgets/ClockWidget.h"
 
 #define VIDEO_READ
 // #define SAVE_VIDEO
@@ -23,6 +24,7 @@ int NUMBER_OF_LONG_READS = 0;
 bool saveVideo = false;
 CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
 {
+    static ClockWidget cameraFPS{"Camera FPS"};
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
 
@@ -48,6 +50,8 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         // start capturing frames
         while (true)
         {
+            cameraFPS.markEnd();
+            cameraFPS.markStart();
             _CaptureFrame();
 
 
@@ -67,12 +71,7 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
                 _frameMutex.unlock();
             }
 #endif
-
-#ifdef SIMULATION
-            // sleep for 15 ms
-            Sleep(15);
-#endif
-            
+  
         } });
 }
 
@@ -137,14 +136,12 @@ void CameraReceiver::_CaptureFrame()
         return;
     }
 
-    // cv::equalizeHist(frame, frame);
     // convert to RGB
     // lock the mutex
     _frameMutex.lock();
     cv::cvtColor(frame, _frame, cv::COLOR_BGR2RGB);
 
     // flip image
-    // cv::flip(frame, _frame, -1);
     // increase _framesReady
     _framesReady++;
     // unlock the mutex
@@ -186,8 +183,8 @@ bool CameraReceiver::_InitializeCamera()
 #else
 
     // init video reader
-    _cap = new cv::VideoCapture("Recordings/Video1.avi");
-    _cap->set(cv::CAP_PROP_FPS, 60); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
+    _cap = new cv::VideoCapture("Recordings/WitchdoctorHypershock.avi");
+    _cap->set(cv::CAP_PROP_FPS, 90); // Assuming you meant 60 fps based on your comment. Adjust this value to the highest supported fps if you have a specific requirement.
     // // skip first 1 minutes
     // for (int i = 0; i < 30 * 60; i++)
     // {

@@ -1,9 +1,9 @@
 #include "GraphWidget.h"
 
 #include <imgui.h>
-
 #include <vector>
 #include <algorithm>
+#include <iterator>
 
 std::vector<GraphWidget *> &GraphWidget::Instances()
 {
@@ -28,7 +28,7 @@ GraphWidget::~GraphWidget()
  * Draws a graph with the given data
  * 
 */
-void DrawGraph(const char *title, const std::deque<float> &data, float minYValue, float maxYValue,
+void DrawGraph(const char *title, const std::deque<float> data, float minYValue, float maxYValue,
                const char *unit, const ImVec2 &graphSize = ImVec2(0, 150.0f),
                const ImVec4 &graphColor = ImVec4(0.2f, 0.6f, 0.86f, 1.0f)) // Default graph color
 {
@@ -91,16 +91,19 @@ void DrawGraph(const char *title, const std::deque<float> &data, float minYValue
 
 void GraphWidget::AddData(float data)
 {
+    _dataLock.lock();
     _data.push_back(data);
 
     if (_data.size() > _historySize)
     {
         _data.pop_front();
     }
+    _dataLock.unlock();
 }
 
 void GraphWidget::SetData(const std::vector<float> &data)
 {
+    _dataLock.lock();
     _data.assign(data.begin(), data.end());
 
     // if the data is larger than the history size, resize it (this takes the
@@ -109,10 +112,13 @@ void GraphWidget::SetData(const std::vector<float> &data)
     {
         _data.resize(_historySize);
     }
+    _dataLock.unlock();
 }
 
 void GraphWidget::SetData(const std::deque<float> &data)
 {
+    _dataLock.lock();
+
     _data = data;
 
     // if the data is larger than the history size, resize it (this takes the
@@ -121,11 +127,15 @@ void GraphWidget::SetData(const std::deque<float> &data)
     {
         _data.resize(_historySize);
     }
+
+    _dataLock.unlock();
 }
 
 void GraphWidget::ClearData()
 {
+    _dataLock.lock();
     _data.clear();
+    _dataLock.unlock();
 }
 
 void GraphWidget::DrawAll()
@@ -136,7 +146,14 @@ void GraphWidget::DrawAll()
     // Draw all the graphs
     for (GraphWidget *widget : Instances())
     {
-        DrawGraph(widget->_title.c_str(), widget->_data, widget->_minYValue, widget->_maxYValue, widget->_unit);
+        std::deque<float> dataCopy;
+
+        widget->_dataLock.lock();
+        std::copy(widget->_data.begin(), widget->_data.end(), std::back_inserter(dataCopy));
+
+        widget->_dataLock.unlock();
+
+        DrawGraph(widget->_title.c_str(), dataCopy, widget->_minYValue, widget->_maxYValue, widget->_unit);
     }
 
     ImGui::End();

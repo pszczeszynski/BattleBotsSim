@@ -5,6 +5,7 @@
 #include "RobotController.h"
 #include "imgui.h"
 #include "Input/InputState.h"
+#include "RobotConfig.h"
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -173,8 +174,13 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
         fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);
     }
 
-    // use the ml model to get the angle entirely
-    fusedAngle = CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
+    // if we should use the rotation network
+    if (ROTATION_NET_ENABLED)
+    {
+        std::cout << "Computing robot rotation" << std::endl;
+        // use the ml model to get the angle entirely
+        fusedAngle = CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
+    }
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
@@ -193,7 +199,7 @@ void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
     // set the angle using just the imu
     Angle angle = Angle(_UpdateAndGetIMUAngle());
 
-    angle = Angle(CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
+    // angle = Angle(CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
 
     // update normally
     _PostUpdate(_position, velocity, angle);

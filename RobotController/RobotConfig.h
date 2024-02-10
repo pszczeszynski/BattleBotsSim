@@ -45,6 +45,8 @@ extern int MAX_ROBOT_BLOB_SIZE;
 extern int MIN_OPPONENT_BLOB_SIZE;
 extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;
+extern bool ROTATION_NET_ENABLED;
+extern bool GYRO_ENABLED;
 
 
 template <typename T>

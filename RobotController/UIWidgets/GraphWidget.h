@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <deque>
-
+#include <mutex>
 class GraphWidget
 {
 public:
@@ -24,6 +24,7 @@ private:
     float _maxYValue;
     const char* _unit;
 
+    std::mutex _dataLock;
     std::deque<float> _data;
 
     const int _historySize;

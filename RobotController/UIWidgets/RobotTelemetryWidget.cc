@@ -3,21 +3,11 @@
 #include "../RobotController.h"
 #include "imgui_internal.h"
 #include "GraphWidget.h"
+#include "UIUtilities.h"
 
 RobotTelemetryWidget::RobotTelemetryWidget()
 {
 }
-
-void CenterText(const char* text)
-{
-    // Center the text
-    float windowWidth = ImGui::GetWindowWidth();
-    float textWidth = ImGui::CalcTextSize(text).x;
-    ImGui::SetCursorPosX((windowWidth - textWidth) / 2);
-
-    ImGui::Text(text);
-}
-
 
 void DrawCANDataTable()
 {
