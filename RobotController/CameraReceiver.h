@@ -50,6 +50,7 @@ public:
     CameraReceiver(int cameraIndex);
     bool GetFrame(cv::Mat &output);
     ~CameraReceiver();
+    double readVideoRate = 1.0f; // While reading video, this will allow us to slow or speed it up
 
 private:
     bool _InitializeCamera();
@@ -62,4 +63,5 @@ private:
     int _cameraIndex;
 
     cv::VideoCapture *_cap = nullptr;
+    double maxFrameRate = 120f; // Maximum frame rate we will try to get images. This will be automatically be set to read in video file framerate.
 };
