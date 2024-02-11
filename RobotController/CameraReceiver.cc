@@ -355,25 +355,6 @@ bool CameraReceiverSim::_InitializeCamera()
     return true;
 }
 
-static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
-{
-    if (mat1.size() != mat2.size() || mat1.type() != mat2.type())
-    {
-        // Mats have different sizes or types
-        return false;
-    }
-
-    // Compute the absolute difference between the current frame and the previous frame
-    cv::Mat diff;
-    cv::absdiff(mat1, mat2, diff);
-
-    // Convert the difference to grayscale
-    cv::Mat grayDiff;
-    cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
-
-    return cv::countNonZero(grayDiff) == 0;
-}
-
 void CameraReceiverSim::_CaptureFrame()
 {
     // don't receive at more than 60 fps
