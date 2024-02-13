@@ -7,11 +7,12 @@ class VESC
 {
 private:
     float lastPowers[4] = { 0, 0, 0, 0 };
-    static void OnMessage(const CAN_message_t &msg);
-    FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> CAN1;
 
     void _SetMotorPower(float power, int motorIndex);
 public:
+
+    static void OnMessage(const CAN_message_t &msg);
+    FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can0;
     VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id);
 
     void Drive(float leftPower, float rightPower);
@@ -23,3 +24,4 @@ public:
     void GetRPMs(unsigned char* outRPMs);
     void GetFETTemps(unsigned char* outFetTemps);
 };
+

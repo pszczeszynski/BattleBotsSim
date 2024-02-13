@@ -20,8 +20,6 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
     _ids[r_drive] = r_drive_id;
     _ids[f_weapon] = f_weapon_id;
     _ids[b_weapon] = b_weapon_id;
-
-
     // set volts, duty_cycles, rpms, ahs, fet_temps, motor_temps, currents to 0
     for (int i = 0; i < 4; i++)
     {
@@ -34,20 +32,21 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
         _currents[i] = 0;
     }
 
-    CAN1.begin();
-    CAN1.setBaudRate(CAN_RATE);
-    CAN1.setMaxMB(16);
-    CAN1.enableFIFO();
-    CAN1.enableFIFOInterrupt();
-    CAN1.onReceive(OnMessage);
+    Can0.begin();
+    Can0.setBaudRate(500000);
+    Can0.setMaxMB(16);
+    Can0.enableFIFO();
+    Can0.enableFIFOInterrupt();
+    Can0.onReceive(OnMessage);
 }
+
 
 #define MSG_ID_MASK 0xffffff00
 #define VESC_ID_MASK 0xff
-#define MSG_ID_INPUT_VOLTAGE 27
-#define MSG_ID_DUTY_CYCLE 9
-#define MSG_ID_AH 14
-#define MSG_ID_TEMPS_AND_CURRENT 16
+#define MSG_ID_INPUT_VOLTAGE 0x1B
+#define MSG_ID_DUTY_CYCLE 0x9
+#define MSG_ID_AH 0xE
+#define MSG_ID_TEMPS_AND_CURRENT 0x10
 #define VOLTAGE_SCALE 10.0
 #define DUTY_CYCLE_SCALE 1000.0
 #define AH_SCALE 10000
@@ -86,18 +85,18 @@ static void VESC::OnMessage(const CAN_message_t &msg)
         return;
     }
 
-    // Serial.print("Message ID: ");
-    // Serial.print(msg_id, HEX);
-    // Serial.print(", VESC ID: ");
-    // Serial.println(vesc_id);
+  Serial.print("Message ID: ");
+  Serial.print(msg_id, HEX);
+  Serial.print(", VESC ID: ");
+  Serial.println(vesc_id);
 
-    // Serial.print("Data: ");
-    // for (uint8_t i = 0; i < msg.len; i++)
-    // {
-    //     Serial.print(msg.buf[i], HEX);
-    //     Serial.print(" ");
-    // }
-    // Serial.println();
+  Serial.print("Data: ");
+  for (uint8_t i = 0; i < msg.len; i++)
+  {
+      Serial.print(msg.buf[i], HEX);
+      Serial.print(" ");
+  }
+  Serial.println();
 
     if (msg_id == MSG_ID_INPUT_VOLTAGE)
     {
@@ -105,6 +104,7 @@ static void VESC::OnMessage(const CAN_message_t &msg)
         _volts[enum_index] = input_voltage;
         // Serial.print("Input Voltage: ");
         // Serial.println(input_voltage);
+
     }
     else if (msg_id == MSG_ID_DUTY_CYCLE)
     {
@@ -183,7 +183,7 @@ void VESC::_SetMotorPower(float power, int motorIndex)
         message.buf[3 - i] = ((dutyCycle >> (8 * i)) & 0xff);
     }
 
-    CAN1.write(message);
+    Can0.write(message);
 }
 void VESC::Drive(float leftPower, float rightPower)
 {
@@ -199,7 +199,7 @@ void VESC::DriveWeapons(float frontPower, float backPower)
 
 void VESC::Update()
 {
-    CAN1.events();
+    Can0.events();
 }
 
 unsigned char FloatToUnsignedChar(float f)
