@@ -193,13 +193,15 @@ RobotLinkReal::RobotLinkReal()
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
-    command.movement *= 1.0;
-    command.turn *= 0.4;
-    double temp = command.movement;
 
     // force command to be between -1 and 1
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
+
+    // scale command by the master scales
+    command.movement *= MASTER_MOVE_SCALE_PERCENT;
+    command.turn *= MASTER_TURN_SCALE_PERCENT;
+
     // set valid to true
     command.valid = true;
 

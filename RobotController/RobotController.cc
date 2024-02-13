@@ -312,10 +312,6 @@ DriveCommand RobotController::ManualMode()
         response.turn = 0;
     }
 
-    // enforce the max speed
-    response.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
-    response.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
-
     SpaceSwitchesRobots();
 
     return response;

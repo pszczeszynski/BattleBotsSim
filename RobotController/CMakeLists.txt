@@ -73,6 +73,7 @@ set(SOURCES
     UIWidgets/GraphWidget.cc
     UIWidgets/VariantsWidget.cc
     UIWidgets/UIUtilities.cc
+    UIWidgets/ManualControlWidget.cc
     CVRotation.cc
     MovementStrategy.cc
     Strategies/Avoid.cc
