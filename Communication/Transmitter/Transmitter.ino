@@ -79,7 +79,6 @@ void loop()
         // send over radio to receiver
         radio->Send(command);
 
-        Serial.println("Sent message");
     }
 
     bool hadData = false;

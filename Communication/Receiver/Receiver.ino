@@ -33,7 +33,6 @@
 
 #define USE_IMU
 
-
 IMU* imu;
 
 #define LEFT_MOTOR_CAN_ID 3
@@ -44,10 +43,11 @@ IMU* imu;
 // closest to the middle of the teensy
 #define SELF_RIGHTER_MOTOR_PIN 9
 
-VESC* vesc;
+VESC vesc(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
 Motor* selfRightMotor;
 Radio<RobotMessage, DriveCommand>* radio;
 Logger* logger;
+
 
 void setup()
 {
@@ -64,9 +64,9 @@ void setup()
     Serial.println("Not using IMU");
 #endif
 
-    Serial.println("Initializing Canbus motors...");
-    vesc = new VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
-    Serial.println("Success!");
+    // Serial.println("Initializing Canbus motors...");
+    //vesc = VESC(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
+    // Serial.println("Success!");
 
     Serial.println("Initializing Self-Righting Motor...");
     selfRightMotor = new Motor(SELF_RIGHTER_MOTOR_PIN);
@@ -84,9 +84,12 @@ void setup()
     Serial.println("Not logging data");
 #endif
 
-    vesc->Drive(0, 0);
-    vesc->DriveWeapons(0, 0);
+    vesc.Drive(0, 0);
+    vesc.DriveWeapons(0, 0);
 }
+
+
+
 
 /**
  * Applys the drive command to the robot
@@ -106,7 +109,7 @@ void Drive(DriveCommand &command)
     }
 
     // apply powers
-    vesc->Drive(leftPower, rightPower);
+    vesc.Drive(leftPower, rightPower);
 }
 
 /**
@@ -114,7 +117,7 @@ void Drive(DriveCommand &command)
 */
 void DriveWeapons(DriveCommand &command)
 {
-    vesc->DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
+    vesc.DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
 }
 
 /**
@@ -138,6 +141,7 @@ RobotMessage Update()
     // call update for imu
     imu->Update();
 #endif
+    vesc.Update();
 
     // increase update count and wrap around
     updateCount ++;
@@ -147,10 +151,10 @@ RobotMessage Update()
     if (updateCount == 0)
     {
         ret.type = CAN_DATA;
-        vesc->GetCurrents(ret.canData.motorCurrent);
-        vesc->GetVolts(ret.canData.motorVoltage);
-        vesc->GetRPMs(ret.canData.motorERPM);
-        vesc->GetFETTemps(ret.canData.escFETTemp);
+        vesc.GetCurrents(ret.canData.motorCurrent);
+        vesc.GetVolts(ret.canData.motorVoltage);
+        vesc.GetRPMs(ret.canData.motorERPM);
+        vesc.GetFETTemps(ret.canData.escFETTemp);
     }
     // else send imu data
     else
@@ -297,8 +301,6 @@ void loop()
 
     // Compute response message
     RobotMessage message = Update();
-
-    message.type = IMU_DATA;
 
     // send the message
     SendOutput result = radio->Send(message);
