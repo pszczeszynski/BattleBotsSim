@@ -32,45 +32,21 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
     _captureThread = std::thread([this]()
                                  {
 
-#ifdef SAVE_VIDEO
-        // Initialize VideoWriter0
-        int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G'); // or use another codec
-        double fps = 60.0;                                        // you can adjust this according to your needs
-        cv::Size frameSize(1280, 720);
-        cv::VideoWriter video("Recordings/outputVideo.avi", fourcc, fps, frameSize, true); // 'true' for color video
-#endif
-
         // try to initialize camera
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
             Sleep(1000); // wait 1 second
         }
+
         std::cout << "Camera initialized" << std::endl;
+
         // start capturing frames
         while (true)
         {
             cameraFPS.markEnd();
             cameraFPS.markStart();
-            _CaptureFrame();
-
-#ifdef SAVE_VIDEO
-            if (InputState::GetInstance().IsKeyDown(ImGuiKey_Enter))
-            {
-                saveVideo = true;
-            }
-            if (InputState::GetInstance().IsKeyDown(ImGuiKey_Backspace))
-            {
-                saveVideo = false;
-            }
-            if (saveVideo)
-            {
-                _frameMutex.lock();
-                video.write(_frame);
-                _frameMutex.unlock();
-            }
-#endif
-  
+            _CaptureFrame();  
         } });
 }
 
