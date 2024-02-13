@@ -91,8 +91,6 @@ ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
 RobotLinkReal::RobotLinkReal()
 {
-    _sendingClock.markStart();
-
     _radioThread = std::thread([this]()
                                {
             while (true)
@@ -194,6 +192,14 @@ void RobotLinkReal::Drive(DriveCommand &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
 
+    // if we have sent a packet too recently, return
+    if (clockWidget.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    {
+        return;
+    }
+
+    clockWidget.markStart();
+
     // force command to be between -1 and 1
     command.movement = std::max(-1.0, std::min(1.0, command.movement));
     command.turn = std::max(-1.0, std::min(1.0, command.turn));
@@ -204,15 +210,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     // set valid to true
     command.valid = true;
-
-    // if we have sent a packet too recently, return
-    if (_sendingClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
-    {
-        return;
-    }
-    _sendingClock.markStart();
-
-    clockWidget.markStart();
 
     try
     {

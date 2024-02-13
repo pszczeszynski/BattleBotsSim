@@ -64,7 +64,6 @@ public:
     ~RobotLinkReal();
 
 private:
-    Clock _sendingClock;
     std::thread _radioThread;
 
     std::deque<RobotMessage> _unconsumedMessages;
