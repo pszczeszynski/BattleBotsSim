@@ -13,7 +13,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": true,
+            "externalConsole": false, // This causes issue in debug mode
             "visualizerFile": "c:\\Users\\Peter\\AppData\\Roaming\\Code\\User\\workspaceStorage\\0b639fb29a2752bba620735c693dd9ec\\tonka3000.qtvsctools\\qt.natvis.xml"
         },
         { // python file MachineLearning/RobotRotationModel.py

@@ -5,31 +5,47 @@
 #include <opencv2/imgproc.hpp>
 #include <windows.h>
 #include <thread>
+#include <condition_variable>
 #include "Clock.h"
-
-#include "Spinnaker.h"
-#include "SpinGenApi/SpinnakerGenApi.h"
 #include <conio.h>
 #include <sstream>
 #include <chrono>
 
+#include "Spinnaker.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+
+
 class ICameraReceiver
 {
 public:
-    virtual bool GetFrame(cv::Mat &output) = 0;
+    virtual long GetFrame(cv::Mat &output, long old_id);
+
+    static ICameraReceiver& GetInstance();
+protected:
+    void _StartCaptureThread();
+
+    ICameraReceiver();
+    std::thread _captureThread;
+    cv::Mat _frame; // the last frame captured
+    std::mutex _frameMutex;
+    std::condition_variable _frameCV;
+
+    long int _frameID = 0;
+
+    virtual bool _InitializeCamera() = 0;
+    virtual bool _CaptureFrame() = 0;
+
 };
 
 class CameraReceiverSim : public ICameraReceiver
 {
 public:
     CameraReceiverSim(std::string fileName, int width = 1280, int height = 720);
-    bool GetFrame(cv::Mat &output);
     ~CameraReceiverSim();
 
 private:
-    bool _InitializeCamera();
-    void _CaptureFrame();
-
+    bool _InitializeCamera() override;
+    bool _CaptureFrame() override;
 
     std::string _sharedFileName;
     int _width;
@@ -39,36 +55,40 @@ private:
     HANDLE _hMapFile;
     HANDLE _hMutex;
     LPVOID _lpMapAddress;
-    std::thread _captureThread;
 
     std::mutex _frameMutex;
-    cv::Mat _frame; // the last frame captured
     cv::Mat _prevFrame;
 
     Clock _prevFrameTimer;
-
-    long int _framesReady;
 };
 
 class CameraReceiver : public ICameraReceiver
 {
 public:
-    CameraReceiver(int cameraIndex);
-    bool GetFrame(cv::Mat &output);
+    CameraReceiver();
     ~CameraReceiver();
 
 private:
-    bool _InitializeCamera();
-    void _CaptureFrame();
+    virtual bool _InitializeCamera() override;
+    virtual bool _CaptureFrame() override;
 
-    std::thread _captureThread;
-    std::mutex _frameMutex;
-    cv::Mat _frame;
-    long int _framesReady;
     int _cameraIndex;
     int pcam_image_width;
     int pcam_image_height;
 
     Spinnaker::CameraPtr pCam = nullptr;
     Spinnaker::SystemPtr _system = nullptr;
+};
+
+class CameraReceiverVideo : public ICameraReceiver
+{
+public:
+    CameraReceiverVideo();
+private:
+    cv::VideoCapture _cap;
+    virtual bool _InitializeCamera() override;
+    virtual bool _CaptureFrame() override;
+    long _videoFrame = 0;
+
+    Clock _prevFrameTimer;
 };

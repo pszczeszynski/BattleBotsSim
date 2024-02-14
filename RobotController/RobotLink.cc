@@ -11,7 +11,7 @@
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
 #define SEND_TIMEOUT_MS 1 // after this time, give up sending and go back to receiving
-#define RECEIVE_TIMEOUT_MS 5
+#define RECEIVE_TIMEOUT_MS 100 //Was 5 but doubly defined to 100 later in code, assuming 100 is the intended duration
 
 /**
  * Doesn't do anything except call the timer markStart
@@ -35,15 +35,26 @@ RobotMessage IRobotLink::Receive()
     // go through all the new messages
     for (RobotMessage &msg : newMessages)
     {
-        // save the last IMU and CAN message
+        // save the latest message of each type
         if (msg.type == RobotMessageType::IMU_DATA)
         {
+            _lastIMUMessageMutex.lock();
             _lastIMUMessage = msg;
+            _lastIMUMessageMutex.unlock();
             hadValidMessage = true;
         }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
+            _lastCANMessageMutex.lock();
             _lastCANMessage = msg;
+            _lastCANMessageMutex.unlock();
+            hadValidMessage = true;
+        }
+        else if (msg.type == RobotMessageType::RADIO_DATA)
+        {
+            _lastRadioMessageMutex.lock();
+            _lastRadioMessage = msg;
+            _lastRadioMessageMutex.unlock();
             hadValidMessage = true;
         }
     }
@@ -70,12 +81,44 @@ RobotMessage IRobotLink::Receive()
 
 RobotMessage IRobotLink::GetLastIMUMessage()
 {
-    return _lastIMUMessage;
+    RobotMessage ret;
+    _lastIMUMessageMutex.lock();
+    ret = _lastIMUMessage;
+    _lastIMUMessageMutex.unlock();
+    return ret;
 }
 
 RobotMessage IRobotLink::GetLastCANMessage()
 {
-    return _lastCANMessage;
+    RobotMessage ret;
+    _lastCANMessageMutex.lock();
+    ret = _lastCANMessage;
+    _lastCANMessageMutex.unlock();
+    return ret;
+}
+
+RobotMessage IRobotLink::GetLastRadioMessage()
+{
+    RobotMessage ret;
+
+    if (_receiveClock.getElapsedTime() * 1000 > 100)
+    {
+        // set to 0's
+        memset(&ret, 0, sizeof(RobotMessage));
+        ret.type = RobotMessageType::RADIO_DATA;
+        ret.radioData.averageDelayMS = -1;
+        return ret;
+    }
+
+    _lastRadioMessageMutex.lock();
+    ret = _lastRadioMessage;
+    _lastRadioMessageMutex.unlock();
+    return ret;
+}
+
+bool IRobotLink::IsTransmitterConnected()
+{
+    return _transmitterConnected;
 }
 
 #define TRANSMITTER_COM_PORT TEXT("COM8")
@@ -84,17 +127,28 @@ RobotMessage IRobotLink::GetLastCANMessage()
 #define COM_WRITE_TIMEOUT_MS 100
 
 char lastChar = '\0';
-Clock intermessageClock;
 int messageCount = 0;
+
 
 ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
+#ifndef SIMULATION
 RobotLinkReal::RobotLinkReal()
 {
     _radioThread = std::thread([this]()
                                {
+
+            Clock c_rawhid; // Clock for not spamming rawhid error
+            
             while (true)
             {
+                _transmitterConnected = false;
+                _lastRadioMessageMutex.lock();
+                // set to 0's
+                memset(&_lastRadioMessage, 0, sizeof(RobotMessage));
+                _lastRadioMessage.radioData.averageDelayMS = -1;
+                _lastRadioMessageMutex.unlock();
+
                 int i, devices_opened, num;
                 char c;
                 char buf[HID_BUFFER_SIZE];
@@ -110,12 +164,19 @@ RobotLinkReal::RobotLinkReal()
                     devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
                     if (devices_opened <= 0)
                     {
-                        std::cerr << "no rawhid device found" << std::endl;
+                        // Report error but don't spam it
+                        if( !c_rawhid.isRunning() || (c_rawhid.getElapsedTime() > 1.0))
+                        {
+                            c_rawhid.markStart();
+                            std::cerr << "no rawhid device found" << std::endl;
+                        }
+                        
                         std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
                     }
                 }
 
                 printf("found rawhid device with handle %d\n", devices_opened);
+                _transmitterConnected = true;
 
                 // keep reading until error or device goes offline
                 while (true)
@@ -192,21 +253,16 @@ void RobotLinkReal::Drive(DriveCommand &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
 
+    // set the radio channel
+    command.radioChannel = RADIO_CHANNEL;
+
     // if we have sent a packet too recently, return
-    if (clockWidget.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
         return;
     }
 
     clockWidget.markStart();
-
-    // force command to be between -1 and 1
-    command.movement = std::max(-1.0, std::min(1.0, command.movement));
-    command.turn = std::max(-1.0, std::min(1.0, command.turn));
-
-    // scale command by the master scales
-    command.movement *= MASTER_MOVE_SCALE_PERCENT;
-    command.turn *= MASTER_TURN_SCALE_PERCENT;
 
     // set valid to true
     command.valid = true;
@@ -232,7 +288,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
     clockWidget.markEnd();
 }
 
-#define RECEIVE_TIMEOUT_MS 100
 
 std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 {
@@ -255,6 +310,7 @@ std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 RobotLinkReal::~RobotLinkReal()
 {
 }
+#endif
 
 /////////////////// SIMULATION //////////////////////
 
@@ -290,17 +346,14 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     if (lastCanDataClock.getElapsedTime() < 0.5)
     {
         ret.type = RobotMessageType::IMU_DATA;
-        ret.imuData.rotation = message.robot_orientation;
+        ret.imuData.rotation = Angle(message.robot_orientation + M_PI);
         ret.imuData.rotationVelocity = message.robot_rotation_velocity;
     }
     else
     {
-        std::cout << "CAN DATA RECEIVED" << std::endl;
         ret.type = RobotMessageType::CAN_DATA;
         ret.canData.motorERPM[2] = (int)abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
         ret.canData.motorERPM[3] = (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
-
-        std::cout << "RPM: " << message.spinner_1_RPM << " " << message.spinner_2_RPM << std::endl;
         lastCanDataClock.markStart();
     }
 

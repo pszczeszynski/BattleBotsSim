@@ -1,6 +1,7 @@
 #include "ImageWidget.h"
 #include "../RobotController.h"
 #include "../GuiUtils.h"
+#include "../Input/InputState.h"
 
 /**
  * Constructor
@@ -57,11 +58,15 @@ void ImageWidget::UpdateMat(cv::Mat& image)
  */
 void ImageWidget::Draw()
 {
+    _imageMutex.lock();
     // make sure not to draw if the image is empty
     if (_image.empty())
     {
+        _imageMutex.unlock();
         return;
     }
+
+    _imageMutex.unlock();
 
     // Start the main window without any specific flags
     ImGui::Begin(_name.c_str());
@@ -90,8 +95,7 @@ void ImageWidget::Draw()
  */
 cv::Point2f ImageWidget::GetMousePos()
 {
-    ImVec2 mousePosVec2 = ImGui::GetMousePos();
-    cv::Point2f mousePosAbsolute{mousePosVec2.x, mousePosVec2.y};
+    cv::Point2f mousePosAbsolute = InputState::GetInstance().GetMousePos();
     cv::Point2f windowPos = cv::Point2f(_windowPos.x, _windowPos.y);
     return mousePosAbsolute - windowPos;
 }

@@ -38,9 +38,11 @@ private:
 
     VisionPreprocessor birdsEyePreprocessor;
     std::thread processingThread;
-
+    ///// THE FOLLOWING MUSSED BE ACCESSED VIA MUTEX /////
     std::mutex _classificationMutex;
     cv::Mat _lastDrawingImage;
     VisionClassification _classification;
+    //////////////////////////////////////////////////////
+
     Clock _prevFrameTimer;
 };

@@ -34,13 +34,13 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     overheadCamL_real{0},
+                                     overheadCamL_real{},
                                      vision{overheadCamL_real}
 #endif
 {
 }
 
-RobotController& RobotController::GetInstance()
+RobotController &RobotController::GetInstance()
 {
     static RobotController instance;
     return instance;
@@ -48,15 +48,15 @@ RobotController& RobotController::GetInstance()
 
 /**
  * Gets the most recent imu data from the robot
-*/
-IMUData& RobotController::GetIMUData()
+ */
+IMUData &RobotController::GetIMUData()
 {
     return _lastIMUMessage.imuData;
 }
 
 /**
  * Gets the most recent can data from the robot
-*/
+ */
 CANData RobotController::GetCANData()
 {
     CANData ret;
@@ -78,6 +78,7 @@ CANData RobotController::GetCANData()
 
 void RobotController::Run()
 {
+    static FieldWidget _fieldWidget;
     TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
@@ -99,10 +100,6 @@ void RobotController::Run()
         }
     });
 
-    // // sleep for 0.5 seconds to allow the gui to start
-    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-
     ClockWidget loopClock("Total loop time");
 
     // receive until the peer closes the connection
@@ -113,7 +110,6 @@ void RobotController::Run()
 
         // update the gamepad
         gamepad.Update();
-
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
@@ -133,28 +129,23 @@ void RobotController::Run()
         // get the latest classification (very fast)
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
-        // in simulation, add a 5 millisecond wait and continue if we don't get a new image
-// #ifdef SIMULATION
-//         if (!classification.GetHadNewImage())
-//         {
-//             Sleep(5);
-//             continue;
-//         }
-// #endif
-
         // update the robot tracker positions
         UpdateRobotTrackers(classification);
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
+        ApplyMoveScales(response);
 
         // send the response to the robot
         robotLink.Drive(response);
 
-    }
+        DrawStatusIndicators();
 
-//     RobotControllerGUI::GetInstance().Shutdown();
+        // update the mat + allow the user to adjust the crop of the field
+        _fieldWidget.AdjustFieldCrop();
+        _fieldWidget.UpdateMat(drawingImage);
+    }
 }
 
 /**
@@ -167,6 +158,14 @@ void RobotController::Run()
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
     static int updatesWithoutOpponent = 0;
+
+    // if we should use the rotation network
+    if (ROTATION_NET_ENABLED)
+    {
+        // use the ml model to get the angle entirely
+        RobotOdometry::Robot().UpdateForceSetAngle(CVRotation::GetInstance().ComputeRobotRotation(drawingImage, RobotOdometry::Robot().GetPosition()));
+    }
+
     // if we didn't get a new image, don't update the robot trackers
     if (!classification.GetHadNewImage())
     {
@@ -255,23 +254,6 @@ Gamepad& RobotController::GetGamepad()
     return gamepad;
 }
 
-/**
- * Allows the spacebar to control switching the robot positions should the trackers swap
-*/
-void SpaceSwitchesRobots()
-{
-    static bool spacePressedLast = false;
-    bool spacePressed = InputState::GetInstance().IsKeyDown(ImGuiKey_Space);
-
-    // if the space bar was just pressed down
-    if (spacePressed && !spacePressedLast)
-    {
-        RobotClassifier::instance->SwitchRobots();
-    }
-
-    // save the last variable for next time
-    spacePressedLast = spacePressed;
-}
 
 /**
  * ManualMode
@@ -301,18 +283,16 @@ DriveCommand RobotController::ManualMode()
     _selfRighter.Move(power, response, drawingImage);
 
     // deadband the movement
-    if (abs(response.movement) < 0.05)
+    if (abs(response.movement) < 0.07)
     {
         response.movement = 0;
     }
 
     // deadband the turn
-    if (abs(response.turn) < 0.05)
+    if (abs(response.turn) < 0.07)
     {
         response.turn = 0;
     }
-
-    SpaceSwitchesRobots();
 
     return response;
 }
@@ -332,9 +312,6 @@ DriveCommand RobotController::RobotLogic()
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
-    Orbit orbitMode = Orbit{};
-    Kill killMode = Kill{};
-
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
     // DriveCommand responseAvoid = AvoidMode();
@@ -342,20 +319,66 @@ DriveCommand RobotController::RobotLogic()
     // start with just manual control
     DriveCommand ret = responseManual;
 
-    _orbiting = false;
-    _killing = false;
 
-    // if the user activates kill mode or is pressing the kill button on the ui
-    if (gamepad.GetRightBumper() || KillWidget::GetInstance().IsPressingButton())
+
+
+    // if gamepad pressed dpad up, _orbiting = true
+    if (gamepad.GetDpadUp())
     {
-        // drive directly to the opponent
+        _orbiting = true;
+        _killing = false; 
+    }
+
+    if (gamepad.GetDpadDown())
+    {
+        _killing = true;
+        _orbiting = false;
+    }
+
+    // if there is any turning on the left stick, disable orbiting and killing
+    if (abs(gamepad.GetLeftStickX()) > 0.1)
+    {
+        _killing = false;
+        _orbiting = false;
+    }
+
+
+    static bool _orbitingLast = false;
+    // start an orbit if we just started orbiting
+    if (_orbiting != _orbitingLast)
+    {
+        if (_orbiting)
+        {
+            orbitMode.StartOrbit();
+        }
+        else
+        {
+            orbitMode.StopOrbit();
+        }
+    }
+    _orbitingLast = _orbiting;
+
+    // draw on drawing image if we are orbiting
+    if (_orbiting)
+    {
+        cv::putText(drawingImage, "Orbiting", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+    }
+    else if (_killing)
+    {
+        cv::putText(drawingImage, "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+    }
+
+
+    // if we are killing, execute kill mode
+    if (_killing)
+    {
         DriveCommand responseGoToPoint = killMode.Execute(gamepad);
         ret.turn = responseGoToPoint.turn;
         ret.movement = responseManual.movement * abs(responseGoToPoint.movement);
         _killing = true;
     }
     // if driver wants to evade (left bumper)
-    else if (gamepad.GetLeftBumper())
+    else if (_orbiting)
     {
         // orbit around them
         ret.turn = responseOrbit.turn;
@@ -375,4 +398,87 @@ IRobotLink& RobotController::GetRobotLink()
 cv::Mat& RobotController::GetDrawingImage()
 {
     return drawingImage;
+}
+
+void RobotController::ApplyMoveScales(DriveCommand& command)
+{
+    // force command to be between -1 and 1
+    command.movement = std::max(-1.0f, std::min(1.0f, command.movement));
+    command.turn = std::max(-1.0f, std::min(1.0f, command.turn));
+
+    // scale command by the master scales
+    command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+    command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
+
+
+    // check if should invert movements
+    if (INVERT_MOVEMENT)
+    {
+        command.movement *= -1;
+    }
+
+    if (INVERT_TURN)
+    {
+        command.turn *= -1;
+    }
+
+    // spinner
+    command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
+    command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
+}
+
+void RobotController::DrawStatusIndicators()
+{
+    // get the latest can data
+    RadioData data = robotLink.GetLastRadioMessage().radioData;
+
+    cv::Scalar color = cv::Scalar(0, 255, 0);
+    // draw green circle at top right with text radio if average delay is less than 10
+    if (data.averageDelayMS < 20 && data.averageDelayMS >= 0)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else if (data.averageDelayMS < 50 && data.averageDelayMS >= 0)
+    {
+        color = cv::Scalar(0, 255, 255);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 50), 17, color, -1);
+    cv::putText(drawingImage, "Radio", cv::Point(WIDTH - 63, 54), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+    // check if robotlink transmission is working
+    bool transmitterConnected = robotLink.IsTransmitterConnected();
+
+    if (transmitterConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
+    cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+    // check the gamepad is connected
+
+    bool gamepadConnected = gamepad.IsConnected();
+
+    if (gamepadConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
+    cv::putText(drawingImage, "GP", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 }

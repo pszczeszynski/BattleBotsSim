@@ -1,0 +1,6 @@
+train: test3/train/images
+val: test3/val/images
+
+nc: 1
+names: ["orbitron"]
+

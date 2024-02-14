@@ -62,6 +62,8 @@ public:
     virtual float GetLeftTrigger() override;
     virtual float GetRightTrigger() override;
 
+    bool IsConnected();
+
 private:
     int _controllerIndex;
     XINPUT_STATE _controllerState;

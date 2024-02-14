@@ -151,3 +151,40 @@ double DoubleThreshToTarget(double error,
 
     return ret;
 }
+
+// Finds the intersection of two lines, or returns false.
+// The lines are defined by (o1, p1) and (o2, p2).
+/**
+ * Finds the intersection of two lines, or returns false.
+ * 
+ * @param o1 The first point of the first line
+ * @param p1 The second point of the first line
+ * @param o2 The first point of the second line
+ * @param p2 The second point of the second line
+ * @param r The point of intersection (returned by reference)
+*/
+bool SegmentsIntersect(cv::Point2f o1, cv::Point2f p1, cv::Point2f o2, cv::Point2f p2, cv::Point2f &r)
+{
+    cv::Point2f x = o2 - o1;
+    cv::Point2f d1 = p1 - o1;
+    cv::Point2f d2 = p2 - o2;
+
+    float cross = d1.x * d2.y - d1.y * d2.x;
+
+    // if cross is zero, the lines are parallel
+    if (std::abs(cross) < 1e-8)
+        return false;
+
+    double t1 = (x.x * d2.y - x.y * d2.x) / cross;
+    double t2 = (x.x * d1.y - x.y * d1.x) / cross; // Calculate t2 similarly to t1
+
+    // Check if the intersection is within the bounds of both line segments
+    if (t1 >= 0.0 && t1 <= 1.0 && t2 >= 0.0 && t2 <= 1.0)
+    {
+        r = o1 + d1 * t1;
+        return true;
+    }
+
+    return false; // Intersection does not lie within both segments
+}
+

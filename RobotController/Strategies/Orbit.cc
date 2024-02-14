@@ -5,8 +5,19 @@
 #include "RobotMovement.h"
 #include "../RobotController.h"
 
+
 Orbit::Orbit()
 {
+}
+
+void Orbit::StartOrbit()
+{
+    _orbitState = OrbitState::LARGE_CIRCLE;
+}
+
+void Orbit::StopOrbit()
+{
+    _orbitState = OrbitState::IDLE;
 }
 
 RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_angle)
@@ -26,24 +37,63 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
 
+    currentState.angularVelocity = 0;
+    // project velocity onto angle
+    currentState.velocity = cv::Point2f(cos(currentState.angle), sin(currentState.angle)) * cv::norm(currentState.velocity);
+    RobotSimState exStateNoAngle = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
+
+    // force the projected position to to be with no angle
+    exState.position = exStateNoAngle.position;
+
     return exState;
 }
 
+
+/**
+ * Calculates the current pure pursuit radius given the velocity of the robot
+ * 
+ * @param ourPosition Our position
+ * @param orbitCenter The center of the orbit
+ * @param orbitRadius The radius of the orbit
+ * @return The pure pursuit radius
+*/
+#define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
+#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
+double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f orbitCenter, double orbitRadius)
+{
+    static double purePursuitRadius = PURE_PURSUIT_RADIUS;
+    // get our velocity
+    double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
+    // scale the radius based on our velocity
+    double targetPurePursuitRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
+    // calculate distance to the center of the circle
+    double distToCenter = cv::norm(ourPosition - orbitCenter);
+    // the radius shouldn't be larger than the distance to the other edge of the circle
+    double distanceToOtherEdgeOfCircle = distToCenter + orbitRadius;
+    // enforce the targetRadius to be between the min and max scales
+    targetPurePursuitRadius = std::min(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MAX_PURE_PURSUIT_RADIUS_SCALE);
+    targetPurePursuitRadius = std::max(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
+    targetPurePursuitRadius = std::min(targetPurePursuitRadius, distanceToOtherEdgeOfCircle - 5);
+    // slowly change the radius to the target radius
+    purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
+    // re-enforce the smoothed radius to not engulf the circle
+    purePursuitRadius = std::min(purePursuitRadius, distanceToOtherEdgeOfCircle - 5);
+    // enforce pure pursuit radius to be at least 1
+    purePursuitRadius = std::max(purePursuitRadius, 1.0);
+    // return the radius
+    return purePursuitRadius;
+}
 
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
  * @param message The current state of the robot
  */
-#define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
-#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
-#define USE_TANGENT_POINTS_DIST ORBIT_RADIUS * 2
 DriveCommand Orbit::Execute(Gamepad& gamepad)
 {
-    cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
-
-    static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
+
+    cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
     // our pos + angle
     cv::Point2f ourPosition = RobotOdometry::Robot().GetPosition();
@@ -55,58 +105,55 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
     opponentPosEx = RobotOdometry::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
-    double orbitRadius = _CalculateOrbitRadius(opponentPosEx, gamepad);
+    // the orbit center is the opponent position
+    cv::Point2f orbitCenter = opponentPosEx;
 
-    // get the angle from us to the opponent
-    cv::Point2f usToOpponent = opponentPosEx - ourPosition;
-    double angleToOpponent = atan2(usToOpponent.y, usToOpponent.x);
-    // add pi to get the angle from the opponent to us
-    double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
+    double orbitRadiusLargeCircle = _CalculateOrbitRadius(orbitCenter, gamepad);
+    // calculate the radius of the orbit. Depending on the state, it could be the large circle radius or the go around radius
+    double orbitRadius = _orbitState != OrbitState::GO_AROUND ? orbitRadiusLargeCircle : GO_AROUND_RADIUS;
+
+    // get the angle from us to the center
+    cv::Point2f usToCenter = orbitCenter - ourPosition;
+    double angleToCenter = atan2(usToCenter.y, usToCenter.x);
+    // add pi to get the angle from the center to us
+    double angleCenterToUs = angle_wrap(angleToCenter + M_PI);
+    // calculate distance to the center of the circle
+    double distToCenter = cv::norm(ourPosition - orbitCenter);
+    // enforce pure pursuit radius to be at least 1
+    double purePursuitRadius = _CalculatePurePursuitRadius(ourPosition, orbitCenter, orbitRadius);
 
 
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
-    // // draw arrow from opponent position at opponent angle
-    // cv::Point2f arrowEnd = opponentPos + cv::Point2f(100.0 * cos(RobotOdometry::Opponent().GetAngle()), 100.0 * sin(RobotOdometry::Opponent().GetAngle()));
-    // cv::arrowedLine(drawingImage, opponentPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
-
     // draw orange circle around opponent to show evasion radius
     cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 1);
 
 
-    // get our velocity
-    double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
-    // scale the radius based on our velocity
-    double targetPurePursuitRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
-    // calculate distance to the center of the circle
-    double distToCenter = cv::norm(ourPosition - opponentPosEx);
-    // the radius shouldn't be larger than the distance to the other edge of the circle
-    double distanceToOtherEdgeOfCircle = distToCenter + orbitRadius;
-    // enforce the targetRadius to be between the min and max scales
-    targetPurePursuitRadius = std::min(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MAX_PURE_PURSUIT_RADIUS_SCALE);
-    targetPurePursuitRadius = std::max(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
-    targetPurePursuitRadius = std::min(targetPurePursuitRadius, distanceToOtherEdgeOfCircle - 5);
-
-    // slowly change the radius to the target radius
-    purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
-    // re-enforce the smoothed radius to not engulf the circle
-    purePursuitRadius = std::min(purePursuitRadius, distanceToOtherEdgeOfCircle - 5);
-
-    // default the target to be radially from the angle from the opponent to us
-    cv::Point2f targetPoint = opponentPosEx + cv::Point2f(orbitRadius * cos(angleOpponentToUs), orbitRadius * sin(angleOpponentToUs));
+    // default the target to be radially from the angle from the center to us
+    cv::Point2f targetPoint = orbitCenter + cv::Point2f(orbitRadius * cos(angleCenterToUs), orbitRadius * sin(angleCenterToUs));
 
     // next find the intersection of the pure pursuit circle with the circle around the opponent
-    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, purePursuitRadius, opponentPosEx, orbitRadius);
+    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, purePursuitRadius, orbitCenter, orbitRadius);
 
 #ifndef HARDCORE
     // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
     cv::circle(drawingImage, ourPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
 #endif
 
+    bool circleDirection = angle_wrap(ourAngle - angleToCenter) < 0;
+    bool drivingBackwards = gamepad.GetRightStickY() < -0.03;
 
-    bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
+    if (RobotController::GetInstance().gamepad.GetDpadLeft())
+    {
+        circleDirection = true;
+    }
+    else if (RobotController::GetInstance().gamepad.GetDpadRight())
+    {
+        circleDirection = false;
+    }
 
-    if (gamepad.GetRightStickY() < 0)
+    // check if the user wants to drive backwards, invert the circle direction
+    if (drivingBackwards)
     {
         circleDirection = !circleDirection;
     }
@@ -123,10 +170,11 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
         targetPoint = circleIntersections[0];
     }
 
-    // // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
+    cv::Point2f targetPointBeforeTangent = targetPoint;
+    // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
     targetPoint = _NoMoreAggressiveThanTangent(gamepad,
                                                ourPosition,
-                                               opponentPosEx,
+                                               orbitCenter,
                                                orbitRadius,
                                                targetPoint,
                                                circleDirection);
@@ -140,20 +188,16 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
 
     // choose the direction to drive in
-    RobotMovement::DriveDirection direction;
-    if (gamepad.GetRightStickY() > 0)
-    {
-        direction = RobotMovement::DriveDirection::Forward;
-    }
-    else
-    {
-        direction = RobotMovement::DriveDirection::Backward;
-    }
+    RobotMovement::DriveDirection direction = drivingBackwards ? RobotMovement::DriveDirection::Backward : RobotMovement::DriveDirection::Forward;
+
+    // draw arrow at the ex state's angle
+    cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
+    cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
     DriveCommand response = DriveToPosition(exState, targetPoint, direction);
 
     // if on inside of circle and pointed outwards
-    if (distToCenter < orbitRadius && abs(angle_wrap(angleToOpponent + M_PI - ourAngle)) < 45 * TO_RAD)
+    if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
     {
         // force 100% move power
         response.movement = 1.0;
@@ -175,11 +219,6 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
     orbitRadius *= 1.0 + gamepad.GetRightTrigger();
     orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
 
-    // // grow orbit radius the further we are away
-    // if (distToOpponent > orbitRadius)
-    // {
-    //     orbitRadius += (distToOpponent - orbitRadius) * 0.1;
-    // }
 
     return orbitRadius;
 }

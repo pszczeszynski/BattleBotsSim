@@ -4000,8 +4000,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1117694315355783893}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.17857021, y: -0.043773003, z: -0.3539602}
-  m_LocalScale: {x: 1, y: 1, z: 0.1}
+  m_LocalPosition: {x: 0.24597, y: -0.059, z: -0.43842405}
+  m_LocalScale: {x: 1.368757, y: 1.368757, z: 0.1368757}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6929652514795748438}
@@ -5229,8 +5229,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1484411117252446767}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.2815, y: 0.10907397, z: -0.03657317}
-  m_LocalScale: {x: 0.57246053, y: 0.57246053, z: 0.57246053}
+  m_LocalPosition: {x: -0.38376, y: 0.1857, z: -0.004}
+  m_LocalScale: {x: 0.7835593, y: 0.7835593, z: 0.7835593}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7086961744268378542}
@@ -5301,7 +5301,7 @@ HingeJoint:
     targetPosition: 0
   m_UseMotor: 1
   m_Motor:
-    targetVelocity: 36000
+    targetVelocity: 0
     force: 200
     freeSpin: 0
   m_UseLimits: 0
@@ -5454,7 +5454,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 035cdc3c9bf231941b147ed1b85ff564, type: 2}
   - {fileID: 685611993983166963, guid: dd769fff62a9f864296e8d8b59afa935, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -6441,8 +6441,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1833962744856840670}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.18396905, y: -0.043773003, z: -0.3539602}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.25026, y: -0.059, z: -0.43842405}
+  m_LocalScale: {x: 1.368757, y: 1.368757, z: 1.368757}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6929652514795748438}
@@ -9341,8 +9341,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2828966760458169848}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.016467137, y: 0.06865251, z: 0.18688336}
-  m_LocalScale: {x: 0.57246053, y: 0.57246053, z: 0.57246053}
+  m_LocalPosition: {x: 0.024089, y: 0.094887, z: 0.30185598}
+  m_LocalScale: {x: 0.7835593, y: 0.7835593, z: 0.7835593}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 9033236631523712323}
@@ -16147,8 +16147,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4858711237440668664}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.17857021, y: -0.043773003, z: 0.27317032}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.24597, y: -0.059, z: 0.41996592}
+  m_LocalScale: {x: 1.368757, y: 1.368757, z: 1.368757}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6929652514795748438}
@@ -17859,8 +17859,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5590048015516217714}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.18396905, y: -0.043773003, z: 0.27317032}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.25026, y: -0.059, z: 0.41996592}
+  m_LocalScale: {x: 1.368757, y: 1.368757, z: 1.368757}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6929652514795748438}
@@ -19779,7 +19779,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 035cdc3c9bf231941b147ed1b85ff564, type: 2}
   - {fileID: 685611993983166963, guid: dd769fff62a9f864296e8d8b59afa935, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -22437,7 +22437,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 100
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -22670,14 +22670,14 @@ MonoBehaviour:
   hold_position: 0
   enemies: []
   enemies_collisions: 
-  SPINNER_SPEED: 36000
+  SPINNER_SPEED: -36000
   robot_body: {fileID: 8703294285283324597}
   opponent_body: {fileID: 8703294285283324597}
   spinner1: {fileID: 877715672128950764}
   spinner2: {fileID: 2514197319520313974}
   selfRight: {fileID: 6777053244780181409}
   selfRightPosExtended: 100
-  downForce: 1000
+  downForce: 500
 --- !u!114 &6928142759945023605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22694,8 +22694,8 @@ MonoBehaviour:
   wheelTR: {fileID: 6928142760667177576}
   wheelBL: {fileID: 6928142759441450818}
   wheelBR: {fileID: 6928142759441450809}
-  body: {fileID: 0}
-  SPEED: 17000
+  body: {fileID: 8703294285283324597}
+  SPEED: 7000
 --- !u!1 &6926803696274480056
 GameObject:
   m_ObjectHideFlags: 0
@@ -22929,7 +22929,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 100
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -23080,7 +23080,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 100
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -23231,7 +23231,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 100
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -23271,8 +23271,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6927594427950150952}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.0028997734, y: -0.015736751, z: -0.03657317}
-  m_LocalScale: {x: 0.4737719, y: 0.4737719, z: 0.4737719}
+  m_LocalPosition: {x: -0.0024201, y: -0.020622, z: -0.003999993}
+  m_LocalScale: {x: 0.64847857, y: 0.64847857, z: 0.64847857}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6932503777963647410}
@@ -28149,7 +28149,7 @@ MonoBehaviour:
   m_PreserveMeshAssetOnDestroy: 0
   assetGuid: 
   m_Mesh: {fileID: 0}
-  m_VersionIndex: 6136
+  m_VersionIndex: 6163
   m_IsSelectable: 1
   m_SelectedFaces: 
   m_SelectedEdges: []
@@ -31475,7 +31475,7 @@ MonoBehaviour:
   m_PreserveMeshAssetOnDestroy: 0
   assetGuid: 
   m_Mesh: {fileID: 0}
-  m_VersionIndex: 4473
+  m_VersionIndex: 4503
   m_IsSelectable: 1
   m_SelectedFaces: 
   m_SelectedEdges: []
@@ -31635,8 +31635,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8726907728599462428}
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: 0.2731, y: 0.10907397, z: -0.03657317}
-  m_LocalScale: {x: 0.57246053, y: 0.57246053, z: 0.57246053}
+  m_LocalPosition: {x: 0.37536, y: 0.1857, z: -0.003999993}
+  m_LocalScale: {x: 0.7835593, y: 0.7835593, z: 0.7835593}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5935468237353987464}
@@ -31707,7 +31707,7 @@ HingeJoint:
     targetPosition: 0
   m_UseMotor: 1
   m_Motor:
-    targetVelocity: 36000
+    targetVelocity: 0
     force: 200
     freeSpin: 0
   m_UseLimits: 0
@@ -33107,8 +33107,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9185810187010525194}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.0028997734, y: -0.07517762, z: -0.009820374}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.0024201, y: -0.10198001, z: 0.032618836}
+  m_LocalScale: {x: 1.368757, y: 1.368757, z: 1.368757}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6929449152318951132}

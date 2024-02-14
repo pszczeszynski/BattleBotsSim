@@ -23,18 +23,24 @@ public:
     virtual RobotMessage Receive();
     RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
+    RobotMessage GetLastRadioMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
+    bool IsTransmitterConnected();
 
 protected:
     // implemented by the subclass
     virtual std::vector<RobotMessage> _ReceiveImpl() = 0;
 
     RobotMessage _lastIMUMessage;
+    std::mutex _lastIMUMessageMutex;
     RobotMessage _lastCANMessage;
-
+    std::mutex _lastCANMessageMutex;
+    RobotMessage _lastRadioMessage;
+    std::mutex _lastRadioMessageMutex;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
+    bool _transmitterConnected = false;
 };
 
 /**
@@ -54,6 +60,7 @@ private:
     RobotMessage _lastMessage;
 };
 
+#ifndef SIMULATION
 class RobotLinkReal : public IRobotLink
 {
 public:
@@ -77,3 +84,5 @@ private:
 
     std::mutex _comPortMutex;
 };
+
+#endif

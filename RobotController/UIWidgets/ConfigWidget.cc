@@ -2,6 +2,8 @@
 #include "../RobotConfig.h"
 #include "../GuiUtils.h"
 #include "UIUtilities.h"
+#include "FieldWidget.h"
+#include "../../Communication/Communication.h"
 
 ConfigWidget::ConfigWidget()
 {
@@ -29,9 +31,10 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     ImGui::SliderInt("Angle Extrapolate (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
-    ImGui::SliderInt("Orbit Radius MovAvg Speed (%)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1000);
+    ImGui::SliderInt("Orbit Radius MovAvg Speed (%)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 100);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
+    ImGui::SliderInt("Go Around Radius", &GO_AROUND_RADIUS, 0, 500);
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
@@ -43,6 +46,7 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Min Opponent Blob Size", &MIN_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Max Opponent Blob Size", &MAX_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Motion Low Threshold", &MOTION_LOW_THRESHOLD, 0, 100);
+    ImGui::SliderFloat("Min fps", &BLOBS_MIN_FPS, 0, 100);
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
@@ -50,6 +54,30 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     // add edit number text box for MIN_INTER_SEND_TIME_MS. Center the number
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);
+    
+    // radio channel
+    ImGui::InputInt("Radio Channel", &RADIO_CHANNEL);
+
+    // button to set radio channel to 4
+    if (ImGui::Button("Teensy #1"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_1;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Teensy #2"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_2;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Teensy #3"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_3;
+    }
+
     ImGui::End();
 
     ImGui::Begin("Config File");

@@ -10,6 +10,8 @@ header_content += '#include "{0}/Communication.h"\n'.format(os.getcwd().replace(
 header_content += '#include "{0}/CircularDeque.h"\n'.format(os.getcwd().replace("\\","/"))
 # add GenericReceiver.h
 header_content += '#include "{0}/GenericReceiver.h"\n'.format(os.getcwd().replace("\\","/"))
+# add Radio.h
+header_content += '#include "{0}/Radio.h"\n'.format(os.getcwd().replace("\\","/"))
 
 folders = ['./Receiver', './Transmitter']
 

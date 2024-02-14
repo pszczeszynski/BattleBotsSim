@@ -7,6 +7,7 @@
 #include "ClockWidget.h"
 #include "GraphWidget.h"
 #include "../Input/InputState.h"
+
 // #include <algorithm>
 
 RobotControllerGUI::RobotControllerGUI()
@@ -63,6 +64,7 @@ bool RobotControllerGUI::Update()
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
     _variantsWidget.Draw();
+    // _playbackWidget.Draw();
     _manualControlWidget.Draw();
     KillWidget::GetInstance().Draw();
 

@@ -12,9 +12,10 @@ std::vector<ClockWidget*>& ClockWidget::Instances()
     return instances;
 }
 
-ClockWidget::ClockWidget(std::string label) : _label(label)
+ClockWidget::ClockWidget(std::string label) : Clock(), _label(label)
 {
     Instances().push_back(this);
+    _running = true;
 }
 
 ClockWidget::~ClockWidget()
@@ -67,7 +68,7 @@ void ClockWidget::DrawAll()
     ImGui::Text("Time Scale: %.2fms", timeScale * 1000.0);
 
     // Add an input box for the time scale
-    ImGui::InputFloat("", &timeScale, 0.001f, 0.01f, "%.3f");
+    ImGui::InputFloat("##", &timeScale, 0.001f, 0.01f, "%.3f");
 
     // space
     ImGui::Spacing();
@@ -157,6 +158,8 @@ void ClockWidget::DrawAll()
             }
         }
     }
+
+    ImGui::End();
 }
 
 double ClockWidget::markEnd()

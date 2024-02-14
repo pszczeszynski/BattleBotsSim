@@ -53,7 +53,15 @@
         "array": "cpp",
         "format": "cpp",
         "ranges": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "charconv": "cpp",
+        "locale": "cpp",
+        "optional": "cpp",
+        "string": "cpp",
+        "xlocbuf": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xloctime": "cpp"
     },
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#920320",

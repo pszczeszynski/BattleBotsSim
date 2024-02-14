@@ -36,7 +36,7 @@ private:
     Point _calibrationAccel;
     Point _currAcceleration;
     Point _prevAcceleration;
-    double _rotation;
+    double _rotation = 0;
     double _currRotVelZ = 0;
 
     // the following variables are used to calibrate the gyro

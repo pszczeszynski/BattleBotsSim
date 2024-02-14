@@ -10,7 +10,33 @@
 #include "Globals.h"
 #include "RobotConfig.h"
 #include "UIWidgets/RobotControllerGUI.h"
+#include <winuser.h>
 
+// opencv function to updat escreen without the windows waitKey delay
+bool DoEvents()
+{
+    MSG msg;
+    BOOL result;
+
+    while (::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+    {
+        result = ::GetMessage(&msg, NULL, 0, 0);
+        if (result == 0) // WM_QUIT
+        {
+            ::PostQuitMessage((int) msg.wParam);
+            return false;
+        }
+        else if (result == -1)
+            return true;    //error occured
+        else
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+        }
+    }
+
+    return true;
+}
 
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam),
@@ -21,18 +47,13 @@ Vision::Vision(ICameraReceiver &overheadCam)
                                    {
         // holds the data of the current frame
         cv::Mat currFrame;
+        long frame_id = -1;
+
         while (true)
         {
             // get the current frame from the camera
-            bool hadFrame = overheadCam.GetFrame(currFrame);
-
-            // if we didn't get a frame, return no classification
-            if (!hadFrame)
-            {
-                // sleep for 1ms
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue; // try to get a frame again
-            }
+            // This guarantees a frame is gotten unless error occured (e.g. it waits until frame is available)
+            frame_id = overheadCam.GetFrame(currFrame, frame_id);
 
             // run the pipeline
             VisionClassification classification = RunPipeline(currFrame);
@@ -94,7 +115,7 @@ VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
     // find the opponent
     ret = LocateRobots2d(currFrame, previousBirdsEye);
 
-    if (ret.GetRobotBlob() != nullptr || ret.GetOpponentBlob() != nullptr || _prevFrameTimer.getElapsedTime() > 0.05)
+    if (ret.GetRobotBlob() != nullptr || ret.GetOpponentBlob() != nullptr || _prevFrameTimer.getElapsedTime() > (1.0 / BLOBS_MIN_FPS))
     {
         // save the current frame as the previous frame
         previousBirdsEye = currFrame.clone();
@@ -119,7 +140,7 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
     const cv::Size BLUR_SIZE = cv::Size(14,14);
     const float MIN_AREA = pow(min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE), 2);
     const float MAX_AREA = pow(max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE), 2);
-    const int BLOB_SEARCH_SIZE = 10;
+    const int STEP_SIZE = 10;
 
     // Compute the absolute difference between the current frame and the previous frame
     cv::Mat diff;
@@ -141,9 +162,9 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 
     // iterate through every pixel in the image and find the largest blob
     std::vector<cv::Rect> potentialRobots = {};
-    for (int y = 0; y < thresholdImg.rows; y += BLOB_SEARCH_SIZE)
+    for (int y = 0; y < thresholdImg.rows; y += STEP_SIZE)
     {
-        for (int x = 0; x < thresholdImg.cols; x += BLOB_SEARCH_SIZE)
+        for (int x = 0; x < thresholdImg.cols; x += STEP_SIZE)
         {
             // if this pixel is white, then it is part of a blob
             if (thresholdImg.at<uchar>(y, x) == 255)

@@ -27,10 +27,15 @@ add_definitions(-D_MBCS)
 set(JSON_INCLUDE_PATH "./libs/json/include")
 set(IMGUI_INCLUDE_PATH "./libs/IMGUI")
 set(GLFW_INCLUDE_PATH "./libs/IMGUI/glfw/include")
+
+
+
+
 set(SPINNAKER_INCLUDE_DIR "C:/Program Files/FLIR Systems/Spinnaker/include")
+set(SPINNAKER_INCLUDE_DIR2 "C:/Program Files/Teledyne/Spinnaker/include")
 
 
-include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${IMGUI_INCLUDE_PATH} ${GLFW_INCLUDE_PATH} ${SPINNAKER_INCLUDE_DIR})
+include_directories( ${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH} ${IMGUI_INCLUDE_PATH} ${GLFW_INCLUDE_PATH} ${SPINNAKER_INCLUDE_DIR} ${SPINNAKER_INCLUDE_DIR2})
 
 set(OS "WINDOWS")
 add_definitions(-DOS_WINDOWS)
@@ -59,22 +64,27 @@ set(SOURCES
     RobotLink.cc
     RobotOdometry.cc
     RobotStateParser.cc
+    RobotTracker.cc
     SelfRighter.cc
     ServerSocket.cc
+    ThreadPool.cc
     Timer.cc
     Clock.cc
     Vision.cc
+	CameraDecoder.cc
     VisionPreprocessor.cc
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc
     UIWidgets/ImageWidget.cc
     UIWidgets/KillWidget.cc
+    UIWidgets/PlaybackWidget.cc
     UIWidgets/ClockWidget.cc
     UIWidgets/GraphWidget.cc
     UIWidgets/VariantsWidget.cc
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     CVRotation.cc
+    CVPosition.cc
     MovementStrategy.cc
     Strategies/Avoid.cc
     Strategies/Kill.cc
@@ -101,6 +111,7 @@ include_directories("C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0
 
 # Spinnaker library to link with
 set(SPINNAKER_LIBS "C:/Program Files/FLIR Systems/Spinnaker/lib64/vs2015/Spinnaker_v140.lib")
+set(SPINNAKER_LIBS2 "C:/Program Files/Teledyne/Spinnaker/lib64/vs2015/Spinnaker_v140.lib")
 
 target_link_libraries(RobotController opencv_world Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
                       ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES}

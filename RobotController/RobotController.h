@@ -12,7 +12,11 @@
 #include "MatQueue.h"
 #include "SelfRighter.h"
 #include "MovementStrategy.h"
+#include "Strategies/Orbit.h"
+#include "Strategies/Kill.h"
 #include "Weapons.h"
+
+// #define VIDEO_READ
 
 class RobotController
 {
@@ -48,6 +52,8 @@ private:
 public:
     XBox gamepad;
 private:
+    void ApplyMoveScales(DriveCommand& command);
+    void DrawStatusIndicators();
 
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;
@@ -57,8 +63,15 @@ private:
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
 #else
+
+#ifdef VIDEO_READ
+    CameraReceiverVideo overheadCamL_real;
+    RobotLinkReal robotLink;
+#else
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
+#endif
+
 #endif
 
     Vision vision;
@@ -67,4 +80,8 @@ private:
 
     bool _orbiting = false;
     bool _killing = false;
+
+    Orbit orbitMode;
+    Kill killMode;
+
 };

@@ -1,0 +1,28 @@
+Entry point:
+RobotController.cc => main()
+    1. Load config variables from RobotConfig.txt
+    2. Create new robot controller
+    => Run()
+
+
+Vision:
+    - runs in separate thread (setup in ctor)
+        1. grab frame
+        2. invoke RunPipeline with new frame
+            -> LocateRobots2d(frame, prevFrame)
+                - subtract previous frame from current frame
+                - threshold the subtraction
+                - flood fill at every 10 pixels grid, record reasonably sized blobs
+                - find center + add blobs to a list
+                => pass to RobotClassifier.ClassifyBlobs
+
+RobotClassifier:
+    - Goal: given blobs and knowing the last frame's state, which blob is which robot?
+
+Opencv debugging:
+cv::imshow("window name", cv::Mat&);
+cv::waitKey(1);
+
+Console from /c/Gregory/xRC_BB/BattleBotsSim/RobotController
+./build.bat SIMULATION XBOX
+./build/Release/RobotController.exe

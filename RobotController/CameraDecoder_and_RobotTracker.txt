@@ -1,0 +1,39 @@
+RobotTracker Notes:
+
+ProcessNewFrame
+Step1:
+	bestBBox - Foreground absolute reference
+	matchingBBox = :
+		Case 0 (normal): bestBBox
+		Case 1 (non found) : Get extrapolated position and quit
+		Case 2 (too small): fixPartialForeground
+		Case 3 (too big): bestBBox[ bbox || predicted bbox] + buffer
+	matchingBBox is at this point absolute and fits Mat.
+Step 2: FindNewPosAndRotUsingMatchTemplate
+	// fgFoundBBox: pass in bbox around foreground of interest. 
+	// This will be grown to accomodate worst-case rotation of our old foreground
+	// newLoc: the top-left point of the best match for finalImage, finalMask (the rotated old foreground). 
+	// finalBBox already has the top-left info
+	// newRot: contains the starting Rotation and result will be the new final rotation. 
+	// sweep_rotation contains the incremental value
+
+	fgFoundBBox = matchingBBox
+	1) Grow fgFoundBBox to accomodate rotation and correct it to make sure its inside Mat
+	matchingMat: currFrame( fgFoundBBox) 
+		-> Includes a grown foreground to accomodate rotation and is guaranteed to be inside Mat, but image may not be centered
+
+Step 3: matchTemplateThread
+	A) Rotate fg_image/mask based on center and grown as required
+		NOTE: matchingMat should have been grown to accomodate this
+	B) find location inside Mat 
+	
+Results: New Center Location - old center location in absolute Frame should be delta movement 
+		(Note: center may not be inside Mat)
+
+                sweep_maxLoc = Location within the matchingBBox of the rotated image
+                sweep_rotation = The delta rotation found to be best       
+                finalImage = The rotated original foreground
+                finalMask = A regenerated mask of the rotated foreground
+                finalBBox = The bbox of the rotated original foreground at the relative location
+            
+               

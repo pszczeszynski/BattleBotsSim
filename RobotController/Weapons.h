@@ -1,6 +1,6 @@
 #pragma once
 
-#define MAX_WEAPON_RPM 6200
+#define MAX_WEAPON_RPM 13000
 
 class Weapons
 {
@@ -13,7 +13,7 @@ public:
     float GetBackWeaponRPM();
     void UpdateSpinnerPowers();
 
-private:    
+private:
     float _frontWeaponPower = 0;
     float _backWeaponPower = 0;
 };
