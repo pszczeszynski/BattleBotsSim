@@ -40,6 +40,15 @@ IMU::IMU()
 
     // take an initial reading for the z velocity calibration
     _calibrationRotVelZ = myICM.gyrZ();
+
+
+    // zero out
+    _velocity = Point{0, 0, 0};
+    _calibrationAccel = Point{0, 0, 0};
+    _currAcceleration = Point{0, 0, 0};
+    _prevAcceleration = Point{0, 0, 0};
+    _rotation = 0;
+    _currRotVelZ = 0;
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
@@ -66,6 +75,16 @@ void IMU::_updateGyro(double deltaTimeMS)
 
     // update the rotation
     _rotation += (avgRotVelZ - _calibrationRotVelZ) * deltaTimeMS / 1000.0;
+
+    // check for inf
+    if (abs(_rotation) > 2 * 3.14 * 1000)
+    {
+        _rotation = 0;
+    }
+
+    Serial.println("_rotation: " + String(_rotation));
+    Serial.println("_currRotVelZ: " + String(_currRotVelZ));
+    Serial.println("deltaTimeMS: " + String(deltaTimeMS));
     // update the previous velocity
     _prevRotVelZ = _currRotVelZ;
 }
@@ -153,6 +172,7 @@ double getDt()
 
 void IMU::Update()
 {
+    Serial.println("in update");
     // compute the time since the last update
     double currTimeMS = micros() / 1000;
     double deltaTimeMS = currTimeMS - _prevTimeMS;
@@ -160,6 +180,7 @@ void IMU::Update()
     // if the time is too small, don't update
     if (deltaTimeMS < 1)
     {
+        Serial.println("exiting update not enough time");
         return;
     }
 

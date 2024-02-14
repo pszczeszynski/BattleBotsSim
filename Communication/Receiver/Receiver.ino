@@ -162,14 +162,15 @@ RobotMessage Update()
         ret.type = IMU_DATA;
 
 #ifdef USE_IMU
-        // get accelerometer data and set accel
+        // get accelerometer data and set accelsdf
         Point accel = imu->getAccel();
         ret.imuData.accelX = accel.x;
         ret.imuData.accelY = accel.y;
 
         // get gyro data and set gyro
         ret.imuData.rotation = imu->getRotation();
-
+        Serial.println("rotation: ");
+        Serial.println(ret.imuData.rotation);
         // calculate rotation velocity
         ret.imuData.rotationVelocity = imu->getRotationVelocity();
 #else
@@ -236,21 +237,6 @@ void DriveWithLatestMessage()
         // print every half second
         if (millis() - lastPrintTime > PRINT_DRIVE_COMMAND_MS)
         {
-            // Serial.println("Received drive command");
-            // // print out all fields
-            // Serial.print("Movement: ");
-            // Serial.println(command.movement);
-            // Serial.print("Turn: ");
-            // Serial.println(command.turn);
-            // Serial.print("Front Weapon Power: ");
-            // Serial.println(command.frontWeaponPower);
-            // Serial.print("Back Weapon Power: ");
-            // Serial.println(command.backWeaponPower);
-            // Serial.print("Self Righter Power: ");
-            // Serial.println(command.selfRighterPower);
-            // Serial.print("Valid: ");
-            // Serial.println(command.valid);
-
             Serial.print("Packets per second: ");
             Serial.println(messagesSinceLastPrint * 1000.0 / (millis() - lastPrintTime));
             lastPrintTime = millis();
@@ -293,6 +279,7 @@ void DriveWithLatestMessage()
 
 void loop()
 {
+    Serial.println("in loop");
     // wait for a message to be available
     WaitForRadioData();
 

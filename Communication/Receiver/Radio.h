@@ -46,6 +46,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
     radio.setPALevel(RF24_PA_MIN);
+    Serial.println("Set power to MIN");
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);

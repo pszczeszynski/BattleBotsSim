@@ -48,7 +48,11 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_MIN);
+    radio.setPALevel(RF24_PA_HIGH);
+#ifdef VERBOSE_RADIO
+    Serial.println("Set power level to HIGH");
+#endif
+
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
