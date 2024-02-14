@@ -169,8 +169,6 @@ RobotMessage Update()
 
         // get gyro data and set gyro
         ret.imuData.rotation = imu->getRotation();
-        Serial.println("rotation: ");
-        Serial.println(ret.imuData.rotation);
         // calculate rotation velocity
         ret.imuData.rotationVelocity = imu->getRotationVelocity();
 #else
@@ -279,7 +277,6 @@ void DriveWithLatestMessage()
 
 void loop()
 {
-    Serial.println("in loop");
     // wait for a message to be available
     WaitForRadioData();
 

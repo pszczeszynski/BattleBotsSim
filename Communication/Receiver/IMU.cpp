@@ -82,9 +82,6 @@ void IMU::_updateGyro(double deltaTimeMS)
         _rotation = 0;
     }
 
-    Serial.println("_rotation: " + String(_rotation));
-    Serial.println("_currRotVelZ: " + String(_currRotVelZ));
-    Serial.println("deltaTimeMS: " + String(deltaTimeMS));
     // update the previous velocity
     _prevRotVelZ = _currRotVelZ;
 }
@@ -172,7 +169,6 @@ double getDt()
 
 void IMU::Update()
 {
-    Serial.println("in update");
     // compute the time since the last update
     double currTimeMS = micros() / 1000;
     double deltaTimeMS = currTimeMS - _prevTimeMS;
