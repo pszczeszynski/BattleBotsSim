@@ -13,24 +13,25 @@
 #include "UIWidgets/ClockWidget.h"
 
 #define VIDEO_READ
+
+double MAX_CAP_FPS = 100.0;
+
 // #define SAVE_VIDEO
 
-////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
-#define BAD_READ_TIME_THRESH_SECONDS 0.4
-#define NUMBER_LONG_READS_THRESH 2
-int NUMBER_OF_LONG_READS = 0;
+// TODO: add a way to save video with the UI
 
-bool saveVideo = false;
-
-CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
+ICameraReceiver::ICameraReceiver()
 {
-    static ClockWidget cameraFPS{"Camera FPS"};
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
+}
 
+void ICameraReceiver::_StartCaptureThread()
+{
     // create a thread to capture frames
     _captureThread = std::thread([this]()
                                  {
+        ClockWidget captureTimer{"Camera Grab"};
 
         // try to initialize camera
         while (!_InitializeCamera())
@@ -44,10 +45,50 @@ CameraReceiver::CameraReceiver(int cameraIndex) : _cameraIndex(cameraIndex)
         // start capturing frames
         while (true)
         {
-            cameraFPS.markEnd();
-            cameraFPS.markStart();
+            captureTimer.markEnd();
+            captureTimer.markStart();
             _CaptureFrame();  
         } });
+}
+
+/**
+ * Attempts to get a frame from the camera
+ * @param output the output frame
+ * @return true if frame was ready, false otherwise
+ */
+long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
+{
+    // Using scoped mutex locker because conditional variable integrates with it
+    // This creates and locks the mutex
+    std::unique_lock<std::mutex> locker(_frameMutex);
+
+    while( (_frameID <= 0) || (_frameID <= old_id))
+    {
+        // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
+        _frameCV.wait(locker);
+    }
+
+    // At this point our mutex is locked and a frame is ready
+    _frame.copyTo(output);
+    old_id = _frameID;
+    locker.unlock();
+
+    // return ID of new frame
+    return old_id;
+}
+
+#ifdef INCLUDE_SPINNAKER
+
+////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
+#define BAD_READ_TIME_THRESH_SECONDS 0.4
+#define NUMBER_LONG_READS_THRESH 2
+int NUMBER_OF_LONG_READS = 0;
+
+bool saveVideo = false;
+
+CameraReceiver::CameraReceiver(int cameraIndex) : ICameraReceiver(), _cameraIndex(cameraIndex)
+{
+    _StartCaptureThread();
 }
 
 int ConfigureCamera(Spinnaker::CameraPtr pCam)
@@ -155,24 +196,6 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
     return 0;
 }
 
-#define GET_FRAME_TIMEOUT_MS 500
-void CameraReceiver::_CaptureFrame()
-{
-    // Get Next Image
-    Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
-    // Get char data
-    unsigned char *img_data = (unsigned char *)pResultImage->GetData();
-    // Create a Mat with the data
-    cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
-
-    // lock the mutex
-    _frameMutex.lock();
-    cv::cvtColor(bayerImage, _frame, cv::COLOR_BayerRGGB2BGR);
-    // increase _framesReady
-    _framesReady++;
-    // unlock the mutex
-    _frameMutex.unlock();
-}
 
 bool CameraReceiver::_InitializeCamera()
 {
@@ -233,59 +256,46 @@ bool CameraReceiver::_InitializeCamera()
     return true;
 }
 
-/**
- * Attempts to get a frame from the camera
- * @param output the output frame
- * @return true if frame was ready, false otherwise
- */
-bool CameraReceiver::GetFrame(cv::Mat &output)
+
+#define GET_FRAME_TIMEOUT_MS 500
+void CameraReceiver::_CaptureFrame()
 {
-    TIMER_INIT
-    TIMER_START
+    std::cout << "Capturing frame" << std::endl;
+    // Get Next Image
+    Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
+    // Get char data
+    unsigned char *img_data = (unsigned char *)pResultImage->GetData();
+    // Create a Mat with the data
+    cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
 
-    _frameMutex.lock();
-    // if no frames are ready, return false
-    if (_framesReady <= 0)
-    {
-        _frameMutex.unlock();
-        return false;
-    }
+    // lock the mutex
+    std::unique_lock<std::mutex> locker(_frameMutex);
 
-    // otherwise copy the frame
-    _frame.copyTo(output);
-    _framesReady = 0;
-    _frameMutex.unlock();
+    // deep copy over the frame
+    bayerImage.copyTo(_frame);
 
-    TIMER_PRINT("CameraReceiver::getFrame")
+    // increase _frameID
+    _frameID++;
+    // unlock the mutex
+    locker.unlock();
 
-    // return SUCCESS
-    return true;
+    // Notify new frame is ready
+    _frameCV.notify_all();
+
+    std::cout << "Frame captured" << std::endl;
 }
 
 CameraReceiver::~CameraReceiver()
 {
 }
+#endif
 
-////////////////////////////////////////// SIMULATION //////////////////////////////////////////
-CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height) : _sharedFileName(sharedFileName),
-                                                                                          _width(width),
-                                                                                          _height(height)
+
+///////////////////////////////////////// SIMULATION //////////////////////////////////////////
+CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
+    : ICameraReceiver(), _sharedFileName(sharedFileName), _width(width), _height(height)
 {
-    // create a thread to capture frames
-    _captureThread = std::thread([this]()
-                                 {
-        // try to initialize camera
-        while (!_InitializeCamera())
-        {
-            std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
-        }
-
-        // start capturing frames
-        while (true)
-        {
-            _CaptureFrame();
-        } });
+    _StartCaptureThread();
 }
 
 bool CameraReceiverSim::_InitializeCamera()
@@ -327,33 +337,18 @@ bool CameraReceiverSim::_InitializeCamera()
     return true;
 }
 
-static bool AreMatsEqual(const cv::Mat &mat1, const cv::Mat &mat2)
+bool CameraReceiverSim::_CaptureFrame()
 {
-    if (mat1.size() != mat2.size() || mat1.type() != mat2.type())
+    // wait for the previous frame to be at 1/AX_CAP_FPS long
+    while (_prevFrameTimer.getElapsedTime() < 1.0 / MAX_CAP_FPS )
     {
-        // Mats have different sizes or types
-        return false;
+        double currelapsedtime = _prevFrameTimer.getElapsedTime();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    // Compute the absolute difference between the current frame and the previous frame
-    cv::Mat diff;
-    cv::absdiff(mat1, mat2, diff);
 
-    // Convert the difference to grayscale
-    cv::Mat grayDiff;
-    cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
-
-    return cv::countNonZero(grayDiff) == 0;
-}
-
-void CameraReceiverSim::_CaptureFrame()
-{
-    // don't receive at more than 60 fps
-    if (_prevFrameTimer.getElapsedTime() < 0.015)
-    {
-        return;
-    }
-    _prevFrameTimer.markStart();
+    _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - 1.0 / MAX_CAP_FPS);
 
     cv::Mat captured;
     // remove alpha
@@ -362,33 +357,20 @@ void CameraReceiverSim::_CaptureFrame()
     cv::flip(captured, captured, 0);
 
     // lock the mutex
-    _frameMutex.lock();
+    std::unique_lock<std::mutex> locker(_frameMutex);
     // copy the frame to the previous frame
     _frame.copyTo(_prevFrame);
     // copy the frame
     captured.copyTo(_frame);
-    // increase _framesReady
-    _framesReady++;
+    // increase _frameID
+    _frameID++;
     // unlock the mutex
-    _frameMutex.unlock();
-}
+    locker.unlock();
 
-bool CameraReceiverSim::GetFrame(cv::Mat &output)
-{
-    _frameMutex.lock();
-    // if no frames are ready, return false
-    if (_framesReady <= 0)
-    {
-        _frameMutex.unlock();
-        return false;
-    }
+    // Notify all frame is ready
+    _frameCV.notify_all();
 
-    // otherwise copy the frame
-    _frame.copyTo(output);
-    _framesReady = 0;
-    _frameMutex.unlock();
-
-    // return SUCCESS
+    // return success
     return true;
 }
 
@@ -397,4 +379,121 @@ CameraReceiverSim::~CameraReceiverSim()
     // Unmap the memory-mapped file and close the handle
     UnmapViewOfFile(_lpMapAddress);
     CloseHandle(_hMapFile);
+}
+
+
+////////////////////////////////////////// VIDEO PLAYBACK //////////////////////////////////////////
+
+CameraReceiverVideo::CameraReceiverVideo(std::string fileName) : ICameraReceiver(), _fileName(fileName), _cap(fileName)
+{
+   std::cout << "in ctor, fileName: " << fileName << std::endl;
+   _StartCaptureThread();
+}
+
+bool CameraReceiverVideo::_CaptureFrame()
+{
+    if (playback_file_changed)
+    {
+        _InitializeCamera();
+        playback_file_changed = false;
+    }
+
+    // if the video is not open, return false
+    if (!_cap.isOpened())
+    {
+        std::cerr << "ERROR: video not open!" << std::endl;
+        return false;
+    }
+
+    if (!playback_play)
+    {
+        _prevFrameTimer.markStart();
+        return false;
+    }
+
+    // wait for the previous frame to be at 1/AX_CAP_FPS long
+    float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
+    while (_prevFrameTimer.getElapsedTime() < videoFramePeriod)
+    {
+        double currelapsedtime = _prevFrameTimer.getElapsedTime();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - videoFramePeriod);
+
+    std::unique_lock<std::mutex> locker(_frameMutex);
+
+    // read the next frame
+    if (playback_goback || playback_restart)
+    {
+        // Decrement video frmae
+        _videoFrame -= 100;
+
+        if (playback_restart)
+        {
+            _videoFrame = 0;
+            playback_restart = false;
+        }
+
+        if (_videoFrame < 0)
+        {
+            _videoFrame = 0;
+        }
+
+        // Move to the previous frmae
+        _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
+        playback_goback = false;
+    }
+    else
+    {
+        _videoFrame++;
+    }
+    _cap.read(_frame);
+
+    // increase _frameID
+    _frameID++;
+    bool empty = _frame.empty();
+    locker.unlock();
+
+    // Notify all frame is ready
+    _frameCV.notify_all();
+
+    // if the frame is empty, return false
+    if (empty)
+    {
+        std::cerr << "ERROR: frame empty!" << std::endl;
+        return false;
+    }
+
+    // return SUCCESS
+    return true;
+}
+
+bool CameraReceiverVideo::_InitializeCamera()
+{
+    std::cout << "Initializing playback for " << playback_file << std::endl;
+    _cap = cv::VideoCapture(playback_file);
+    _videoFrame = 0;
+
+
+
+    // if the video is not open, return false
+    if (!_cap.isOpened())
+    {
+        std::cout << "Failed to initialize playback" << std::endl;
+        return false;
+    }
+
+    // Set the frame rate
+    MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
+
+    // If the property didn't exit properly, set MAX_CAP_FPS to default value
+    if( MAX_CAP_FPS > 500.0)
+    {
+        MAX_CAP_FPS = 100.0;
+    }
+    std::cout << "Playback initialized with FPS = " <<  MAX_CAP_FPS << std::endl;
+    // return SUCCESS
+    return true;
 }

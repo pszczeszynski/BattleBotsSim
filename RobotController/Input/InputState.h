@@ -20,7 +20,7 @@ public:
 
 private:
     mutable std::mutex mutex_; // mutable because IsKeyDown is const
-    std::array<bool, 1024> keyStates_{}; // Adjust the size based on your needs
+    std::array<bool, 100> keyStates_{}; // Adjust the size based on your needs
 
     static InputState instance;
 };

@@ -1,30 +1,48 @@
 #include "Clock.h"
 
-
+//
+// Clock tracks the elapsed time from when markStart is called and markEnd
+// The constructor calls markStart and multiple markStarts can be called to reset elapsed time.
+// elapsedTime will give the current elapsed time if the coutner has been started, or the last elapsed time when markEnd was called.
 Clock::Clock()
 {
-	// initialize the start time
-	startTime = std::chrono::high_resolution_clock::now();
+	markStart(); // start the timer
 	// initialize the last reset time
-	lastResetTime = startTime;
+	// lastResetTime = startTime; // was never used
 }
 
 /**
  * \brief
  * Marks the start time for reference
  */
-void Clock::markStart()
+void Clock::markStart(double startOffset)
 {
 	startTime = std::chrono::high_resolution_clock::now();
+	_offset = startOffset;
+	timeDifference = 0;
+	_running = true;
 }
 
 /**
  * \brief
- * Marks the end time and returns the time difference in seconds
+ * Running tracks if markStart and markEnd were called
+ */
+bool Clock::isRunning()
+{
+	return _running;
+}
+/**
+ * \brief
+ * Marks the end time and returns the time difference in seconds if running, otherwise returns the previous timeDifference
  */
 double Clock::markEnd()
 {
-	double timeDifference = getElapsedTime();
+	// Only mark end if previously running
+	if( !_running) { 
+		return timeDifference; 
+	};
+
+	timeDifference = getElapsedTime();
 
 	if (timeDifference > maxTimeDifference)
 	{
@@ -40,6 +58,8 @@ double Clock::markEnd()
 		resetCounters();
 	}
 
+	_running = false;
+
 	return timeDifference;
 }
 
@@ -49,8 +69,14 @@ double Clock::markEnd()
  */
 double Clock::getElapsedTime()
 {
+	// Return last time difference if the clock isn't running
+	if( !_running) {
+		return timeDifference;
+	}
+
+	// Otherwise return the current time difference
 	auto currentTime = std::chrono::high_resolution_clock::now();
-	return std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - startTime).count();
+	return std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - startTime).count() + _offset;
 }
 
 void Clock::resetCounters()

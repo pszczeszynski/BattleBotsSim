@@ -133,14 +133,6 @@ void RobotController::Run()
         // get the latest classification (very fast)
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
-        // in simulation, add a 5 millisecond wait and continue if we don't get a new image
-// #ifdef SIMULATION
-//         if (!classification.GetHadNewImage())
-//         {
-//             Sleep(5);
-//             continue;
-//         }
-// #endif
 
         // update the robot tracker positions
         UpdateRobotTrackers(classification);

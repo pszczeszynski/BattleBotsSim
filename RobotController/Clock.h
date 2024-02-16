@@ -10,20 +10,22 @@ class Clock
 {
 public:
 	Clock();
-	virtual void markStart();
+	virtual void markStart(double startOffset = 0); // Pass in a starting elapsed time
 	virtual double markEnd();
+	bool isRunning();
 	double getElapsedTime();
 	double getMaxTimeDifference() const { return _lastMaxTimeDifference; }
-
 	double getAverageTime();
 
 private:
+	bool _running = false;
+	double _offset = 0;
 	void resetCounters();
 	std::chrono::high_resolution_clock::time_point startTime;
-	std::chrono::high_resolution_clock::time_point lastResetTime;
+	// std::chrono::high_resolution_clock::time_point lastResetTime; // Was never used
 
+	double timeDifference = 0;
 	double maxTimeDifference = 0.0; // Stores the maximum time difference between markStart calls
-
 	double _lastMaxTimeDifference = 0.0;
 
 	double _totalTime = 0.0;

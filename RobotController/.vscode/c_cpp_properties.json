@@ -4,6 +4,7 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
+                "${OpenCV_DIR}/include/",
                 "C:/opencv/install/include/",
                 "${workspaceFolder}/libs/json/include/nlohmann/",
                 "${workspaceFolder}/libs/SFML/include/",
