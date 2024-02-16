@@ -42,20 +42,13 @@ CameraDecoder::CameraDecoder(ICameraReceiver &overheadCam)
         clock_FromStart.markStart();
         double time_inner_avg = 0;
         double avg_count = 200.0;
+        long frame_id = -1;
 
         while (true)
         {
 
-            // get the current frame from the camera
-            bool hadFrame = overheadCam.GetFrame(currFrame);
-
-            // if we didn't get a frame, return 
-            if (!hadFrame)
-            {
-                // sleep for 1ms
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue; // try to get a frame again
-            }
+            // get the current frame from the camera, this will wait until frame available
+            frame_id = overheadCam.GetFrame(currFrame,frame_id);
 
             // Mark time of the beggining of this frame
             // Need this for velocity and extrapolation calcs

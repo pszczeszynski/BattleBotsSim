@@ -5,6 +5,7 @@
 #include <opencv2/imgproc.hpp>
 #include <windows.h>
 #include <thread>
+#include <condition_variable>
 #include "Clock.h"
 
 // #define INCLUDE_SPINNAKER
@@ -21,7 +22,7 @@
 class ICameraReceiver
 {
 public:
-    virtual bool GetFrame(cv::Mat &output);
+    virtual long GetFrame(cv::Mat &output, long old_id);
 protected:
     void _StartCaptureThread();
 
@@ -29,7 +30,9 @@ protected:
     std::thread _captureThread;
     cv::Mat _frame; // the last frame captured
     std::mutex _frameMutex;
-    long int _framesReady;
+    std::condition_variable _frameCV;
+
+    long int _frameID = 0;
 
     virtual bool _InitializeCamera() = 0;
     virtual bool _CaptureFrame() = 0;
@@ -65,7 +68,7 @@ class CameraReceiver : public ICameraReceiver
 {
 public:
     CameraReceiver(int cameraIndex);
-    bool GetFrame(cv::Mat &output);
+    long GetFrame(cv::Mat &output, old_id);
     ~CameraReceiver();
 
 private:
@@ -91,5 +94,8 @@ private:
     virtual bool _InitializeCamera() override;
     virtual bool _CaptureFrame() override;
     std::string _fileName;
+    long _videoFrame = 0;
+
+    Clock _prevFrameTimer;
 
 };

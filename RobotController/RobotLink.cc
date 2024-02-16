@@ -11,7 +11,7 @@
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
 #define SEND_TIMEOUT_MS 1 // after this time, give up sending and go back to receiving
-#define RECEIVE_TIMEOUT_MS 5
+#define RECEIVE_TIMEOUT_MS 100 //Was 5 but doubly defined to 100 later in code, assuming 100 is the intended duration
 
 /**
  * Doesn't do anything except call the timer markStart
@@ -87,6 +87,7 @@ char lastChar = '\0';
 Clock intermessageClock;
 int messageCount = 0;
 
+
 ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
 RobotLinkReal::RobotLinkReal()
@@ -95,6 +96,9 @@ RobotLinkReal::RobotLinkReal()
 
     _radioThread = std::thread([this]()
                                {
+
+            Clock c_rawhid; // Clock for not spamming rawhid error
+            
             while (true)
             {
                 int i, devices_opened, num;
@@ -112,7 +116,13 @@ RobotLinkReal::RobotLinkReal()
                     devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
                     if (devices_opened <= 0)
                     {
-                        std::cerr << "no rawhid device found" << std::endl;
+                        // Report error but don't spam it
+                        if( !c_rawhid.isRunning() || (c_rawhid.getElapsedTime() > 1.0))
+                        {
+                            c_rawhid.markStart();
+                            std::cerr << "no rawhid device found" << std::endl;
+                        }
+                        
                         std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
                     }
                 }
@@ -235,7 +245,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
     clockWidget.markEnd();
 }
 
-#define RECEIVE_TIMEOUT_MS 100
 
 std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 {

@@ -13,6 +13,13 @@ extern bool CAN_DRAW;
 extern float frontWeaponCurrRPMPercent;
 extern float backWeaponCurrRPMPercent; 
 
+extern float playback_speed;
+extern bool playback_play;
+extern bool playback_goback;
+extern bool playback_restart;
+extern std::string playback_file;
+extern bool playback_file_changed;
+
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window
 extern cv::Mat P_DRAWING_IMAGE;
@@ -32,6 +39,6 @@ extern std::string SAVE_FILE_NAME;
     #define TIMER_PRINT(msg) std::cout << msg << " time: " << c.getElapsedTime() << std::endl;
 #else
     #define TIMER_INIT 
-    #define TIMER_START 
+    #define TIMER_START
     #define TIMER_PRINT(msg)
 #endif

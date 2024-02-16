@@ -47,18 +47,13 @@ Vision::Vision(ICameraReceiver &overheadCam)
                                    {
         // holds the data of the current frame
         cv::Mat currFrame;
+        long frame_id = -1;
+
         while (true)
         {
             // get the current frame from the camera
-            bool hadFrame = overheadCam.GetFrame(currFrame);
-
-            // if we didn't get a frame, return no classification
-            if (!hadFrame)
-            {
-                // sleep for 1ms
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue; // try to get a frame again
-            }
+            // This guarantees a frame is gotten unless error occured (e.g. it waits until frame is available)
+            frame_id = overheadCam.GetFrame(currFrame, frame_id);
 
             // run the pipeline
             VisionClassification classification = RunPipeline(currFrame);

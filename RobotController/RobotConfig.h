@@ -7,11 +7,6 @@
 
 extern std::string SAVE_FILE_NAME;
 
-#define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
-    extern type name;                                    \
-    void load##name(const std::string &value);           \
-    std::string save##name();
-
 #define DECLARE_GLOBAL_VARIABLE(name) \
     {                                 \
         #name, save##name, load##name \
@@ -47,7 +42,7 @@ extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;
 extern bool ROTATION_NET_ENABLED;
 extern bool GYRO_ENABLED;
-
+extern std::string LOAD_FILE;
 
 template <typename T>
 std::string convertValueToString(const T &value);
