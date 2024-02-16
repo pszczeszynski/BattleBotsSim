@@ -42,7 +42,6 @@ extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;
 extern bool ROTATION_NET_ENABLED;
 extern bool GYRO_ENABLED;
-extern std::string LOAD_FILE;
 
 template <typename T>
 std::string convertValueToString(const T &value);

@@ -77,8 +77,6 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
     return old_id;
 }
 
-#ifdef INCLUDE_SPINNAKER
-
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
 #define BAD_READ_TIME_THRESH_SECONDS 0.4
 #define NUMBER_LONG_READS_THRESH 2
@@ -86,7 +84,7 @@ int NUMBER_OF_LONG_READS = 0;
 
 bool saveVideo = false;
 
-CameraReceiver::CameraReceiver(int cameraIndex) : ICameraReceiver(), _cameraIndex(cameraIndex)
+CameraReceiver::CameraReceiver() : ICameraReceiver()
 {
     _StartCaptureThread();
 }
@@ -258,7 +256,7 @@ bool CameraReceiver::_InitializeCamera()
 
 
 #define GET_FRAME_TIMEOUT_MS 500
-void CameraReceiver::_CaptureFrame()
+bool CameraReceiver::_CaptureFrame()
 {
     std::cout << "Capturing frame" << std::endl;
     // Get Next Image
@@ -283,12 +281,14 @@ void CameraReceiver::_CaptureFrame()
     _frameCV.notify_all();
 
     std::cout << "Frame captured" << std::endl;
+
+    // return success
+    return true;
 }
 
 CameraReceiver::~CameraReceiver()
 {
 }
-#endif
 
 
 ///////////////////////////////////////// SIMULATION //////////////////////////////////////////
@@ -384,10 +384,9 @@ CameraReceiverSim::~CameraReceiverSim()
 
 ////////////////////////////////////////// VIDEO PLAYBACK //////////////////////////////////////////
 
-CameraReceiverVideo::CameraReceiverVideo(std::string fileName) : ICameraReceiver(), _fileName(fileName), _cap(fileName)
+CameraReceiverVideo::CameraReceiverVideo() : ICameraReceiver()
 {
-   std::cout << "in ctor, fileName: " << fileName << std::endl;
-   _StartCaptureThread();
+    _StartCaptureThread();
 }
 
 bool CameraReceiverVideo::_CaptureFrame()
@@ -476,8 +475,6 @@ bool CameraReceiverVideo::_InitializeCamera()
     _cap = cv::VideoCapture(playback_file);
     _videoFrame = 0;
 
-
-
     // if the video is not open, return false
     if (!_cap.isOpened())
     {
@@ -489,11 +486,11 @@ bool CameraReceiverVideo::_InitializeCamera()
     MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
 
     // If the property didn't exit properly, set MAX_CAP_FPS to default value
-    if( MAX_CAP_FPS > 500.0)
+    if (MAX_CAP_FPS > 500.0)
     {
         MAX_CAP_FPS = 100.0;
     }
-    std::cout << "Playback initialized with FPS = " <<  MAX_CAP_FPS << std::endl;
+    std::cout << "Playback initialized with FPS = " << MAX_CAP_FPS << std::endl;
     // return SUCCESS
     return true;
 }

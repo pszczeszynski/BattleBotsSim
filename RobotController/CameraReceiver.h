@@ -11,12 +11,8 @@
 #include <sstream>
 #include <chrono>
 
-// #define INCLUDE_SPINNAKER
-
-#ifdef INCLUDE_SPINNAKER
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
-#endif
 
 
 class ICameraReceiver
@@ -63,12 +59,10 @@ private:
     Clock _prevFrameTimer;
 };
 
-#ifdef INCLUDE_SPINNAKER
 class CameraReceiver : public ICameraReceiver
 {
 public:
-    CameraReceiver(int cameraIndex);
-    long GetFrame(cv::Mat &output, old_id);
+    CameraReceiver();
     ~CameraReceiver();
 
 private:
@@ -83,19 +77,15 @@ private:
     Spinnaker::SystemPtr _system = nullptr;
 };
 
-#endif
-
 class CameraReceiverVideo : public ICameraReceiver
 {
 public:
-    CameraReceiverVideo(std::string fileName);
+    CameraReceiverVideo();
 private:
     cv::VideoCapture _cap;
     virtual bool _InitializeCamera() override;
     virtual bool _CaptureFrame() override;
-    std::string _fileName;
     long _videoFrame = 0;
 
     Clock _prevFrameTimer;
-
 };
