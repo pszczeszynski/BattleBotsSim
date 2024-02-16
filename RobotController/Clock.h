@@ -22,7 +22,6 @@ private:
 	double _offset = 0;
 	void resetCounters();
 	std::chrono::high_resolution_clock::time_point startTime;
-	// std::chrono::high_resolution_clock::time_point lastResetTime; // Was never used
 
 	double timeDifference = 0;
 	double maxTimeDifference = 0.0; // Stores the maximum time difference between markStart calls

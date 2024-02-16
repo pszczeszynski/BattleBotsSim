@@ -7,13 +7,15 @@
 Clock::Clock()
 {
 	markStart(); // start the timer
-	// initialize the last reset time
-	// lastResetTime = startTime; // was never used
+				 // initialize the last reset time
+				 // lastResetTime = startTime; // was never used
 }
 
 /**
  * \brief
  * Marks the start time for reference
+ *
+ * \param startOffset The offset to add to the start time
  */
 void Clock::markStart(double startOffset)
 {
@@ -31,6 +33,7 @@ bool Clock::isRunning()
 {
 	return _running;
 }
+
 /**
  * \brief
  * Marks the end time and returns the time difference in seconds if running, otherwise returns the previous timeDifference
@@ -38,8 +41,9 @@ bool Clock::isRunning()
 double Clock::markEnd()
 {
 	// Only mark end if previously running
-	if( !_running) { 
-		return timeDifference; 
+	if (!_running)
+	{
+		return timeDifference;
 	};
 
 	timeDifference = getElapsedTime();
@@ -70,7 +74,8 @@ double Clock::markEnd()
 double Clock::getElapsedTime()
 {
 	// Return last time difference if the clock isn't running
-	if( !_running) {
+	if (!_running)
+	{
 		return timeDifference;
 	}
 

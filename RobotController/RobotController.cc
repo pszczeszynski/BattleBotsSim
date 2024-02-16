@@ -34,8 +34,7 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                     // overheadCamL_real{"./Recordings/terribleFight.avi"}, //
-                                     overheadCamL_real{"./Recordings/Training.mp4"},
+                                     overheadCamL_real{},
                                      vision{overheadCamL_real}
 #endif
 {

@@ -14,6 +14,8 @@
 #include "MovementStrategy.h"
 #include "Weapons.h"
 
+#define VIDEO_READ
+
 class RobotController
 {
 public:
@@ -57,8 +59,15 @@ private:
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
 #else
+
+#ifdef VIDEO_READ
     CameraReceiverVideo overheadCamL_real;
     RobotLinkReal robotLink;
+#else 
+    CameraReceiver overheadCamL_real;
+    RobotLinkReal robotLink;
+#endif
+
 #endif
 
     Vision vision;
