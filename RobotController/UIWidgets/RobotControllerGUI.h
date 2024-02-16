@@ -16,6 +16,7 @@
 #include "KillWidget.h"
 #include "FieldWidget.h"
 #include "VariantsWidget.h"
+#include "PlaybackWidget.h"
 #include "ManualControlWidget.h"
 
 ////////// GLOBALS //////////
@@ -48,6 +49,7 @@ private:
     RobotTelemetryWidget _robotTelemetryWidget;
     FieldWidget _fieldWidget;
     VariantsWidget _variantsWidget;
+    PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
 };
 

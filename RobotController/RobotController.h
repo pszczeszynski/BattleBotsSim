@@ -57,7 +57,7 @@ private:
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
 #else
-    CameraReceiver overheadCamL_real;
+    CameraReceiverVideo overheadCamL_real;
     RobotLinkReal robotLink;
 #endif
 
