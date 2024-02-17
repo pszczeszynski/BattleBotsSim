@@ -158,7 +158,6 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
 #define GET_FRAME_TIMEOUT_MS 500
 void CameraReceiver::_CaptureFrame()
 {
-    std::cout << "Capturing frame" << std::endl;
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
     // Get char data
@@ -173,8 +172,6 @@ void CameraReceiver::_CaptureFrame()
     _framesReady++;
     // unlock the mutex
     _frameMutex.unlock();
-
-    std::cout << "Frame captured" << std::endl;
 }
 
 bool CameraReceiver::_InitializeCamera()
