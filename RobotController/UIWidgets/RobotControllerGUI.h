@@ -49,7 +49,7 @@ private:
     RobotTelemetryWidget _robotTelemetryWidget;
     FieldWidget _fieldWidget;
     VariantsWidget _variantsWidget;
-    PlaybackWidget _playbackWidget;
+    // PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
 };
 

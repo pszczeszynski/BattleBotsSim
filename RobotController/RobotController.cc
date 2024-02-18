@@ -29,18 +29,18 @@ int main()
     return 0;
 }
 
-RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0))
+RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
 #else
-                                    //  overheadCamL_real{},
-                                    //  vision{overheadCamL_real}
+                                     overheadCamL_real{},
+                                     vision{overheadCamL_real}
 #endif
 {
 }
 
-RobotController& RobotController::GetInstance()
+RobotController &RobotController::GetInstance()
 {
     static RobotController instance;
     return instance;
@@ -48,15 +48,15 @@ RobotController& RobotController::GetInstance()
 
 /**
  * Gets the most recent imu data from the robot
-*/
-IMUData& RobotController::GetIMUData()
+ */
+IMUData &RobotController::GetIMUData()
 {
     return _lastIMUMessage.imuData;
 }
 
 /**
  * Gets the most recent can data from the robot
-*/
+ */
 CANData RobotController::GetCANData()
 {
     CANData ret;
@@ -111,38 +111,38 @@ void RobotController::Run()
         loopClock.markEnd();
         loopClock.markStart();
 
-        // // update the gamepad
-        // gamepad.Update();
+        // update the gamepad
+        gamepad.Update();
 
 
-        // // receive the latest message
-        // RobotMessage msg = robotLink.Receive();
+        // receive the latest message
+        RobotMessage msg = robotLink.Receive();
 
-        // // save the specific type information in a last struct
-        // if (msg.type == RobotMessageType::IMU_DATA)
-        // {
-        //     _lastIMUMessage = msg;
-        // }
-        // else if (msg.type == RobotMessageType::CAN_DATA)
-        // {
-        //     _lastCanMessageMutex.lock();
-        //     _lastCANMessage = msg;
-        //     _lastCanMessageMutex.unlock();
-        // }
+        // save the specific type information in a last struct
+        if (msg.type == RobotMessageType::IMU_DATA)
+        {
+            _lastIMUMessage = msg;
+        }
+        else if (msg.type == RobotMessageType::CAN_DATA)
+        {
+            _lastCanMessageMutex.lock();
+            _lastCANMessage = msg;
+            _lastCanMessageMutex.unlock();
+        }
 
-        // // get the latest classification (very fast)
-        // VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
-
-
-        // // update the robot tracker positions
-        // UpdateRobotTrackers(classification);
-
-        // // run our robot controller loop
-        // DriveCommand response = RobotLogic();
+        // get the latest classification (very fast)
+        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
 
-        // // send the response to the robot
-        // robotLink.Drive(response);
+        // update the robot tracker positions
+        UpdateRobotTrackers(classification);
+
+        // run our robot controller loop
+        DriveCommand response = RobotLogic();
+
+
+        // send the response to the robot
+        robotLink.Drive(response);
 
     }
 

@@ -15,15 +15,28 @@
 #define VIDEO_READ
 
 double MAX_CAP_FPS = 100.0;
+#define GET_FRAME_TIMEOUT_MS 500
 
 // #define SAVE_VIDEO
 
 // TODO: add a way to save video with the UI
+ICameraReceiver* _instance = nullptr;
+
+ICameraReceiver& ICameraReceiver::GetInstance()
+{
+    if (!_instance)
+    {
+        std::cerr << "ERROR: CameraReceiver not initialized!" << std::endl;
+        exit(1);
+    }
+    return *_instance;
+}
 
 ICameraReceiver::ICameraReceiver()
 {
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
+    _instance = this;
 }
 
 void ICameraReceiver::_StartCaptureThread()
@@ -37,7 +50,7 @@ void ICameraReceiver::_StartCaptureThread()
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
+            Sleep(10000); // wait 1 second
         }
 
         std::cout << "Camera initialized" << std::endl;
@@ -62,16 +75,19 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
     // This creates and locks the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
 
-    while( (_frameID <= 0) || (_frameID <= old_id))
+    while ((_frameID <= 0) || (_frameID <= old_id))
     {
         // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
         _frameCV.wait(locker);
     }
-
     // At this point our mutex is locked and a frame is ready
     _frame.copyTo(output);
+
     old_id = _frameID;
     locker.unlock();
+
+    // convert to 3 channel
+    cv::cvtColor(output, output, cv::COLOR_BayerBG2BGR);
 
     // return ID of new frame
     return old_id;
@@ -122,7 +138,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         // pCam->Gamma.SetValue(1.0f, false); // Gamma correction if enabled. 0 to 4 nominal range
 
         // Turn off white balance
-        pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
+        // pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
 
         // Allocate all bandwidth to this one camera 125000000 is max, reduce to 122000000 for margin
         pCam->DeviceLinkThroughputLimit.SetValue(122000000);
@@ -159,7 +175,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
         pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
 
-        pCam->IspEnable.SetValue(false);                         // Turn off image processing
+        // pCam->IspEnable.SetValue(false);                         // Turn off image processing
         pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
 
         // ******* Output Data Settings *******
@@ -167,7 +183,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_BayerRG8); // Only some of the formats work, this is one of them and is fast.
 
         // Compression may be useful, but not tested for delay
-        pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
+        // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
 
         // Set Acquisition to continouse
         pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
@@ -204,7 +220,7 @@ bool CameraReceiver::_InitializeCamera()
     Spinnaker::CameraList camList = _system->GetCameras();
 
     const unsigned int numCameras = camList.GetSize();
-    std::cout << "Number of cameras detected: " << numCameras << std::endl
+    std::cerr << "Number of cameras detected: " << numCameras << std::endl
               << std::endl;
 
     // Finish if there are no cameras
@@ -219,46 +235,73 @@ bool CameraReceiver::_InitializeCamera()
         return false;
     }
 
-    std::cout << "about to get by index" << std::endl;
     // Get the first camera
     pCam = camList.GetByIndex(0);
 
-    std::cout << "got by index" << std::endl;
+    int configRet = -1;
+    try
+    {
+        configRet = ConfigureCamera(pCam);
+    }
+    // any exception
+    catch (Spinnaker::Exception &e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        configRet = -1;
+    }
 
     // Initialize
-    if (ConfigureCamera(pCam) < 0)
+    if (configRet < 0)
     {
+        std::cerr << "Failed to configure camera" << std::endl;
 
-        std::cout << "Failed to configure camera" << std::endl;
         // Failed, exit
         pCam = nullptr;
 
+        // Clear camera list before releasing system
+        camList.Clear();
+
         // Release system
         _system->ReleaseInstance();
-        getchar();
-
         // return failure
         return false;
     }
 
-    std::cout << "about to begin acquisition" << std::endl;
-    // Start acquisition
-    pCam->BeginAcquisition();
+    try
+    {
+        // Start acquisition
+        pCam->BeginAcquisition();
 
-    pcam_image_width = (int)pCam->Width.GetValue();   // Max 1440 for this camera
-    pcam_image_height = (int)pCam->Height.GetValue(); // Max 1080 for this camera
+        pcam_image_width = (int)pCam->Width.GetValue();   // Max 1440 for this camera
+        pcam_image_height = (int)pCam->Height.GetValue(); // Max 1080 for this camera
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        std::cout << "Error: " << e.what() << std::endl;
+        // Failed, exit
+        pCam = nullptr;
 
-    std::cout << "acquisition started" << std::endl;
+        // Clear camera list before releasing system
+        camList.Clear();
+
+        // Release system
+        _system->ReleaseInstance();
+        // return failure
+        return false;
+    }
 
     // return success
     return true;
 }
 
 
-#define GET_FRAME_TIMEOUT_MS 500
 bool CameraReceiver::_CaptureFrame()
 {
-    std::cout << "Capturing frame" << std::endl;
+    if (pCam == nullptr)
+    {
+        std::cerr << "ERROR: camera not initialized!" << std::endl;
+        return false;
+    }
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
     // Get char data
@@ -279,8 +322,6 @@ bool CameraReceiver::_CaptureFrame()
 
     // Notify new frame is ready
     _frameCV.notify_all();
-
-    std::cout << "Frame captured" << std::endl;
 
     // return success
     return true;

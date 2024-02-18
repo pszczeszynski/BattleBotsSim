@@ -3,6 +3,7 @@
 #include <opencv2/core.hpp>
 #include <iostream>
 #include "UIWidgets/ClockWidget.h"
+#include "CameraReceiver.h"
 
 CVPosition::CVPosition()
 {
@@ -12,11 +13,37 @@ CVPosition::CVPosition()
     _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
 
     modelShape = cv::Size(1280, 1280);
+
+    workerThread = std::thread([this]() {
+        ICameraReceiver& camera = ICameraReceiver::GetInstance();
+        long last_id = -1;
+        cv::Mat frame;
+        std::vector<int> boundingBox;
+        while (true)
+        {
+            long id = camera.GetFrame(frame, last_id);
+            last_id = id;
+            boundingBox = ComputeRobotPosition(frame);
+            boundingBoxMutex.lock();
+            _boundingBox = boundingBox;
+            boundingBoxMutex.unlock();
+        }
+    });
 }
+
 CVPosition& CVPosition::GetInstance()
 {
     static CVPosition instance;
     return instance;
+}
+
+std::vector<int> CVPosition::GetBoundingBox()
+{
+    std::vector<int> boundingBox;
+    boundingBoxMutex.lock();
+    boundingBox = _boundingBox;
+    boundingBoxMutex.unlock();
+    return boundingBox;
 }
 
 std::vector<int> CVPosition::ComputeRobotPosition(cv::Mat& fieldImage)

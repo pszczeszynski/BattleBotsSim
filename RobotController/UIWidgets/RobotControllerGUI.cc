@@ -64,7 +64,7 @@ bool RobotControllerGUI::Update()
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
     _variantsWidget.Draw();
-    _playbackWidget.Draw();
+    // _playbackWidget.Draw();
     _manualControlWidget.Draw();
     KillWidget::GetInstance().Draw();
 

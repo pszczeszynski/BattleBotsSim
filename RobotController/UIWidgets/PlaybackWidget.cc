@@ -6,11 +6,16 @@
 
 PlaybackWidget::PlaybackWidget()
 {
-    // Get all the files in the directory
-    for (const auto & entry : std::filesystem::directory_iterator("./Recordings"))
+    if (!std::filesystem::exists("./Recordings"))
     {
-        videoFiles.push_back(entry.path().string());
+        std::filesystem::create_directory("./Recordings");
     }
+
+    // // Get all the files in the directory
+    // for (const auto & entry : std::filesystem::directory_iterator("./Recordings"))
+    // {
+    //     videoFiles.push_back(entry.path().string());
+    // }
 
 }
 

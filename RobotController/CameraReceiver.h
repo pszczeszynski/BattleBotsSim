@@ -19,6 +19,8 @@ class ICameraReceiver
 {
 public:
     virtual long GetFrame(cv::Mat &output, long old_id);
+
+    static ICameraReceiver& GetInstance();
 protected:
     void _StartCaptureThread();
 
@@ -32,6 +34,7 @@ protected:
 
     virtual bool _InitializeCamera() = 0;
     virtual bool _CaptureFrame() = 0;
+
 };
 
 class CameraReceiverSim : public ICameraReceiver

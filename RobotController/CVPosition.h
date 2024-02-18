@@ -1,6 +1,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
+#include <thread>
 
 #define MODEL_PATH "MachineLearning/position_model.onnx"
 
@@ -9,8 +10,7 @@ class CVPosition
 public:
     CVPosition();
     static CVPosition& GetInstance();
-
-    std::vector<int> ComputeRobotPosition(cv::Mat& fieldImage);
+    std::vector<int> GetBoundingBox();
 private:
     cv::dnn::Net _net;
     cv::Point2f _lastPosition;
@@ -25,4 +25,10 @@ private:
 
     bool letterBoxForSquare = true;
 
+    std::thread workerThread;
+
+    std::vector<int> _boundingBox;
+    std::mutex boundingBoxMutex;
+
+    std::vector<int> ComputeRobotPosition(cv::Mat& fieldImage);
 };

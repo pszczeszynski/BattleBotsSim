@@ -167,7 +167,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
     // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
     if (this == &RobotOdometry::Robot())
     {
-        std::vector<int> visualPosition = CVPosition::GetInstance().ComputeRobotPosition(RobotController::GetInstance().GetDrawingImage());
+        std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
         visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
 
         std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
