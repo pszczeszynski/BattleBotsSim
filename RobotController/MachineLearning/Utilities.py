@@ -32,7 +32,7 @@ def save_h5_model(model: tf.keras.Model, name: str):
 
 class Augmentations:
     def __init__(self, zoom_range: float = 0.0, width_shift_range: float = 0.0,
-                 height_shift_range: float = 0.0, rotation_range: float = 0,
+                 height_shift_range: float = 0.0, rotation_range: float = 0, shear_range: float = 0,
                  brightness_range: List[float] = [1.0, 1.0],
                  max_overlay_objects: int = 0, object_size: Tuple[int, int] = (10, 10),
                  blur_probability: float = 0.0):
@@ -96,8 +96,10 @@ def prepare_and_augment_image(img: np.ndarray, augmentations: Augmentations) -> 
         brightness_range=augmentations.brightness_range
     )
 
+    params = augmentation.get_random_transform(img.shape)
+
     # apply augmentations
-    augmented_img = augmentation.random_transform(img)
+    augmented_img = augmentation.apply_transform(img, params)
     augmented_img /= 255.0
 
     # add random objects on top of the image to stress out the model
@@ -113,12 +115,9 @@ def prepare_and_augment_image(img: np.ndarray, augmentations: Augmentations) -> 
     # randomly blur the image
     while np.random.rand() < augmentations.blur_probability:
         augmented_img = cv2.blur(augmented_img, (5, 5))
-        # make sure the image is still the same size
         augmented_img = augmented_img[:original_size[0], :original_size[1]]
-        # Ensure the image has the expected number of channels (e.g., 1 for grayscale)
-        augmented_img = np.expand_dims(augmented_img, axis=-1)
 
-    return augmented_img
+    return augmented_img, params
 
 
 def custom_data_gen(img_files: List[str],

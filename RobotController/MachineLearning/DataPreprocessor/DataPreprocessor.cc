@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <algorithm>
 #include <opencv2/opencv.hpp>
 #include "../../VisionPreprocessor.h"  // Assuming you have this header file
 #include "../../RobotConfig.h"
@@ -69,13 +70,31 @@ int main()
 
             // get the position as a cv::Point2f
             cv::Point2f position(keyJson["position"]["x"], keyJson["position"]["y"]);
+            
+            float h = keyJson["position"]["w"];
+            float w = keyJson["position"]["z"];
 
             // transform that point using the VisionPreprocessor::TransformPoint method to get location on processedImage
             cv::Point2f transformedPoint = preprocessor.TransformPoint(position);  // Assuming VisionPreprocessor has a TransformPoint method
 
+            cv::Point2f tl(position.x - w/2, position.y - h/2);
+            cv::Point2f tr(position.x + w/2, position.y - h/2);
+            cv::Point2f bl(position.x - w/2, position.y + h/2);
+            cv::Point2f br(position.x + w/2, position.y + h/2);
+
+            cv::Point2f tl_transformed = preprocessor.TransformPoint(tl);
+            cv::Point2f tr_transformed = preprocessor.TransformPoint(tr);
+            cv::Point2f bl_transformed = preprocessor.TransformPoint(bl);
+            cv::Point2f br_transformed = preprocessor.TransformPoint(br);
+
+            float transformed_w = std::max({tl_transformed.x, tr_transformed.x, bl_transformed.x, br_transformed.x}) - std::min({tl_transformed.x, tr_transformed.x, bl_transformed.x, br_transformed.x});
+            float transformed_h = std::max({tl_transformed.y, tr_transformed.y, bl_transformed.y, br_transformed.y}) - std::min({tl_transformed.y, tr_transformed.y, bl_transformed.y, br_transformed.y});
+
             // add transformedPoint to json
             keyJson["transformedPoint"]["x"] = transformedPoint.x;
             keyJson["transformedPoint"]["y"] = transformedPoint.y;
+            keyJson["transformedPoint"]["z"] = transformed_w;
+            keyJson["transformedPoint"]["w"] = transformed_h;
 
             // add random shift up to 10 pixels in each direction
             const int RANDOM_SHIFT_MAX = 10;

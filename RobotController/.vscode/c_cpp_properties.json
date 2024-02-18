@@ -10,7 +10,8 @@
                 "${workspaceFolder}/libs/GLM/",
                 "${workspaceFolder}/libs/GLEW/include/",
                 "${workspaceFolder}/libs/IMGUI/",
-                "C:/Program Files/FLIR Systems/Spinnaker/include/"
+                "C:/Program Files/FLIR Systems/Spinnaker/include/",
+                "C:/opencv/install_11.2/include/"
             ],
             "defines": [
                 "_DEBUG",
