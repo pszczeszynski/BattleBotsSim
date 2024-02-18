@@ -6,12 +6,17 @@
 
 PlaybackWidget::PlaybackWidget()
 {
+#ifdef VIDEO_FILES
+    std::filesystem::path dir("./Recordings");
+
+    if(!std::filesystem::exists(dir)) { return; };
+    
     // Get all the files in the directory
     for (const auto & entry : std::filesystem::directory_iterator("./Recordings"))
     {
         videoFiles.push_back(entry.path().string());
     }
-
+#endif
 }
 
 
@@ -85,23 +90,26 @@ void PlaybackWidget::Draw()
 
         std::string selectedFile = "";
 
-        if (ImGui::BeginCombo("Files", videoFiles[currentFile].c_str()))
+        if( videoFiles.size() > 0)
         {
-            for (int n = 0; n < videoFiles.size(); n++)
+            if (ImGui::BeginCombo("Files", videoFiles[currentFile].c_str()))
             {
-                bool isSelected = (currentFile == n);
-                if (ImGui::Selectable(videoFiles[n].c_str(), isSelected))
+                for (int n = 0; n < videoFiles.size(); n++)
                 {
-                    currentFile = n;
-                    selectedFile = videoFiles[n];                            
-                }    
+                    bool isSelected = (currentFile == n);
+                    if (ImGui::Selectable(videoFiles[n].c_str(), isSelected))
+                    {
+                        currentFile = n;
+                        selectedFile = videoFiles[n];                            
+                    }    
 
-                if (isSelected)
-                {
-                    ImGui::SetItemDefaultFocus();
+                    if (isSelected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
                 }
+                ImGui::EndCombo();
             }
-            ImGui::EndCombo();
         }
 
         // If the file is a video file, update the file to be read

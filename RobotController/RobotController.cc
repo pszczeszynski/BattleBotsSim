@@ -29,12 +29,16 @@ int main()
     return 0;
 }
 
+
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      vision{overheadCamL_sim}
+#elif defined(VIDEO_FILES)
+                                     overheadCamL_video{},
+                                     vision{overheadCamL_video}
 #else
-                                     overheadCamL_real{},
+                                     overheadCamL_real{-1}, //TBD: Need camera index #ll
                                      vision{overheadCamL_real}
 #endif
 {

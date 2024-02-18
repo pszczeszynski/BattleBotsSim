@@ -1,24 +1,16 @@
 @echo off
+set "cmakeParams="
 
-REM Check if "SIMULATION" keyword is provided as a parameter
-if /I "%~1"=="SIMULATION" (
-    echo Configuring for SIMULATION mode
-    cmake -DSIMULATION=ON -B ./build -S .
-) else (
-    echo Configuring for REAL mode
-    cmake -DSIMULATION=OFF -B ./build -S .
+for %%a in (%*) do (
+    if "%%a"=="SIMULATION" set "cmakeParams=%cmakeParams% -DSIMULATION=ON"
+    if "%%a"=="VIDEO_FILES" set "cmakeParams=%cmakeParams% -DVIDEO_FILES=ON"
+	if "%%a"=="VIDEO" set "cmakeParams=%cmakeParams% -DVIDEO_FILES=ON"
+    if "%%a"=="XBOX" set "cmakeParams=%cmakeParams% -DXBOX=ON"
 )
 
-if /I "%~1"=="XBOX" (
-    echo Configuring for XBox Controller
-    cmake -DXBOX=ON -B ./build -S .
-) else if /I "%~2"=="XBOX" (
-    echo Configuring for XBox Controller
-    cmake -DXBOX=ON -B ./build -S .
-) else (
-    echo Configuring for PS5 Controller
-    cmake -DXBOX=OFF -B ./build -S .
-)
+REM Configure the cmake
+echo cmake -B ./build -S . %cmakeParams% 
+cmake -B ./build -S . %cmakeParams% 
 
 REM Run the CMake build command
 echo Building the project

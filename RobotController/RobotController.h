@@ -14,7 +14,15 @@
 #include "MovementStrategy.h"
 #include "Weapons.h"
 
-#define VIDEO_READ
+// Modes of operation:
+// SIMULATION - use Unity output data, this define takes precedence
+// VIDEO_READ - If not simulation and this is defined, use video files
+// ELSE - use real robot hardware
+
+#ifndef SIMULATION
+    // Define VIDEO_READ in build command line using the VIDEO option
+    // #define VIDEO_READ
+#endif 
 
 class RobotController
 {
@@ -58,16 +66,12 @@ private:
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;
     RobotLinkSim robotLink;
-#else
-
-#ifdef VIDEO_READ
-    CameraReceiverVideo overheadCamL_real;
+#elif defined(VIDEO_FILES)
+    CameraReceiverVideo overheadCamL_video;
     RobotLinkReal robotLink;
 #else 
     CameraReceiver overheadCamL_real;
     RobotLinkReal robotLink;
-#endif
-
 #endif
 
     Vision vision;

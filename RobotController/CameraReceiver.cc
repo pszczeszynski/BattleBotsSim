@@ -12,8 +12,6 @@
 #include "Input/InputState.h"
 #include "UIWidgets/ClockWidget.h"
 
-#define VIDEO_READ
-
 double MAX_CAP_FPS = 100.0;
 
 // #define SAVE_VIDEO

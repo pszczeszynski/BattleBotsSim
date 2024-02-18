@@ -15,6 +15,13 @@ if(SIMULATION)
     add_definitions(-DSIMULATION)
 endif()
 
+# add define for VIDEO_FILES
+option(VIDEO_FILES "Build for Videos" OFF)
+if(VIDEO_FILES)
+    add_definitions(-DVIDEO_FILES)
+endif()
+
+
 # add define for XBOX if XBOX is an arg
 option(XBOX "Build for xbox controller" OFF)
 if(XBOX)
