@@ -38,8 +38,8 @@ IMU::IMU()
         Serial.println("Failed to set max accel for the IMU");
     }
 
-    // take an initial reading for the z velocity calibration
-    _calibrationRotVelZ = myICM.gyrZ();
+    // take an initial reading for the x velocity calibration
+    _calibrationRotVelZ = 0;
 
 
     // zero out
@@ -63,7 +63,7 @@ IMU::IMU()
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
-    _currRotVelZ = -myICM.gyrZ() * TO_RAD;
+    _currRotVelZ = -myICM.gyrY() * TO_RAD;
     double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
 
