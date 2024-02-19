@@ -116,10 +116,10 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
         circleDirection = true;
     }
 
-    if (gamepad.GetRightStickY() < 0)
-    {
-        circleDirection = !circleDirection;
-    }
+    // if (gamepad.GetRightStickY() > 0.03)
+    // {
+    //     circleDirection = !circleDirection;
+    // }
 
     // if there are 2 intersections
     if (circleIntersections.size() >= 2)
@@ -159,6 +159,10 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     {
         direction = RobotMovement::DriveDirection::Backward;
     }
+
+    // draw arrow at the ex state's angle
+    cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
+    cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
     DriveCommand response = DriveToPosition(exState, targetPoint, direction);
 

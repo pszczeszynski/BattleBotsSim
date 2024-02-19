@@ -78,6 +78,7 @@ CANData RobotController::GetCANData()
 
 void RobotController::Run()
 {
+    static FieldWidget _fieldWidget;
     TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
@@ -145,6 +146,10 @@ void RobotController::Run()
         // send the response to the robot
         robotLink.Drive(response);
 
+
+        // update the mat
+        _fieldWidget.UpdateMat(drawingImage);
+
     }
 
 //     RobotControllerGUI::GetInstance().Shutdown();
@@ -160,6 +165,16 @@ void RobotController::Run()
 void RobotController::UpdateRobotTrackers(VisionClassification classification)
 {
     static int updatesWithoutOpponent = 0;
+
+    // if we should use the rotation network
+    if (ROTATION_NET_ENABLED)
+    {
+        // use the ml model to get the angle entirely
+        RobotOdometry::Robot().UpdateForceSetAngle(CVRotation::GetInstance().ComputeRobotRotation(drawingImage, RobotOdometry::Robot().GetPosition()));
+        std::cout << "Using rotation net" << std::endl;
+    }
+
+
     // if we didn't get a new image, don't update the robot trackers
     if (!classification.GetHadNewImage())
     {
@@ -391,4 +406,16 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
     // scale command by the master scales
     command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
     command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
+
+
+    // check if should invert
+    if (INVERT_MOVEMENT)
+    {
+        command.movement *= -1;
+    }
+
+    if (INVERT_TURN)
+    {
+        command.turn *= -1;
+    }
 }

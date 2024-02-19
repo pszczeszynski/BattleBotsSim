@@ -57,11 +57,15 @@ void ImageWidget::UpdateMat(cv::Mat& image)
  */
 void ImageWidget::Draw()
 {
+    _imageMutex.lock();
     // make sure not to draw if the image is empty
     if (_image.empty())
     {
+        _imageMutex.unlock();
         return;
     }
+
+    _imageMutex.unlock();
 
     // Start the main window without any specific flags
     ImGui::Begin(_name.c_str());

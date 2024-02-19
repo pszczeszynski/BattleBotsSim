@@ -17,7 +17,6 @@ void FieldWidget::Draw()
     ImageWidget::Draw();
 }
 
-
 void FieldWidget::_AdjustFieldCrop()
 {
     static int cornerToAdjust = -1;
@@ -109,14 +108,14 @@ void FieldWidget::_AdjustFieldCrop()
         {
             // robot tracker calibration
             // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
-            if (ImGui::IsMouseDown(0))
+            if (InputState::GetInstance().IsMouseDown(0))
             {
                 // set the robot to the mouse position
                 RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
             }
 
             // if the user right clicks
-            if (ImGui::IsMouseDown(1))// && input.IsMouseOverImage())
+            if (InputState::GetInstance().IsMouseDown(1))// && input.IsMouseOverImage())
             {
                 // set the opponent to the mouse position
                 RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
@@ -126,7 +125,7 @@ void FieldWidget::_AdjustFieldCrop()
     else // else the user is pressing shift
     {
         // if the user presses the left mouse button with shift
-        if (ImGui::IsMouseDown(0))
+        if (InputState::GetInstance().IsMouseDown(0))
         {
             // set the robot angle
             cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();

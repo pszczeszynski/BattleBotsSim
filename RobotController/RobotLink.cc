@@ -206,6 +206,7 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // if we have sent a packet too recently, return
     if (clockWidget.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
+        std::cout << "elapsed time: " << clockWidget.getElapsedTime() * 1000 << "ms" << std::endl;
         return;
     }
 

@@ -43,6 +43,7 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Min Opponent Blob Size", &MIN_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Max Opponent Blob Size", &MAX_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Motion Low Threshold", &MOTION_LOW_THRESHOLD, 0, 100);
+    ImGui::SliderFloat("Min fps", &BLOBS_MIN_FPS, 0, 100);
     EndSetMaxWidthWithMargin();
     ImGui::End();
 

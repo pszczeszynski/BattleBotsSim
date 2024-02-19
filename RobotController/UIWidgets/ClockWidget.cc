@@ -12,7 +12,7 @@ std::vector<ClockWidget*>& ClockWidget::Instances()
     return instances;
 }
 
-ClockWidget::ClockWidget(std::string label) : _label(label)
+ClockWidget::ClockWidget(std::string label) : Clock(), _label(label)
 {
     Instances().push_back(this);
 }

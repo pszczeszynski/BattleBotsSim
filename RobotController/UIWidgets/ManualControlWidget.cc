@@ -22,5 +22,19 @@ void ManualControlWidget::Draw()
         MASTER_TURN_SCALE_PERCENT = 0;
     }
 
+    if (ImGui::Button("Invert Turn"))
+    {
+        INVERT_TURN = !INVERT_TURN;
+    }
+    ImGui::SameLine();
+    ImGui::Text(INVERT_TURN ? "INVERTED" : "NORMAl");
+
+    if (ImGui::Button("Invert Movement"))
+    {
+        INVERT_MOVEMENT = !INVERT_MOVEMENT;
+    }
+    ImGui::SameLine();
+    ImGui::Text(INVERT_MOVEMENT ? "INVERTED" : "NORMAl");
+
     ImGui::End();
 }
