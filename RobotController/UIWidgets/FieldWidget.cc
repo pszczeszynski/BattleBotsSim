@@ -2,6 +2,7 @@
 #include "../RobotController.h"
 #include "../GuiUtils.h"
 #include "../RobotConfig.h"
+#include "../Input/InputState.h"
 
 FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetDrawingImage(), false)
 {
@@ -53,7 +54,7 @@ void FieldWidget::_AdjustFieldCrop()
     }
 
     // if the user isn't pressing shift and is over the image
-    if (!ImGui::IsKeyDown(ImGuiKey_LeftShift))
+    if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
     {
         // corner adjustment
 

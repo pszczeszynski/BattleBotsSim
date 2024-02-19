@@ -104,7 +104,17 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 #endif
 
 
+    // 
     bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
+
+    if (RobotController::GetInstance().gamepad.GetDpadLeft())
+    {
+        circleDirection = false;
+    }
+    else if (RobotController::GetInstance().gamepad.GetDpadRight())
+    {
+        circleDirection = true;
+    }
 
     if (gamepad.GetRightStickY() < 0)
     {
@@ -123,7 +133,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
         targetPoint = circleIntersections[0];
     }
 
-    // // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
+    // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
     targetPoint = _NoMoreAggressiveThanTangent(gamepad,
                                                ourPosition,
                                                opponentPosEx,

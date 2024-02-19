@@ -86,8 +86,6 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
     old_id = _frameID;
     locker.unlock();
 
-    // convert to 3 channel
-    cv::cvtColor(output, output, cv::COLOR_BayerBG2BGR);
 
     // return ID of new frame
     return old_id;
@@ -311,6 +309,11 @@ bool CameraReceiver::_CaptureFrame()
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
+
+
+    // convert to 3 channel
+    cv::cvtColor(bayerImage, bayerImage, cv::COLOR_BayerBG2BGR);
+
 
     // deep copy over the frame
     bayerImage.copyTo(_frame);

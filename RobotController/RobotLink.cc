@@ -90,6 +90,7 @@ int messageCount = 0;
 
 ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
+#ifndef SIMULATION
 RobotLinkReal::RobotLinkReal()
 {
     _radioThread = std::thread([this]()
@@ -210,14 +211,6 @@ void RobotLinkReal::Drive(DriveCommand &command)
 
     clockWidget.markStart();
 
-    // force command to be between -1 and 1
-    command.movement = std::max(-1.0, std::min(1.0, command.movement));
-    command.turn = std::max(-1.0, std::min(1.0, command.turn));
-
-    // scale command by the master scales
-    command.movement *= MASTER_MOVE_SCALE_PERCENT;
-    command.turn *= MASTER_TURN_SCALE_PERCENT;
-
     // set valid to true
     command.valid = true;
 
@@ -264,6 +257,7 @@ std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 RobotLinkReal::~RobotLinkReal()
 {
 }
+#endif
 
 /////////////////// SIMULATION //////////////////////
 
@@ -299,17 +293,14 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     if (lastCanDataClock.getElapsedTime() < 0.5)
     {
         ret.type = RobotMessageType::IMU_DATA;
-        ret.imuData.rotation = message.robot_orientation;
+        ret.imuData.rotation = Angle(message.robot_orientation + M_PI);
         ret.imuData.rotationVelocity = message.robot_rotation_velocity;
     }
     else
     {
-        std::cout << "CAN DATA RECEIVED" << std::endl;
         ret.type = RobotMessageType::CAN_DATA;
         ret.canData.motorERPM[2] = (int)abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
         ret.canData.motorERPM[3] = (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR);
-
-        std::cout << "RPM: " << message.spinner_1_RPM << " " << message.spinner_2_RPM << std::endl;
         lastCanDataClock.markStart();
     }
 

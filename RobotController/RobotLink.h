@@ -54,6 +54,7 @@ private:
     RobotMessage _lastMessage;
 };
 
+#ifndef SIMULATION
 class RobotLinkReal : public IRobotLink
 {
 public:
@@ -77,3 +78,5 @@ private:
 
     std::mutex _comPortMutex;
 };
+
+#endif

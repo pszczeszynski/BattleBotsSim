@@ -140,6 +140,7 @@ void RobotController::Run()
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
+        ApplyMoveScales(response);
 
         // send the response to the robot
         robotLink.Drive(response);
@@ -247,23 +248,6 @@ Gamepad& RobotController::GetGamepad()
     return gamepad;
 }
 
-/**
- * Allows the spacebar to control switching the robot positions should the trackers swap
-*/
-void SpaceSwitchesRobots()
-{
-    static bool spacePressedLast = false;
-    bool spacePressed = InputState::GetInstance().IsKeyDown(ImGuiKey_Space);
-
-    // if the space bar was just pressed down
-    if (spacePressed && !spacePressedLast)
-    {
-        RobotClassifier::instance->SwitchRobots();
-    }
-
-    // save the last variable for next time
-    spacePressedLast = spacePressed;
-}
 
 /**
  * ManualMode
@@ -304,8 +288,6 @@ DriveCommand RobotController::ManualMode()
         response.turn = 0;
     }
 
-    SpaceSwitchesRobots();
-
     return response;
 }
 
@@ -334,20 +316,55 @@ DriveCommand RobotController::RobotLogic()
     // start with just manual control
     DriveCommand ret = responseManual;
 
-    _orbiting = false;
-    _killing = false;
 
-    // if the user activates kill mode or is pressing the kill button on the ui
-    if (gamepad.GetRightBumper() || KillWidget::GetInstance().IsPressingButton())
+
+
+    // if gamepad pressed dpad up, _orbiting = true
+    if (gamepad.GetDpadUp())
     {
-        // drive directly to the opponent
+        _orbiting = true;        
+    }
+
+    // if there is any turning on the left stick, _orbiting = false
+    if (abs(gamepad.GetLeftStickX()) > 0.05)
+    {
+    }
+
+    if (gamepad.GetDpadDown())
+    {
+        _killing = true;
+        _orbiting = false;
+    }
+
+    // if there is any turning on the left stick, disable orbiting and killing
+    if (abs(gamepad.GetLeftStickX()) > 0.05)
+    {
+        _killing = false;
+        _orbiting = false;
+    }
+
+
+    // draw on drawing image if we are orbiting
+    if (_orbiting)
+    {
+        cv::putText(drawingImage, "Orbiting", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+    }
+    else if (_killing)
+    {
+        cv::putText(drawingImage, "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+    }
+
+
+    // if we are killing, execute kill mode
+    if (_killing)
+    {
         DriveCommand responseGoToPoint = killMode.Execute(gamepad);
         ret.turn = responseGoToPoint.turn;
         ret.movement = responseManual.movement * abs(responseGoToPoint.movement);
         _killing = true;
     }
     // if driver wants to evade (left bumper)
-    else if (gamepad.GetLeftBumper())
+    else if (_orbiting)
     {
         // orbit around them
         ret.turn = responseOrbit.turn;
@@ -367,4 +384,15 @@ IRobotLink& RobotController::GetRobotLink()
 cv::Mat& RobotController::GetDrawingImage()
 {
     return drawingImage;
+}
+
+void RobotController::ApplyMoveScales(DriveCommand& command)
+{
+    // force command to be between -1 and 1
+    command.movement = std::max(-1.0, std::min(1.0, command.movement));
+    command.turn = std::max(-1.0, std::min(1.0, command.turn));
+
+    // scale command by the master scales
+    command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+    command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 }
