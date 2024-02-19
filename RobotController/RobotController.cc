@@ -322,12 +322,8 @@ DriveCommand RobotController::RobotLogic()
     // if gamepad pressed dpad up, _orbiting = true
     if (gamepad.GetDpadUp())
     {
-        _orbiting = true;        
-    }
-
-    // if there is any turning on the left stick, _orbiting = false
-    if (abs(gamepad.GetLeftStickX()) > 0.05)
-    {
+        _orbiting = true;     
+        _killing = false;   
     }
 
     if (gamepad.GetDpadDown())

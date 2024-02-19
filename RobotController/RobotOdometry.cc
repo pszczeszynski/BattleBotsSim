@@ -206,8 +206,6 @@ void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
     // set the angle using just the imu
     Angle angle = Angle(_UpdateAndGetIMUAngle());
 
-    // angle = Angle(CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
-
     // update normally
     _PostUpdate(_position, velocity, angle);
 }
