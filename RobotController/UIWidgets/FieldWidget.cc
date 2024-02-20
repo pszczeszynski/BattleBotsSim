@@ -11,8 +11,6 @@ FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance()
 void FieldWidget::Draw()
 {
     _AdjustFieldCrop();
-    // update the mat
-    UpdateMat(RobotController::GetInstance().GetDrawingImage());
     // call super method
     ImageWidget::Draw();
 }

@@ -63,7 +63,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     // add pi to get the angle from the opponent to us
     double angleOpponentToUs = angle_wrap(angleToOpponent + M_PI);
 
-
     // draw blue circle around opponent
     cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
     // // draw arrow from opponent position at opponent angle

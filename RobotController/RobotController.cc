@@ -100,10 +100,6 @@ void RobotController::Run()
         }
     });
 
-    // // sleep for 0.5 seconds to allow the gui to start
-    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-
     ClockWidget loopClock("Total loop time");
 
     // receive until the peer closes the connection
@@ -114,7 +110,6 @@ void RobotController::Run()
 
         // update the gamepad
         gamepad.Update();
-
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
@@ -134,7 +129,6 @@ void RobotController::Run()
         // get the latest classification (very fast)
         VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
 
-
         // update the robot tracker positions
         UpdateRobotTrackers(classification);
 
@@ -146,13 +140,9 @@ void RobotController::Run()
         // send the response to the robot
         robotLink.Drive(response);
 
-
         // update the mat
         _fieldWidget.UpdateMat(drawingImage);
-
     }
-
-//     RobotControllerGUI::GetInstance().Shutdown();
 }
 
 /**
@@ -171,9 +161,7 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
     {
         // use the ml model to get the angle entirely
         RobotOdometry::Robot().UpdateForceSetAngle(CVRotation::GetInstance().ComputeRobotRotation(drawingImage, RobotOdometry::Robot().GetPosition()));
-        std::cout << "Using rotation net" << std::endl;
     }
-
 
     // if we didn't get a new image, don't update the robot trackers
     if (!classification.GetHadNewImage())
