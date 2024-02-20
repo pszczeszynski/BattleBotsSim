@@ -36,5 +36,12 @@ void ManualControlWidget::Draw()
     ImGui::SameLine();
     ImGui::Text(INVERT_MOVEMENT ? "INVERTED" : "NORMAl");
 
+
+    // text for weapons
+    ImGui::Text("Weapons");
+    // sliders for the weapon speeds
+    ImGui::SliderFloat("Front Weapon Speed", &MAX_FRONT_WEAPON_SPEED, 0, 1.0);
+    ImGui::SliderFloat("Back Weapon Speed", &MAX_BACK_WEAPON_SPEED, 0, 1.0);
+
     ImGui::End();
 }

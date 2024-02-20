@@ -396,7 +396,7 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
     command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
 
-    // check if should invert
+    // check if should invert movements
     if (INVERT_MOVEMENT)
     {
         command.movement *= -1;
@@ -406,4 +406,8 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
     {
         command.turn *= -1;
     }
+
+    // spinner
+    command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
+    command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
 }
