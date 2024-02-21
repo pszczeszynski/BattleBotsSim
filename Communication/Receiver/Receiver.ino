@@ -272,6 +272,14 @@ void DriveWithLatestMessage()
             command.valid = false;
         }
 
+        // check for NAN
+        if (isnan(command.movement) || isnan(command.turn) ||
+            isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) ||
+            isnan(command.selfRighterPower))
+        {
+            command.valid = false;
+        }
+
         // check if the command is valid
         if (command.valid)
         {

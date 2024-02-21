@@ -282,13 +282,13 @@ DriveCommand RobotController::ManualMode()
     _selfRighter.Move(power, response, drawingImage);
 
     // deadband the movement
-    if (abs(response.movement) < 0.05)
+    if (abs(response.movement) < 0.07)
     {
         response.movement = 0;
     }
 
     // deadband the turn
-    if (abs(response.turn) < 0.05)
+    if (abs(response.turn) < 0.07)
     {
         response.turn = 0;
     }
