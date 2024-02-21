@@ -47,6 +47,10 @@ extern int MOTION_LOW_THRESHOLD;
 extern float BLOBS_MIN_FPS;
 extern bool ROTATION_NET_ENABLED;
 extern bool GYRO_ENABLED;
+extern int WALL_BOUNDS_LEFT;
+extern int WALL_BOUNDS_RIGHT;
+extern int WALL_BOUNDS_TOP;
+extern int WALL_BOUNDS_BOTTOM;
 
 template <typename T>
 std::string convertValueToString(const T &value);

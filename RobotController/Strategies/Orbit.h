@@ -4,6 +4,13 @@
 #include <opencv2/opencv.hpp>
 #include "../Extrapolator.h"
 
+enum OrbitState
+{
+    LARGE_CIRCLE,
+    GO_AROUND
+};
+
+
 class Orbit : public Strategy
 {
 public:
@@ -22,4 +29,9 @@ private:
                                              bool circleDirection);
 
     RobotSimState _ExtrapolateOurPos(double seconds_position, double seconds_angle);
+
+    bool _IsPointOutOfBounds(cv::Point2f point);
+
+    OrbitState orbitState = LARGE_CIRCLE;
+
 };

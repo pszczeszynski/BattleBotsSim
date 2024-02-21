@@ -2,6 +2,7 @@
 #include "../RobotConfig.h"
 #include "../GuiUtils.h"
 #include "UIUtilities.h"
+#include "FieldWidget.h"
 
 ConfigWidget::ConfigWidget()
 {
@@ -29,9 +30,17 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     ImGui::SliderInt("Angle Extrapolate (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
-    ImGui::SliderInt("Orbit Radius MovAvg Speed (%)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1000);
+    ImGui::SliderInt("Orbit Radius MovAvg Speed (%)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 100);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
+    
+    // button to draw boundary
+    if (ImGui::Button("Draw Boundary"))
+    {
+        // set the drawing state to draw the boundary
+        FieldWidget::GetInstance()->StartDrawingBoundary();
+    }
+
     EndSetMaxWidthWithMargin();
     ImGui::End();
 

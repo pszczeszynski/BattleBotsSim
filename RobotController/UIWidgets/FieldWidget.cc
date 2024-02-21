@@ -4,8 +4,11 @@
 #include "../RobotConfig.h"
 #include "../Input/InputState.h"
 
+FieldWidget* FieldWidget::_instance = nullptr;
+
 FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetDrawingImage(), false)
 {
+    _instance = this;
 }
 
 void FieldWidget::Draw()
@@ -28,6 +31,33 @@ void FieldWidget::_AdjustFieldCrop()
 
     // get the curr mouse position
     cv::Point2f currMousePos = GetMousePos();
+
+    // stop drawing the boundary if the user releases the left mouse button
+    if (_boundaryState == WAIT_FOR_RELEASE && !InputState::GetInstance().IsMouseDown(0))
+    {
+        _boundaryState = WAIT_FOR_CLICK;
+    }
+
+    // if the user presses the left mouse button
+    if (_boundaryState == WAIT_FOR_CLICK && InputState::GetInstance().IsMouseDown(0))
+    {
+        // set the bottom left corner to the mouse position
+        WALL_BOUNDS_LEFT = currMousePos.x;
+        WALL_BOUNDS_BOTTOM = currMousePos.y;
+        _boundaryState = DRAGGING;
+    }
+
+    if (_boundaryState == DRAGGING)
+    {
+        // set the top right corner to the mouse position
+        WALL_BOUNDS_RIGHT = currMousePos.x;
+        WALL_BOUNDS_TOP = currMousePos.y;
+
+        if (!InputState::GetInstance().IsMouseDown(0))
+        {
+            _boundaryState = IDLE;
+        }
+    }
 
     // make sure mouse is over the image
     if (!IsMouseOver())
@@ -135,3 +165,15 @@ void FieldWidget::_AdjustFieldCrop()
     // save the last mouse position
     mousePosLast = currMousePos;
 }
+
+
+FieldWidget* FieldWidget::GetInstance()
+{
+    return _instance;
+}
+
+void FieldWidget::StartDrawingBoundary()
+{
+    _boundaryState = WAIT_FOR_RELEASE;
+}
+

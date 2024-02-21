@@ -5,6 +5,7 @@
 #include "RobotMovement.h"
 #include "../RobotController.h"
 
+
 Orbit::Orbit()
 {
 }
@@ -108,17 +109,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
     bool drivingBackwards = gamepad.GetRightStickY() < -0.03;
 
-
-    // // if we are FAR to the center of the circle
-    // if (distToCenter > orbitRadius * 1.4)
-    // {
-    //     // then don't drive backwards
-    //     drivingBackwards = abs(angle_wrap(ourAngle - angleToOpponent)) > 90 * TO_RAD;
-    // }
-
-
-    static Clock circleDirectionTimer;
-
     if (RobotController::GetInstance().gamepad.GetDpadLeft())
     {
         circleDirection = true;
@@ -153,6 +143,17 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
                                                orbitRadius,
                                                targetPoint,
                                                circleDirection);
+
+    // if target point outside of field,
+    if (_IsPointOutOfBounds(targetPoint))
+    {
+        // initiate go around (follow the smaller circle)
+        orbitState = GO_AROUND;
+    }
+
+
+    // how to exit go around? For now, symmetrical (not perfect)
+
 
 #ifndef HARDCORE
     // Draw the point
@@ -270,4 +271,16 @@ cv::Point2f Orbit::_NoMoreAggressiveThanTangent(Gamepad &gamepad,
     }
 
     return currentTargetPoint;
+}
+
+bool Orbit::_IsPointOutOfBounds(cv::Point2f point)
+{
+    // draw the bounds on the drawing image
+    cv::Mat &drawingImage = RobotController::GetInstance().GetDrawingImage();
+    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
+    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
+    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
+    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
+
+    return point.x < WALL_BOUNDS_LEFT || point.x > WALL_BOUNDS_RIGHT || point.y < WALL_BOUNDS_TOP || point.y > WALL_BOUNDS_BOTTOM;
 }
