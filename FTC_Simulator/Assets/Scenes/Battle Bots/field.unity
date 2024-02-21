@@ -7796,7 +7796,7 @@ PrefabInstance:
     - target: {fileID: 747842985271085878, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: downForce
-      value: 1000
+      value: 1500
       objectReference: {fileID: 0}
     - target: {fileID: 747842985271085878, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -7816,7 +7816,7 @@ PrefabInstance:
     - target: {fileID: 997706341347674867, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: m_VersionIndex
-      value: 4497
+      value: 4503
       objectReference: {fileID: 0}
     - target: {fileID: 1279746347661964328, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -8013,10 +8013,45 @@ PrefabInstance:
       propertyPath: m_Name
       value: BB_OrbitronV2
       objectReference: {fileID: 0}
+    - target: {fileID: 6928142759441450809, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142759441450818, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142759945023605, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: body
+      value: 
+      objectReference: {fileID: 1405462883}
     - target: {fileID: 6928142759945023605, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: SPEED
-      value: 8500
+      value: 7000
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142759945023605, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: speed
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142759945023605, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: turnSpeed
+      value: 500
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142760667177576, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 6928142761407478583, guid: a1b1c14dfc0c26744affdc84e31e1402,
+        type: 3}
+      propertyPath: m_Motor.force
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 6929515039000425832, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
@@ -8206,7 +8241,7 @@ PrefabInstance:
     - target: {fileID: 9076323647473868116, guid: a1b1c14dfc0c26744affdc84e31e1402,
         type: 3}
       propertyPath: m_VersionIndex
-      value: 6157
+      value: 6163
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a1b1c14dfc0c26744affdc84e31e1402, type: 3}
@@ -8662,7 +8697,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5448
+  m_Name: pb_Mesh-5442
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -13278,7 +13313,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh-5392
+  m_Name: pb_Mesh-5386
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2

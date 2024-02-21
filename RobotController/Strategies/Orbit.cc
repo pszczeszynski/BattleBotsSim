@@ -42,6 +42,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 {
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
+
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
@@ -90,6 +91,8 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
     // re-enforce the smoothed radius to not engulf the circle
     purePursuitRadius = std::min(purePursuitRadius, distanceToOtherEdgeOfCircle - 5);
+    // enforce pure pursuit radius to be at least 1
+    purePursuitRadius = std::max(purePursuitRadius, 1.0);
 
     // default the target to be radially from the angle from the opponent to us
     cv::Point2f targetPoint = opponentPosEx + cv::Point2f(orbitRadius * cos(angleOpponentToUs), orbitRadius * sin(angleOpponentToUs));
@@ -102,23 +105,34 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     cv::circle(drawingImage, ourPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
 #endif
 
-
-    // 
     bool circleDirection = angle_wrap(ourAngle - angleToOpponent) < 0;
+    bool drivingBackwards = gamepad.GetRightStickY() < -0.03;
+
+
+    // // if we are FAR to the center of the circle
+    // if (distToCenter > orbitRadius * 1.4)
+    // {
+    //     // then don't drive backwards
+    //     drivingBackwards = abs(angle_wrap(ourAngle - angleToOpponent)) > 90 * TO_RAD;
+    // }
+
+
+    static Clock circleDirectionTimer;
 
     if (RobotController::GetInstance().gamepad.GetDpadLeft())
     {
-        circleDirection = false;
+        circleDirection = true;
     }
     else if (RobotController::GetInstance().gamepad.GetDpadRight())
     {
-        circleDirection = true;
+        circleDirection = false;
     }
 
-    // if (gamepad.GetRightStickY() > 0.03)
-    // {
-    //     circleDirection = !circleDirection;
-    // }
+    // check if the user wants to drive backwards, invert the circle direction
+    if (drivingBackwards)
+    {
+        circleDirection = !circleDirection;
+    }
 
     // if there are 2 intersections
     if (circleIntersections.size() >= 2)
@@ -149,15 +163,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
 
     // choose the direction to drive in
-    RobotMovement::DriveDirection direction;
-    if (gamepad.GetRightStickY() > 0)
-    {
-        direction = RobotMovement::DriveDirection::Forward;
-    }
-    else
-    {
-        direction = RobotMovement::DriveDirection::Backward;
-    }
+    RobotMovement::DriveDirection direction = drivingBackwards ? RobotMovement::DriveDirection::Backward : RobotMovement::DriveDirection::Forward;
 
     // draw arrow at the ex state's angle
     cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));

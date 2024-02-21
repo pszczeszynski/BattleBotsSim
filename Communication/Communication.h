@@ -105,6 +105,19 @@ struct CANData
     unsigned char escFETTemp[4];
 };
 
+// TODO: implement me
+struct RadioData
+{
+    short averageDelayMS;
+    short maxDelayMS;
+    float movement;
+    float turn;
+    float frontWeaponPower;
+    float backWeaponPower;
+};
+
+// TODO: implement ping measurement system
+
 // Union that combines RobotMessage and TelemetryMessage
 struct RobotMessage
 {
@@ -116,10 +129,7 @@ struct RobotMessage
         CANData canData;
     };
 
-    // timestamp
-    // float packetTimeMS;
-    // int packetID;
-    float receiveDelay;
+    bool valid;
 };
 
 #pragma pack(pop)

@@ -34,7 +34,7 @@ float Weapons::GetBackWeaponRPM()
 }
 
 
-#define SECONDS_UNTIL_FULL_POWER 15.6
+#define SECONDS_UNTIL_FULL_POWER 0.01
 void Weapons::UpdateSpinnerPowers()
 {
     static Clock updateTimer;
