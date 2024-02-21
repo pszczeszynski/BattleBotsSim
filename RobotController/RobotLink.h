@@ -25,6 +25,7 @@ public:
     RobotMessage GetLastCANMessage();
     RobotMessage GetLastRadioMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
+    bool IsTransmitterConnected();
 
 protected:
     // implemented by the subclass
@@ -37,9 +38,9 @@ protected:
     RobotMessage _lastRadioMessage;
     std::mutex _lastRadioMessageMutex;
 
-
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
+    bool _transmitterConnected = false;
 };
 
 /**

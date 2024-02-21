@@ -51,6 +51,7 @@ public:
     XBox gamepad;
 private:
     void ApplyMoveScales(DriveCommand& command);
+    void DrawStatusIndicators();
 
     RobotMessage _lastIMUMessage;
     RobotMessage _lastCANMessage;

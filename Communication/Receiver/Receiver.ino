@@ -56,6 +56,7 @@ Logger *logger;
 int validMessageCount = 0;
 int invalidMessageCount = 0;
 DriveCommand lastDriveCommand;
+int maxReceiveDelayMs = 0;
 
 void setup()
 {
@@ -133,10 +134,11 @@ void DriveSelfRighter(DriveCommand &command)
  * Computes response message of robot state data
  */
 #define TELEMETRY_UPDATE_FREQUENCY 10
+#define MAX_DELAY_SAMPLE
 RobotMessage Update()
 {
     static int updateCount = 0;
-    static unsigned long lastReportTimeMs = 0;
+    static unsigned long lastRadioStatsRefreshTime = 0;
 
     RobotMessage ret{RobotMessageType::INVALID};
 
@@ -163,24 +165,29 @@ RobotMessage Update()
     // send radio data
     else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 2)
     {
+        // send radio info
+        ret.type = RADIO_DATA;
+        // send average delay (0 if no messages received yet)
+        ret.radioData.averageDelayMS = validMessageCount == 0 ? -1 : ((float) (millis() - lastRadioStatsRefreshTime) / validMessageCount);
+        // set invalid message count
+        ret.radioData.invalidPackets = (short) invalidMessageCount;
+        // set max delay
+        ret.radioData.maxDelayMS = maxReceiveDelayMs;
 
-        // // send radio info
-        // ret.type = RADIO_DATA;
-        // // send average delay (0 if no messages received yet)
-        // ret.radioData.averageDelayMS = validMessageCount == 0 ? -1 : ((float) (millis() - lastReportTimeMs) / validMessageCount);
-        // // set invalid message count
-        // ret.radioData.invalidMessageCount = (short) invalidMessageCount;
-
-        // // set the last drive command fields
-        // ret.radioData.movement = lastDriveCommand.movement;
-        // ret.radioData.turn = lastDriveCommand.turn;
-        // ret.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
-        // ret.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
+        // set the last drive command fields
+        ret.radioData.movement = lastDriveCommand.movement;
+        ret.radioData.turn = lastDriveCommand.turn;
+        ret.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
+        ret.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
         
-        // // reset message counts + time
-        // lastReportTimeMs = millis();
-        // validMessageCount = 0;
-        // invalidMessageCount = 0;
+        // reset max delay
+        if (millis() - lastRadioStatsRefreshTime > 1000)
+        {
+            invalidMessageCount = 0;
+            validMessageCount = 0;
+            maxReceiveDelayMs = 0;
+            lastRadioStatsRefreshTime = millis();
+        }
     }
     // else send imu data
     else
@@ -255,16 +262,33 @@ void DriveWithLatestMessage()
         // save the last drive command
         lastDriveCommand = command;
 
+        // sanity check command fields
+        if (command.movement > 1 || command.movement < -1 ||
+            command.turn > 1 || command.turn < -1 ||
+            command.frontWeaponPower > 1 || command.frontWeaponPower < -1 ||
+            command.backWeaponPower > 1 || command.backWeaponPower < -1 ||
+            command.selfRighterPower > 1 || command.selfRighterPower < -1)
+        {
+            command.valid = false;
+        }
+
         // check if the command is valid
         if (command.valid)
         {
-            // increment message count
-            validMessageCount++;
-
             // drive the robot, weapons, self righter
             Drive(command);
             DriveWeapons(command);
             DriveSelfRighter(command);
+
+            // increment message count
+            validMessageCount++;
+
+            // save the max delay
+            int delayMs = millis() - lastReceiveTime;
+            if (delayMs > maxReceiveDelayMs)
+            {
+                maxReceiveDelayMs = delayMs;
+            }
 
             // update the last receive time
             lastReceiveTime = millis();

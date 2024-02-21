@@ -15,6 +15,7 @@ std::vector<ClockWidget*>& ClockWidget::Instances()
 ClockWidget::ClockWidget(std::string label) : Clock(), _label(label)
 {
     Instances().push_back(this);
+    _running = true;
 }
 
 ClockWidget::~ClockWidget()

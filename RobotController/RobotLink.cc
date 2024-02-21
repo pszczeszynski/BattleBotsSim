@@ -100,10 +100,25 @@ RobotMessage IRobotLink::GetLastCANMessage()
 RobotMessage IRobotLink::GetLastRadioMessage()
 {
     RobotMessage ret;
+
+    if (_receiveClock.getElapsedTime() * 1000 > 100)
+    {
+        // set to 0's
+        memset(&ret, 0, sizeof(RobotMessage));
+        ret.type = RobotMessageType::RADIO_DATA;
+        ret.radioData.averageDelayMS = -1;
+        return ret;
+    }
+
     _lastRadioMessageMutex.lock();
     ret = _lastRadioMessage;
     _lastRadioMessageMutex.unlock();
     return ret;
+}
+
+bool IRobotLink::IsTransmitterConnected()
+{
+    return _transmitterConnected;
 }
 
 #define TRANSMITTER_COM_PORT TEXT("COM8")
@@ -112,7 +127,6 @@ RobotMessage IRobotLink::GetLastRadioMessage()
 #define COM_WRITE_TIMEOUT_MS 100
 
 char lastChar = '\0';
-Clock intermessageClock;
 int messageCount = 0;
 
 
@@ -128,6 +142,13 @@ RobotLinkReal::RobotLinkReal()
             
             while (true)
             {
+                _transmitterConnected = false;
+                _lastRadioMessageMutex.lock();
+                // set to 0's
+                memset(&_lastRadioMessage, 0, sizeof(RobotMessage));
+                _lastRadioMessage.radioData.averageDelayMS = -1;
+                _lastRadioMessageMutex.unlock();
+
                 int i, devices_opened, num;
                 char c;
                 char buf[HID_BUFFER_SIZE];
@@ -155,6 +176,7 @@ RobotLinkReal::RobotLinkReal()
                 }
 
                 printf("found rawhid device with handle %d\n", devices_opened);
+                _transmitterConnected = true;
 
                 // keep reading until error or device goes offline
                 while (true)
@@ -232,9 +254,8 @@ void RobotLinkReal::Drive(DriveCommand &command)
     static ClockWidget clockWidget{"Send drive command"};
 
     // if we have sent a packet too recently, return
-    if (clockWidget.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
+    if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
-        std::cout << "elapsed time: " << clockWidget.getElapsedTime() * 1000 << "ms" << std::endl;
         return;
     }
 

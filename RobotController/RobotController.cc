@@ -140,6 +140,8 @@ void RobotController::Run()
         // send the response to the robot
         robotLink.Drive(response);
 
+        DrawStatusIndicators();
+
         // update the mat
         _fieldWidget.UpdateMat(drawingImage);
     }
@@ -410,4 +412,60 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
     // spinner
     command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
     command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
+}
+
+void RobotController::DrawStatusIndicators()
+{
+    // get the latest can data
+    RadioData data = robotLink.GetLastRadioMessage().radioData;
+
+    cv::Scalar color = cv::Scalar(0, 255, 0);
+    // draw green circle at top right with text radio if average delay is less than 10
+    if (data.averageDelayMS < 20 && data.averageDelayMS >= 0)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else if (data.averageDelayMS < 50 && data.averageDelayMS >= 0)
+    {
+        color = cv::Scalar(0, 255, 255);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 50), 17, color, -1);
+    cv::putText(drawingImage, "Radio", cv::Point(WIDTH - 63, 54), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+    // check if robotlink transmission is working
+    bool transmitterConnected = robotLink.IsTransmitterConnected();
+
+    if (transmitterConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
+    cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+    // check the gamepad is connected
+
+    bool gamepadConnected = gamepad.IsConnected();
+
+    if (gamepadConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
+    cv::putText(drawingImage, "GP", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 }
