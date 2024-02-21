@@ -23,6 +23,7 @@ public:
     virtual RobotMessage Receive();
     RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
+    RobotMessage GetLastRadioMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
 
 protected:
@@ -30,7 +31,11 @@ protected:
     virtual std::vector<RobotMessage> _ReceiveImpl() = 0;
 
     RobotMessage _lastIMUMessage;
+    std::mutex _lastIMUMessageMutex;
     RobotMessage _lastCANMessage;
+    std::mutex _lastCANMessageMutex;
+    RobotMessage _lastRadioMessage;
+    std::mutex _lastRadioMessageMutex;
 
 
     Clock _receiveClock; // for tracking the receive rate information (so public)

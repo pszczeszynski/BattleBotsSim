@@ -35,15 +35,26 @@ RobotMessage IRobotLink::Receive()
     // go through all the new messages
     for (RobotMessage &msg : newMessages)
     {
-        // save the last IMU and CAN message
+        // save the latest message of each type
         if (msg.type == RobotMessageType::IMU_DATA)
         {
+            _lastIMUMessageMutex.lock();
             _lastIMUMessage = msg;
+            _lastIMUMessageMutex.unlock();
             hadValidMessage = true;
         }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
+            _lastCANMessageMutex.lock();
             _lastCANMessage = msg;
+            _lastCANMessageMutex.unlock();
+            hadValidMessage = true;
+        }
+        else if (msg.type == RobotMessageType::RADIO_DATA)
+        {
+            _lastRadioMessageMutex.lock();
+            _lastRadioMessage = msg;
+            _lastRadioMessageMutex.unlock();
             hadValidMessage = true;
         }
     }
@@ -70,12 +81,29 @@ RobotMessage IRobotLink::Receive()
 
 RobotMessage IRobotLink::GetLastIMUMessage()
 {
-    return _lastIMUMessage;
+    RobotMessage ret;
+    _lastIMUMessageMutex.lock();
+    ret = _lastIMUMessage;
+    _lastIMUMessageMutex.unlock();
+    return ret;
 }
 
 RobotMessage IRobotLink::GetLastCANMessage()
 {
-    return _lastCANMessage;
+    RobotMessage ret;
+    _lastCANMessageMutex.lock();
+    ret = _lastCANMessage;
+    _lastCANMessageMutex.unlock();
+    return ret;
+}
+
+RobotMessage IRobotLink::GetLastRadioMessage()
+{
+    RobotMessage ret;
+    _lastRadioMessageMutex.lock();
+    ret = _lastRadioMessage;
+    _lastRadioMessageMutex.unlock();
+    return ret;
 }
 
 #define TRANSMITTER_COM_PORT TEXT("COM8")

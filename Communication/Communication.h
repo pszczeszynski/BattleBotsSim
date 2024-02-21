@@ -71,7 +71,8 @@ enum RobotMessageType : char
 {
     INVALID = 0,
     IMU_DATA,
-    CAN_DATA
+    CAN_DATA,
+    RADIO_DATA
 };
 
 struct IMUData
@@ -105,7 +106,6 @@ struct CANData
     unsigned char escFETTemp[4];
 };
 
-// TODO: implement me
 struct RadioData
 {
     short averageDelayMS;
@@ -114,6 +114,7 @@ struct RadioData
     float turn;
     float frontWeaponPower;
     float backWeaponPower;
+    short invalidPackets;
 };
 
 // TODO: implement ping measurement system
@@ -127,6 +128,7 @@ struct RobotMessage
     {
         IMUData imuData;
         CANData canData;
+        RadioData radioData;
     };
 
     bool valid;
