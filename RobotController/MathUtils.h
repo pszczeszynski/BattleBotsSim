@@ -9,7 +9,7 @@
 // TODO: move this to a better place
 double AngleBetweenPoints(double x1, double y1, double x2, double y2);
 
-double angle_wrap(double angle);
+double angle_wrap(double angle_rad);
 
 cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad);
 
@@ -22,6 +22,9 @@ std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Poi
 double DoubleThreshToTarget(double error,
                             double threshold1, double threshold2,
                             double minPower, double maxPower);
+
+
+float distance(cv::Point2f point1, cv::Point2f point2 );
 
 class Point2f
 {
@@ -65,15 +68,15 @@ cv::Point2f rotate_point(cv::Point2f p, double angle);
 class Angle
 {
 public:
-    explicit Angle(double value = 0.0, bool wrapAround = true)
+    explicit Angle(double value_rad = 0.0, bool wrapAround = true)
     {
         if (wrapAround)
         {
-            value_ = angle_wrap(value);
+            value_ = angle_wrap(value_rad);
         }
         else
         {
-            value_ = value;
+            value_ = value_rad;
         }
     }
 
@@ -103,7 +106,7 @@ public:
     operator double() const { return value_; }
 
 private:
-    double value_;
+    double value_; // Value in rads
 };
 
 

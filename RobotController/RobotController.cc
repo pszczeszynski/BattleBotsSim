@@ -2,9 +2,9 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
-#include "RobotClassifier.h"
+#include "Odometry/BlobDetection/RobotClassifier.h"
 #include "RobotLink.h"
-#include "Vision.h"
+// #include "Vision.h"
 #include <opencv2/core.hpp>
 #include <algorithm>
 #include "UIWidgets/IMUWidget.h"
@@ -33,13 +33,16 @@ int main()
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
-                                     vision{overheadCamL_sim}
+                                     odometry{overheadCamL_sim},
+                                     videoSource{overheadCamL_sim}
 #elif defined(VIDEO_FILES)
                                      overheadCamL_video{},
-                                     vision{overheadCamL_video}
+                                     odometry{overheadCamL_video},
+                                     videoSource{overheadCamL_video}
 #else
                                      overheadCamL_real{-1}, //TBD: Need camera index #ll
-                                     vision{overheadCamL_real}
+                                     odometry{overheadCamL_real},
+                                     videoSource{overheadCamL_real}
 #endif
 {
 }
@@ -79,6 +82,7 @@ CANData RobotController::GetCANData()
     return ret;
 }
 
+#define MIN_ROBOT_CONTROLLER_LOOP_TIME_MS 5.0f
 
 void RobotController::Run()
 {
@@ -91,6 +95,13 @@ void RobotController::Run()
     DriveCommand c{0, 0};
     robotLink.Drive(c);
 #endif
+
+    // Start the odometry threads
+    // Do blob detection
+    odometry.Run(OdometryAlg::Blob);
+
+    // Do Heuristic
+    odometry.Run(OdometryAlg::Heuristic);
 
     // run the gui in a separate thread
     std::thread guiThread = std::thread([]() {
@@ -108,16 +119,47 @@ void RobotController::Run()
 
 
     ClockWidget loopClock("Total loop time");
+    cv::Mat zeroArray;
 
     // receive until the peer closes the connection
+    int videoID = -1;
     while (true)
     {
         loopClock.markEnd();
+
+        // If the elapsed time is less then the minimum time for this loop, then sleep for the remaining
+        double delta_time = MIN_ROBOT_CONTROLLER_LOOP_TIME_MS -loopClock.getElapsedTime() * 1000.0f;
+        if( delta_time > 1.0f )
+        {
+            Sleep( (DWORD) delta_time);
+        }
+
         loopClock.markStart();
+
+        // Get the latest background image
+        if( latestVideoImage.empty() || videoSource.NewFrameReady(videoID) )
+        {
+            cv::Mat newimage;
+            videoID = videoSource.GetFrame(newimage,videoID);
+
+            if( newimage.channels()==1)
+            {
+                cv::cvtColor(newimage, latestVideoImage, cv::COLOR_GRAY2BGR);
+            }
+            else
+            {
+                latestVideoImage = newimage;
+            }
+        }
+
+        // Initialize our zeroArray
+        if(zeroArray.empty()) { zeroArray = cv::Mat::zeros(latestVideoImage.size(), CV_8UC3); }
+        
+        // Clear the overlay image (RGB)
+        zeroArray.copyTo( latestOverlay);
 
         // update the gamepad
         gamepad.Update();
-
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
@@ -134,40 +176,42 @@ void RobotController::Run()
             _lastCanMessageMutex.unlock();
         }
 
-        // get the latest classification (very fast)
-        VisionClassification classification = vision.ConsumeLatestClassification(drawingImage);
-
-
-        // update the robot tracker positions
-        UpdateRobotTrackers(classification);
+        // Update all our odometry data
+        odometry.Update();
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
-
         // send the response to the robot
         robotLink.Drive(response);
 
+        // Update overlay images
+        // Create a mask of the same size as the overlay image
+        cv::Mat mask = cv::Mat::zeros(latestOverlay.size(), CV_8UC1);
+        cv::compare(latestOverlay, zeroArray, mask, cv::CMP_NE);
+
+        std::unique_lock<std::mutex> locker(_imageLock);
+        latestVideoImage.copyTo(drawingImage);
+        latestOverlay.copyTo( drawingImage,mask);
+        locker.unlock();
+
+        //_fieldWidget.UpdateMat(drawingImage);
     }
 
 //     RobotControllerGUI::GetInstance().Shutdown();
 }
 
 /**
- * Takes a vision classification result and updates the robot positions.
- * This function is called every frame. The classification might have nothing new,
- * in which case only imu is used.
  * 
- * @param classification The vision classification result
 */
-void RobotController::UpdateRobotTrackers(VisionClassification classification)
+void RobotController::UpdateRobotTrackers()
 {
+    
+
+
+
+/*
     static int updatesWithoutOpponent = 0;
-    // if we didn't get a new image, don't update the robot trackers
-    if (!classification.GetHadNewImage())
-    {
-        return;
-    }
 
     // if vision detected our robot
     if (classification.GetRobotBlob() != nullptr)
@@ -202,6 +246,8 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
             RobotOdometry::Opponent().Invalidate();
         }
     }
+*/
+
 }
 
 
@@ -235,10 +281,13 @@ DriveCommand RobotController::AvoidMode()
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
 
     RobotSimState state;
-    state.position = RobotOdometry::Robot().GetPosition();
-    state.angle = RobotOdometry::Robot().GetAngle();
-    state.velocity = RobotOdometry::Robot().GetVelocity();
-    state.angularVelocity = RobotOdometry::Robot().GetAngleVelocity();
+
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
+    state.position = odoData.robotPosition;
+    state.angle = odoData.robotAngle;
+    state.velocity = odoData.robotVelocity;
+    state.angularVelocity = odoData.robotAngleVelocity;
 
     // drive towards it
     ret = RobotMovement::DriveToPosition(state, targetPoint, RobotMovement::DriveDirection::Auto);
@@ -262,7 +311,7 @@ void SpaceSwitchesRobots()
     // if the space bar was just pressed down
     if (spacePressed && !spacePressedLast)
     {
-        RobotClassifier::instance->SwitchRobots();
+        RobotController::GetInstance().odometry.SwitchRobots();
     }
 
     // save the last variable for next time
@@ -322,8 +371,11 @@ DriveCommand RobotController::ManualMode()
 DriveCommand RobotController::RobotLogic()
 {
     // draw arrow in the direction of the robot
-    cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
-    Angle robotAngle = RobotOdometry::Robot().GetAngle();
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
+
+    cv::Point2f robotPos = odoData.robotPosition;
+    Angle robotAngle = odoData.robotAngle;
     float robotAnglef = (double) robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
@@ -368,7 +420,17 @@ IRobotLink& RobotController::GetRobotLink()
     return robotLink;
 }
 
+// Returns a fresh copy of the internal image
+cv::Mat RobotController::GetFinalImageCopy()
+{
+    std::unique_lock<std::mutex> locker(_imageLock);
+    cv::Mat outCopy;
+    drawingImage.copyTo(outCopy);
+    return outCopy;
+}
+
+// Returns the image to do draw overlay info on
 cv::Mat& RobotController::GetDrawingImage()
 {
-    return drawingImage;
+    return latestOverlay;
 }

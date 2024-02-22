@@ -129,7 +129,7 @@ int AcquireImages(CameraPtr pCam)
             cv::Mat bayerImage(image_height, image_width, CV_8UC1, img_data);
 
             cv::Mat colorImage;
-            cv::cvtColor(bayerImage, colorImage, cv::COLOR_BayerRGGB2BGR);
+            cv::cvtColor(bayerImage, colorImage, cv::COLOR_BayerRGGB2BGR); // Want to standardize on B&W image internally for speed so this is undesirable
             //string output = "output";
             //output += std::to_string(count);
             //output += ".jpg";

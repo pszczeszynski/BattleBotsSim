@@ -5,76 +5,79 @@
 #include "MathUtils.h"
 #include "Globals.h"
 #include "CVRotation.h"
+#include "CameraReceiver.h"
+#include "Odometry/OdometryBase.h"
+#include "Odometry/BlobDetection/BlobDetection.h"
+#include "Odometry/Heuristic1/HeuristicOdometry.h"
 
-/**
- * @brief A motion blob is a connected component in the image
- * It is only exists in one frame and has no history.
-*/
-struct MotionBlob
+enum OdometryAlg
 {
-public:
-    cv::Rect rect;
-    cv::Point2f center; // weighted center (!= rect.center)
-    cv::Mat* frame;
-    double rotation = 0; // in radians
+    Blob = 0,
+    Heuristic,
+    Neural
 };
+
 
 class RobotOdometry
 {
 public: 
-    RobotOdometry(cv::Point2f position);
+    RobotOdometry(ICameraReceiver &videoSource);
 
-    static RobotOdometry& Robot();
-    static RobotOdometry& Opponent();
+    bool Run(OdometryAlg algorithm); // Runs the algorithm specified
+    bool Stop(OdometryAlg algorithm); // Stops the algorithm specified
+    bool IsRunning(OdometryAlg algorithm); // Returns true if the algorithm is running
 
-    void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
-    double UpdateForceSetAngle(double newAngle);
-    void UpdateIMUOnly(cv::Mat& frame);
-    void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
+    // Retrieve data. It extrapolates to current time if currTime is specified
+    OdometryData Robot(double currTime = 0);
+    OdometryData Opponent(double currTime = 0);
+
+    void Update(); // Updates the odometry based on current data
+
+    void SwitchRobots(); // Switches who's who
 
     // used for calibration
-    void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity);
+    void UpdateForceSetAngle(double newAngle, bool opponentRobot );
+    void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );
 
-    void Invalidate();
+    // CODE that needs to be stripped out into an independent heuristic
+    void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
+    void UpdateIMUOnly(cv::Mat& frame);
 
-    cv::Point2f GetPosition();
-    Angle GetAngle();
-
-
-    cv::Point2f GetVelocity();
-    double GetAngleVelocity();
-
-    void InvertAngle();
+    HeuristicOdometry& GetHeuristicOdometry();
 
 private:
-    bool _IsValidBlob(MotionBlob& blob);
-    double _lastBlobArea;
-    int _numUpdatesInvalid;
+    // Video source to initialize odometry olgorithms with
+    ICameraReceiver& _videoSource;
+
+    // Some of our odometry algorithms
+    BlobDetection _odometry_Blob;
+    OdometryData _dataRobot_Blob;
+    OdometryData _dataOpponent_Blob;
+
+    HeuristicOdometry _odometry_Heuristic;
+    OdometryData _dataRobot_Heuristic;
+    OdometryData _dataOpponent_Heuristic;
+
+    // Final Data
+    std::mutex _updateMutex;    // Mutex for updating core results
+    OdometryData _dataRobot;
+    OdometryData _dataOpponent;
+
+
 
     void _PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
     double _UpdateAndGetIMUAngle();
-    cv::Point2f _GetSmoothedVisualVelocity(MotionBlob& blob);
+
 
     double _lastIMUAngle;
 
-    Angle _angle;
-    cv::Point2f _position;
-    bool _isValid;
 
     Angle CalcAnglePathTangent();
     bool _visualAngleValid = false;
     Clock _lastVisualAngleValidClock;
 
     cv::Point2f _lastPositionWhenUpdatedAngle; // angle updated based on displacement
-
-    cv::Point2f _lastVelocity;
-    double _angleVelocity;
-
-    Clock _lastUpdateClock;
-    Clock _lastVelocityCalcClock;
-
     Clock _lastAccelIntegrateClock;
-
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;

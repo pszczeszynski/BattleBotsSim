@@ -80,8 +80,20 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
 
     clock.markStart();
     cv::Mat fieldImagePreprocessed;
+
+
     // convert to grayscale
-    cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
+    // Convert to gray scale 
+    if (fieldImage.channels() == 1) {
+        fieldImagePreprocessed = fieldImage.clone();
+    }
+    else if (fieldImage.channels() == 3) {
+        cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
+    }
+    else if (fieldImage.channels() == 4)
+    {
+        cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGRA2GRAY);
+    }
 
     // normalize the image
     fieldImagePreprocessed.convertTo(fieldImagePreprocessed, CV_32FC1, 1.0 / 255.0);

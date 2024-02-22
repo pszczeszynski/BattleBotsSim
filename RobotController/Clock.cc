@@ -1,5 +1,8 @@
 #include "Clock.h"
 
+
+Clock Clock::programClock;  // Definition of the static member
+
 //
 // Clock tracks the elapsed time from when markStart is called and markEnd
 // The constructor calls markStart and multiple markStarts can be called to reset elapsed time.

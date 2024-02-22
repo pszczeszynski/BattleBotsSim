@@ -1,5 +1,6 @@
 #pragma once
-#include "RobotOdometry.h"
+#include "Odometry/BlobDetection/MotionBlob.h"
+
 
 struct VisionClassification
 {

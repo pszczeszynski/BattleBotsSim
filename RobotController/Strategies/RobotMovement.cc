@@ -15,8 +15,10 @@ DriveCommand RobotMovement::DriveToPosition(RobotSimState exState,
 {
     static Clock c;
 
-    cv::Point2f currPos = RobotOdometry::Robot().GetPosition();
-    double currAngle = RobotOdometry::Robot().GetAngle();
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
+    cv::Point2f currPos = odoData.robotPosition;
+    double currAngle = odoData.robotAngle;
 
     double deltaTime = c.getElapsedTime();
     c.markStart();

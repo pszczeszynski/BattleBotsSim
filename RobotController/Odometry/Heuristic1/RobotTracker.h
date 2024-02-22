@@ -1,10 +1,8 @@
 #pragma once
 #include <opencv2/core.hpp>
-#include "CameraReceiver.h"
-#include "VisionPreprocessor.h"
-#include "ThreadPool.h"
+#include "../../ThreadPool.h"
 #include <math.h>
-
+#include "../../Clock.h"
 
 
 #ifndef M_PI
@@ -29,11 +27,12 @@ class myRect;
 // ******************************
 // General purpose function
 int FindBBoxWithLargestOverlap(const std::vector<myRect>& allBBoxes, const cv::Rect& targetBBox,  cv::Rect& bestBBox,int& indexFound  );
+int FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  );
 void printText(std::string text, cv::Mat& image, int yoffset=50, int xoffset=50);
 extern ThreadPool myThreads; // Will initialize to maximum threads it can
 cv::Rect FixBBox(const cv::Rect& bbox, const cv::Mat& mat); // Retuns a bbox that is clamped to the image
 cv::Rect FixBBox(const cv::Rect& bbox, const cv::Size& matSize); 
-cv::Point2f GetRectCenter(cv::Rect& inbox);
+cv::Point2f GetRectCenter(const cv::Rect& inbox);
 cv::Point2f LimitPointToRect( cv::Rect& roi, cv::Point2f point);
 Vector2     LimitPointToRect( cv::Rect& roi, Vector2 point);
 cv::Rect getBoundingRect(const cv::Rect& rect1, const cv::Rect& rect2, int buffer=0);
@@ -74,8 +73,10 @@ public:
 
     float mag();
     float angle(); // angle in degrees
+    float angleRad(); // angle in radians
     Vector2(float x=0, float y=0) : x(x),y(y) {}
     cv::Point Point(float scale = 1.0);
+    cv::Point2f Point2f();
 };
 
 
@@ -105,6 +106,31 @@ public:
 class RobotTracker
 {
 public:
+    // Settings initialized in RobotTracker.cc
+    static bool useMultithreading;
+    static int numberOfThreads;
+    static int maxNewBBoxIncrease; // Number of pixels new box can grow by
+    static float robotVelocitySmoothing; // (s) smoothing of the velocity projection
+    static float detectionVelocitySmoothing; // (s) smoothing of the background detection
+    static float minVelocity; // Min number of pixels/s movement required
+    static float moveTowardsCenter; // Amount of pixels per second to move towards center (?20?)
+    static float rotateTowardsMovement; // Amount of radians per second to move towards velocity dir (?2?)
+    static float rotateTowardsWeight; // Scaling factor to increase weight vs speed 
+    static float minSpeedForRotationCorrection; // Minimum speed in pixels/s before we add in movement
+    static float bboxFoundIsMuchSmallerThreshold; // The area reduction in bounding box that will trigger regeneration of Foreground
+    static int combinedBBoxScanBuffer; // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
+    static bool matchingAreaAddOurBBoxes; // increase matching area to always include our bbox and predicted bbox
+    static bool derateResultsByDistance;
+    static float distanceDerating_start; // The mutliplier to results at the expected location
+    static float distanceDerating_stop; // The maximum derating for things far away
+    static float distanceDerating_distance; // The radial distance at which we reach _stop intensity
+    static int distanceDeratingMatSize; // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
+  
+    // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
+    static float deltaAngleSweep; // Delta +/- angle to sweep
+    static float deltaAngleStep; // Number of degrees to step angle sweep
+    static int matchBufffer; // number of pixels around all edges to expand search (fixed pixels)
+
     int id = -1; // Unique ID 
 
     // Tracking Info
@@ -134,23 +160,9 @@ public:
     float delta_angle =0; // The frame delta angle
 
     // Settings
-    int maxNewBBoxIncrease = 40; // Number of pixels new box can grow by
-    float robotVelocitySmoothing = 0.2; // (s) smoothing of the velocity projection
-    float detectionVelocitySmoothing = 1.0; // (s) smoothing of the background detection
-    float minVelocity = 7; // Min number of pixels/s movement required
-    float moveTowardsCenter = 40; // Amount of pixels per second to move towards center (?20?)
-    float rotateTowardsMovement = 0; // Amount of radians per second to move towards velocity dir (?2?)
-    float rotateTowardsWeight = 1.0/50.0; // Scaling factor to increase weight vs speed 
-    float minSpeedForRotationCorrection = 30.0; // Minimum speed in pixels/s before we add in movement
-    float bboxFoundIsMuchSmallerThreshold = 0.75; // The area reduction in bounding box that will trigger regeneration of Foreground
-    int combinedBBoxScanBuffer = 15; // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
-    bool matchingAreaAddOurBBoxes = true; // increase matching area to always include our bbox and predicted bbox
-    bool derateResultsByDistance = true;
+   
     cv::Mat distanceDerating; // The scalling mat applied to results to give higher weight to expected positions
-    float distanceDerating_start = 1.0; // The mutliplier to results at the expected location
-    float distanceDerating_stop = 0.5; // The maximum derating for things far away
-    float distanceDerating_distance = 15.0; // The radial distance at which we reach _stop intensity
-    int distanceDeratingMatSize = 999; // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
+
     void InitializeDeratingMat(void);
     cv::Rect correctResultsForDistance(cv::Mat& results, const cv::Rect& scannedBox, const cv::Mat& templ, const cv::Point2f& templ_center );
 
@@ -162,10 +174,7 @@ public:
 
     cv::Point GetCenter(void);
 
-    // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
-    float deltaAngleSweep = 15; // Delta +/- angle to sweep
-    float deltaAngleStep = 1; // Number of degrees to step angle sweep
-    int matchBufffer = 10; // number of pixels around all edges to expand search (fixed pixels)
+
    
     cv::Rect predictedBBox;
     myRect* bestBBox;
@@ -173,8 +182,7 @@ public:
 
     double FindNewPosAndRotUsingMatchTemplate( cv::Mat& currFrame,  cv::Mat& foreground, cv::Rect& fgFoundBBox, Vector2& newRot);
 
-    bool useMultithreading = true;
-    float numberOfThreads = 8.0;
+ 
     std::mutex mutexResults;
     std::condition_variable_any conditionVarResults;
     double sweep_minVal=-1, sweep_maxVal=-1, sweep_maxVal_old=1;

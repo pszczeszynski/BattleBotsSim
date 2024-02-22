@@ -42,6 +42,18 @@ extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;
 extern bool ROTATION_NET_ENABLED;
 extern bool GYRO_ENABLED;
+extern int HEU_FOREGROUND_RATIO;
+extern int HEU_ROBOT_PROCESSORS;
+
+// Heuristic settings
+extern int HEU_BACKGROUND_AVGING;
+extern int HEU_UNTRACKED_MOVING_BLOB_AVGING;
+extern int HEU_FOREGROUND_THRESHOLD;
+extern int HEU_FOREGROUND_MINSIZE;
+extern int HEU_FOREGROUND_BLURSIZE;
+extern int HEU_FOREGROUND_BUFFER;
+extern int HEU_POSITION_TO_CENTER_SPEED;
+extern int HEU_VELOCITY_AVERAGING;
 
 template <typename T>
 std::string convertValueToString(const T &value);

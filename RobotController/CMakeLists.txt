@@ -67,18 +67,20 @@ set(SOURCES
     MathUtils.cc
     Input/Gamepad.cc
     Globals.cc
-    RobotClassifier.cc
+    Odometry/BlobDetection/RobotClassifier.cc
     RobotLink.cc
     RobotOdometry.cc
     RobotStateParser.cc
-    RobotTracker.cc
+    Odometry/OdometryBase.cc
+    Odometry/BlobDetection/BlobDetection.cc
+    Odometry/BlobDetection/RobotClassifier.cc
+    Odometry/Heuristic1/RobotTracker.cc
+    Odometry/Heuristic1/HeuristicOdometry.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc
     Timer.cc
     Clock.cc
-    Vision.cc
-	CameraDecoder.cc
     VisionPreprocessor.cc
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc

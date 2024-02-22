@@ -49,6 +49,9 @@ void VisionPreprocessor::ComputeTransformationMatrix()
 
 void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
 {
+    // If frame is invalid, dont do it
+    if( frame.empty() ) { return; }
+
     // recompute the transformation matrix
     ComputeTransformationMatrix();
 

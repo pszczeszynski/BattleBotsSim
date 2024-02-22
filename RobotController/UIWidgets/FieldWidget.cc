@@ -3,15 +3,19 @@
 #include "../GuiUtils.h"
 #include "../RobotConfig.h"
 
-FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetDrawingImage(), false)
+FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetFinalImageCopy(), false)
 {
 }
 
 void FieldWidget::Draw()
 {
-    _AdjustFieldCrop();
+
     // update the mat
-    UpdateMat(RobotController::GetInstance().GetDrawingImage());
+    UpdateMat(RobotController::GetInstance().GetFinalImageCopy());
+
+    // Adjust the field crop
+    _AdjustFieldCrop();
+
     // call super method
     ImageWidget::Draw();
 }
@@ -37,7 +41,9 @@ void FieldWidget::_AdjustFieldCrop()
         return;
     }
 
-    cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
+
+    _imageMutex.lock();
+    cv::Mat& drawingImage = _image;
 
     // draw the corners
     for (int i = 0; i < 4; i++)
@@ -52,6 +58,8 @@ void FieldWidget::_AdjustFieldCrop()
         }
     }
 
+    _imageMutex.unlock();
+    
     // if the user isn't pressing shift and is over the image
     if (!ImGui::IsKeyDown(ImGuiKey_LeftShift))
     {
@@ -111,14 +119,14 @@ void FieldWidget::_AdjustFieldCrop()
             if (ImGui::IsMouseDown(0))
             {
                 // set the robot to the mouse position
-                RobotOdometry::Robot().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+                RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, false);
             }
 
             // if the user right clicks
             if (ImGui::IsMouseDown(1))// && input.IsMouseOverImage())
             {
                 // set the opponent to the mouse position
-                RobotOdometry::Opponent().UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0});
+               RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, true);
             }
         }
     }
@@ -128,9 +136,9 @@ void FieldWidget::_AdjustFieldCrop()
         if (ImGui::IsMouseDown(0))
         {
             // set the robot angle
-            cv::Point2f robotPos = RobotOdometry::Robot().GetPosition();
+            cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
             double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-            RobotOdometry::Robot().UpdateForceSetAngle(newAngle);
+            RobotController::GetInstance().odometry.UpdateForceSetAngle(newAngle, false);
         }
     }
 

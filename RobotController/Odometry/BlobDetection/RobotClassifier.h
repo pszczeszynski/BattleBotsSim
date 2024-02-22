@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "RobotOdometry.h"
-#include "VisionClassification.h"
+#include "../../VisionClassification.h"
+#include "MotionBlob.h"
+#include "../OdometryBase.h"
 
 struct RobotCalibrationData
 {
@@ -18,14 +19,12 @@ struct RobotCalibrationData
 class RobotClassifier
 {
 public:
-    static RobotClassifier* instance;
     RobotClassifier();
 
-    VisionClassification ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage);
+    VisionClassification ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData);
 
-    void SwitchRobots();
 private:
-    double ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage);
+    double ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData);
     void RecalibrateRobot(RobotCalibrationData& data, MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage);
     cv::Scalar GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage);
 

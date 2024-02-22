@@ -2,6 +2,8 @@
 #include "../RobotConfig.h"
 #include "../GuiUtils.h"
 #include "UIUtilities.h"
+#include "../RobotController.h"
+#include "../Odometry/Heuristic1/HeuristicOdometry.h"
 
 ConfigWidget::ConfigWidget()
 {
@@ -35,15 +37,92 @@ void ConfigWidget::Draw()
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
-
+    
     ImGui::Begin("Vision Config");
-    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
+    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG); 
     ImGui::SliderInt("Min Robot Blob Size", &MIN_ROBOT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Max Robot Blob Size", &MAX_ROBOT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Min Opponent Blob Size", &MIN_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Max Opponent Blob Size", &MAX_OPPONENT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Motion Low Threshold", &MOTION_LOW_THRESHOLD, 0, 100);
     EndSetMaxWidthWithMargin();
+
+    
+    ImGui::End();
+
+    ImGui::Begin("Heuristic Config");
+    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG*2); 
+
+    // Background Management
+    HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
+
+    if (ImGui::Button(  "Auto Lock Us Start Left" )) { heuristic.MatchStart(cv::Point2f(30,350),cv::Point2f(700,350) ); }
+    ImGui::SameLine();
+    ImGui::Text("     ");
+    ImGui::SameLine();
+    if (ImGui::Button(  "Auto Lock Us Start Right" )) { heuristic.MatchStart(cv::Point2f(30,350),cv::Point2f(700,350) ); }
+    ImGui::Text("BACKGROUND:  ");
+    ImGui::SameLine();
+    if (ImGui::Button(  "Load Bg" )) { heuristic.reinit_bg = true; }
+    ImGui::SameLine();
+    if (ImGui::Button(  "Save Bg" )) { heuristic.save_background = true; }
+    ImGui::SameLine();
+    ImGui::Text("  BG Averaging:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(250); ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 200); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  Obj Decay:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(250); ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 400); ImGui::PopItemWidth();
+
+    // Foreground Management
+    ImGui::Text("FOREGROUND:  ");
+    ImGui::SameLine();
+    ImGui::Text("FG Min Delta:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGThreshold", &HEU_FOREGROUND_THRESHOLD, 0, 30); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("FG Min Ratio:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGRatio", &HEU_FOREGROUND_RATIO, 0, 30); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  FG Min Size:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGMinSize", &HEU_FOREGROUND_MINSIZE, 5, 70); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  FG Blur Size:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 5, 30); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  BBox Buffer:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(50); ImGui::SliderInt("##FGBuffer", &HEU_FOREGROUND_BUFFER, 0, 10); ImGui::PopItemWidth();
+
+    // Tracked Robot Management
+    ImGui::Text("TRACKING:  ");
+    ImGui::SameLine();
+    ImGui::Text("Pos Centering Speed:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(200); ImGui::SliderInt("##TRPosSpeed", &HEU_POSITION_TO_CENTER_SPEED, 1, 400); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("Vel Averaging:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(200); ImGui::SliderInt("##TRVelAvg", &HEU_VELOCITY_AVERAGING, 1, 100); ImGui::PopItemWidth();
+        
+    // Tracked Robot Management
+    ImGui::Text("INTERNALS:  ");
+    ImGui::SameLine();
+    ImGui::Text("Num Of Processors:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 0, 32); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Checkbox(":Show BG Mat   ", &heuristic.show_bg_mat);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Show FG Mat     ", &heuristic.show_fg_mat);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Show Tracking Mat     ", &heuristic.show_track_mat);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Show Stats", &heuristic.show_stats);
     ImGui::End();
 
     ImGui::Begin("Radio Config");

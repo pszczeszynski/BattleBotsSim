@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "Input/InputState.h"
 #include "UIWidgets/ClockWidget.h"
+#include "VisionPreprocessor.h"
 
 double MAX_CAP_FPS = 100.0;
 
@@ -52,9 +53,11 @@ void ICameraReceiver::_StartCaptureThread()
 /**
  * Attempts to get a frame from the camera
  * @param output the output frame
- * @return true if frame was ready, false otherwise
+ * @param old_id the previous id of the frame. If a new frame is not ready it will block
+ * @param frameTime (Optional) pointer to a double that will store the frame elapsed time when it was acquired
+ * @return the id of the new frame
  */
-long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
+long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime)
 {
     // Using scoped mutex locker because conditional variable integrates with it
     // This creates and locks the mutex
@@ -69,10 +72,22 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
     // At this point our mutex is locked and a frame is ready
     _frame.copyTo(output);
     old_id = _frameID;
+
+    if( frameTime != NULL)
+    {
+        *frameTime = _frameTime;
+    }
+
     locker.unlock();
 
     // return ID of new frame
     return old_id;
+}
+
+// Returns true if a newer frame is ready
+bool ICameraReceiver::NewFrameReady(long old_id)
+{
+    return _frameID > old_id;
 }
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
@@ -256,22 +271,30 @@ bool CameraReceiver::_InitializeCamera()
 #define GET_FRAME_TIMEOUT_MS 500
 bool CameraReceiver::_CaptureFrame()
 {
-    std::cout << "Capturing frame" << std::endl;
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
     // Get char data
     unsigned char *img_data = (unsigned char *)pResultImage->GetData();
+
     // Create a Mat with the data
     cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
+
+    // Apply processing to it
+    cv::Mat finalImage;
+    birdsEyePreprocessor.Preprocess(bayerImage, finalImage);
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
 
     // deep copy over the frame
-    bayerImage.copyTo(_frame);
+    finalImage.copyTo(_frame);
 
     // increase _frameID
     _frameID++;
+
+    // Update time
+    _frameTime = Clock::programClock.getElapsedTime();
+
     // unlock the mutex
     locker.unlock();
 
@@ -337,7 +360,7 @@ bool CameraReceiverSim::_InitializeCamera()
 
 bool CameraReceiverSim::_CaptureFrame()
 {
-    // wait for the previous frame to be at 1/AX_CAP_FPS long
+    // wait for the previous frame to be at 1/MAX_CAP_FPS long
     while (_prevFrameTimer.getElapsedTime() < 1.0 / MAX_CAP_FPS )
     {
         double currelapsedtime = _prevFrameTimer.getElapsedTime();
@@ -345,23 +368,42 @@ bool CameraReceiverSim::_CaptureFrame()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-
     _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - 1.0 / MAX_CAP_FPS);
 
     cv::Mat captured;
-    // remove alpha
-    cv::cvtColor(_image, captured, cv::COLOR_BGRA2RGB);
+
+    // remove alpha and convert to B&W
+    if (_image.channels() == 1) {
+        captured = _image;
+    }
+    else if (_image.channels() == 3) {
+        cv::cvtColor(_image, captured, cv::COLOR_BGR2GRAY);
+    }
+    else if (_image.channels() == 4)
+    {
+        cv::cvtColor(_image, captured, cv::COLOR_BGRA2GRAY);
+    }
+
     // Flip the image vertically
     cv::flip(captured, captured, 0);
 
+    // Apply processing to it
+    cv::Mat finalImage;
+    birdsEyePreprocessor.Preprocess(captured, finalImage);
+
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
+
     // copy the frame to the previous frame
     _frame.copyTo(_prevFrame);
     // copy the frame
-    captured.copyTo(_frame);
+    finalImage.copyTo(_frame);
     // increase _frameID
     _frameID++;
+
+    // Update time
+    _frameTime = Clock::programClock.getElapsedTime();
+
     // unlock the mutex
     locker.unlock();
 
@@ -408,18 +450,17 @@ bool CameraReceiverVideo::_CaptureFrame()
         return false;
     }
 
-    // wait for the previous frame to be at 1/AX_CAP_FPS long
-    float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
+    // wait for the previous frame to be at 1/MAX_CAP_FPS long
+    double videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
     while (_prevFrameTimer.getElapsedTime() < videoFramePeriod)
     {
         double currelapsedtime = _prevFrameTimer.getElapsedTime();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-
-    _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - videoFramePeriod);
-
-    std::unique_lock<std::mutex> locker(_frameMutex);
+    // Cap carry-forward time to a single frame (don't try to catch up more than a partial frame)
+    double timeToCarryForward = min(_prevFrameTimer.getElapsedTime() - videoFramePeriod, videoFramePeriod);
+    _prevFrameTimer.markStart(timeToCarryForward);
 
     // read the next frame
     if (playback_goback || playback_restart)
@@ -438,7 +479,7 @@ bool CameraReceiverVideo::_CaptureFrame()
             _videoFrame = 0;
         }
 
-        // Move to the previous frmae
+        // Move to the previous frame
         _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
         playback_goback = false;
     }
@@ -446,11 +487,39 @@ bool CameraReceiverVideo::_CaptureFrame()
     {
         _videoFrame++;
     }
-    _cap.read(_frame);
+
+    // read in the frame
+    cv::Mat _rawFrame;
+    _cap.read(_rawFrame);
+
+    // Convert to gray scale 
+    if (_rawFrame.channels() == 1) {
+        // Do nothing
+    }
+    else if (_rawFrame.channels() == 3) {
+        cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGR2GRAY);
+    }
+    else if (_rawFrame.channels() == 4)
+    {
+        cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
+    }
+
+    // Apply processing to it
+    cv::Mat finalImage;
+    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+    
+    std::unique_lock<std::mutex> locker(_frameMutex);
+
+    // Copy it over
+    finalImage.copyTo(_frame);
 
     // increase _frameID
     _frameID++;
     bool empty = _frame.empty();
+
+    // Update time
+    _frameTime = Clock::programClock.getElapsedTime();
+
     locker.unlock();
 
     // Notify all frame is ready

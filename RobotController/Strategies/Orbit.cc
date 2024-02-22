@@ -16,12 +16,15 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
 
+
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
     RobotSimState currentState;
-    currentState.position = RobotOdometry::Robot().GetPosition();
-    currentState.angle = RobotOdometry::Robot().GetAngle();
-    currentState.velocity = RobotOdometry::Robot().GetVelocity();
+    currentState.position = odoData.robotPosition;
+    currentState.angle = odoData.robotAngle;
+    currentState.velocity = odoData.robotVelocity;
     double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
-    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * seconds_angle / seconds_position;
+    currentState.angularVelocity = odoData.robotAngleVelocity * seconds_angle / seconds_position;
 
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
@@ -45,15 +48,20 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
     // our pos + angle
-    cv::Point2f ourPosition = RobotOdometry::Robot().GetPosition();
-    double ourAngle = RobotOdometry::Robot().GetAngle();
+    cv::Point2f ourPosition = odoData.robotPosition;
+    double ourAngle = odoData.robotAngle;
+
+
+    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent(Clock::programClock.getElapsedTime());
 
     // opponent pos + angle
-    cv::Point2f opponentPos = RobotOdometry::Opponent().GetPosition();
+    cv::Point2f opponentPos = opponentData.robotPosition;
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
-    opponentPosEx = RobotOdometry::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
+    opponentPosEx = opponentData.robotVelocity * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
     double orbitRadius = _CalculateOrbitRadius(opponentPosEx, gamepad);
 
@@ -75,7 +83,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 
 
     // get our velocity
-    double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
+    double velocityNorm = cv::norm(odoData.robotVelocity);
     // scale the radius based on our velocity
     double targetPurePursuitRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
     // calculate distance to the center of the circle
@@ -166,7 +174,9 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
 {
     // our pos + angle
-    cv::Point2f ourPosition = RobotOdometry::Robot().GetPosition();
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
+    cv::Point2f ourPosition = odoData.robotPosition;
 
     double orbitRadius = ORBIT_RADIUS;
     double distToOpponent = cv::norm(ourPosition - opponentPosEx);

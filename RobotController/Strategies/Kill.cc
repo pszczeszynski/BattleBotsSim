@@ -2,6 +2,7 @@
 #include "../RobotOdometry.h"
 #include "RobotMovement.h"
 #include "../RobotConfig.h"
+#include "../RobotController.h"
 
 Kill::Kill()
 {
@@ -14,21 +15,25 @@ DriveCommand Kill::Execute(Gamepad &gamepad)
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
 
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+
     RobotSimState currentState;
-    currentState.position = RobotOdometry::Robot().GetPosition();
-    currentState.angle = RobotOdometry::Robot().GetAngle();
-    currentState.velocity = RobotOdometry::Robot().GetVelocity();
+    currentState.position = odoData.robotPosition;
+    currentState.angle =  odoData.robotAngle;
+    currentState.velocity = odoData.robotVelocity;
     double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
-    currentState.angularVelocity = RobotOdometry::Robot().GetAngleVelocity() * angleExtrapolate / POSITION_EXTRAPOLATE_MS;
+    currentState.angularVelocity = odoData.robotAngleVelocity * angleExtrapolate / POSITION_EXTRAPOLATE_MS;
 
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, NUM_PREDICTION_ITERS);
 
     RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Auto;
 
+    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent(Clock::programClock.getElapsedTime());
+
     DriveCommand ret;
     // drive directly to the opponent
-    DriveCommand responseGoToPoint = RobotMovement::DriveToPosition(exState, RobotOdometry::Opponent().GetPosition(), direction);
+    DriveCommand responseGoToPoint = RobotMovement::DriveToPosition(exState, opponentData.robotPosition, direction);
     ret.turn = responseGoToPoint.turn;
     ret.movement = gamepad.GetRightStickY() * abs(responseGoToPoint.movement);
     return ret;

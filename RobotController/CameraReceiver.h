@@ -10,6 +10,7 @@
 #include <conio.h>
 #include <sstream>
 #include <chrono>
+#include "VisionPreprocessor.h"
 
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
@@ -18,7 +19,9 @@
 class ICameraReceiver
 {
 public:
-    virtual long GetFrame(cv::Mat &output, long old_id);
+    virtual long GetFrame(cv::Mat &output, long old_id, double* frameTime = NULL);
+    virtual bool NewFrameReady(long old_id);
+    
 protected:
     void _StartCaptureThread();
 
@@ -29,9 +32,12 @@ protected:
     std::condition_variable _frameCV;
 
     long int _frameID = 0;
+    double _frameTime = 0;
 
     virtual bool _InitializeCamera() = 0;
     virtual bool _CaptureFrame() = 0;
+
+    VisionPreprocessor birdsEyePreprocessor;
 };
 
 class CameraReceiverSim : public ICameraReceiver

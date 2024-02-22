@@ -9,6 +9,8 @@
 class Clock
 {
 public:
+	static Clock programClock;
+	
 	Clock();
 	virtual void markStart(double startOffset = 0); // Pass in a starting elapsed time
 	virtual double markEnd();

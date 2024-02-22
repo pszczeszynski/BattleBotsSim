@@ -12,32 +12,6 @@
 #include "UIWidgets/RobotControllerGUI.h"
 #include <winuser.h>
 
-// opencv function to updat escreen without the windows waitKey delay
-bool DoEvents()
-{
-    MSG msg;
-    BOOL result;
-
-    while (::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
-    {
-        result = ::GetMessage(&msg, NULL, 0, 0);
-        if (result == 0) // WM_QUIT
-        {
-            ::PostQuitMessage((int) msg.wParam);
-            return false;
-        }
-        else if (result == -1)
-            return true;    //error occured
-        else
-        {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-        }
-    }
-
-    return true;
-}
-
 Vision::Vision(ICameraReceiver &overheadCam)
     : overheadCam(overheadCam),
       _lastDrawingImage(cv::Mat::zeros(WIDTH, HEIGHT, CV_8UC3))
@@ -98,7 +72,8 @@ VisionClassification Vision::RunPipeline(cv::Mat& currFrame)
     ret.SetHadNewImage();
 
     // preprocess the frame to get the birds eye view
-    birdsEyePreprocessor.Preprocess(currFrame, currFrame);
+    // No longer required done in captureVideo
+    // birdsEyePreprocessor.Preprocess(currFrame, currFrame);
 
     // if we don't have a previous frame
     if (previousBirdsEye.empty())
@@ -148,7 +123,18 @@ VisionClassification Vision::LocateRobots2d(cv::Mat& frame, cv::Mat& previousFra
 
     // Convert the difference to grayscale
     cv::Mat grayDiff;
-    cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
+
+    if (diff.channels() == 1) {
+        grayDiff = diff;
+    }
+    else if (diff.channels() == 3) {
+        cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY);
+    }
+    else if (diff.channels() == 4)
+    {
+        cv::cvtColor(diff, grayDiff, cv::COLOR_BGRA2GRAY);
+    }
+
 
     // Convert the difference to a binary image with a certain threshold    
     cv::Mat thresholdImg;

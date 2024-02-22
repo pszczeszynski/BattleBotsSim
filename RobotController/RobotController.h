@@ -3,7 +3,6 @@
 #include "Clock.h"
 
 #include "CameraReceiver.h"
-#include "Vision.h"
 #include "RobotOdometry.h"
 #include "RobotLink.h"
 #include "Input/Gamepad.h"
@@ -13,6 +12,7 @@
 #include "SelfRighter.h"
 #include "MovementStrategy.h"
 #include "Weapons.h"
+
 
 // Modes of operation:
 // SIMULATION - use Unity output data, this define takes precedence
@@ -35,10 +35,12 @@ public:
 
     IRobotLink& GetRobotLink();
 
-    cv::Mat& GetDrawingImage();
+    cv::Mat& GetDrawingImage(); // Returns the image for the overlays
+    cv::Mat GetFinalImageCopy(); // Returns the final image (background + overlays)
     Gamepad& GetGamepad();
 
     Clock visionClock;
+    RobotOdometry odometry;
 
     void Run();
 private:
@@ -49,9 +51,14 @@ private:
     DriveCommand AvoidMode();
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
-    void UpdateRobotTrackers(VisionClassification classification);
+   
+    // Not used at the moment
+    void UpdateRobotTrackers();
 
+    std::mutex _imageLock;
     cv::Mat drawingImage;
+    cv::Mat latestVideoImage;
+    cv::Mat latestOverlay;
 
     MovementStrategy _movementStrategy;
 
@@ -74,8 +81,7 @@ private:
     RobotLinkReal robotLink;
 #endif
 
-    Vision vision;
-
+    ICameraReceiver& videoSource;
     SelfRighter _selfRighter;
 
     bool _orbiting = false;

@@ -14,7 +14,7 @@
 // #include "Graphics/GameLoop.h"
 // #include <opencv2/cudaarithm.hpp>
 // #include <opencv2/cudastereo.hpp>
-#include "RobotClassifier.h"
+#include "Odometry/BlobDetection/RobotClassifier.h"
 #include "Globals.h"
 #include "VisionPreprocessor.h"
 #include "ValueBin.h"

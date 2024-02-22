@@ -38,10 +38,13 @@ cv::Point2f MovementStrategy::AvoidStrategy()
     // clear strategy graphic
     cv::Mat strategyGraphicSmall{WIDTH / STEP_SIZE, HEIGHT / STEP_SIZE, CV_8UC3, cv::Scalar(0, 0, 0)};
 
+    double currTime = Clock::programClock.getElapsedTime();
+
     // get our position
-    cv::Point2f ourPos = RobotOdometry::Robot().GetPosition() / STEP_SIZE;
+    cv::Point2f ourPos = RobotController::GetInstance().odometry.Robot(currTime).robotPosition / STEP_SIZE;
+    
     // get opponent position
-    cv::Point2f opponentPos = RobotOdometry::Opponent().GetPosition() / STEP_SIZE;
+    cv::Point2f opponentPos = RobotController::GetInstance().odometry.Opponent(currTime).robotPosition / STEP_SIZE;
 
     // go through every point in the drawing image with step size of 10
     for (int i = 0; i < strategyGraphicSmall.size().height; i += 1)

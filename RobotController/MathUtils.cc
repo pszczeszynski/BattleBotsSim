@@ -5,18 +5,18 @@ double AngleBetweenPoints(double x1, double y1, double x2, double y2)
     return std::atan2(y2 - y1, x2 - x1);
 }
 
-double angle_wrap(double angle)
+double angle_wrap(double angle_rad)
 {
-    angle = fmod(angle, 2 * M_PI);
-    if (angle <= -M_PI)
+    angle_rad = fmod(angle_rad, 2 * M_PI);
+    if (angle_rad <= -M_PI)
     {
-        angle += 2 * M_PI;
+        angle_rad += 2 * M_PI;
     }
-    else if (angle > M_PI)
+    else if (angle_rad > M_PI)
     {
-        angle -= 2 * M_PI;
+        angle_rad -= 2 * M_PI;
     }
-    return angle;
+    return angle_rad;
 }
 
 double norm(Point2f p)
@@ -34,6 +34,14 @@ cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad)
     p.y = p.y * cos(angle_rad) - p.z * sin(angle_rad);
     p.z = p.y * sin(angle_rad) + p.z * cos(angle_rad);
     return p;
+}
+
+float distance(cv::Point2f point1, cv::Point2f point2 )
+{
+    float dx = point1.x - point2.x;
+    float dy = point1.y - point2.y;
+
+    return std::sqrt(dx * dx + dy * dy);
 }
 
 // A function to calculate the tangent points of a circle given the center, radius and an external point

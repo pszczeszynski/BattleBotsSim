@@ -1,18 +1,15 @@
 #include "RobotClassifier.h"
-#include "Globals.h"
-#include "RobotConfig.h"
+#include "../../Globals.h"
+#include "../../RobotConfig.h"
 
-RobotClassifier* RobotClassifier::instance = nullptr;
 
-RobotClassifier::RobotClassifier()
+RobotClassifier::RobotClassifier(void)
 {
     robotCalibrationData.meanColor = cv::Scalar(0, 0, 100);
     robotCalibrationData.diameter = 50;
 
     opponentCalibrationData.meanColor = cv::Scalar(100, 100, 100);
     opponentCalibrationData.diameter = 50;
-
-    RobotClassifier::instance = this;
 }
 
 void visualizeHistogram(const cv::Mat &hist)
@@ -39,9 +36,9 @@ void visualizeHistogram(const cv::Mat &hist)
 
 cv::Mat calcHistogram(const cv::Mat &img, const cv::Mat &mask)
 {
+    // The image may be B&W or color. If black and white, use the single channel for all
     std::vector<cv::Mat> bgr_planes;
     cv::split(img, bgr_planes);
-
 
     int histSize = 256;
     float range[] = {0, 256}; // the upper boundary is exclusive
@@ -50,8 +47,24 @@ cv::Mat calcHistogram(const cv::Mat &img, const cv::Mat &mask)
     cv::Mat b_hist, g_hist, r_hist;
 
     cv::calcHist(&bgr_planes[0], 1, 0, mask, b_hist, 1, &histSize, &histRange);
-    cv::calcHist(&bgr_planes[1], 1, 0, mask, g_hist, 1, &histSize, &histRange);
-    cv::calcHist(&bgr_planes[2], 1, 0, mask, r_hist, 1, &histSize, &histRange);
+
+    if( bgr_planes.size() >= 2)
+    {
+        cv::calcHist(&bgr_planes[1], 1, 0, mask, g_hist, 1, &histSize, &histRange);
+    }
+    else
+    {
+        g_hist = b_hist;
+    }
+
+    if( bgr_planes.size() >= 3)
+    {
+        cv::calcHist(&bgr_planes[2], 1, 0, mask, r_hist, 1, &histSize, &histRange);
+    }
+    else
+    {
+        r_hist = b_hist;
+    }
 
     cv::Mat hist;
     cv::vconcat(std::vector<cv::Mat>{b_hist, g_hist, r_hist}, hist);
@@ -71,14 +84,6 @@ double compareHistograms(const cv::Mat &hist1, const cv::Mat &hist2)
     return cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
 }
 
-void RobotClassifier::SwitchRobots()
-{
-    cv::Point2f savedPos = RobotOdometry::Robot().GetPosition();
-    cv::Point2f savedVel = RobotOdometry::Robot().GetVelocity();
-    // swap the positions and velocities of the robots
-    RobotOdometry::Robot().UpdateForceSetPosAndVel(RobotOdometry::Opponent().GetPosition(), RobotOdometry::Opponent().GetVelocity());
-    RobotOdometry::Opponent().UpdateForceSetPosAndVel(savedPos, savedVel);
-}
 
 cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
 {
@@ -130,11 +135,11 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
  * What does that look for?
  * Being more blue in the lastFrame
 */
-double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
+double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData)
 {
     // now let's take their location into account
-    double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blob.center);
-    double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blob.center);
+    double distanceToRobot = cv::norm(robotData.robotPosition - blob.center);
+    double distanceToOpponent = cv::norm(opponentData.robotPosition - blob.center);
 
     // normalize the distance score
     double distanceScoreNormalized = (distanceToRobot - distanceToOpponent) / (distanceToRobot + distanceToOpponent);
@@ -176,7 +181,7 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob>& blobs, cv::Point2f p
  * @param frame the latest frame from the camera
  * @param motionImage a frame with only the motion as white pixels
 */
-VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage)
+VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData)
 {
     VisionClassification classificationResult;
 
@@ -203,16 +208,21 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
     // if only one blob
     if (blobs.size() == 1)
     {
-        double distanceToRobot = cv::norm(RobotOdometry::Robot().GetPosition() - blobs[0].center);
-        double distanceToOpponent = cv::norm(RobotOdometry::Opponent().GetPosition() - blobs[0].center);
+        // Note: RobotOdometry gets updates position from other sources, thus GetPosition can change
+        // while we are running this code. Is it ok to process this frame's blob detection with a position
+        // that may be based on a newer frame we haven't processed yet? This is probably ok since this code
+        // is one of the fastest codes run, and if better information on GetPosition arrives from other algorithms
+        // then we want to search for blobs near it.
+        double distanceToRobot = cv::norm(robotData.robotPosition - blobs[0].center);
+        double distanceToOpponent = cv::norm(opponentData.robotPosition - blobs[0].center);
 
-        bool isRobot = ClassifyBlob(blobs[0], frame, motionImage) <= 0;
+        bool isRobot = ClassifyBlob(blobs[0], frame, motionImage, robotData, opponentData) <= 0;
 
         // if the blob is really close to both robots
         if (distanceToRobot < 10 && distanceToOpponent < 10)
         {
             // choose the one with more velocity last time
-            isRobot = cv::norm(RobotOdometry::Robot().GetVelocity()) > cv::norm(RobotOdometry::Opponent().GetVelocity());
+            isRobot = cv::norm(robotData.robotVelocity) > cv::norm(opponentData.robotVelocity);
         }
 
         // if this is the robot (not the opponent)
@@ -248,12 +258,12 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         std::vector<MotionBlob> filtered = {};
         // copy over all the blobs
         std::copy(blobs.begin(), blobs.end(), std::back_inserter(blobsToChooseFrom));
-        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, RobotOdometry::Robot().GetPosition()));
-        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, RobotOdometry::Opponent().GetPosition()));
+        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, robotData.robotPosition));
+        filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, opponentData.robotPosition));
 
 
-        double firstIsRobot = ClassifyBlob(filtered[0], frame, motionImage);
-        double secondIsRobot = ClassifyBlob(filtered[1], frame, motionImage);
+        double firstIsRobot = ClassifyBlob(filtered[0], frame, motionImage, robotData, opponentData);
+        double secondIsRobot = ClassifyBlob(filtered[1], frame, motionImage, robotData, opponentData);
         double preference = firstIsRobot - secondIsRobot;
 
         MotionBlob& robot = preference <= 0 ? filtered[0] : filtered[1];
@@ -263,7 +273,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         RecalibrateRobot(opponentCalibrationData, opponent, frame, motionImage);
 
         // if the robot blob is close to the robot tracker
-        if (norm(robot.center - RobotOdometry::Robot().GetPosition()) < matchingDistThresholdRobot &&
+        if (norm(robot.center - robotData.robotPosition) < matchingDistThresholdRobot &&
             sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
             sqrt(robot.rect.area()) <= MAX_ROBOT_BLOB_SIZE)
         {
@@ -272,7 +282,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         }
 
         // if the opponent blob is close to the opponent tracker
-        if (norm(opponent.center - RobotOdometry::Opponent().GetPosition()) < matchingDistThresholdOpponent &&
+        if (norm(opponent.center - opponentData.robotPosition) < matchingDistThresholdOpponent &&
             sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
             sqrt(opponent.rect.area()) <= MAX_OPPONENT_BLOB_SIZE)
         {

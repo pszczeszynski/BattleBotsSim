@@ -7,28 +7,108 @@
 #include "Input/InputState.h"
 #include "RobotConfig.h"
 
-RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
-    _position{initialPosition},
-    _isValid{false}
+RobotOdometry::RobotOdometry(ICameraReceiver& videoSource) :
+    _videoSource(videoSource), 
+    _odometry_Blob(videoSource),
+    _odometry_Heuristic(videoSource)
 {
 }
 
-/**
- * @brief returns the robot tracker for our robot
-*/
-RobotOdometry& RobotOdometry::Robot()
+
+// Updates internal Odometry data
+void RobotOdometry::Update(void)
 {
-    static RobotOdometry robot(cv::Point2f(0,0));
-    return robot;
+    // ******************************
+    // Retrieve new data if available
+  
+    bool newDataArrived = false;
+
+    // Get Blob detection
+    if( _odometry_Blob.IsRunning() )
+    {
+        // Update our data
+        if( _odometry_Blob.NewDataValid(_dataRobot_Blob.id, false))
+        {
+            _dataRobot_Blob =  _odometry_Blob.GetData(false);
+            newDataArrived = true;
+        }
+
+        // Update opponent data
+        if( _odometry_Blob.NewDataValid(_dataOpponent_Blob.id, true))
+        {
+            _dataOpponent_Blob =  _odometry_Blob.GetData(true);
+            newDataArrived = true;
+        }
+    }
+
+    // Get Heuristic detection
+    if( _odometry_Heuristic.IsRunning() )
+    {
+        // Update our data
+        if( _odometry_Heuristic.NewDataValid(_dataRobot_Heuristic.id, false))
+        {
+            _dataRobot_Heuristic =  _odometry_Heuristic.GetData(false);
+            newDataArrived = true;
+        }
+
+        // Update opponent data
+        if( _odometry_Heuristic.NewDataValid(_dataOpponent_Heuristic.id, true))
+        {
+            _dataOpponent_Heuristic =  _odometry_Heuristic.GetData(true);
+            newDataArrived = true;
+        }
+    }
+
+    // No new data and thus nothing to do
+    if(!newDataArrived) { return;}
+
+    // At this time use only a priority set for all inputs
+    std::unique_lock<std::mutex> locker(_updateMutex);
+
+    if( _odometry_Heuristic.IsRunning())
+    {
+        _dataRobot =_dataRobot_Heuristic;
+        _dataOpponent = _dataOpponent_Heuristic;
+    }
+    else if(_odometry_Blob.IsRunning() )
+    {
+        _dataRobot =_dataRobot_Blob;
+        _dataOpponent = _dataOpponent_Blob;
+    }
+
+    // locker will get unlocked here automatically
 }
 
+
 /**
- * @brief returns the robot tracker for the opponent
-*/
-RobotOdometry& RobotOdometry::Opponent()
+ * @brief returns the odometry data extrapolated to current time
+ * 
+ */
+OdometryData RobotOdometry::Robot(double currTime)
 {
-    static RobotOdometry opponent(cv::Point2f(0,0));
-    return opponent;
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData currData = _dataRobot;
+    locker.unlock();
+
+    // Extrpolate data
+    currData.Extrapolate( currTime);
+    return currData;
+}
+
+
+/**
+ * @brief returns the odometry data extrapolated to current time
+ * 
+ */
+OdometryData RobotOdometry::Opponent(double currTime)
+{
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData currData = _dataOpponent;
+    locker.unlock();
+
+    // Extrpolate data
+    currData.Extrapolate( currTime);
+    return currData;
 }
 
 
@@ -44,100 +124,7 @@ static double GetImuAngleVelocityRadPerSec()
     return RobotController::GetInstance().GetIMUData().rotationVelocity;
 }
 
-// the displacement required to update the angle
-#define DIST_BETWEEN_ANG_UPDATES_PX 5
 
-// 0 = no change, 1 = full change
-#define MOVING_AVERAGE_RATE 1.0
-
-// how fast the robot needs to be moving to update the angle
-#define VELOCITY_THRESH_FOR_ANGLE_UPDATE 100 * WIDTH / 720.0
-
-// max rotational speed to update the angle radians per second
-#define MAX_ROTATION_SPEED_TO_ALIGN 250 * TO_RAD
-
-/**
- * @brief updates the angle of the robot using the velocity
-*/
-Angle RobotOdometry::CalcAnglePathTangent()
-{
-    Angle retAngleRad;
-
-    double posDiff = norm(_position - _lastPositionWhenUpdatedAngle);
-    double velNorm = norm(_lastVelocity);
-
-    // if (velNorm < VELOCITY_THRESH_FOR_ANGLE_UPDATE)
-    // {
-    //     _lastPositionWhenUpdatedAngle = _position;
-    //     _visualAngleValid = false;
-    //     return retAngleRad;
-    // }
-
-    // get latest message
-    IMUData imuData = RobotController::GetInstance().GetIMUData();
-    // get angular velocity from imu
-    double imuSpeedRadPerSec = abs(imuData.rotationVelocity);
-    if (imuSpeedRadPerSec > MAX_ROTATION_SPEED_TO_ALIGN)
-    {
-        _lastPositionWhenUpdatedAngle = _position;
-        _visualAngleValid = false;
-        return retAngleRad;
-    }
-    
-    // if we have travelled a certain distance since the last update
-    // and we are moving fast enough
-    if (posDiff >= DIST_BETWEEN_ANG_UPDATES_PX)
-    {
-        // calcualte the change from the last update
-        cv::Point2f delta = _position - _lastPositionWhenUpdatedAngle;
-        // update the angle but only by half the change
-        retAngleRad = Angle(atan2(delta.y, delta.x));
-
-        // if the angle is closer to 180 degrees to the last angle
-        if (abs(Angle(retAngleRad + M_PI - _angle)) < abs(Angle(retAngleRad - _angle)))
-        {
-            // add 180 degrees to the angle
-            retAngleRad = Angle(retAngleRad + M_PI);
-        }
-
-        // add half the change in angle from the imu in the last update (since we calculated the angle at the midpoint)
-        retAngleRad = retAngleRad + Angle(_lastVisualAngleValidClock.getElapsedTime() / 2 * GetImuAngleVelocityRadPerSec());
-        _lastVisualAngleValidClock.markStart();
-
-        // save the last position
-        _lastPositionWhenUpdatedAngle = _position;
-        // set the flag to true
-        _visualAngleValid = true;
-    }
-    else
-    {
-        _visualAngleValid = false;
-    }
-
-    return retAngleRad;
-}
-
-bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
-{
-    double blobArea = blob.rect.area();
-    double lastVelocityNorm = cv::norm(_lastVelocity);
-    bool invalidBlob = blobArea < _lastBlobArea * 0.8 && _numUpdatesInvalid < 10;
-
-    // if the blob is too small and we haven't had too many invalid blobs
-    if (invalidBlob)
-    {
-        // we are invalid, so increment the number of invalid blobs
-        _numUpdatesInvalid++;
-    }
-    else
-    {
-        // reset the number of invalid blobs
-        _numUpdatesInvalid = 0;
-        _lastBlobArea = blobArea;
-    }
-
-    return !invalidBlob;
-}
 
 /**
  * @brief updates with both visual and imu information. this should only be called for our robot (since we have our imu)
@@ -147,6 +134,7 @@ bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
 
 void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 {
+/*
     //////////////////////// POS ////////////////////////
     cv::Point2f visualPos = blob.center;
     cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
@@ -184,6 +172,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
+    */
 }
 
 /**
@@ -191,7 +180,7 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
 */
 void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
 {
-    //////////////////////// VEL ////////////////////////
+/*    //////////////////////// VEL ////////////////////////
     // just use the last velocity
     cv::Point2f velocity = _lastVelocity;
 
@@ -203,57 +192,8 @@ void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
 
     // update normally
     _PostUpdate(_position, velocity, angle);
-}
-/**
- * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
- * Updates the position of the robot to the given position.
- * @param blob - the MotionBlob to update to
 */
-void RobotOdometry::UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame)
-{
-    //////////////////////// POS ////////////////////////
-    // use the blob's center for the visual position
-    cv::Point2f visualPosition = blob.center;
-    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
-    bool valid = _IsValidBlob(blob);
-    if (!valid)
-    {
-        visualPosition = predictedPosition;
-    }
-
-    //////////////////////// VEL ////////////////////////
-    cv::Point2f smoothedVisualVelocity = _GetSmoothedVisualVelocity(blob);
-    if (!valid)
-    {
-        smoothedVisualVelocity = _lastVelocity;
-    }
-
-    //////////////////////// ANGLE ////////////////////////
-    Angle angle = CalcAnglePathTangent();
-
-    if (_visualAngleValid)
-    {
-        angle = _angle;
-    }   
-
-    // update using the visual information
-    _PostUpdate(visualPosition, smoothedVisualVelocity, angle);
 }
-
-
-/**
- * Allows artificially setting the angle of the robot
- * This is mainly used for manual recalibration.
- * 
- * @return the new angle
-*/
-double RobotOdometry::UpdateForceSetAngle(double newAngle)
-{
-    // Set angle to new manual angle value
-    _angle = Angle(newAngle);
-    return _angle;
-}
-
 
 /**
  * Tracks the change in the imu angle
@@ -263,6 +203,7 @@ double RobotOdometry::UpdateForceSetAngle(double newAngle)
 */
 double RobotOdometry::_UpdateAndGetIMUAngle()
 {
+/*
     // 1. compute angle change
     // get the new angle
     double newAngleImuRad = GetImuAngleRad();
@@ -276,41 +217,10 @@ double RobotOdometry::_UpdateAndGetIMUAngle()
 
     // 3. return the current angle + change in angle
     return _angle + angleChange;
-}
-
-/**
- * Smooths out the visual velocity so it's not so noisy
 */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 250
-#define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
-cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
-{
-    if (_lastVelocityCalcClock.getElapsedTime() > 0.1)
-    {
-        _lastVelocityCalcClock.markStart();
-        return cv::Point2f(0, 0);
-    }
-
-    // visual velocity
-    cv::Point2f visualVelocity = (blob.center - _position) / _lastVelocityCalcClock.getElapsedTime();
-    // compute weight for interpolation
-    double weight = _lastVelocityCalcClock.getElapsedTime() * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
-
-    // If this is the opponent, don't extrapolate so much!! => TODO: make this not a hack
-    if (this == &RobotOdometry::Opponent())
-    {
-        weight /= NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT;
-    }
-
-    // interpolate towards the visual velocity so it's not so noisy
-    cv::Point2f smoothedVisualVelocity = InterpolatePoints(_lastVelocity, visualVelocity, weight);
-
-    // restart the clock
-    _lastVelocityCalcClock.markStart();
-
-    // return the smoothed velocity
-    return smoothedVisualVelocity;
+    return 0;
 }
+
 
 Angle _AdjustAngleWithArrowKeys(Angle angle)
 {
@@ -329,33 +239,28 @@ Angle _AdjustAngleWithArrowKeys(Angle angle)
     return angle;
 }
 
-void RobotOdometry::_PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle angle)
+
+/**
+ * Allows artificially setting the angle of the robot
+ * This is mainly used for manual recalibration.
+ * 
+ * @return the new angle
+*/
+void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot)
 {
-    // if this is the robot, adjust the angle with the arrow keys
-    if (this == &Robot())
-    {
-        angle = _AdjustAngleWithArrowKeys(angle);
-    }
+    // Go through each Odometry and update it
+    _odometry_Blob.SetAngle(newAngle, opponentRobot);
+    _odometry_Heuristic.SetAngle(newAngle, opponentRobot);
 
-    // update our velocity, position, and angle
-    _lastVelocity = velocity;
-    _position = newPos;
-    _angle = angle;
+    // Update our own data
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData& odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
 
-    _isValid = true;
-
-    // mark this as the last update time
-    _lastUpdateClock.markStart();
-
-
-    // draw the velocity as a bar
-    SAFE_DRAW
-    // put text for the velocity
-    std::stringstream ss;
-    ss << "Vel: " << cv::norm(_lastVelocity);
-    cv::putText(drawingImage, ss.str(), cv::Point(50, drawingImage.rows - 50), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
-    END_SAFE_DRAW
+    odoData.robotAngle = Angle(newAngle);
+    odoData.robotAngleValid = true;
+    odoData.robotAngleVelocity = 0;
 }
+
 
 /**
  * Allows artificially setting the position and velocity of the robot
@@ -364,47 +269,98 @@ void RobotOdometry::_PostUpdate(cv::Point2f newPos, cv::Point2f velocity, Angle 
  * @param newPos - the new position of the robot
  * @param newVel - the new velocity of the robot
 */
-void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos, cv::Point2f newVel)
+void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos, cv::Point2f newVel, bool opponentRobot)
 {
-    // update our velocity and position
-    _lastVelocity = newVel;
-    _position = newPos;
+    // Go through each Odometry and update it
+    _odometry_Blob.SetPosition(newPos, opponentRobot);
+    _odometry_Blob.SetVelocity(newVel, opponentRobot);
 
-    // mark this as the last update time
-    _lastUpdateClock.markStart();
+    _odometry_Heuristic.SetPosition(newPos, opponentRobot);
+    _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
+
+    // Update our own data
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData& odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
+
+    odoData.robotPosition = newPos;
+    odoData.robotVelocity = newVel;
+    odoData.robotPosValid = true;
 }
 
-/**
- * @brief getPosition
- * @return the current position of the robot.
-*/
-cv::Point2f RobotOdometry::GetPosition()
+// Switch position of robots
+void RobotOdometry::SwitchRobots()
 {
-    return _position;
+    // Switch all the Odometry
+    _odometry_Blob.SwitchRobots();
+    _odometry_Heuristic.SwitchRobots();
+
+    // Update our own data
+    std::unique_lock<std::mutex> locker(_updateMutex);
+
+    OdometryData tempData = _dataRobot;
+    _dataRobot =_dataOpponent;
+    _dataOpponent = tempData;
+
+    _dataRobot.isUs = true;
+    _dataOpponent.isUs = false;
 }
 
-Angle RobotOdometry::GetAngle()
+// Run Code
+bool RobotOdometry::Run(OdometryAlg algorithm)
 {
-    return _angle;
+    switch( algorithm ){
+        case OdometryAlg::Blob:
+            return _odometry_Blob.Run();
+            
+        case OdometryAlg::Heuristic:
+            return _odometry_Heuristic.Run();            
+
+        case OdometryAlg::Neural:
+            break;
+
+    }
+
+    return false;
 }
 
-void RobotOdometry::Invalidate()
+// Stop Code
+bool RobotOdometry::Stop(OdometryAlg algorithm)
 {
-    _lastVelocity = cv::Point2f(0,0);
-    _isValid = false;
+    switch( algorithm ){
+        case OdometryAlg::Blob:
+            return _odometry_Blob.Stop();
+            
+        case OdometryAlg::Heuristic:
+            return _odometry_Heuristic.Stop();
+
+        case OdometryAlg::Neural:
+            break;
+
+    }
+
+    return false;
 }
 
-cv::Point2f RobotOdometry::GetVelocity()
+// IsRunning Code
+bool RobotOdometry::IsRunning(OdometryAlg algorithm)
 {
-    return _lastVelocity;
+    switch( algorithm ){
+        case OdometryAlg::Blob:
+            return _odometry_Blob.IsRunning();
+            
+        case OdometryAlg::Heuristic:
+            return _odometry_Heuristic.IsRunning();
+
+        case OdometryAlg::Neural:
+            break;
+
+    }
+
+    return false;
 }
 
-double RobotOdometry::GetAngleVelocity()
+HeuristicOdometry& RobotOdometry::GetHeuristicOdometry()
 {
-    return _angleVelocity;
+    return _odometry_Heuristic;
 }
 
-void RobotOdometry::InvertAngle()
-{
-    _angle = Angle(_angle + M_PI);
-}

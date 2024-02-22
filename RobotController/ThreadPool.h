@@ -13,7 +13,6 @@ public:
     ThreadPool(size_t num_threads = 0);
     ~ThreadPool();
     void enqueue(const std::function<void()>& f);
-    
 
 private:
     std::vector<std::thread> workers;
