@@ -1,6 +1,7 @@
 #include "ImageWidget.h"
 #include "../RobotController.h"
 #include "../GuiUtils.h"
+#include "../Input/InputState.h"
 
 /**
  * Constructor
@@ -94,8 +95,7 @@ void ImageWidget::Draw()
  */
 cv::Point2f ImageWidget::GetMousePos()
 {
-    ImVec2 mousePosVec2 = ImGui::GetMousePos();
-    cv::Point2f mousePosAbsolute{mousePosVec2.x, mousePosVec2.y};
+    cv::Point2f mousePosAbsolute = InputState::GetInstance().GetMousePos();
     cv::Point2f windowPos = cv::Point2f(_windowPos.x, _windowPos.y);
     return mousePosAbsolute - windowPos;
 }

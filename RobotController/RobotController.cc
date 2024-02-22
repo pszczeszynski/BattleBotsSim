@@ -142,7 +142,8 @@ void RobotController::Run()
 
         DrawStatusIndicators();
 
-        // update the mat
+        // update the mat + allow the user to adjust the crop of the field
+        _fieldWidget.AdjustFieldCrop();
         _fieldWidget.UpdateMat(drawingImage);
     }
 }

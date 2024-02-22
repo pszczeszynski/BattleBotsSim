@@ -15,15 +15,14 @@ enum DrawingBoundaryState
 class FieldWidget : public ImageWidget
 {
 public:
-    void Draw() override;
     void StartDrawingBoundary();
     FieldWidget();
+    void AdjustFieldCrop();
 
     static FieldWidget* GetInstance();
     static FieldWidget* _instance;
 
 private:
-    void _AdjustFieldCrop();
 
     DrawingBoundaryState _boundaryState = IDLE;
 
