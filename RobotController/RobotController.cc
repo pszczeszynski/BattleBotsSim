@@ -312,9 +312,6 @@ DriveCommand RobotController::RobotLogic()
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
-    Orbit orbitMode = Orbit{};
-    Kill killMode = Kill{};
-
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
     // DriveCommand responseAvoid = AvoidMode();
@@ -328,8 +325,8 @@ DriveCommand RobotController::RobotLogic()
     // if gamepad pressed dpad up, _orbiting = true
     if (gamepad.GetDpadUp())
     {
-        _orbiting = true;     
-        _killing = false;   
+        _orbiting = true;
+        _killing = false; 
     }
 
     if (gamepad.GetDpadDown())
@@ -339,12 +336,27 @@ DriveCommand RobotController::RobotLogic()
     }
 
     // if there is any turning on the left stick, disable orbiting and killing
-    if (abs(gamepad.GetLeftStickX()) > 0.05)
+    if (abs(gamepad.GetLeftStickX()) > 0.1)
     {
         _killing = false;
         _orbiting = false;
     }
 
+
+    static bool _orbitingLast = false;
+    // start an orbit if we just started orbiting
+    if (_orbiting != _orbitingLast)
+    {
+        if (_orbiting)
+        {
+            orbitMode.StartOrbit();
+        }
+        else
+        {
+            orbitMode.StopOrbit();
+        }
+    }
+    _orbitingLast = _orbiting;
 
     // draw on drawing image if we are orbiting
     if (_orbiting)
