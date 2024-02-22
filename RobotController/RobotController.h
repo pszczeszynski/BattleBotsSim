@@ -12,6 +12,8 @@
 #include "MatQueue.h"
 #include "SelfRighter.h"
 #include "MovementStrategy.h"
+#include "Strategies/Orbit.h"
+#include "Strategies/Kill.h"
 #include "Weapons.h"
 
 // #define VIDEO_READ
@@ -78,4 +80,8 @@ private:
 
     bool _orbiting = false;
     bool _killing = false;
+
+    Orbit orbitMode;
+    Kill killMode;
+
 };
