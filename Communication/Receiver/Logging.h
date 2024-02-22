@@ -1,3 +1,4 @@
+#include "WString.h"
 #pragma once
 
 #include <Arduino.h>
@@ -7,6 +8,8 @@
 
 #define SD_CARD 10
 #define LOG_TIME 1/25 //value in hz
+#define ESC_COUNT 4
+#define AXIS_COUNT 3
 
 const int MAX_FILE_SIZE_MB = 1024; // Maximum file size in megabytes
 
@@ -18,27 +21,36 @@ public:
     String formatRobotMessage(RobotMessage robotMessage);
     bool logMessage(String message);
     void updateCommandData(double ld, double rd, double fw, double rw);
-    void updateVescData(double *fetTemps, double *voltages, double *current, double *motorTemps, double *erpms);
+    void updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms);
     void updateIMUData(double *rotations, double *rotationVelocitys, double *accels);
+    void updateRadioData();
 
     void update();
 
 private:
+    String escs[ESC_COUNT] = {"LD", "RD", "FW", "RW"};
+    String axis[AXIS_COUNT] = {"X", "Y", "Z"};
     bool checkOverflow(File dataFile);
 
     int highestLog = 0;
 
     long long lastLogTime = 0;
 
-    double commands[4];
-    double fetTemps[4];
-    double voltages[4];
-    double currents[4];
-    double motorTemps[4];
-    double ermps[4];
-    double rotations[3];
-    double rotationVelocitys[3];
-    double accels[3];
+    double commands[ESC_COUNT];
+    double fetTemps[ESC_COUNT];
+    double voltages[ESC_COUNT];
+    double currents[ESC_COUNT];
+    double motorTemps[ESC_COUNT];
+    double ermps[ESC_COUNT];
+    double rotations[AXIS_COUNT];
+    double rotationVelocitys[AXIS_COUNT];
+    double accels[AXIS_COUNT];
+
+    int radio_status;
+    int powerLevel;
+    long inavalidPacketCount;
+
+    bool note_flag;
 
     bool initialized;
     bool overflow;

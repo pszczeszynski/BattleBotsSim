@@ -51,45 +51,64 @@ Logger::Logger() {
   this->fileName = buf;
 
   dataFile = SD.open(fileName, FILE_WRITE);
-
-  dataFile.write()
-}
-
-void update(){
-  if (millis() - lastLogTime >= LOG_TIME ){
-    //time to log
+  String header = "";
+  header += "TIME,";
+  for (int i = 0; i<=ESC_COUNT; i++){
+    header += (escs[i] + "COMMAND,");
+    header += (escs[i] + "FET_TEMP,");
+    header += (escs[i] + "VOTLAGE,");
+    header += (escs[i] + "CURRENT,");
+    header += (escs[i] + "MOTOR_TEMP,");
+    header += (escs[i] + "ERPM,");
   }
 
+  for (int i = 0; i<=AXIS_COUNT; i++){
+    header += (axis[i] + "ROTATION,");
+    header += (axis[i] + "ROTATION_VELOCITY,");
+    header += (axis[i] + "ACCEL,");
+  }
+  header += "RADIO_STATUS,";
+  header += "POWER_LEVEL,";
+  header += "INVALID_PACKETS,";
+
+  
+  header += "FLAG";
+
+  dataFile.println(header);
 }
 
-void updateCommandData(double ld, double rd, double fw, double rw){
-
-}
-void updateVescData(double *fetTemps, double *voltages, double *current, double *motorTemps, double *erpms){
-
-}
-void updateIMUData(double *rotations, double *rotationVelocitys, double *accels){
+void Logger::update(){
+  
 
 }
 
-/**
-  * Formats drive command into a nice string
-  */
-String Logger::formatDriveCommand(DriveCommand command) {
-  String message = "";
-  message += DoubleToString(millis() / 1000.0);
-  message += ": DRIVE COMMAND{ M : ";
-  message += DoubleToString(command.movement);
-  message += "; T : ";
-  message += DoubleToString(command.turn);
-  message += "; FW : ";
-  message += DoubleToString(command.frontWeaponPower);
-  message += "; RW : ";
-  message += DoubleToString(command.backWeaponPower);
-  message += " }\n";
+void Logger::updateCommandData(double ld, double rd, double fw, double rw){
+  commands[0] = ld;
+  commands[1] = rd;
+  commands[2] = fw;
+  commands[3] = rw;
 
-  return message;
 }
+
+void Logger::updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms){
+  memcpy(this->fetTemps, fetTemps, sizeof(double)*4);
+  memcpy(this->voltages, voltages, sizeof(double)*4);
+  memcpy(this->currents, currents, sizeof(double)*4);
+  memcpy(this->motorTemps, motorTemps, sizeof(double)*4);
+  memcpy(this->ermps, ermps, sizeof(double)*4);
+
+}
+
+void Logger::updateIMUData(double *rotations, double *rotationVelocitys, double *accels){
+  memcpy(this->rotations, rotations, sizeof(double)*4);
+  memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(double)*4);
+  memcpy(this->accels, accels, sizeof(double)*4);
+}
+
+void Logger::updateRadioData(){
+
+}
+
 
 
 /**
