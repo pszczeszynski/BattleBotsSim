@@ -96,8 +96,6 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id)
 #define NUMBER_LONG_READS_THRESH 2
 int NUMBER_OF_LONG_READS = 0;
 
-bool saveVideo = false;
-
 CameraReceiver::CameraReceiver() : ICameraReceiver()
 {
     _StartCaptureThread();
