@@ -37,6 +37,14 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
 
+    currentState.angularVelocity = 0;
+    // project velocity onto angle
+    currentState.velocity = cv::Point2f(cos(currentState.angle), sin(currentState.angle)) * cv::norm(currentState.velocity);
+    RobotSimState exStateNoAngle = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
+
+    // force the projected position to to be with no angle
+    exState.position = exStateNoAngle.position;
+
     return exState;
 }
 
@@ -180,7 +188,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     static cv::Point2f lastTargetPointBeforeTangent = cv::Point2f(0, 0);
     static cv::Point2f ourPosLast = ourPosition;
     // if we're in the large circle state
-    if (_orbitState == OrbitState::LARGE_CIRCLE)
+    if (_orbitState == OrbitState::LARGE_CIRCLE && gamepad.GetDpadUp())
     {
         std::vector<cv::Point2f> goAroundCenters = _ComputeGoAroundCircleCenters(opponentPosEx, orbitRadius);
         // draw line from last target point to current target point
