@@ -1,12 +1,18 @@
 #pragma once
 #include <RF24.h>
+#include "Communication.h"
 
+// BELOW MUST CHANGE FOR EACH RECEIVER TEENSY
+#define CHANNEL TEENSY_RADIO_1
+#define POWER RF24_PA_HIGH
+#define POWER_STATUS_MSG "Setting power to HIGH"
 #define VERBOSE_RADIO
+
 /**
  * Radio.h
  * 
- * This is used for both the transmitter and the receiver, and thus
- * should be the same on both. Please don't change just one.
+ * This is used for both the transmitter and the receiver.
+ * It defines the Radio class, which is used to send and receive messages
 */
 
 enum SendOutput {
@@ -24,13 +30,14 @@ public:
 
     SendOutput Send(SendType& message);
     ReceiveType Receive();
+    void SetChannel(unsigned char channel);
 
     bool Available();
 
 private:
-    //RF24 radio{14, 10};
     RF24 radio{7, 9};
-};//
+    unsigned char _channel = CHANNEL;
+};
 
 template <typename SendType, typename ReceiveType>
 Radio<SendType, ReceiveType>::Radio()
@@ -46,15 +53,15 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.begin();
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
-    radio.setPALevel(RF24_PA_HIGH);
-    Serial.println("Set power to HIGH");
+    radio.setPALevel(POWER);
+    Serial.println(POWER_STATUS_MSG);
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
+    Serial.println("Setting channel to " + (String) CHANNEL);
+    radio.setChannel(CHANNEL);
     Serial.println("Success!");
 }
-
-unsigned long lastTimeReceivedMessage = 0;
 
 #define SEND_FIFO_TIMEOUT_MS 1
 
@@ -125,4 +132,17 @@ template <typename SendType, typename ReceiveType>
 bool Radio<SendType, ReceiveType>::Available()
 {
     return radio.available();
+}
+
+template <typename SendType, typename ReceiveType>
+void Radio<SendType, ReceiveType>::SetChannel(unsigned char channel)
+{
+    if (channel == _channel)
+    {
+        return;
+    }
+
+    radio.setChannel(channel);
+
+    _channel = channel;
 }

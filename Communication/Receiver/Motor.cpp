@@ -3,7 +3,9 @@
 
 Motor::Motor(int pwmPin)
 {
-    motor.attach(pwmPin);
+    // Serial.println("Initializing motor...");
+    // motor.attach(pwmPin);
+    // Serial.println("Success!");
 }
 
 #define PWM_MIN 1000
@@ -12,20 +14,20 @@ Motor::Motor(int pwmPin)
 
 void Motor::SetPower(double power)
 {
-    // if the power is the same as last time, don't do anything
-    if (abs(power - lastPower) < SIG && !(power == 0 && lastPower != 0))
-    {
-        return;
-    }
+    // // if the power is the same as last time, don't do anything
+    // if (abs(power - lastPower) < SIG && !(power == 0 && lastPower != 0))
+    // {
+    //     return;
+    // }
 
-    // map the power to the pwm range
-    int pwm = (power * (PWM_MAX - PWM_MIN) / 2) + (PWM_MAX + PWM_MIN) / 2;
-    pwm = min(pwm, PWM_MAX);
-    pwm = max(pwm, PWM_MIN);
+    // // map the power to the pwm range
+    // int pwm = (power * (PWM_MAX - PWM_MIN) / 2) + (PWM_MAX + PWM_MIN) / 2;
+    // pwm = min(pwm, PWM_MAX);
+    // pwm = max(pwm, PWM_MIN);
 
-    // write the pwm
-    motor.writeMicroseconds(pwm);
+    // // write the pwm
+    // motor.writeMicroseconds(pwm);
 
-    // save the power for next time
-    lastPower = power;
+    // // save the power for next time
+    // lastPower = power;
 }

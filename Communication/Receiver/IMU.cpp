@@ -30,6 +30,7 @@ IMU::IMU()
             initialized = true;
         }
     }
+
     // set dps
     ICM_20948_fss_t FSS;
     FSS.a = gpm4;   // (ICM_20948_ACCEL_CONFIG_FS_SEL_e)

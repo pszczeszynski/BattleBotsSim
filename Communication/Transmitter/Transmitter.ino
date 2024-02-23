@@ -11,7 +11,6 @@
  */
 #include "Communication.h"
 #include <SPI.h>
-#include "Radio.h"
 #include <RF24.h>
 #include <cstring> // for std::memcpy
 
@@ -35,7 +34,7 @@ const byte address[6] = "00001"; // Define address/pipe to use.
 //===============================================================================
 void setup()
 {
-  // 
+    Serial.println("Powering on Transmitter!");
     Serial.println("Initializing...");
     // initialize the digital pin as an output.
     pinMode(LED_PORT, OUTPUT);
@@ -77,6 +76,9 @@ void loop()
         DriveCommand command;
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
+
+        radio->SetChannel(command.radioChannel);
+
         // send over radio to receiver
         radio->Send(command);
     }

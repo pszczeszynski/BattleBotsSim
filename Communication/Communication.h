@@ -52,14 +52,20 @@ struct Point
     }
 };
 
+// defines the radio channel indexes for each teensy
+#define TEENSY_RADIO_1 60
+#define TEENSY_RADIO_2 30
+#define TEENSY_RADIO_3 90
+
 // driver station -> robot
 struct DriveCommand
 {
-    double movement;
-    double turn;
+    float movement;
+    float turn;
     float frontWeaponPower;
     float backWeaponPower;
     float selfRighterPower;
+    unsigned char radioChannel;
     bool valid; // should always be true, used to check for blank messages
 };
 
@@ -72,7 +78,8 @@ enum RobotMessageType : char
     INVALID = 0,
     IMU_DATA,
     CAN_DATA,
-    RADIO_DATA
+    RADIO_DATA,
+    CHANNEL_SWITCH
 };
 
 struct IMUData

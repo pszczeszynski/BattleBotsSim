@@ -3,6 +3,7 @@
 #include "../GuiUtils.h"
 #include "UIUtilities.h"
 #include "FieldWidget.h"
+#include "../../Communication/Communication.h"
 
 ConfigWidget::ConfigWidget()
 {
@@ -60,6 +61,30 @@ void ConfigWidget::Draw()
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     // add edit number text box for MIN_INTER_SEND_TIME_MS. Center the number
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);
+    
+    // radio channel
+    ImGui::InputInt("Radio Channel", &RADIO_CHANNEL);
+
+    // button to set radio channel to 4
+    if (ImGui::Button("Teensy #1"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_1;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Teensy #2"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_2;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Teensy #3"))
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_3;
+    }
+
     ImGui::End();
 
     ImGui::Begin("Config File");

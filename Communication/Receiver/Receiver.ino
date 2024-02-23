@@ -1,8 +1,6 @@
 /**
  * Receiver.ino
  */
-// #include "Motor.h"
-
 #include "Vesc.h"
 #include "Communication.h"
 #include "Motor.h"
@@ -16,7 +14,6 @@
 #define VERBOSE_RADIO
 // #define LOG_DATA
 
-#include "Radio.h"
 #include "IMU.h"
 #include "Logging.h"
 
@@ -41,15 +38,16 @@
 #define BACK_WEAPON_CAN_ID 4
 
 // closest to the middle of the teensy
-#define SELF_RIGHTER_MOTOR_PIN 9
+#define SELF_RIGHTER_MOTOR_PIN 14
 
+// stuff and things
 // components
 #ifdef USE_IMU
 IMU imu{};
 #endif
 VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
-Motor selfRightMotor(SELF_RIGHTER_MOTOR_PIN);
 Radio<RobotMessage, DriveCommand> radio{};
+Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
 #ifdef LOG_DATA
 Logger logger{const_cast<char *>("dataLog.txt")};
 #endif
@@ -64,9 +62,9 @@ int maxReceiveDelayMs = 0;
 
 void setup()
 {
+    Serial.println("Hello, I'm Orbitron :)");
     // Start serial port to display messages on Serial Monitor Window
     Serial.begin(SERIAL_BAUD);
-    Serial.println("hello");
     vesc.Drive(0, 0);
     vesc.DriveWeapons(0, 0);
 }
@@ -77,11 +75,11 @@ void setup()
 void Drive(DriveCommand &command)
 {
     // compute powers
-    double leftPower = command.movement - command.turn;
-    double rightPower = command.movement + command.turn;
+    float leftPower = command.movement - command.turn;
+    float rightPower = command.movement + command.turn;
 
     // normalize
-    double maxPower = max(abs(leftPower), abs(rightPower));
+    float maxPower = max(abs(leftPower), abs(rightPower));
     if (maxPower > 1)
     {
         leftPower /= maxPower;
@@ -231,6 +229,8 @@ void DriveWithLatestMessage()
 {
     static unsigned long lastReceiveTime = 0;
     static long lastPrintTime = 0;
+    static long lastReinitRadioTime = 0;
+    static bool noPacketWatchdogTrigger = false;
 
     // if there is a message available
     if (radio.Available())
@@ -282,6 +282,8 @@ void DriveWithLatestMessage()
 #ifdef LOG_DATA
             logger.logMessage(logger.formatDriveCommand(command));
 #endif
+            // reset timeout flag
+            noPacketWatchdogTrigger = false;
         }
         // if the command is invalid
         else
@@ -293,23 +295,39 @@ void DriveWithLatestMessage()
         }
     }
 
-    // if haven't received a message in a while, stop the robot
+
+    // if it's time to stop the robot
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
-        DriveCommand command{0};
-        command.movement = 0;
-        command.turn = 0;
-        command.frontWeaponPower = 0;
-        command.backWeaponPower = 0;
-        command.selfRighterPower = 0;
-        command.valid = true;
-        Drive(command);
-        DriveWeapons(command);
-        DriveSelfRighter(command);
+        // if haven't received a message in a while, stop the robot. But only once
+        // this allows us to switch to a backup teensy, without this one stopping the robot
+
+        if (!noPacketWatchdogTrigger)
+        {
+            DriveCommand command{0};
+            command.movement = 0;
+            command.turn = 0;
+            command.frontWeaponPower = 0;
+            command.backWeaponPower = 0;
+            command.selfRighterPower = 0;
+            command.valid = true;
+            Drive(command);
+            DriveWeapons(command);
+            DriveSelfRighter(command);
+            noPacketWatchdogTrigger = true;
+        }
 
 #ifdef LOG_DATA
         logger.logMessage("Radio Timeout");
 #endif
+
+        // check if we should reinit the radio
+        if (millis() - lastReinitRadioTime > 1000)
+        {
+            lastReinitRadioTime = millis();
+            Serial.println("Reinit radio");
+            radio.InitRadio();
+        }
     }
 }
 

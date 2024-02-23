@@ -51,6 +51,7 @@ extern int WALL_BOUNDS_LEFT;
 extern int WALL_BOUNDS_RIGHT;
 extern int WALL_BOUNDS_TOP;
 extern int WALL_BOUNDS_BOTTOM;
+extern int RADIO_CHANNEL;
 
 template <typename T>
 std::string convertValueToString(const T &value);

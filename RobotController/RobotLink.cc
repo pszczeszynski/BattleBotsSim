@@ -253,6 +253,9 @@ void RobotLinkReal::Drive(DriveCommand &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
 
+    // set the radio channel
+    command.radioChannel = RADIO_CHANNEL;
+
     // if we have sent a packet too recently, return
     if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {

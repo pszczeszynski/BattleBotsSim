@@ -391,8 +391,8 @@ cv::Mat& RobotController::GetDrawingImage()
 void RobotController::ApplyMoveScales(DriveCommand& command)
 {
     // force command to be between -1 and 1
-    command.movement = std::max(-1.0, std::min(1.0, command.movement));
-    command.turn = std::max(-1.0, std::min(1.0, command.turn));
+    command.movement = std::max(-1.0f, std::min(1.0f, command.movement));
+    command.turn = std::max(-1.0f, std::min(1.0f, command.turn));
 
     // scale command by the master scales
     command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
