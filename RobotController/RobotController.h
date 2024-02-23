@@ -31,6 +31,7 @@ public:
     static RobotController& GetInstance();
 
     IMUData& GetIMUData();
+    long GetIMUFrame(IMUData &output, long old_id, double* frameTime);
     CANData GetCANData();
 
     IRobotLink& GetRobotLink();
@@ -66,7 +67,14 @@ public:
     XBox gamepad;
 private:
 
+    // IMU DATA
+    // Mutex and CV to allow odometry to independently poll this
+    std::mutex _imudataMutex;
+    std::condition_variable _imuCV;
     RobotMessage _lastIMUMessage;
+    int _imuID = 0; // Message id tracking
+    double _imuTime = 0; // Time of the latest message
+
     RobotMessage _lastCANMessage;
     std::mutex _lastCanMessageMutex;
 

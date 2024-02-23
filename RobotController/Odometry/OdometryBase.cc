@@ -78,7 +78,7 @@ bool OdometryBase::Run( void )
             // Its going to be pre-processed already (e.g. birdseyeview) and black-and-white
             cv::Mat currFrame;
             double frameTime = -1.0f;
-            _videoSource.GetFrame(currFrame, frameID, &frameTime); // Blocking read until new frame available
+            _videoSource->GetFrame(currFrame, frameID, &frameTime); // Blocking read until new frame available
 
             // Process the new frame
             _ProcessNewFrame(currFrame, frameTime); 

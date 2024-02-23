@@ -15,7 +15,7 @@
 class BlobDetection : public OdometryBase
 {
 public: 
-    BlobDetection(ICameraReceiver &videoSource);
+    BlobDetection(ICameraReceiver *videoSource);
 
     void SwitchRobots( void ) override;
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
@@ -45,71 +45,3 @@ private:
 
 };
 
-
-
-
-
-
-
-
-
-/*
-    static BlobDetection& Robot();
-    static BlobDetection& Opponent();
-
-    void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
-    double UpdateForceSetAngle(double newAngle);
-    void UpdateIMUOnly(cv::Mat& frame);
-    void UpdateVisionOnly(MotionBlob& blob, cv::Mat& frame);
-
-    // used for calibration
-    void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity);
-
-    void Invalidate();
-
-    cv::Point2f GetPosition();
-    Angle GetAngle();
-
-
-    cv::Point2f GetVelocity();
-    double GetAngleVelocity();
-
-    void InvertAngle();
-*/
-
-
-/*
-    bool _IsValidBlob(MotionBlob& blob);
-    double _lastBlobArea;
-    int _numUpdatesInvalid;
-
-    void _PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
-    double _UpdateAndGetIMUAngle();
-    cv::Point2f _GetSmoothedVisualVelocity(MotionBlob& blob);
-
-    double _lastIMUAngle;
-
-    Angle _angle;
-    cv::Point2f _position;
-    bool _isValid;
-
-    Angle CalcAnglePathTangent();
-    bool _visualAngleValid = false;
-    Clock _lastVisualAngleValidClock;
-
-    cv::Point2f _lastPositionWhenUpdatedAngle; // angle updated based on displacement
-
-    cv::Point2f _lastVelocity;
-    double _angleVelocity;
-
-    Clock _lastUpdateClock;
-    Clock _lastVelocityCalcClock;
-
-    Clock _lastAccelIntegrateClock;
-*/
-
-/*
-    #define VISUAL_VELOCITY_HISTORY_SIZE 10
-    std::deque<cv::Point2f> _visualVelocities;
-};
-*/

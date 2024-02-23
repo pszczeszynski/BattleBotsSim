@@ -59,7 +59,8 @@ public:
     // The Odometry algorithm is expected to run a parallel thread that gets new video
     // frames from the videoSource as often as it wants.
     // The processing of the image for birds eye view is thus going to be done by the videoSource
-    OdometryBase(ICameraReceiver &videoSource) : _videoSource(videoSource) { };
+    OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSource) { };
+    OdometryBase(void) { };
 
     virtual bool NewDataValid(int oldId, bool getOpponent = false); // Returns true if new data is present
     virtual OdometryData GetData(bool getOpponent = false); // Returns latest OdometryData. False = us, true = opponent
@@ -80,7 +81,7 @@ protected:
     virtual void _ProcessNewFrame(cv::Mat currFrame, double frameTime) {};  // Run every time a new frame is available. currFrame is a copy.
     virtual void _StopCalled() {};  // Run when stop is initiated
 
-    ICameraReceiver& _videoSource;
+    ICameraReceiver* _videoSource = nullptr;
 
     // Core thread
     std::thread processingThread; // Main thread of the algorithm

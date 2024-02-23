@@ -30,7 +30,7 @@
 // ****************************************
 
 
-HeuristicOdometry::HeuristicOdometry(ICameraReceiver &videoSource) : OdometryBase(videoSource)
+HeuristicOdometry::HeuristicOdometry(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
 }
 

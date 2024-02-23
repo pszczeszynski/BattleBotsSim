@@ -167,7 +167,11 @@ void RobotController::Run()
         // save the specific type information in a last struct
         if (msg.type == RobotMessageType::IMU_DATA)
         {
+            std::unique_lock<std::mutex> locker(_imudataMutex);
+            // Assume each IMU message is unique
             _lastIMUMessage = msg;
+            _imuID++; 
+            _imuTime = Clock::programClock.getElapsedTime();
         }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
@@ -200,6 +204,36 @@ void RobotController::Run()
 
 //     RobotControllerGUI::GetInstance().Shutdown();
 }
+
+
+long RobotController::GetIMUFrame(IMUData &output, long old_id, double* frameTime)
+{
+    // Using scoped mutex locker because conditional variable integrates with it
+    // This creates and locks the mutex
+    std::unique_lock<std::mutex> locker(_imudataMutex);
+
+    while( (_imuID <= 0) || (_imuID <= old_id))
+    {
+        // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
+        _imuCV.wait(locker);
+    }
+
+    // At this point our mutex is locked and a frame is ready
+    output = _lastIMUMessage.imuData;
+    old_id = _imuID;
+
+    if( frameTime != NULL)
+    {
+        *frameTime = _imuTime;
+    }
+
+    locker.unlock();
+
+    // return ID of new frame
+    return old_id;
+}
+
+
 
 /**
  * 

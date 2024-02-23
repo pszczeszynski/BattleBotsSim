@@ -14,7 +14,7 @@
 class HeuristicOdometry : public OdometryBase
 {
 public:
-    HeuristicOdometry(ICameraReceiver &videoSource);
+    HeuristicOdometry(ICameraReceiver *videoSource);
 
     void processNewFrame(cv::Mat& newFrame);
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point

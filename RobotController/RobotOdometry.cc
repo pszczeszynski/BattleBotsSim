@@ -9,8 +9,8 @@
 
 RobotOdometry::RobotOdometry(ICameraReceiver& videoSource) :
     _videoSource(videoSource), 
-    _odometry_Blob(videoSource),
-    _odometry_Heuristic(videoSource)
+    _odometry_Blob(&videoSource),
+    _odometry_Heuristic(&videoSource)
 {
 }
 

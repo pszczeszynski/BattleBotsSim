@@ -76,6 +76,7 @@ set(SOURCES
     Odometry/BlobDetection/RobotClassifier.cc
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
+    Odometry/IMU/OdometryIMU.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc

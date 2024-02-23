@@ -4,7 +4,7 @@
 
 
 // Ctor
-BlobDetection::BlobDetection(ICameraReceiver &videoSource) : OdometryBase(videoSource)
+BlobDetection::BlobDetection(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
     // Nothing to do here
 }
