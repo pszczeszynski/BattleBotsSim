@@ -44,11 +44,15 @@
 #define SELF_RIGHTER_MOTOR_PIN 9
 
 // components
-IMU *imu;
-VESC vesc(LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID);
-Motor *selfRightMotor;
-Radio<RobotMessage, DriveCommand> *radio;
-Logger *logger;
+#ifdef USE_IMU
+IMU imu{};
+#endif
+VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
+Motor selfRightMotor(SELF_RIGHTER_MOTOR_PIN);
+Radio<RobotMessage, DriveCommand> radio{};
+#ifdef LOG_DATA
+Logger logger{const_cast<char *>("dataLog.txt")};
+#endif
 
 // variables
 
@@ -62,33 +66,7 @@ void setup()
 {
     // Start serial port to display messages on Serial Monitor Window
     Serial.begin(SERIAL_BAUD);
-
     Serial.println("hello");
-
-#ifdef USE_IMU
-    Serial.println("Initializing IMU...");
-    imu = new IMU();
-    Serial.println("Success!");
-#else
-    Serial.println("Not using IMU");
-#endif
-
-    Serial.println("Initializing Self-Righting Motor...");
-    selfRightMotor = new Motor(SELF_RIGHTER_MOTOR_PIN);
-    Serial.println("Success!");
-
-    Serial.println("Initializing radio...");
-    radio = new Radio<RobotMessage, DriveCommand>();
-    Serial.println("Success!");
-
-#ifdef LOG_DATA
-    Serial.println("Initializing SD card...");
-    logger = new Logger(const_cast<char *>("dataLog.txt"));
-    Serial.println("Success!");
-#else
-    Serial.println("Not logging data");
-#endif
-
     vesc.Drive(0, 0);
     vesc.DriveWeapons(0, 0);
 }
@@ -127,7 +105,7 @@ void DriveWeapons(DriveCommand &command)
  */
 void DriveSelfRighter(DriveCommand &command)
 {
-    selfRightMotor->SetPower(command.selfRighterPower);
+    selfRightMotor.SetPower(command.selfRighterPower);
 }
 
 /**
@@ -144,7 +122,7 @@ RobotMessage Update()
 
 #ifdef USE_IMU
     // call update for imu
-    imu->Update();
+    imu.Update();
 #endif
 
     vesc.Update();
@@ -196,14 +174,14 @@ RobotMessage Update()
 
 #ifdef USE_IMU
         // get accelerometer data and set accelsdf
-        Point accel = imu->getAccel();
+        Point accel = imu.getAccel();
         ret.imuData.accelX = accel.x;
         ret.imuData.accelY = accel.y;
 
         // get gyro data and set gyro
-        ret.imuData.rotation = imu->getRotation();
+        ret.imuData.rotation = imu.getRotation();
         // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+        ret.imuData.rotationVelocity = imu.getRotationVelocity();
 #else
         ret.imuData.accelX = 0;
         ret.imuData.accelY = 0;
@@ -213,7 +191,7 @@ RobotMessage Update()
     }
 
 #ifdef LOG_DATA
-    logger->logMessage(logger->formatRobotMessage(ret));
+    logger.logMessage(logger.formatRobotMessage(ret));
 #endif
 
     return ret;
@@ -229,7 +207,7 @@ void WaitForRadioData()
     unsigned long waitReceiveStartTimeMS = millis();
 
     // while the radio isn't available
-    while (!radio->Available())
+    while (!radio.Available())
     {
         // if too much time has passed
         if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS)
@@ -240,7 +218,7 @@ void WaitForRadioData()
 
 #ifdef USE_IMU
         // call update for imu while waiting
-        imu->Update();
+        imu.Update();
 #endif
     }
 }
@@ -255,10 +233,10 @@ void DriveWithLatestMessage()
     static long lastPrintTime = 0;
 
     // if there is a message available
-    if (radio->Available())
+    if (radio.Available())
     {
         // receive latest drive command
-        DriveCommand command = radio->Receive();
+        DriveCommand command = radio.Receive();
         // save the last drive command
         lastDriveCommand = command;
 
@@ -302,7 +280,7 @@ void DriveWithLatestMessage()
             lastReceiveTime = millis();
 
 #ifdef LOG_DATA
-            logger->logMessage(logger->formatDriveCommand(command));
+            logger.logMessage(logger.formatDriveCommand(command));
 #endif
         }
         // if the command is invalid
@@ -330,7 +308,7 @@ void DriveWithLatestMessage()
         DriveSelfRighter(command);
 
 #ifdef LOG_DATA
-        logger->logMessage("Radio Timeout");
+        logger.logMessage("Radio Timeout");
 #endif
     }
 }
@@ -347,14 +325,14 @@ void loop()
     RobotMessage message = Update();
 
     // send the message
-    SendOutput result = radio->Send(message);
+    SendOutput result = radio.Send(message);
 
     if (result != SEND_SUCCESS)
     {
         Serial.println("Failed to send radio message. Result: " + (String) result);
 #ifdef LOG_DATA
-        if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
-        else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
+        if (result == FIFO_FAIL) logger.logMessage("Radio fifo failed to clear");
+        else if (result == HW_FAULT) logger.logMessage("Radio hardware failure detected");
 #endif
     }
 }

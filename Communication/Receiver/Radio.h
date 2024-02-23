@@ -41,6 +41,7 @@ Radio<SendType, ReceiveType>::Radio()
 template <typename SendType, typename ReceiveType>
 void Radio<SendType, ReceiveType>::InitRadio()
 {
+    Serial.println("Initializing radio...");
     const byte address[6] = "00001";
     radio.begin();
     radio.openReadingPipe(1, address);
@@ -50,6 +51,7 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
+    Serial.println("Success!");
 }
 
 unsigned long lastTimeReceivedMessage = 0;

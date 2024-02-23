@@ -4,6 +4,8 @@
 
 IMU::IMU()
 {
+    Serial.println("Initializing IMU...");
+
     WIRE_PORT.begin();
     WIRE_PORT.setClock(100000);
 
@@ -49,6 +51,8 @@ IMU::IMU()
     _prevAcceleration = Point{0, 0, 0};
     _rotation = 0;
     _currRotVelZ = 0;
+
+    Serial.println("Success!");
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
