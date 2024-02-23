@@ -35,14 +35,6 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Go Around Radius", &GO_AROUND_RADIUS, 0, 500);
-    
-    // button to draw boundary
-    if (ImGui::Button("Draw Boundary"))
-    {
-        // set the drawing state to draw the boundary
-        FieldWidget::GetInstance()->StartDrawingBoundary();
-    }
-
     EndSetMaxWidthWithMargin();
     ImGui::End();
 

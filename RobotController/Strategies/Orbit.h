@@ -30,12 +30,6 @@ private:
 
     RobotSimState _ExtrapolateOurPos(double seconds_position, double seconds_angle);
 
-    bool _IsPointOutOfBounds(cv::Point2f point);
-
-    cv::Point2f _goAroundCenter = cv::Point2f(0, 0);
-
-    std::vector<cv::Point2f> _ComputeGoAroundCircleCenters(cv::Point2f opponentPosEx, double orbitRadius);
-
     enum class OrbitState
     {
         IDLE = 0,

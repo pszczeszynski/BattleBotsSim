@@ -4,13 +4,6 @@
 #include "imgui.h"
 #include "ImageWidget.h"
 
-enum DrawingBoundaryState
-{
-    IDLE,
-    WAIT_FOR_CLICK,
-    WAIT_FOR_RELEASE,
-    DRAGGING
-};
 
 class FieldWidget : public ImageWidget
 {
@@ -21,9 +14,4 @@ public:
 
     static FieldWidget* GetInstance();
     static FieldWidget* _instance;
-
-private:
-
-    DrawingBoundaryState _boundaryState = IDLE;
-
 };

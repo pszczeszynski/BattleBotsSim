@@ -105,9 +105,8 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
     opponentPosEx = RobotOdometry::Opponent().GetVelocity() * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
 
-
-    // the orbit center is the opponent position for the large circle, otherwise it's the go around center
-    cv::Point2f orbitCenter = _orbitState != OrbitState::GO_AROUND ? opponentPosEx : _goAroundCenter;
+    // the orbit center is the opponent position
+    cv::Point2f orbitCenter = opponentPosEx;
 
     double orbitRadiusLargeCircle = _CalculateOrbitRadius(orbitCenter, gamepad);
     // calculate the radius of the orbit. Depending on the state, it could be the large circle radius or the go around radius
@@ -179,55 +178,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
                                                orbitRadius,
                                                targetPoint,
                                                circleDirection);
-
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
-
-    static cv::Point2f lastTargetPointBeforeTangent = cv::Point2f(0, 0);
-    static cv::Point2f ourPosLast = ourPosition;
-    // if we're in the large circle state
-    if (_orbitState == OrbitState::LARGE_CIRCLE && gamepad.GetDpadUp())
-    {
-        std::vector<cv::Point2f> goAroundCenters = _ComputeGoAroundCircleCenters(opponentPosEx, orbitRadius);
-        // draw line from last target point to current target point
-        cv::line(drawingImage, lastTargetPointBeforeTangent, targetPoint, cv::Scalar(255, 255, 255), 2);
-
-        for (cv::Point2f goAroundCenter : goAroundCenters)
-        {
-            // draw the go around circle
-            cv::circle(drawingImage, goAroundCenter, GO_AROUND_RADIUS, cv::Scalar(255, 255, 255), 2);
-
-            // draw line from opponent to go around center
-            cv::line(drawingImage, opponentPosEx, goAroundCenter, cv::Scalar(100, 255, 100), 2);
-
-            cv::Point2f intersection;
-            // IF THE TARGET POINT CROSSES the line from the opponent pos to the go around center pos
-            if (SegmentsIntersect(lastTargetPointBeforeTangent, targetPointBeforeTangent, opponentPosEx, goAroundCenter, intersection))
-            {
-                // initiate go around (follow the smaller circle)
-                _orbitState = OrbitState::GO_AROUND;
-                _goAroundCenter = goAroundCenter;
-            }
-        }
-    }
-    else if (_orbitState == OrbitState::GO_AROUND)
-    {
-        // draw the go around circle in purple
-        cv::circle(drawingImage, _goAroundCenter, GO_AROUND_RADIUS, cv::Scalar(255, 0, 255), 2);
-        cv::Point2f intersection;
-        // exit orbit when you cross the line from the opponent to the go around center
-        // you must also be on the other side of the go around circle
-        if (SegmentsIntersect(ourPosLast, ourPosition, _goAroundCenter,
-                              _goAroundCenter + (_goAroundCenter - opponentPosEx), intersection))
-        {
-            _orbitState = OrbitState::LARGE_CIRCLE;
-        }
-    }
-
-    lastTargetPointBeforeTangent = targetPointBeforeTangent;
-    ourPosLast = ourPosition;
 
 #ifndef HARDCORE
     // Draw the point
@@ -340,102 +290,4 @@ cv::Point2f Orbit::_NoMoreAggressiveThanTangent(Gamepad &gamepad,
     }
 
     return currentTargetPoint;
-}
-
-bool Orbit::_IsPointOutOfBounds(cv::Point2f point)
-{
-    // draw the bounds on the drawing image
-    cv::Mat &drawingImage = RobotController::GetInstance().GetDrawingImage();
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_TOP), cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_RIGHT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Scalar(0, 0, 255), 2);
-    cv::line(drawingImage, cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_BOTTOM), cv::Point(WALL_BOUNDS_LEFT, WALL_BOUNDS_TOP), cv::Scalar(0, 0, 255), 2);
-
-    return point.x < WALL_BOUNDS_LEFT || point.x > WALL_BOUNDS_RIGHT || point.y < WALL_BOUNDS_TOP || point.y > WALL_BOUNDS_BOTTOM;
-}
-
-/**
- * Computes the centers of the go around circles
- * 
- * @param opponentPos The opponent's position
- * @param orbitRadius The radius of the orbit
- * @param wallX The x position of the wall (0 if not vertical)
- * @param wallY The y position of the wall (0 if not horizontal)
- * @param vertical Whether the wall is vertical
- * 
- * @return The centers of the go around circles
- */
-std::vector<cv::Point2f> computeGoAroundCircleCenters(const cv::Point2f &opponentPos,
-                                                      int orbitRadius,
-                                                      int wallX, int wallY,
-                                                      bool vertical) {
-    std::vector<cv::Point2f> returnedPoints;
-    double sumOfRadii = GO_AROUND_RADIUS + orbitRadius;
-    int distToWall = vertical ? std::abs(wallY - opponentPos.y) : std::abs(wallX - opponentPos.x);
-    int goAroundCirclePrimary = wallX + (vertical ? 0 : (wallX > opponentPos.x ? -GO_AROUND_RADIUS : GO_AROUND_RADIUS));
-    int goAroundCircleSecondary = wallY + (vertical ? (wallY > opponentPos.y ? -GO_AROUND_RADIUS : GO_AROUND_RADIUS) : 0);
-    int triangleWidth = distToWall - GO_AROUND_RADIUS;
-    double toSquareRoot = pow(sumOfRadii, 2) - pow(triangleWidth, 2);
-
-    if (toSquareRoot < 0) {
-        // No valid circles can be drawn if the square root is negative.
-        return returnedPoints;
-    }
-
-    int delta = static_cast<int>(sqrt(toSquareRoot));
-    if (vertical) {
-        returnedPoints.emplace_back(opponentPos.x - delta, goAroundCircleSecondary);
-        returnedPoints.emplace_back(opponentPos.x + delta, goAroundCircleSecondary);
-    } else {
-        returnedPoints.emplace_back(goAroundCirclePrimary, opponentPos.y - delta);
-        returnedPoints.emplace_back(goAroundCirclePrimary, opponentPos.y + delta);
-    }
-
-    return returnedPoints;
-}
-
-std::vector<cv::Point2f> Orbit::_ComputeGoAroundCircleCenters(cv::Point2f opponentPosEx, double orbitRadius)
-{
-    std::vector<cv::Point2f> goAroundCirclePoints;
-
-    // if the orbit doesn't cross the boundary, then don't bother with the go around circles
-    if (!_IsPointOutOfBounds(opponentPosEx + cv::Point2f(orbitRadius, orbitRadius)) &&
-        !_IsPointOutOfBounds(opponentPosEx - cv::Point2f(orbitRadius, orbitRadius)))
-    {
-        return goAroundCirclePoints;
-    }
-
-    std::vector<cv::Point2f> points1 = computeGoAroundCircleCenters(opponentPosEx, orbitRadius, WALL_BOUNDS_RIGHT, 0, false);
-    std::vector<cv::Point2f> points2 = computeGoAroundCircleCenters(opponentPosEx, orbitRadius, WALL_BOUNDS_LEFT, 0, false);
-    std::vector<cv::Point2f> points3 = computeGoAroundCircleCenters(opponentPosEx, orbitRadius, 0, WALL_BOUNDS_BOTTOM, true);
-    std::vector<cv::Point2f> points4 = computeGoAroundCircleCenters(opponentPosEx, orbitRadius, 0, WALL_BOUNDS_TOP, true);
-
-    // combine all the points
-    goAroundCirclePoints.insert(goAroundCirclePoints.end(), points1.begin(), points1.end());
-    goAroundCirclePoints.insert(goAroundCirclePoints.end(), points2.begin(), points2.end());
-    goAroundCirclePoints.insert(goAroundCirclePoints.end(), points3.begin(), points3.end());
-    goAroundCirclePoints.insert(goAroundCirclePoints.end(), points4.begin(), points4.end());
-
-    // filter out the circles that exceed the bounds
-    for (int i = goAroundCirclePoints.size() - 1; i >= 0; i--)
-    {
-        if (_IsPointOutOfBounds(goAroundCirclePoints[i] + cv::Point2f(GO_AROUND_RADIUS, GO_AROUND_RADIUS)) ||
-            _IsPointOutOfBounds(goAroundCirclePoints[i] - cv::Point2f(GO_AROUND_RADIUS, GO_AROUND_RADIUS)))
-        {
-            goAroundCirclePoints.erase(goAroundCirclePoints.begin() + i);
-        }
-    }
-
-    // choose the 2 circles that
-    // 1. give us the most room to orbit normally (segment length that is all within bounds)
-    // 2. give us the most 
-
-    // draw all the go around circles
-    cv::Mat &drawingImage = RobotController::GetInstance().GetDrawingImage();
-    for (int i = 0; i < goAroundCirclePoints.size(); i++)
-    {
-        cv::circle(drawingImage, goAroundCirclePoints[i], GO_AROUND_RADIUS, cv::Scalar(255, 0, 255), 2);
-    }
-
-    return goAroundCirclePoints;
 }
