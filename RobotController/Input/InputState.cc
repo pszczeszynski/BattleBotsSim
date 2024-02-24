@@ -68,4 +68,12 @@ void InputState::UpdateAllKeyStates()
     {
         UpdateMouseButtonState(i, ImGui::IsMouseDown(i));
     }
+
+    // update mouse position
+    _mousePos = ImGui::GetMousePos();
+}
+
+cv::Point2f InputState::GetMousePos() const
+{
+    return cv::Point2f(_mousePos.x, _mousePos.y);
 }

@@ -13,16 +13,30 @@
 #include "UIWidgets/ClockWidget.h"
 #include "VisionPreprocessor.h"
 
+
+#define VIDEO_READ
+#define GET_FRAME_TIMEOUT_MS 500
+
 double MAX_CAP_FPS = 100.0;
 
-// #define SAVE_VIDEO
-
 // TODO: add a way to save video with the UI
+ICameraReceiver* _instance = nullptr;
+
+ICameraReceiver& ICameraReceiver::GetInstance()
+{
+    if (!_instance)
+    {
+        std::cerr << "ERROR: CameraReceiver not initialized!" << std::endl;
+        exit(1);
+    }
+    return *_instance;
+}
 
 ICameraReceiver::ICameraReceiver()
 {
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
+    _instance = this;
 }
 
 void ICameraReceiver::_StartCaptureThread()
@@ -36,7 +50,7 @@ void ICameraReceiver::_StartCaptureThread()
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
+            Sleep(10000); // wait 1 second
         }
 
         std::cout << "Camera initialized" << std::endl;
@@ -54,6 +68,7 @@ void ICameraReceiver::_StartCaptureThread()
  * Attempts to get a frame from the camera
  * @param output the output frame
  * @param old_id the previous id of the frame. If a new frame is not ready it will block
+ * If old_id is 0, it will return the latest frame
  * @param frameTime (Optional) pointer to a double that will store the frame elapsed time when it was acquired
  * @return the id of the new frame
  */
@@ -63,7 +78,7 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime)
     // This creates and locks the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
 
-    while( (_frameID <= 0) || (_frameID <= old_id))
+    while ((_frameID <= 0) || (_frameID <= old_id))
     {
         // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
         _frameCV.wait(locker);
@@ -73,13 +88,12 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime)
     _frame.copyTo(output);
     old_id = _frameID;
 
-    if( frameTime != NULL)
+    if (frameTime != NULL)
     {
         *frameTime = _frameTime;
     }
 
     locker.unlock();
-
     // return ID of new frame
     return old_id;
 }
@@ -91,13 +105,8 @@ bool ICameraReceiver::NewFrameReady(long old_id)
 }
 
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
-#define BAD_READ_TIME_THRESH_SECONDS 0.4
-#define NUMBER_LONG_READS_THRESH 2
-int NUMBER_OF_LONG_READS = 0;
 
-bool saveVideo = false;
-
-CameraReceiver::CameraReceiver(int cameraIndex) : ICameraReceiver(), _cameraIndex(cameraIndex)
+CameraReceiver::CameraReceiver() : ICameraReceiver()
 {
     _StartCaptureThread();
 }
@@ -135,7 +144,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         // pCam->Gamma.SetValue(1.0f, false); // Gamma correction if enabled. 0 to 4 nominal range
 
         // Turn off white balance
-        pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
+        // pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
 
         // Allocate all bandwidth to this one camera 125000000 is max, reduce to 122000000 for margin
         pCam->DeviceLinkThroughputLimit.SetValue(122000000);
@@ -172,7 +181,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
         pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
 
-        pCam->IspEnable.SetValue(false);                         // Turn off image processing
+        // pCam->IspEnable.SetValue(false);                         // Turn off image processing
         pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
 
         // ******* Output Data Settings *******
@@ -180,7 +189,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_BayerRG8); // Only some of the formats work, this is one of them and is fast.
 
         // Compression may be useful, but not tested for delay
-        pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
+        // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
 
         // Set Acquisition to continouse
         pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
@@ -217,7 +226,7 @@ bool CameraReceiver::_InitializeCamera()
     Spinnaker::CameraList camList = _system->GetCameras();
 
     const unsigned int numCameras = camList.GetSize();
-    std::cout << "Number of cameras detected: " << numCameras << std::endl
+    std::cerr << "Number of cameras detected: " << numCameras << std::endl
               << std::endl;
 
     // Finish if there are no cameras
@@ -232,45 +241,73 @@ bool CameraReceiver::_InitializeCamera()
         return false;
     }
 
-    std::cout << "about to get by index" << std::endl;
     // Get the first camera
     pCam = camList.GetByIndex(0);
 
-    std::cout << "got by index" << std::endl;
+    int configRet = -1;
+    try
+    {
+        configRet = ConfigureCamera(pCam);
+    }
+    // any exception
+    catch (Spinnaker::Exception &e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        configRet = -1;
+    }
 
     // Initialize
-    if (ConfigureCamera(pCam) < 0)
+    if (configRet < 0)
     {
+        std::cerr << "Failed to configure camera" << std::endl;
 
-        std::cout << "Failed to configure camera" << std::endl;
         // Failed, exit
         pCam = nullptr;
 
+        // Clear camera list before releasing system
+        camList.Clear();
+
         // Release system
         _system->ReleaseInstance();
-        getchar();
-
         // return failure
         return false;
     }
 
-    std::cout << "about to begin acquisition" << std::endl;
-    // Start acquisition
-    pCam->BeginAcquisition();
+    try
+    {
+        // Start acquisition
+        pCam->BeginAcquisition();
 
-    pcam_image_width = (int)pCam->Width.GetValue();   // Max 1440 for this camera
-    pcam_image_height = (int)pCam->Height.GetValue(); // Max 1080 for this camera
+        pcam_image_width = (int)pCam->Width.GetValue();   // Max 1440 for this camera
+        pcam_image_height = (int)pCam->Height.GetValue(); // Max 1080 for this camera
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        std::cout << "Error: " << e.what() << std::endl;
+        // Failed, exit
+        pCam = nullptr;
 
-    std::cout << "acquisition started" << std::endl;
+        // Clear camera list before releasing system
+        camList.Clear();
+
+        // Release system
+        _system->ReleaseInstance();
+        // return failure
+        return false;
+    }
 
     // return success
     return true;
 }
 
-
-#define GET_FRAME_TIMEOUT_MS 500
 bool CameraReceiver::_CaptureFrame()
 {
+    if (pCam == nullptr)
+    {
+        std::cerr << "ERROR: camera not initialized!" << std::endl;
+        return false;
+    }
+
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
     // Get char data
@@ -450,17 +487,20 @@ bool CameraReceiverVideo::_CaptureFrame()
         return false;
     }
 
-    // wait for the previous frame to be at 1/MAX_CAP_FPS long
-    double videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
+
+    // wait for the previous frame to be at 1/AX_CAP_FPS long
+    float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
+
     while (_prevFrameTimer.getElapsedTime() < videoFramePeriod)
     {
         double currelapsedtime = _prevFrameTimer.getElapsedTime();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    // Cap carry-forward time to a single frame (don't try to catch up more than a partial frame)
-    double timeToCarryForward = min(_prevFrameTimer.getElapsedTime() - videoFramePeriod, videoFramePeriod);
-    _prevFrameTimer.markStart(timeToCarryForward);
+
+    _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - videoFramePeriod);
+
+    std::unique_lock<std::mutex> locker(_frameMutex);
 
     // read the next frame
     if (playback_goback || playback_restart)

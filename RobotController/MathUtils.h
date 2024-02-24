@@ -112,3 +112,4 @@ private:
 
 Angle InterpolateAngles(Angle a1, Angle a2, double ratio);
 
+bool SegmentsIntersect(cv::Point2f o1, cv::Point2f p1, cv::Point2f o2, cv::Point2f p2, cv::Point2f &r);

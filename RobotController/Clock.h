@@ -18,9 +18,9 @@ public:
 	double getElapsedTime();
 	double getMaxTimeDifference() const { return _lastMaxTimeDifference; }
 	double getAverageTime();
-
+protected:
+	bool _running = true;
 private:
-	bool _running = false;
 	double _offset = 0;
 	void resetCounters();
 	std::chrono::high_resolution_clock::time_point startTime;

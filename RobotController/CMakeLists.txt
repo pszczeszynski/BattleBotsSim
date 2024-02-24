@@ -94,6 +94,7 @@ set(SOURCES
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     CVRotation.cc
+    CVPosition.cc
     MovementStrategy.cc
     Strategies/Avoid.cc
     Strategies/Kill.cc

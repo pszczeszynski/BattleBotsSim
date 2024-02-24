@@ -133,8 +133,6 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
         rotation1 = angle_wrap(rotation1 - M_PI);
     }
 
-
-
     // compute the average of the two angles
     float avgAngle = InterpolateAngles(Angle(rotation1), Angle(rotation2), 0.5);
 

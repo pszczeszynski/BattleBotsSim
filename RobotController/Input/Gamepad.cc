@@ -91,6 +91,12 @@ float XBox::GetRightTrigger()
     return _controllerState.Gamepad.bRightTrigger / 255.0f;
 }
 
+bool XBox::IsConnected()
+{
+    ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
+    DWORD result = XInputGetState(_controllerIndex, &_controllerState);
+    return result == ERROR_SUCCESS;
+}
 
 /*
 DualSense::DualSense() 

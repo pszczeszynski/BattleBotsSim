@@ -3,6 +3,7 @@
 #include <mutex>
 #include <array>
 #include <imgui.h>
+#include <opencv2/opencv.hpp>
 
 class InputState
 {
@@ -14,6 +15,8 @@ public:
     bool IsKeyDown(ImGuiKey key) const;
 
     bool IsMouseDown(int button) const;
+
+    cv::Point2f GetMousePos() const;
 
     // Update all key states based on ImGui; should be called from the UI thread
     void UpdateAllKeyStates();
@@ -29,4 +32,6 @@ private:
     static InputState instance;
 
     std::array<bool, 3> mouseButtonStates_{};
+
+    ImVec2 _mousePos;
 };

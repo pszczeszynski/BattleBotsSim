@@ -13,7 +13,7 @@ void DrawCANDataTable()
 {
     // add Separator
     ImGui::Separator();
-    CANData data = RobotController::GetInstance().GetCANData();
+    CANData data = RobotController::GetInstance().GetRobotLink().GetLastCANMessage().canData;
 
     // Increase the font size
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10)); // Increase spacing for bigger text
@@ -91,6 +91,65 @@ void DrawRPMProgressBar(float targetPower, int currRPM)
     window->DrawList->AddLine(ImVec2(powerLineX, min.y), ImVec2(powerLineX, max.y), IM_COL32(255, 0, 255, 255), 2.0f);
 }
 
+void DrawRadioData()
+{
+    // get latest message
+    RadioData data = RobotController::GetInstance().GetRobotLink().GetLastRadioMessage().radioData;
+
+    // Increase the font size
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10)); // Increase spacing for bigger text
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 10)); // Increase padding for bigger text
+
+    // Center the text
+    CenterText("Radio Data");
+
+    ImGui::PopStyleVar(2);
+
+    const char* rowLabels[] = { "Average Delay (ms)", "Max Delay (ms)", "Invalid Packets per 10", "Movement", "Turn", "Front Weapon", "Back Weapon" };
+
+    // 2 columns (1 for label, 1 for value)
+    
+    if (ImGui::BeginTable("table2", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
+    {
+        for (int i = 0; i < 7; i++)
+        {
+            ImGui::TableNextRow();
+            // Set the row label
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", rowLabels[i]);
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(1);
+            switch (i)
+            {
+            case 0:
+                ImGui::Text("%d", (int) data.averageDelayMS);
+                break;
+            case 1:
+                ImGui::Text("%d", (int) data.maxDelayMS);
+                break;
+            case 2:
+                ImGui::Text("%d", (int) data.invalidPackets);
+                break;
+            case 3:
+                ImGui::Text("%f", data.movement);
+                break;
+            case 4:
+                ImGui::Text("%f", data.turn);
+                break;
+            case 5:
+                ImGui::Text("%f", data.frontWeaponPower);
+                break;
+            case 6:
+                ImGui::Text("%f", data.backWeaponPower);
+                break;
+            }
+            ImGui::Separator();
+        }
+        ImGui::EndTable();
+    }
+}
+
 
 void RobotTelemetryWidget::Draw()
 {
@@ -119,6 +178,11 @@ void RobotTelemetryWidget::Draw()
     DrawRPMProgressBar(Weapons::GetInstance().GetBackWeaponTargetPower(),
                        Weapons::GetInstance().GetBackWeaponRPM());
 
-    ImGui::End();
 
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    DrawRadioData();
+
+    ImGui::End();
 }

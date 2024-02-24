@@ -4,12 +4,14 @@
 #include "imgui.h"
 #include "ImageWidget.h"
 
+
 class FieldWidget : public ImageWidget
 {
 public:
-    void Draw() override;
+    void StartDrawingBoundary();
     FieldWidget();
+    void AdjustFieldCrop();
 
-private:
-    void _AdjustFieldCrop();
+    static FieldWidget* GetInstance();
+    static FieldWidget* _instance;
 };

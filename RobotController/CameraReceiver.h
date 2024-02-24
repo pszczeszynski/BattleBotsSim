@@ -16,12 +16,17 @@
 #include "SpinGenApi/SpinnakerGenApi.h"
 
 
+#include "Spinnaker.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+
+
 class ICameraReceiver
 {
 public:
     virtual long GetFrame(cv::Mat &output, long old_id, double* frameTime = NULL);
     virtual bool NewFrameReady(long old_id);
-    
+    static ICameraReceiver& GetInstance();
+
 protected:
     void _StartCaptureThread();
 
@@ -68,14 +73,13 @@ private:
 class CameraReceiver : public ICameraReceiver
 {
 public:
-    CameraReceiver(int cameraIndex);
+    CameraReceiver();
     ~CameraReceiver();
 
 private:
     virtual bool _InitializeCamera() override;
     virtual bool _CaptureFrame() override;
 
-    int _cameraIndex;
     int pcam_image_width;
     int pcam_image_height;
 
