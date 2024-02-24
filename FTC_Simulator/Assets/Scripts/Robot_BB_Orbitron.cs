@@ -154,9 +154,9 @@ public class Robot_BB_Orbitron : RobotInterface3D
  
          // movement with arrow keys + joystick
         float movement_amount = (Input.GetKey(KeyCode.UpArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.DownArrow) ? 1.0f : 0);
-        movement_amount += Input.GetAxis("J1Axis5");
+        //movement_amount += Input.GetAxis("J1Axis5");
         float turn_amount = (Input.GetKey(KeyCode.LeftArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.RightArrow) ? 1.0f : 0);
-        turn_amount -= Input.GetAxis("J1Axis1");
+        //turn_amount -= Input.GetAxis("J1Axis1");
         turn_amount *= 0.8f;
 
         // float movement_amount = 0;
