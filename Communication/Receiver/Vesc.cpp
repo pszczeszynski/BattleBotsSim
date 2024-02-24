@@ -16,6 +16,7 @@ float _currents[4];
 
 VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
 {
+    Serial.println("Initializing VESCs...");
     _ids[l_drive] = l_drive_id;
     _ids[r_drive] = r_drive_id;
     _ids[f_weapon] = f_weapon_id;
@@ -38,6 +39,8 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
     Can0.enableFIFO();
     Can0.enableFIFOInterrupt();
     Can0.onReceive(OnMessage);
+
+    Serial.println("Success!");
 }
 
 

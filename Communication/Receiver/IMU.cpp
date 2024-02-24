@@ -4,6 +4,8 @@
 
 IMU::IMU()
 {
+    Serial.println("Initializing IMU...");
+
     WIRE_PORT.begin();
     WIRE_PORT.setClock(100000);
 
@@ -28,6 +30,7 @@ IMU::IMU()
             initialized = true;
         }
     }
+
     // set dps
     ICM_20948_fss_t FSS;
     FSS.a = gpm4;   // (ICM_20948_ACCEL_CONFIG_FS_SEL_e)
@@ -38,8 +41,19 @@ IMU::IMU()
         Serial.println("Failed to set max accel for the IMU");
     }
 
-    // take an initial reading for the z velocity calibration
-    _calibrationRotVelZ = myICM.gyrZ();
+    // take an initial reading for the x velocity calibration
+    _calibrationRotVelZ = 0;
+
+
+    // zero out
+    _velocity = Point{0, 0, 0};
+    _calibrationAccel = Point{0, 0, 0};
+    _currAcceleration = Point{0, 0, 0};
+    _prevAcceleration = Point{0, 0, 0};
+    _rotation = 0;
+    _currRotVelZ = 0;
+
+    Serial.println("Success!");
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
@@ -54,7 +68,7 @@ IMU::IMU()
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
-    _currRotVelZ = -myICM.gyrZ() * TO_RAD;
+    _currRotVelZ = -myICM.gyrY() * TO_RAD;
     double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
 
@@ -66,6 +80,13 @@ void IMU::_updateGyro(double deltaTimeMS)
 
     // update the rotation
     _rotation += (avgRotVelZ - _calibrationRotVelZ) * deltaTimeMS / 1000.0;
+
+    // check for inf
+    if (abs(_rotation) > 2 * 3.14 * 1000)
+    {
+        _rotation = 0;
+    }
+
     // update the previous velocity
     _prevRotVelZ = _currRotVelZ;
 }
@@ -160,6 +181,7 @@ void IMU::Update()
     // if the time is too small, don't update
     if (deltaTimeMS < 1)
     {
+        Serial.println("exiting update not enough time");
         return;
     }
 
