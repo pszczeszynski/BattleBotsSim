@@ -1,0 +1,7 @@
+venv
+__pycache__
+datasets
+runs
+yolo*
+*.avi
+train_yolo/results
