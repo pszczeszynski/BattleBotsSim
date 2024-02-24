@@ -162,11 +162,11 @@ void VESC::_SetMotorPower(float power, int motorIndex)
         power = 0;
     }
 
-    // if the power is 0 and we already sent a 0, don't send another 0
-    if (power == 0 && lastPowers[motorIndex] == 0)
-    {
-        return;
-    }
+    // // if the power is 0 and we already sent a 0, don't send another 0
+    // if (power == 0 && lastPowers[motorIndex] == 0)
+    // {
+    //     return;
+    // }
 
     // save the last power
     lastPowers[motorIndex] = power;
@@ -188,16 +188,44 @@ void VESC::_SetMotorPower(float power, int motorIndex)
 
     Can0.write(message);
 }
+
+void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
+{
+    // if the power is within the dead band, set it to 0
+    if (absolute(current_amps) <= DEAD_BAND)
+    {
+        current_amps = 0;
+    }
+    unsigned long frame_id = 0x1;
+
+    CAN_message_t message;
+    uint32_t targetCurrent_mA = 1000 * current_amps;
+    message.id = (frame_id << 8) | _ids[motorIndex];
+    Serial.println("message.id: " + (String) message.id);
+    message.len = 4;
+    message.flags.extended = 1;
+
+    // for each byte in the target current, add it to the message
+    // we need to do this in reverse order because the VESC expects the bytes in reverse order
+    for (int i = 0; i < 4; i++)
+    {
+        message.buf[3 - i] = ((targetCurrent_mA >> (8 * i)) & 0xff);
+    }
+
+    Can0.write(message);
+}
+
+
 void VESC::Drive(float leftPower, float rightPower)
 {
     _SetMotorPower(leftPower, l_drive);
     _SetMotorPower(rightPower, r_drive);
 }
 
-void VESC::DriveWeapons(float frontPower, float backPower)
+void VESC::DriveWeapons(float frontCurrent_amps, float backPower_amps)
 {
-    _SetMotorPower(frontPower, f_weapon);
-    _SetMotorPower(backPower, b_weapon);
+    _SetMotorCurrent(frontCurrent_amps, f_weapon);
+    _SetMotorCurrent(backPower_amps, b_weapon);
 }
 
 void VESC::Update()
