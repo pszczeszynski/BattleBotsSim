@@ -172,6 +172,8 @@ void RobotController::Run()
             _lastIMUMessage = msg;
             _imuID++; 
             _imuTime = Clock::programClock.getElapsedTime();
+            locker.unlock();
+            _imuCV.notify_all();
         }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
