@@ -7,14 +7,14 @@
 #include "Communication.h"
 #include "Motor.h"
 
-#define VENDOR_ID               0x16C0
-#define PRODUCT_ID              0x0480
-#define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
-#define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
+#define VENDOR_ID 0x16C0
+#define PRODUCT_ID 0x0480
+#define RAWHID_USAGE_PAGE 0xFFAC  // recommended: 0xFF00 to 0xFFFF
+#define RAWHID_USAGE 0x0300       // recommended: 0x0100 to 0xFFFF
 
 
 #define VERBOSE_RADIO
- #define LOG_DATA
+#define LOG_DATA
 
 #include "Radio.h"
 #include "IMU.h"
@@ -58,76 +58,74 @@ int invalidMessageCount = 0;
 DriveCommand lastDriveCommand;
 int maxReceiveDelayMs = 0;
 
-void setup()
-{
-    // Start serial port to display messages on Serial Monitor Window
-    Serial.begin(SERIAL_BAUD);
+void setup() {
+  // Start serial port to display messages on Serial Monitor Window
+  Serial.begin(SERIAL_BAUD);
 
-    Serial.println("hello");
-
-#ifdef USE_IMU
-    Serial.println("Initializing IMU...");
-    imu = new IMU();
-    Serial.println("Success!");
-#else
-    Serial.println("Not using IMU");
-#endif
-
-    Serial.println("Initializing Self-Righting Motor...");
-    selfRightMotor = new Motor(SELF_RIGHTER_MOTOR_PIN);
-    Serial.println("Success!");
-
-    Serial.println("Initializing radio...");
-    radio = new Radio<RobotMessage, DriveCommand>();
-    Serial.println("Success!");
+  Serial.println("hello");
 
 #ifdef LOG_DATA
-    Serial.println("Initializing SD card...");
-    logger = new Logger();
-    Serial.println("Success!");
+  Serial.println("Initializing SD card...");
+  logger = new Logger();
+  Serial.println("Success!");
 #else
-    Serial.println("Not logging data");
+  Serial.println("Not logging data");
 #endif
 
-    vesc.Drive(0, 0);
-    vesc.DriveWeapons(0, 0);
+#ifdef USE_IMU
+  Serial.println("Initializing IMU...");
+  imu = new IMU();
+  Serial.println("Success!");
+#else
+  Serial.println("Not using IMU");
+#endif
+
+  Serial.println("Initializing Self-Righting Motor...");
+  selfRightMotor = new Motor(SELF_RIGHTER_MOTOR_PIN);
+  Serial.println("Success!");
+
+  Serial.println("Initializing radio...");
+  radio = new Radio<RobotMessage, DriveCommand>();
+  Serial.println("Success!");
+
+
+
+  vesc.Drive(0, 0);
+  vesc.DriveWeapons(0, 0);
 }
 
 /**
  * Applys the drive command to the robot
  */
-void Drive(DriveCommand &command)
-{
-    // compute powers
-    double leftPower = command.movement - command.turn;
-    double rightPower = command.movement + command.turn;
+void Drive(DriveCommand &command) {
+  // compute powers
+  double leftPower = command.movement - command.turn;
+  double rightPower = command.movement + command.turn;
 
-    // normalize
-    double maxPower = max(abs(leftPower), abs(rightPower));
-    if (maxPower > 1)
-    {
-        leftPower /= maxPower;
-        rightPower /= maxPower;
-    }
+  // normalize
+  double maxPower = max(abs(leftPower), abs(rightPower));
+  if (maxPower > 1) {
+    leftPower /= maxPower;
+    rightPower /= maxPower;
+  }
 
-    // apply powers
-    vesc.Drive(leftPower, rightPower);
+  // apply powers
+  vesc.Drive(leftPower, rightPower);
 }
 
 /**
  * Applys the weapon command to the robot
  */
-void DriveWeapons(DriveCommand &command)
-{
-    vesc.DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
+void DriveWeapons(DriveCommand &command) {
+  vesc.DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
 }
 
 /**
  * Drives the self righting motor
  */
-void DriveSelfRighter(DriveCommand &command)
-{
-    selfRightMotor->SetPower(command.selfRighterPower);
+void DriveSelfRighter(DriveCommand &command) {
+  selfRightMotor->SetPower(command.selfRighterPower);
+  logger->updateSelfRighterData(command.selfRighterPower);
 }
 
 /**
@@ -135,215 +133,213 @@ void DriveSelfRighter(DriveCommand &command)
  */
 #define TELEMETRY_UPDATE_FREQUENCY 10
 #define MAX_DELAY_SAMPLE
-RobotMessage Update()
-{
-    static int updateCount = 0;
-    static unsigned long lastRadioStatsRefreshTime = 0;
+RobotMessage Update() {
+  static int updateCount = 0;
+  static unsigned long lastRadioStatsRefreshTime = 0;
 
-    RobotMessage ret{RobotMessageType::INVALID};
+  RobotMessage ret{ RobotMessageType::INVALID };
 
 #ifdef USE_IMU
-    // call update for imu
-    imu->Update();
+  // call update for imu
+  imu->Update();
 #endif
 
-    vesc.Update();
+  vesc.Update();
 
-    // increase update count and wrap around
-    updateCount++;
-    updateCount %= TELEMETRY_UPDATE_FREQUENCY;
+  // increase update count and wrap around
+  updateCount++;
+  updateCount %= TELEMETRY_UPDATE_FREQUENCY;
 
-    // if time to send a can message
-    if (updateCount == 0)
-    {
-        ret.type = CAN_DATA;
-        vesc.GetCurrents(ret.canData.motorCurrent);
-        vesc.GetVolts(ret.canData.motorVoltage);
-        vesc.GetRPMs(ret.canData.motorERPM);
-        vesc.GetFETTemps(ret.canData.escFETTemp);
+  // if time to send a can message
+  if (updateCount == 0) {
+    ret.type = CAN_DATA;
+    vesc.GetCurrents(ret.canData.motorCurrent);
+    vesc.GetVolts(ret.canData.motorVoltage);
+    vesc.GetRPMs(ret.canData.motorERPM);
+    vesc.GetFETTemps(ret.canData.escFETTemp);
+  }
+  // send radio data
+  else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 2) {
+    // send radio info
+    ret.type = RADIO_DATA;
+    // send average delay (0 if no messages received yet)
+    ret.radioData.averageDelayMS = validMessageCount == 0 ? -1 : ((float)(millis() - lastRadioStatsRefreshTime) / validMessageCount);
+    // set invalid message count
+    ret.radioData.invalidPackets = (short)invalidMessageCount;
+    // set max delay
+    ret.radioData.maxDelayMS = maxReceiveDelayMs;
+
+    // set the last drive command fields
+    ret.radioData.movement = lastDriveCommand.movement;
+    ret.radioData.turn = lastDriveCommand.turn;
+    ret.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
+    ret.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
+
+    // reset max delay
+    if (millis() - lastRadioStatsRefreshTime > 1000) {
+      invalidMessageCount = 0;
+      validMessageCount = 0;
+      maxReceiveDelayMs = 0;
+      lastRadioStatsRefreshTime = millis();
     }
-    // send radio data
-    else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 2)
-    {
-        // send radio info
-        ret.type = RADIO_DATA;
-        // send average delay (0 if no messages received yet)
-        ret.radioData.averageDelayMS = validMessageCount == 0 ? -1 : ((float) (millis() - lastRadioStatsRefreshTime) / validMessageCount);
-        // set invalid message count
-        ret.radioData.invalidPackets = (short) invalidMessageCount;
-        // set max delay
-        ret.radioData.maxDelayMS = maxReceiveDelayMs;
-
-        // set the last drive command fields
-        ret.radioData.movement = lastDriveCommand.movement;
-        ret.radioData.turn = lastDriveCommand.turn;
-        ret.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
-        ret.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
-        
-        // reset max delay
-        if (millis() - lastRadioStatsRefreshTime > 1000)
-        {
-            invalidMessageCount = 0;
-            validMessageCount = 0;
-            maxReceiveDelayMs = 0;
-            lastRadioStatsRefreshTime = millis();
-        }
-    }
-    // else send imu data
-    else
-    {
-        ret.type = IMU_DATA;
+  }
+  // else send imu data
+  else {
+    ret.type = IMU_DATA;
 
 #ifdef USE_IMU
-        // get accelerometer data and set accelsdf
-        Point accel = imu->getAccel();
-        ret.imuData.accelX = accel.x;
-        ret.imuData.accelY = accel.y;
+    // get accelerometer data and set accelsdf
+    Point accel = imu->getAccel();
+    ret.imuData.accelX = accel.x;
+    ret.imuData.accelY = accel.y;
 
-        // get gyro data and set gyro
-        ret.imuData.rotation = imu->getRotation();
-        // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+    // get gyro data and set gyro
+    ret.imuData.rotation = imu->getRotation();
+    // calculate rotation velocity
+    ret.imuData.rotationVelocity = imu->getRotationVelocity();
+
+    logger->updateIMUData(ret.imuData.rotation, ret.imuData.rotationVelocity, ret.imuData.accelX, ret.imuData.accelY);
 #else
-        ret.imuData.accelX = 0;
-        ret.imuData.accelY = 0;
-        ret.imuData.rotation = 0;
-        ret.imuData.rotationVelocity = 0;
+    ret.imuData.accelX = 0;
+    ret.imuData.accelY = 0;
+    ret.imuData.rotation = 0;
+    ret.imuData.rotationVelocity = 0;
 #endif
-    }
+  }
 
-    return ret;
+  return ret;
 }
 
 /**
  * Waits for a radio packet to be available
  * Times out after 4 ms
  */
-void WaitForRadioData()
-{
-    static int TIMEOUT_COUNT = 0;
-    unsigned long waitReceiveStartTimeMS = millis();
+void WaitForRadioData() {
+  static int TIMEOUT_COUNT = 0;
+  unsigned long waitReceiveStartTimeMS = millis();
 
-    // while the radio isn't available
-    while (!radio->Available())
-    {
-        // if too much time has passed
-        if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS)
-        {
-            // break because we must move on
-            break;
-        }
+  // while the radio isn't available
+  while (!radio->Available()) {
+    // if too much time has passed
+    if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS) {
+      // break because we must move on
+      break;
+    }
 
 #ifdef USE_IMU
-        // call update for imu while waiting
-        imu->Update();
+    // call update for imu while waiting
+    imu->Update();
 #endif
-    }
+  }
 }
 
 /**
  * Checks if there is a message and then calls drive
  * There is a watchdog timer that auto stops after 250 ms
  */
-void DriveWithLatestMessage()
-{
-    static unsigned long lastReceiveTime = 0;
-    static long lastPrintTime = 0;
+void DriveWithLatestMessage() {
+  static unsigned long lastReceiveTime = 0;
+  static long lastPrintTime = 0;
 
-    // if there is a message available
-    if (radio->Available())
-    {
-        // receive latest drive command
-        DriveCommand command = radio->Receive();
-        // save the last drive command
-        lastDriveCommand = command;
+  // if there is a message available
+  if (radio->Available()) {
+    // receive latest drive command
+    DriveCommand command = radio->Receive();
+    // save the last drive command
+    lastDriveCommand = command;
 
-        // sanity check command fields
-        if (command.movement > 1 || command.movement < -1 ||
-            command.turn > 1 || command.turn < -1 ||
-            command.frontWeaponPower > 1 || command.frontWeaponPower < -1 ||
-            command.backWeaponPower > 1 || command.backWeaponPower < -1 ||
-            command.selfRighterPower > 1 || command.selfRighterPower < -1)
-        {
-            command.valid = false;
-        }
+    
+    logger->updateRadioCommandData(command.movement, command.turn, command.frontWeaponPower, command.backWeaponPower);
 
-        // check for NAN
-        if (isnan(command.movement) || isnan(command.turn) ||
-            isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) ||
-            isnan(command.selfRighterPower))
-        {
-            command.valid = false;
-        }
-
-        // check if the command is valid
-        if (command.valid)
-        {
-            // drive the robot, weapons, self righter
-            Drive(command);
-            DriveWeapons(command);
-            DriveSelfRighter(command);
-
-            // increment message count
-            validMessageCount++;
-
-            // save the max delay
-            int delayMs = millis() - lastReceiveTime;
-            if (delayMs > maxReceiveDelayMs)
-            {
-                maxReceiveDelayMs = delayMs;
-            }
-
-            // update the last receive time
-            lastReceiveTime = millis();
-
-        }
-        // if the command is invalid
-        else
-        {
-            // increment invalid message count
-            invalidMessageCount++;
-            // print error message
-            Serial.println("Invalid drive command received");
-        }
+    // sanity check command fields
+    if (command.movement > 1 || command.movement < -1 || command.turn > 1 || command.turn < -1 || command.frontWeaponPower > 1 || command.frontWeaponPower < -1 || command.backWeaponPower > 1 || command.backWeaponPower < -1 || command.selfRighterPower > 1 || command.selfRighterPower < -1) {
+      command.valid = false;
     }
 
-    // if haven't received a message in a while, stop the robot
-    if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
-    {
-        DriveCommand command{0};
-        command.movement = 0;
-        command.turn = 0;
-        command.frontWeaponPower = 0;
-        command.backWeaponPower = 0;
-        command.selfRighterPower = 0;
-        command.valid = true;
-        Drive(command);
-        DriveWeapons(command);
-        DriveSelfRighter(command);
+    // check for NAN
+    if (isnan(command.movement) || isnan(command.turn) || isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) || isnan(command.selfRighterPower)) {
+      command.valid = false;
+    }
 
+    // check if the command is valid
+    if (command.valid) {
+      // drive the robot, weapons, self righter
+      Drive(command);
+      DriveWeapons(command);
+      DriveSelfRighter(command);
+
+      // increment message count
+      validMessageCount++;
+
+      // save the max delay
+      int delayMs = millis() - lastReceiveTime;
+      if (delayMs > maxReceiveDelayMs) {
+        maxReceiveDelayMs = delayMs;
+      }
+
+      // update the last receive time
+      lastReceiveTime = millis();
 
     }
+    // if the command is invalid
+    else {
+      // increment invalid message count
+      invalidMessageCount++;
+      // print error message
+      Serial.println("Invalid drive command received");
+    }
+  }
+
+  // if haven't received a message in a while, stop the robot
+  if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS) {
+    DriveCommand command{ 0 };
+    command.movement = 0;
+    command.turn = 0;
+    command.frontWeaponPower = 0;
+    command.backWeaponPower = 0;
+    command.selfRighterPower = 0;
+    command.valid = true;
+    Drive(command);
+    DriveWeapons(command);
+    DriveSelfRighter(command);
+  }
 }
 
-void loop()
-{
-    // wait for a message to be available
-    WaitForRadioData();
+void loop() {
+  // wait for a message to be available
+  WaitForRadioData();
 
-    // drive with the latest message if there is one
-    DriveWithLatestMessage();
+  // drive with the latest message if there is one
+  DriveWithLatestMessage();
 
-    // Compute response message
-    RobotMessage message = Update();
+  // Compute response message
+  RobotMessage message = Update();
 
-    // send the message
-    SendOutput result = radio->Send(message);
+  // send the message
+  SendOutput result = radio->Send(message);
 
-    if (result != SEND_SUCCESS)
-    {
-        Serial.println("Failed to send radio message. Result: " + (String) result);
+  logger->updateRadioData((int)result, 0, 0, 0);
 
-    }
-    logger->update();
+  float fetTemps[4];
+  float voltages[4];
+  float currents[4];
+  float motorTemps[4];
+  int erpms[4];
+  float dutyCycle[4];
+
+  vesc.GetFloatFETTemps(fetTemps);
+  vesc.GetFloatVolts(voltages);
+  vesc.GetFloatCurrents(currents);
+  vesc.GetFloatMotorTemps(motorTemps);
+  vesc.GetIntRPMs(erpms);
+  vesc.GetFloatDutyCycle(dutyCycle);
+
+
+  logger->updateVescData(fetTemps, voltages, currents, motorTemps, erpms, dutyCycle);
+  
+
+  if (result != SEND_SUCCESS) {
+    Serial.println("Failed to send radio message. Result: " + (String)result);
+  }
+  logger->update();
 }

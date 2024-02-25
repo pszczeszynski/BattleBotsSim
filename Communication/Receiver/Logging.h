@@ -18,43 +18,45 @@ class Logger
 {
 public:
     Logger();
-    String formatDriveCommand(DriveCommand command);
-    String formatRobotMessage(RobotMessage robotMessage);
     bool logMessage(String message);
-    void updateCommandData(double ld, double rd, double fw, double rw);
-    void updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms);
-    void updateIMUData(double *rotations, double *rotationVelocitys, double *accels);
+    void updateRadioCommandData(float move, float turn, float bar, float disk);
+    void updateVescData(float *fetTemps, float *voltages, float *currents, float *motorTemps, int *erpms, float* dutyCycle);
+    void updateIMUData(float rotations, float rotationVelocitys, float accelX, float accelY);
     void updateRadioData(int radioStatus, int powerLevel, long inavalidPacketCount, int radioChannel);
-    void updateSelfRighterData(int microseconds);
+    void updateSelfRighterData(float speed);
+    void updateFlag(bool flag);
 
     void update();
 
 private:
-    String escs[ESC_COUNT] = {"LD", "RD", "FW", "RW"};
-    String axis[AXIS_COUNT] = {"X", "Y", "Z"};
+    const String escs[ESC_COUNT] = {"LD", "RD", "FW", "RW"};
+    const String axis[AXIS_COUNT] = {"X", "Y", "Z"};
+    const String inputs[ESC_COUNT] = {"Move", "Turn", "Bar", "Disk"};
     bool checkOverflow(File dataFile);
 
     int highestLog = 1;
 
     long long lastLogTime = 0;
+    
+    float radioCommands[ESC_COUNT];
 
-    double commands[ESC_COUNT];
-    double fetTemps[ESC_COUNT];
-    double voltages[ESC_COUNT];
-    double currents[ESC_COUNT];
-    double motorTemps[ESC_COUNT];
-    double erpms[ESC_COUNT];
+    float dutyCycle[ESC_COUNT];
+    float fetTemps[ESC_COUNT];
+    float voltages[ESC_COUNT];
+    float currents[ESC_COUNT];
+    float motorTemps[ESC_COUNT];
+    int erpms[ESC_COUNT];
 
-    double rotations[AXIS_COUNT];
-    double rotationVelocitys[AXIS_COUNT];
-    double accels[AXIS_COUNT];
+    float rotations[AXIS_COUNT];
+    float rotationVelocitys[AXIS_COUNT];
+    float accels[AXIS_COUNT];
 
     int radioStatus;
     int powerLevel;
     long inavalidPacketCount;
     int radioChannel;
 
-    int selfRighterMicros;
+    float selfRighterSpeed;
 
     bool noteFlag;
 

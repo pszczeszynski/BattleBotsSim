@@ -1,13 +1,5 @@
 #include "Logging.h"
 
-String DoubleToString(double value) {
-  char buffer[15];  // Adjust the buffer size as needed
-
-  dtostrf(value, 8, 3, buffer);  // Convert to string with 4 decimal places
-
-  return String(buffer);
-}
-
 
 Logger::Logger() {
   overflow = false;
@@ -58,8 +50,11 @@ Logger::Logger() {
   Serial.printf("made new file: %s\n", fileName);
   String header = "";
   header += "TIME,";
-  for (int i = 0; i <= ESC_COUNT; i++) {
-    header += (escs[i] + "_COMMAND,");
+  for (int i = 0; i < ESC_COUNT; i++) {
+    header += (inputs[i]) + ",";
+  }
+  for (int i = 0; i < ESC_COUNT; i++) {
+    header += (escs[i] + "_DUTY_CYCLE,");
     header += (escs[i] + "_FET_TEMP,");
     header += (escs[i] + "_VOTLAGE,");
     header += (escs[i] + "_CURRENT,");
@@ -67,7 +62,7 @@ Logger::Logger() {
     header += (escs[i] + "_ERPM,");
   }
 
-  for (int i = 0; i <= AXIS_COUNT; i++) {
+  for (int i = 0; i < AXIS_COUNT; i++) {
     header += (axis[i] + "_ROTATION,");
     header += (axis[i] + "_ROTATION_VELOCITY,");
     header += (axis[i] + "_ACCEL,");
@@ -94,8 +89,13 @@ void Logger::update() {
     logMsg += millis();
     logMsg += ",";
 
-    for (int i = 0; i <= ESC_COUNT; i++) {
-      logMsg += (String)commands[i];
+    for( int i = 0; i < ESC_COUNT; i++){
+      logMsg += (String)radioCommands[i];
+      logMsg += ",";
+    }
+
+    for (int i = 0; i < ESC_COUNT; i++) {
+      logMsg += (String)dutyCycle[i];
       logMsg += ",";
       logMsg += (String)fetTemps[i];
       logMsg += ",";
@@ -109,7 +109,7 @@ void Logger::update() {
       logMsg += ",";
     }
 
-    for (int i = 0; i <= AXIS_COUNT; i++) {
+    for (int i = 0; i < AXIS_COUNT; i++) {
       logMsg += (String)rotations[i];
       logMsg += ",";
       logMsg += (String)rotationVelocitys[i];
@@ -126,7 +126,7 @@ void Logger::update() {
     logMsg += (String)radioChannel;
     logMsg += ",";
 
-    logMsg += (String)selfRighterMicros;
+    logMsg += (String)selfRighterSpeed;
     logMsg += ",";
 
     logMsg += (String)noteFlag;
@@ -137,25 +137,34 @@ void Logger::update() {
   }
 }
 
-void Logger::updateCommandData(double ld, double rd, double fw, double rw) {
-  commands[0] = ld;
-  commands[1] = rd;
-  commands[2] = fw;
-  commands[3] = rw;
+
+void Logger::updateRadioCommandData(float move, float turn, float bar, float disk){
+  radioCommands[0] = move;
+  radioCommands[1] = turn;
+  radioCommands[2] = bar;
+  radioCommands[3] = disk;
 }
 
-void Logger::updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms) {
-  memcpy(this->fetTemps, fetTemps, sizeof(double) * 4);
-  memcpy(this->voltages, voltages, sizeof(double) * 4);
-  memcpy(this->currents, currents, sizeof(double) * 4);
-  memcpy(this->motorTemps, motorTemps, sizeof(double) * 4);
-  memcpy(this->erpms, erpms, sizeof(double) * 4);
+
+
+void Logger::updateVescData(float *fetTemps, float *voltages, float *currents, float *motorTemps, int *erpms, float *dutyCycle) {
+  memcpy(this->fetTemps, fetTemps, sizeof(float) * 4);
+  memcpy(this->voltages, voltages, sizeof(float) * 4);
+  memcpy(this->currents, currents, sizeof(float) * 4);
+  memcpy(this->motorTemps, motorTemps, sizeof(float) * 4);
+  memcpy(this->erpms, erpms, sizeof(int) * 4);
+  memcpy(this->dutyCycle, dutyCycle, sizeof(float) * 4);
 }
 
-void Logger::updateIMUData(double *rotations, double *rotationVelocitys, double *accels) {
-  memcpy(this->rotations, rotations, sizeof(double) * 4);
-  memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(double) * 4);
-  memcpy(this->accels, accels, sizeof(double) * 4);
+void Logger::updateIMUData(float rotations, float rotationVelocitys, float accelX, float accelY) {
+  //memcpy(this->rotations, rotations, sizeof(float) * 4);
+  //memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(float) * 4);
+  //memcpy(this->accels, accels, sizeof(float) * 4);
+
+  this->rotations[0] = rotations;
+  this->rotationVelocitys[0] = rotationVelocitys;
+  this->accels[0] = accelX;
+  this->accels[1] = accelY;
 }
 
 void Logger::updateRadioData(int radioStatus, int powerLevel, long inavalidPacketCount, int radioChannel) {
@@ -166,83 +175,15 @@ void Logger::updateRadioData(int radioStatus, int powerLevel, long inavalidPacke
 }
 
 
-void Logger::updateSelfRighterData(int microseconds) {
-  this->selfRighterMicros = microseconds;
+void Logger::updateSelfRighterData(float speed) {
+  this->selfRighterSpeed = speed;
 }
 
-/**
-  * Formats robot message into a nice string, split into IMU data and VESC data
-  */
-String Logger::formatRobotMessage(RobotMessage robotMessage) {
-  // IMU Portion
-  String message = "";
-
-  // if the message is CAN data
-  if (robotMessage.type == CAN_DATA) {
-    String names[4] = { "LEFT DRIVE  ", "RIGHT DRIVE ", "FRONT WEAPON", "REAR WEAPON " };
-    for (int i = 0; i < 4; i++) {
-      message += DoubleToString(millis() / 1000.0);
-      message += ": ";
-      message += names[i];
-      message += " { I : ";
-      message += DoubleToString(robotMessage.canData.motorCurrent[i]);
-      message += "; V : ";
-      message += DoubleToString(robotMessage.canData.motorVoltage[i]);
-      message += "; ERPM : ";
-      message += DoubleToString(robotMessage.canData.motorERPM[i]);
-      message += "; TEMP : ";
-      message += DoubleToString(robotMessage.canData.escFETTemp[i]);
-      message += " }\n";
-    }
-  }
-  // else if the message is IMU data
-  else if (robotMessage.type == IMU_DATA) {
-    message += DoubleToString(millis() / 1000.0);
-    message += ": IMU DATA     { ROT : ";
-    message += DoubleToString(robotMessage.imuData.rotation);
-    message += "; ROT_VEL : ";
-    message += DoubleToString(robotMessage.imuData.rotationVelocity);
-    message += "; ACCEL_X : ";
-    message += DoubleToString(robotMessage.imuData.accelX);
-    message += "; ACCEL_Y : ";
-    message += DoubleToString(robotMessage.imuData.accelY);
-    message += " }\n";
-  }
-  // else invalid message
-  else {
-    message += DoubleToString(millis() / 1000.0);
-    message += ": INVALID MESSAGE!\n";
-  }
-
-  return message;
+void Logger::updateFlag(bool flag){
+  this->noteFlag = flag;
 }
 
-/**
-  * Writes given message to datalog.txt on the SD card
-  */
-bool Logger::logMessage(String message) {
-  if (initialized && !overflow) {
-    // open the file.
-    // if the file is available, write to it:
-    if (dataFile) {
-      dataFile.println(message);
-      checkOverflow(dataFile);
-      dataFile.close();
-      // Serial.println("End Log");
-      return true;
-    } else {
-      // if the file isn't open, pop up an error:
-      // Serial.println("Error opening datalog.txt");
-      // Serial.println("End Log");
-      return false;
-    }
-  }
 
-  if (overflow) Serial.println("Error: File size overflowed. Unable to write to file.");
-  else Serial.println("Error: SD card not initialized. Unable to write to file.");
-  Serial.println("End Log");
-  return false;
-}
 
 
 /**
