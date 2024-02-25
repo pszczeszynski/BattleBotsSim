@@ -280,3 +280,35 @@ void VESC::GetFETTemps(unsigned char* outFetTemps)
         outFetTemps[i] = FloatToUnsignedChar(_fet_temps[i]);
     }
 }
+
+
+void VESC::GetMotorTemps(unsigned char* outMotorTemps){
+  for (int i = 0; i < 4; i++)
+    {
+        outMotorTemps[i] = FloatToUnsignedChar(_motor_temps[i]);
+    }
+}
+
+void VESC::GetFloatCurrents(float* outCurrents){
+  outCurrents = _currents;
+}
+void VESC::GetFloatVolts(float* outVolts){
+  outVolts = _volts;
+
+}
+void VESC::GetIntRPMs(int* outRPMs){
+  outRPMs = _rpms;
+
+}
+void VESC::GetFloatFETTemps(float* outFetTemps){
+  outFetTemps = _fet_temps;
+
+}
+void VESC::GetFloatMotorTemps(float* outMotorTemps){
+  outMotorTemps = _motor_temps;
+
+}
+void VESC::GetFloatDutyCycle(float* outDutyCycles){
+  outDutyCycles = _duty_cycles;
+
+}

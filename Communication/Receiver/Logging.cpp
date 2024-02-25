@@ -1,260 +1,238 @@
 #include "Logging.h"
 
-String DoubleToString(double value) {
-  char buffer[15];  // Adjust the buffer size as needed
-
-  dtostrf(value, 8, 3, buffer);  // Convert to string with 4 decimal places
-
-  return String(buffer);
-}
-
-
-Logger::Logger() {
-  overflow = false;
-
-  // Initialize SD card
-  initialized = true;
-  if (!SD.begin(SD_CARD)) {
-    Serial.println("SD initialization failed.");
-    initialized = false;
-  }
-
-  File root = SD.open("/");
-
-  while (true) {
-    File entry = root.openNextFile();
-    if (!entry) {
-      //Serial.println("** no more files **");
-      break;
+Logger::Logger()
+{
+    // zero out all the data
+    for (int i = 0; i < ESC_COUNT; i++)
+    {
+        radioCommands[i] = 0;
+        dutyCycle[i] = 0;
+        fetTemps[i] = 0;
+        voltages[i] = 0;
+        currents[i] = 0;
+        motorTemps[i] = 0;
+        erpms[i] = 0;
     }
-    if (!entry.isDirectory()) {
-      // is a file
-      String name = String(entry.name());
-      //figure out what the highest previous log is, then incrament
-      if (name.startsWith("log")) {
-        name.remove(0, 3);
-        int length = name.length();
-        name.remove(length - 4, 4);
-        int num = name.toInt();
-        if (num >= highestLog) {
-          highestLog = num;
+
+    // zero out rotations and accels
+    for (int i = 0; i < AXIS_COUNT; i++)
+    {
+        rotations[i] = 0;
+        rotationVelocitys[i] = 0;
+        accels[i] = 0;
+    }
+
+    // zero out radio data
+    radioStatus = 0;
+    powerLevel = 0;
+    invalidPacketCount = 0;
+    radioChannel = 0;
+
+    // init overflow
+    overflow = false;
+
+    // Initialize SD card
+    initialized = true;
+    if (!SD.begin(SD_CARD))
+    {
+        Serial.println("SD initialization failed.");
+        initialized = false;
+    }
+
+    File root = SD.open("/");
+
+    while (true)
+    {
+        File entry = root.openNextFile();
+        if (!entry)
+        {
+            // Serial.println("** no more files **");
+            break;
         }
-      }
-    }
-    entry.close();
-  }
-
-  highestLog++;
-
-  Serial.printf("highest log: %d \n", highestLog);
-
-  char buf[15];
-
-  sprintf(buf, "log%d.csv", highestLog);
-
-  this->fileName = buf;
-
-  dataFile = SD.open(fileName, FILE_WRITE);
-  Serial.printf("made new file: %s\n", fileName);
-  String header = "";
-  header += "TIME,";
-  for (int i = 0; i <= ESC_COUNT; i++) {
-    header += (escs[i] + "_COMMAND,");
-    header += (escs[i] + "_FET_TEMP,");
-    header += (escs[i] + "_VOTLAGE,");
-    header += (escs[i] + "_CURRENT,");
-    header += (escs[i] + "_MOTOR_TEMP,");
-    header += (escs[i] + "_ERPM,");
-  }
-
-  for (int i = 0; i <= AXIS_COUNT; i++) {
-    header += (axis[i] + "_ROTATION,");
-    header += (axis[i] + "_ROTATION_VELOCITY,");
-    header += (axis[i] + "_ACCEL,");
-  }
-  header += "RADIO_STATUS,";
-  header += "POWER_LEVEL,";
-  header += "INVALID_PACKETS,";
-  header += "RADIO_CHANNEL,";
-
-  header += "SELF_RIGHTER,";
-
-  header += "FLAG";
-
-  dataFile.println(header);
-  
-  dataFile.flush();
-}
-
-void Logger::update() {
-  if (millis() - lastLogTime >= LOG_TIME) {
-    // time to log
-    String logMsg;
-
-    logMsg += millis();
-    logMsg += ",";
-
-    for (int i = 0; i <= ESC_COUNT; i++) {
-      logMsg += (String)commands[i];
-      logMsg += ",";
-      logMsg += (String)fetTemps[i];
-      logMsg += ",";
-      logMsg += (String)voltages[i];
-      logMsg += ",";
-      logMsg += (String)currents[i];
-      logMsg += ",";
-      logMsg += (String)motorTemps[i];
-      logMsg += ",";
-      logMsg += (String)erpms[i];
-      logMsg += ",";
+        if (!entry.isDirectory())
+        {
+            // is a file
+            String name = String(entry.name());
+            // figure out what the highest previous log is, then incrament
+            if (name.startsWith("log"))
+            {
+                name.remove(0, 3);
+                int length = name.length();
+                name.remove(length - 4, 4);
+                int num = name.toInt();
+                if (num >= highestLog)
+                {
+                    highestLog = num;
+                }
+            }
+        }
+        entry.close();
     }
 
-    for (int i = 0; i <= AXIS_COUNT; i++) {
-      logMsg += (String)rotations[i];
-      logMsg += ",";
-      logMsg += (String)rotationVelocitys[i];
-      logMsg += ",";
-      logMsg += (String)accels[i];
-      logMsg += ",";
+    highestLog++;
+
+    printf("highest log: %d \n", highestLog);
+
+    char buf[15];
+
+    sprintf(buf, "log%d.csv", highestLog);
+
+    this->fileName = buf;
+
+    dataFile = SD.open(fileName, FILE_WRITE);
+    printf("made new file: %s\n", fileName);
+    String header = "";
+    header += "TIME,";
+    for (int i = 0; i < ESC_COUNT; i++)
+    {
+        header += (inputs[i]) + ",";
     }
-    logMsg += (String)radioStatus;
-    logMsg += ",";
-    logMsg += (String)powerLevel;
-    logMsg += ",";
-    logMsg += (String)inavalidPacketCount;
-    logMsg += ",";
-    logMsg += (String)radioChannel;
-    logMsg += ",";
+    for (int i = 0; i < ESC_COUNT; i++)
+    {
+        header += (escs[i] + "_DUTY_CYCLE,");
+        header += (escs[i] + "_FET_TEMP,");
+        header += (escs[i] + "_VOTLAGE,");
+        header += (escs[i] + "_CURRENT,");
+        header += (escs[i] + "_MOTOR_TEMP,");
+        header += (escs[i] + "_ERPM,");
+    }
 
-    logMsg += (String)selfRighterMicros;
-    logMsg += ",";
+    for (int i = 0; i < AXIS_COUNT; i++)
+    {
+        header += (axis[i] + "_ROTATION,");
+        header += (axis[i] + "_ROTATION_VELOCITY,");
+        header += (axis[i] + "_ACCEL,");
+    }
+    header += "RADIO_STATUS,";
+    header += "POWER_LEVEL,";
+    header += "INVALID_PACKETS,";
+    header += "RADIO_CHANNEL,";
 
-    logMsg += (String)noteFlag;
+    header += "SELF_RIGHTER,";
 
+    header += "FLAG";
 
-  dataFile.println(logMsg);
-  dataFile.flush();
-  }
+    dataFile.println(header);
+
+    dataFile.flush();
 }
 
-void Logger::updateCommandData(double ld, double rd, double fw, double rw) {
-  commands[0] = ld;
-  commands[1] = rd;
-  commands[2] = fw;
-  commands[3] = rw;
+void Logger::update()
+{
+    if (millis() - lastLogTime >= LOG_TIME)
+    {        
+        // time to log
+        String logMsg;
+
+        logMsg += millis();
+        logMsg += ",";
+
+        for (int i = 0; i < ESC_COUNT; i++)
+        {
+            logMsg += (String)radioCommands[i];
+            logMsg += ",";
+        }
+
+        for (int i = 0; i < ESC_COUNT; i++)
+        {
+            logMsg += (String)dutyCycle[i];
+            logMsg += ",";
+            logMsg += (String)fetTemps[i];
+            logMsg += ",";
+            logMsg += (String)voltages[i];
+            logMsg += ",";
+            logMsg += (String)currents[i];
+            logMsg += ",";
+            logMsg += (String)motorTemps[i];
+            logMsg += ",";
+            logMsg += (String)erpms[i];
+            logMsg += ",";
+        }
+
+        for (int i = 0; i < AXIS_COUNT; i++)
+        {
+            logMsg += (String)rotations[i];
+            logMsg += ",";
+            logMsg += (String)rotationVelocitys[i];
+            logMsg += ",";
+            logMsg += (String)accels[i];
+            logMsg += ",";
+        }
+        logMsg += (String)radioStatus;
+        logMsg += ",";
+        logMsg += (String)powerLevel;
+        logMsg += ",";
+        logMsg += (String)invalidPacketCount;
+        logMsg += ",";
+        logMsg += (String)radioChannel;
+        logMsg += ",";
+
+        logMsg += (String)selfRighterSpeed;
+        logMsg += ",";
+
+        logMsg += (String)noteFlag;
+
+        dataFile.println(logMsg);
+        dataFile.flush();
+    }
 }
 
-void Logger::updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms) {
-  memcpy(this->fetTemps, fetTemps, sizeof(double) * 4);
-  memcpy(this->voltages, voltages, sizeof(double) * 4);
-  memcpy(this->currents, currents, sizeof(double) * 4);
-  memcpy(this->motorTemps, motorTemps, sizeof(double) * 4);
-  memcpy(this->erpms, erpms, sizeof(double) * 4);
+void Logger::updateRadioCommandData(float move, float turn, float bar, float disk)
+{
+    radioCommands[0] = move;
+    radioCommands[1] = turn;
+    radioCommands[2] = bar;
+    radioCommands[3] = disk;
 }
 
-void Logger::updateIMUData(double *rotations, double *rotationVelocitys, double *accels) {
-  memcpy(this->rotations, rotations, sizeof(double) * 4);
-  memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(double) * 4);
-  memcpy(this->accels, accels, sizeof(double) * 4);
+void Logger::updateVescData(float *fetTemps, float *voltages, float *currents, float *motorTemps, int *erpms, float *dutyCycle)
+{
+    memcpy(this->fetTemps, fetTemps, sizeof(float) * 4);
+    memcpy(this->voltages, voltages, sizeof(float) * 4);
+    memcpy(this->currents, currents, sizeof(float) * 4);
+    memcpy(this->motorTemps, motorTemps, sizeof(float) * 4);
+    memcpy(this->erpms, erpms, sizeof(int) * 4);
+    memcpy(this->dutyCycle, dutyCycle, sizeof(float) * 4);
 }
 
-void Logger::updateRadioData(int radioStatus, int powerLevel, long inavalidPacketCount, int radioChannel) {
-  this->radioStatus = radioStatus;
-  this->powerLevel = powerLevel;
-  this->inavalidPacketCount = inavalidPacketCount;
-  this->radioChannel = radioChannel;
+void Logger::updateIMUData(float rotations, float rotationVelocitys, float accelX, float accelY)
+{
+    this->rotations[0] = rotations;
+    this->rotationVelocitys[0] = rotationVelocitys;
+    this->accels[0] = accelX;
+    this->accels[1] = accelY;
 }
 
+void Logger::updateRadioData(int radioStatus, int powerLevel, long invalidPacketCount, int radioChannel)
+{
+    this->radioStatus = radioStatus;
+    this->powerLevel = powerLevel;
+    this->invalidPacketCount = invalidPacketCount;
+    this->radioChannel = radioChannel;
+}
 
-void Logger::updateSelfRighterData(int microseconds) {
-  this->selfRighterMicros = microseconds;
+void Logger::updateSelfRighterData(float speed)
+{
+    this->selfRighterSpeed = speed;
+}
+
+void Logger::updateFlag(bool flag)
+{
+    this->noteFlag = flag;
 }
 
 /**
-  * Formats robot message into a nice string, split into IMU data and VESC data
-  */
-String Logger::formatRobotMessage(RobotMessage robotMessage) {
-  // IMU Portion
-  String message = "";
-
-  // if the message is CAN data
-  if (robotMessage.type == CAN_DATA) {
-    String names[4] = { "LEFT DRIVE  ", "RIGHT DRIVE ", "FRONT WEAPON", "REAR WEAPON " };
-    for (int i = 0; i < 4; i++) {
-      message += DoubleToString(millis() / 1000.0);
-      message += ": ";
-      message += names[i];
-      message += " { I : ";
-      message += DoubleToString(robotMessage.canData.motorCurrent[i]);
-      message += "; V : ";
-      message += DoubleToString(robotMessage.canData.motorVoltage[i]);
-      message += "; ERPM : ";
-      message += DoubleToString(robotMessage.canData.motorERPM[i]);
-      message += "; TEMP : ";
-      message += DoubleToString(robotMessage.canData.escFETTemp[i]);
-      message += " }\n";
+ * Checks if file size exceeds current limit
+ */
+bool Logger::checkOverflow(File dataFile)
+{
+    Serial.println(dataFile.size());
+    if (dataFile.size() >= MAX_FILE_SIZE_MB * 1024 * 1024)
+    {
+        Serial.println("Error: File size exceeded set limit.");
+        overflow = true;
+        return true;
     }
-  }
-  // else if the message is IMU data
-  else if (robotMessage.type == IMU_DATA) {
-    message += DoubleToString(millis() / 1000.0);
-    message += ": IMU DATA     { ROT : ";
-    message += DoubleToString(robotMessage.imuData.rotation);
-    message += "; ROT_VEL : ";
-    message += DoubleToString(robotMessage.imuData.rotationVelocity);
-    message += "; ACCEL_X : ";
-    message += DoubleToString(robotMessage.imuData.accelX);
-    message += "; ACCEL_Y : ";
-    message += DoubleToString(robotMessage.imuData.accelY);
-    message += " }\n";
-  }
-  // else invalid message
-  else {
-    message += DoubleToString(millis() / 1000.0);
-    message += ": INVALID MESSAGE!\n";
-  }
 
-  return message;
-}
-
-/**
-  * Writes given message to datalog.txt on the SD card
-  */
-bool Logger::logMessage(String message) {
-  if (initialized && !overflow) {
-    // open the file.
-    // if the file is available, write to it:
-    if (dataFile) {
-      dataFile.println(message);
-      checkOverflow(dataFile);
-      dataFile.close();
-      // Serial.println("End Log");
-      return true;
-    } else {
-      // if the file isn't open, pop up an error:
-      // Serial.println("Error opening datalog.txt");
-      // Serial.println("End Log");
-      return false;
-    }
-  }
-
-  if (overflow) Serial.println("Error: File size overflowed. Unable to write to file.");
-  else Serial.println("Error: SD card not initialized. Unable to write to file.");
-  Serial.println("End Log");
-  return false;
-}
-
-
-/**
-  * Checks if file size exceeds current limit
-  */
-bool Logger::checkOverflow(File dataFile) {
-  Serial.println(dataFile.size());
-  if (dataFile.size() >= MAX_FILE_SIZE_MB * 1024 * 1024) {
-    Serial.println("Error: File size exceeded set limit.");
-    overflow = true;
-    return true;
-  }
-
-  return false;
+    return false;
 }

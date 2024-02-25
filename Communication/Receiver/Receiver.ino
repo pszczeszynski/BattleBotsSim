@@ -13,7 +13,7 @@
 
 
 #define VERBOSE_RADIO
- #define LOG_DATA
+#define LOG_DATA
 
 #include "IMU.h"
 #include "Logging.h"
@@ -110,6 +110,7 @@ void DriveWeapons(DriveCommand &command)
 void DriveSelfRighter(DriveCommand &command)
 {
     selfRightMotor.SetPower(command.selfRighterPower);
+    logger.updateSelfRighterData(command.selfRighterPower);
 }
 
 /**
@@ -186,6 +187,7 @@ RobotMessage Update()
         ret.imuData.rotation = imu.getRotation();
         // calculate rotation velocity
         ret.imuData.rotationVelocity = imu.getRotationVelocity();
+        logger.updateIMUData(ret.imuData.rotation, ret.imuData.rotationVelocity, ret.imuData.accelX, ret.imuData.accelY);
 #else
         ret.imuData.accelX = 0;
         ret.imuData.accelY = 0;
@@ -231,7 +233,6 @@ unsigned long lastReceiveTime = 0;
  */
 void DriveWithLatestMessage()
 {
-    static unsigned long lastReceiveTime = 0;
     static long lastPrintTime = 0;
     static long lastReinitRadioTime = 0;
     static bool noPacketWatchdogTrigger = false;
@@ -265,6 +266,9 @@ void DriveWithLatestMessage()
         // check if the command is valid
         if (command.valid)
         {
+            // add to the logger
+            logger.updateRadioCommandData(command.movement, command.turn, command.frontWeaponPower, command.backWeaponPower);
+
             // drive the robot, weapons, self righter
             Drive(command);
             DriveWeapons(command);
@@ -315,9 +319,6 @@ void DriveWithLatestMessage()
             DriveSelfRighter(command);
             noPacketWatchdogTrigger = true;
         }
-#ifdef LOG_DATA
-        logger.logMessage("Radio Timeout");
-#endif
 
         // check if we should reinit the radio
         if (millis() - lastReinitRadioTime > 1000)
@@ -424,11 +425,28 @@ void loop()
 
     // send the message
     SendOutput result = radio.Send(message);
+    logger.updateRadioData((int)result, 0, 0, 0);
 
     if (result != SEND_SUCCESS)
     {
-        Serial.println("Failed to send radio message. Result: " + (String) result);
-
+        Serial.println("Failed to send radio message. Result: " + (String)result);
     }
-    logger->update();
+
+    float fetTemps[4];
+    float voltages[4];
+    float currents[4];
+    float motorTemps[4];
+    int erpms[4];
+    float dutyCycle[4];
+
+    vesc.GetFloatFETTemps(fetTemps);
+    vesc.GetFloatVolts(voltages);
+    vesc.GetFloatCurrents(currents);
+    vesc.GetFloatMotorTemps(motorTemps);
+    vesc.GetIntRPMs(erpms);
+    vesc.GetFloatDutyCycle(dutyCycle);
+
+    logger.updateVescData(fetTemps, voltages, currents, motorTemps, erpms, dutyCycle);
+
+    logger.update();
 }

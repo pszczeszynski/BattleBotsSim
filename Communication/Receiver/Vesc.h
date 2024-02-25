@@ -24,5 +24,13 @@ public:
     void GetVolts(unsigned char* outVolts);
     void GetRPMs(unsigned char* outRPMs);
     void GetFETTemps(unsigned char* outFetTemps);
+    void GetMotorTemps(unsigned char* outMotorTemps);
+
+    void GetFloatCurrents(float* outCurrents);
+    void GetFloatVolts(float* outVolts);
+    void GetIntRPMs(int* outRPMs);
+    void GetFloatFETTemps(float* outFetTemps);
+    void GetFloatMotorTemps(float* outMotorTemps);
+    void GetFloatDutyCycle(float* outDutyCycle);
 };
 
