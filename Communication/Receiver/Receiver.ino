@@ -14,7 +14,7 @@
 
 
 #define VERBOSE_RADIO
-// #define LOG_DATA
+ #define LOG_DATA
 
 #include "Radio.h"
 #include "IMU.h"
@@ -83,7 +83,7 @@ void setup()
 
 #ifdef LOG_DATA
     Serial.println("Initializing SD card...");
-    logger = new Logger(const_cast<char *>("dataLog.txt"));
+    logger = new Logger();
     Serial.println("Success!");
 #else
     Serial.println("Not logging data");
@@ -212,10 +212,6 @@ RobotMessage Update()
 #endif
     }
 
-#ifdef LOG_DATA
-    logger->logMessage(logger->formatRobotMessage(ret));
-#endif
-
     return ret;
 }
 
@@ -301,9 +297,6 @@ void DriveWithLatestMessage()
             // update the last receive time
             lastReceiveTime = millis();
 
-#ifdef LOG_DATA
-            logger->logMessage(logger->formatDriveCommand(command));
-#endif
         }
         // if the command is invalid
         else
@@ -329,9 +322,7 @@ void DriveWithLatestMessage()
         DriveWeapons(command);
         DriveSelfRighter(command);
 
-#ifdef LOG_DATA
-        logger->logMessage("Radio Timeout");
-#endif
+
     }
 }
 
@@ -352,9 +343,7 @@ void loop()
     if (result != SEND_SUCCESS)
     {
         Serial.println("Failed to send radio message. Result: " + (String) result);
-#ifdef LOG_DATA
-        if (result == FIFO_FAIL) logger->logMessage("Radio fifo failed to clear");
-        else if (result == HW_FAULT) logger->logMessage("Radio hardware failure detected");
-#endif
+
     }
+    logger->update();
 }

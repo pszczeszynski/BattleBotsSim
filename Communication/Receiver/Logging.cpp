@@ -8,7 +8,7 @@ String DoubleToString(double value) {
   return String(buffer);
 }
 
-  
+
 Logger::Logger() {
   overflow = false;
 
@@ -44,72 +44,131 @@ Logger::Logger() {
     entry.close();
   }
 
+  highestLog++;
+
+  Serial.printf("highest log: %d \n", highestLog);
+
   char buf[15];
 
-  sprintf(buf, "log%d.csv", highestLog++);
+  sprintf(buf, "log%d.csv", highestLog);
 
   this->fileName = buf;
 
   dataFile = SD.open(fileName, FILE_WRITE);
+  Serial.printf("made new file: %s\n", fileName);
   String header = "";
   header += "TIME,";
-  for (int i = 0; i<=ESC_COUNT; i++){
-    header += (escs[i] + "COMMAND,");
-    header += (escs[i] + "FET_TEMP,");
-    header += (escs[i] + "VOTLAGE,");
-    header += (escs[i] + "CURRENT,");
-    header += (escs[i] + "MOTOR_TEMP,");
-    header += (escs[i] + "ERPM,");
+  for (int i = 0; i <= ESC_COUNT; i++) {
+    header += (escs[i] + "_COMMAND,");
+    header += (escs[i] + "_FET_TEMP,");
+    header += (escs[i] + "_VOTLAGE,");
+    header += (escs[i] + "_CURRENT,");
+    header += (escs[i] + "_MOTOR_TEMP,");
+    header += (escs[i] + "_ERPM,");
   }
 
-  for (int i = 0; i<=AXIS_COUNT; i++){
-    header += (axis[i] + "ROTATION,");
-    header += (axis[i] + "ROTATION_VELOCITY,");
-    header += (axis[i] + "ACCEL,");
+  for (int i = 0; i <= AXIS_COUNT; i++) {
+    header += (axis[i] + "_ROTATION,");
+    header += (axis[i] + "_ROTATION_VELOCITY,");
+    header += (axis[i] + "_ACCEL,");
   }
   header += "RADIO_STATUS,";
   header += "POWER_LEVEL,";
   header += "INVALID_PACKETS,";
+  header += "RADIO_CHANNEL,";
 
-  
+  header += "SELF_RIGHTER,";
+
   header += "FLAG";
 
   dataFile.println(header);
-}
-
-void Logger::update(){
   
-
+  dataFile.flush();
 }
 
-void Logger::updateCommandData(double ld, double rd, double fw, double rw){
+void Logger::update() {
+  if (millis() - lastLogTime >= LOG_TIME) {
+    // time to log
+    String logMsg;
+
+    logMsg += millis();
+    logMsg += ",";
+
+    for (int i = 0; i <= ESC_COUNT; i++) {
+      logMsg += (String)commands[i];
+      logMsg += ",";
+      logMsg += (String)fetTemps[i];
+      logMsg += ",";
+      logMsg += (String)voltages[i];
+      logMsg += ",";
+      logMsg += (String)currents[i];
+      logMsg += ",";
+      logMsg += (String)motorTemps[i];
+      logMsg += ",";
+      logMsg += (String)erpms[i];
+      logMsg += ",";
+    }
+
+    for (int i = 0; i <= AXIS_COUNT; i++) {
+      logMsg += (String)rotations[i];
+      logMsg += ",";
+      logMsg += (String)rotationVelocitys[i];
+      logMsg += ",";
+      logMsg += (String)accels[i];
+      logMsg += ",";
+    }
+    logMsg += (String)radioStatus;
+    logMsg += ",";
+    logMsg += (String)powerLevel;
+    logMsg += ",";
+    logMsg += (String)inavalidPacketCount;
+    logMsg += ",";
+    logMsg += (String)radioChannel;
+    logMsg += ",";
+
+    logMsg += (String)selfRighterMicros;
+    logMsg += ",";
+
+    logMsg += (String)noteFlag;
+
+
+  dataFile.println(logMsg);
+  dataFile.flush();
+  }
+}
+
+void Logger::updateCommandData(double ld, double rd, double fw, double rw) {
   commands[0] = ld;
   commands[1] = rd;
   commands[2] = fw;
   commands[3] = rw;
-
 }
 
-void Logger::updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms){
-  memcpy(this->fetTemps, fetTemps, sizeof(double)*4);
-  memcpy(this->voltages, voltages, sizeof(double)*4);
-  memcpy(this->currents, currents, sizeof(double)*4);
-  memcpy(this->motorTemps, motorTemps, sizeof(double)*4);
-  memcpy(this->ermps, ermps, sizeof(double)*4);
-
+void Logger::updateVescData(double *fetTemps, double *voltages, double *currents, double *motorTemps, double *erpms) {
+  memcpy(this->fetTemps, fetTemps, sizeof(double) * 4);
+  memcpy(this->voltages, voltages, sizeof(double) * 4);
+  memcpy(this->currents, currents, sizeof(double) * 4);
+  memcpy(this->motorTemps, motorTemps, sizeof(double) * 4);
+  memcpy(this->erpms, erpms, sizeof(double) * 4);
 }
 
-void Logger::updateIMUData(double *rotations, double *rotationVelocitys, double *accels){
-  memcpy(this->rotations, rotations, sizeof(double)*4);
-  memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(double)*4);
-  memcpy(this->accels, accels, sizeof(double)*4);
+void Logger::updateIMUData(double *rotations, double *rotationVelocitys, double *accels) {
+  memcpy(this->rotations, rotations, sizeof(double) * 4);
+  memcpy(this->rotationVelocitys, rotationVelocitys, sizeof(double) * 4);
+  memcpy(this->accels, accels, sizeof(double) * 4);
 }
 
-void Logger::updateRadioData(){
-
+void Logger::updateRadioData(int radioStatus, int powerLevel, long inavalidPacketCount, int radioChannel) {
+  this->radioStatus = radioStatus;
+  this->powerLevel = powerLevel;
+  this->inavalidPacketCount = inavalidPacketCount;
+  this->radioChannel = radioChannel;
 }
 
 
+void Logger::updateSelfRighterData(int microseconds) {
+  this->selfRighterMicros = microseconds;
+}
 
 /**
   * Formats robot message into a nice string, split into IMU data and VESC data
