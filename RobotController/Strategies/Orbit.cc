@@ -4,7 +4,7 @@
 #include "../RobotOdometry.h"
 #include "RobotMovement.h"
 #include "../RobotController.h"
-
+#include "../UIWidgets/GraphWidget.h"
 
 Orbit::Orbit()
 {
@@ -40,6 +40,10 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     currentState.angularVelocity = 0;
     // project velocity onto angle
     currentState.velocity = cv::Point2f(cos(currentState.angle), sin(currentState.angle)) * cv::norm(currentState.velocity);
+    if (!LEAD_WITH_BAR)
+    {
+        currentState.velocity *= -1;
+    }
     RobotSimState exStateNoAngle = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
 
     // force the projected position to to be with no angle
@@ -59,9 +63,23 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
 */
 #define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
 #define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
+#define TIME_BETWEEN_RADIUS_UPDATES 0.01
 double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f orbitCenter, double orbitRadius)
 {
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
+    static Clock updateClock;
+    static GraphWidget purePursuitRadiusGraph("Pure Pursuit Radius", 0, 200, "px", 1000);
+    double deltaTime = updateClock.getElapsedTime();
+
+    // if the time since the last update is too small, then don't update the radius
+    if (deltaTime < TIME_BETWEEN_RADIUS_UPDATES)
+    {
+        return purePursuitRadius;
+    }
+
+    // restart the clock
+    updateClock.markStart();
+
     // get our velocity
     double velocityNorm = cv::norm(RobotOdometry::Robot().GetVelocity());
     // scale the radius based on our velocity
@@ -73,15 +91,44 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
     // enforce the targetRadius to be between the min and max scales
     targetPurePursuitRadius = std::min(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MAX_PURE_PURSUIT_RADIUS_SCALE);
     targetPurePursuitRadius = std::max(targetPurePursuitRadius, PURE_PURSUIT_RADIUS * MIN_PURE_PURSUIT_RADIUS_SCALE);
+    // make sure to never engulf the orbit circle
     targetPurePursuitRadius = std::min(targetPurePursuitRadius, distanceToOtherEdgeOfCircle - 5);
+    // more interpolation if more time has passed
+    double interPolateAmount = std::min(1.0, deltaTime / ORBIT_RADIUS_MOVAVG_SPEED);
     // slowly change the radius to the target radius
-    purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * (ORBIT_RADIUS_MOVAVG_SPEED / 100.0);
+    purePursuitRadius += (targetPurePursuitRadius - purePursuitRadius) * interPolateAmount;
     // re-enforce the smoothed radius to not engulf the circle
     purePursuitRadius = std::min(purePursuitRadius, distanceToOtherEdgeOfCircle - 5);
     // enforce pure pursuit radius to be at least 1
     purePursuitRadius = std::max(purePursuitRadius, 1.0);
+
+    // add the radius to the graph
+    purePursuitRadiusGraph.AddData(purePursuitRadius);
+
     // return the radius
     return purePursuitRadius;
+}
+
+/**
+ * Projects a point onto a line with a given angle
+ * 
+ * @param linePoint The point on the line
+ * @param lineAngle The angle of the line
+ * @param point The point to project
+ * @return The projected point
+*/
+cv::Point2f ProjectPointOntoLineWithAngle(cv::Point2f linePoint, double lineAngle, cv::Point2f point) {
+    // Direction vector of the line
+    cv::Point2f lineDir(cos(lineAngle), sin(lineAngle));
+
+    // Vector from linePoint to point
+    cv::Point2f pointVector = point - linePoint;
+
+    // Project pointVector onto lineDir
+    double dotProduct = pointVector.x * lineDir.x + pointVector.y * lineDir.y;
+    cv::Point2f projection = linePoint + dotProduct * lineDir;
+
+    return projection;
 }
 
 /**
@@ -141,7 +188,6 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 #endif
 
     bool circleDirection = angle_wrap(ourAngle - angleToCenter) < 0;
-    bool drivingBackwards = gamepad.GetRightStickY() < -0.03;
 
     if (RobotController::GetInstance().gamepad.GetDpadLeft())
     {
@@ -153,7 +199,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     }
 
     // check if the user wants to drive backwards, invert the circle direction
-    if (drivingBackwards)
+    if (!LEAD_WITH_BAR)
     {
         circleDirection = !circleDirection;
     }
@@ -188,13 +234,16 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
 
     // choose the direction to drive in
-    RobotMovement::DriveDirection direction = drivingBackwards ? RobotMovement::DriveDirection::Backward : RobotMovement::DriveDirection::Forward;
+    RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
     // draw arrow at the ex state's angle
     cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
     cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
-    DriveCommand response = DriveToPosition(exState, targetPoint, direction);
+    DriveCommand response = DriveToPosition(exState, targetPoint,
+                                            TURN_THRESH_1_DEG_ORBIT, TURN_THRESH_2_DEG_ORBIT,
+                                            MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT,
+                                            direction);
 
     // if on inside of circle and pointed outwards
     if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
@@ -203,6 +252,16 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
         response.movement = 1.0;
         response.turn *= 0.5;
     }
+
+    // plot horizontal bar to show turn (green for right, red for left)
+    cv::Point2f turnBarStart = cv::Point2f(WIDTH / 2, HEIGHT / 2);
+    cv::Point2f turnBarEnd = turnBarStart + cv::Point2f(100 * response.turn, 0);
+    cv::line(drawingImage, turnBarStart, turnBarEnd, response.turn > 0 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 10);
+
+    // plot movement as a vertical bar (green for forward, red for backward)
+    cv::Point2f moveBarStart = cv::Point2f(WIDTH / 2, HEIGHT / 2);
+    cv::Point2f moveBarEnd = moveBarStart + cv::Point2f(0, -100 * response.movement);
+    cv::line(drawingImage, moveBarStart, moveBarEnd, response.movement > 0 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 10);
 
     return response;
 }
@@ -243,8 +302,6 @@ cv::Point2f Orbit::_NoMoreAggressiveThanTangent(Gamepad &gamepad,
                                                 bool circleDirection)
 {
     double distToOpponent = cv::norm(ourPosition - opponentPosEx);
-
-    bool direction = gamepad.GetRightStickY() >= 0;
 
     // if we are inside the circle, then just return the currentTargetPoint since can't take tangent
     if (distToOpponent <= orbitRadius)

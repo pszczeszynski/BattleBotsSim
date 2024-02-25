@@ -24,11 +24,14 @@ DriveCommand Kill::Execute(Gamepad &gamepad)
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, NUM_PREDICTION_ITERS);
 
-    RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Auto;
+    RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
     DriveCommand ret;
     // drive directly to the opponent
-    DriveCommand responseGoToPoint = RobotMovement::DriveToPosition(exState, RobotOdometry::Opponent().GetPosition(), direction);
+    DriveCommand responseGoToPoint = RobotMovement::DriveToPosition(exState, RobotOdometry::Opponent().GetPosition(),
+                                                                    TURN_THRESH_1_DEG_KILL, TURN_THRESH_1_DEG_KILL,
+                                                                    TURN_THRESH_1_DEG_KILL, TURN_THRESH_1_DEG_KILL,
+                                                                    direction);
     ret.turn = responseGoToPoint.turn;
     ret.movement = gamepad.GetRightStickY() * abs(responseGoToPoint.movement);
     return ret;

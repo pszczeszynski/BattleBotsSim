@@ -12,7 +12,6 @@
 #include "imgui.h"
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
-#include "Strategies/Avoid.h"
 #include "Strategies/RobotMovement.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/KillWidget.h"
@@ -75,6 +74,7 @@ CANData RobotController::GetCANData()
     return ret;
 }
 
+#define SAVE_VIDEO
 
 void RobotController::Run()
 {
@@ -101,6 +101,11 @@ void RobotController::Run()
     });
 
     ClockWidget loopClock("Total loop time");
+
+#ifdef SAVE_VIDEO
+    static cv::VideoWriter _videoWriter{"Recordings/output.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, cv::Size(WIDTH, HEIGHT)};
+#endif
+    Clock videoWriteClock;
 
     // receive until the peer closes the connection
     while (true)
@@ -145,6 +150,17 @@ void RobotController::Run()
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
         _fieldWidget.UpdateMat(drawingImage);
+
+
+    
+    // if save video is enabled, save the frame
+#ifdef SAVE_VIDEO
+        if (videoWriteClock.getElapsedTime() > 1.0 / 60.0)
+        {
+            _videoWriter.write(drawingImage);
+            videoWriteClock.markStart();
+        }
+#endif
     }
 }
 
@@ -180,13 +196,16 @@ void RobotController::UpdateRobotTrackers(VisionClassification classification)
 
         RobotOdometry::Robot().UpdateVisionAndIMU(robot, frame);
 
-        cv::rectangle(drawingImage, robot.rect, cv::Scalar(255, 0, 0, 1));
+        cv::rectangle(drawingImage, robot.rect, cv::Scalar(0, 255, 0, 1));
     }
     else
     {
         // otherwise just update using the imu
         // TODO: DONT JUST USE THE DRAWING IMAGE, that's hacky
         RobotOdometry::Robot().UpdateIMUOnly(drawingImage);
+
+        // draw red circle on robot since we didn't detect it
+        cv::circle(drawingImage, RobotOdometry::Robot().GetPosition(), 10, cv::Scalar(0, 0, 255), 4);
     }
 
     // if vision detected the opponent
@@ -226,28 +245,6 @@ void drawAndDisplayValue(cv::Mat &image, double value, double xPosition, cv::Sca
     cv::putText(image, text, cv::Point(xPosition, startY + rectHeight + textSize.height + 5), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
 }
 
-
-
-DriveCommand RobotController::AvoidMode()
-{
-    DriveCommand ret{0, 0};
-
-    cv::Point2f targetPoint = _movementStrategy.AvoidStrategy();
-
-    // draw the target point
-    cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
-
-    RobotSimState state;
-    state.position = RobotOdometry::Robot().GetPosition();
-    state.angle = RobotOdometry::Robot().GetAngle();
-    state.velocity = RobotOdometry::Robot().GetVelocity();
-    state.angularVelocity = RobotOdometry::Robot().GetAngleVelocity();
-
-    // drive towards it
-    ret = RobotMovement::DriveToPosition(state, targetPoint, RobotMovement::DriveDirection::Auto);
-
-    return ret;
-}
 
 Gamepad& RobotController::GetGamepad()
 {
@@ -314,27 +311,23 @@ DriveCommand RobotController::RobotLogic()
 
     DriveCommand responseManual = ManualMode();
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
-    // DriveCommand responseAvoid = AvoidMode();
-
     // start with just manual control
     DriveCommand ret = responseManual;
 
 
-
-
-    // if gamepad pressed dpad up, _orbiting = true
-    if (gamepad.GetDpadUp())
+    // if gamepad pressed left bumper, _orbiting = true
+    if (gamepad.GetLeftBumper() && !gamepad.GetRightBumper())
     {
         _orbiting = true;
         _killing = false; 
     }
-
-    if (gamepad.GetDpadDown())
+    else if (gamepad.GetRightBumper() && !gamepad.GetLeftBumper())
     {
         _killing = true;
         _orbiting = false;
     }
 
+    LEAD_WITH_BAR = gamepad.GetRightStickY() >= 0.0;
     // if there is any turning on the left stick, disable orbiting and killing
     if (abs(gamepad.GetLeftStickX()) > 0.1)
     {

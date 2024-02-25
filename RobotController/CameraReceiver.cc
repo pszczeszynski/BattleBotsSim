@@ -11,13 +11,13 @@
 #include "imgui.h"
 #include "Input/InputState.h"
 #include "UIWidgets/ClockWidget.h"
+#include <opencv2/videoio.hpp>
 
 #define VIDEO_READ
 
 double MAX_CAP_FPS = 100.0;
 #define GET_FRAME_TIMEOUT_MS 500
 
-// #define SAVE_VIDEO
 
 // TODO: add a way to save video with the UI
 ICameraReceiver* _instance = nullptr;
