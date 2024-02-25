@@ -7,6 +7,7 @@
 #include "Input/InputState.h"
 #include "RobotConfig.h"
 #include "CVPosition.h"
+#include "UIWidgets/GraphWidget.h"
 
 RobotOdometry::RobotOdometry(cv::Point2f initialPosition) :
     _position{initialPosition},
@@ -124,6 +125,11 @@ bool RobotOdometry::_IsValidBlob(MotionBlob &blob)
     double lastVelocityNorm = cv::norm(_lastVelocity);
     bool invalidBlob = blobArea < _lastBlobArea * 0.8 && _numUpdatesInvalid < 10;
 
+    cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
+    // draw a text on the drawing image if valid
+    cv::Scalar color = invalidBlob ? cv::Scalar(0, 0, 255) : cv::Scalar(0, 255, 0);
+    cv::putText(drawingImage, invalidBlob ? "Invalid Blob" : "Valid Blob", cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+
     // if the blob is too small and we haven't had too many invalid blobs
     if (invalidBlob)
     {
@@ -163,20 +169,20 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
         visualPos = _position;
     }
 
-    // // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
-    // // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
-    // if (this == &RobotOdometry::Robot())
-    // {
-    //     std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-    //     visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+    // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
+    // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
+    if (this == &RobotOdometry::Robot())
+    {
+        std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+        visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
 
-    //     std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
+        std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
 
-    //     // draw the position on the drawing image
-    //     SAFE_DRAW
-    //     cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
-    //     END_SAFE_DRAW
-    // }
+        // draw the position on the drawing image
+        SAFE_DRAW
+        cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
+        END_SAFE_DRAW
+    }
 
     /////////////////////// ANGLE ///////////////////////
     // set the fused angle to the imu angle
@@ -280,9 +286,11 @@ double RobotOdometry::_UpdateAndGetIMUAngle()
  * Smooths out the visual velocity so it's not so noisy
 */
 #define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 250
-#define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
 cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
 {
+    static GraphWidget velocityGraph{"Visual Velocity", 0, 500, "px/s", 1000};
+    static GraphWidget velocityGraphSmooth{"Smooth Visual Velocity", 0, 500, "px/s", 1000};
+    // if too much time has passed since the last update, return 0
     if (_lastVelocityCalcClock.getElapsedTime() > 0.1)
     {
         _lastVelocityCalcClock.markStart();
@@ -291,17 +299,22 @@ cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
 
     // visual velocity
     cv::Point2f visualVelocity = (blob.center - _position) / _lastVelocityCalcClock.getElapsedTime();
+
     // compute weight for interpolation
     double weight = _lastVelocityCalcClock.getElapsedTime() * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
 
-    // If this is the opponent, don't extrapolate so much!! => TODO: make this not a hack
-    if (this == &RobotOdometry::Opponent())
-    {
-        weight /= NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT;
-    }
-
     // interpolate towards the visual velocity so it's not so noisy
     cv::Point2f smoothedVisualVelocity = InterpolatePoints(_lastVelocity, visualVelocity, weight);
+
+    // if it's the robto
+    if (this == &Robot())
+    {
+        // add the velocity to the graph
+        velocityGraph.AddData(cv::norm(visualVelocity));
+
+        // add the smoothed velocity to the graph
+        velocityGraphSmooth.AddData(cv::norm(smoothedVisualVelocity));
+    }
 
     // restart the clock
     _lastVelocityCalcClock.markStart();

@@ -34,6 +34,11 @@ ImageWidget::~ImageWidget()
     instances.erase(std::remove(instances.begin(), instances.end(), this), instances.end());
 }
 
+void ImageWidget::AddAdditionalUI(std::function<void()> func)
+{
+    _additionalUI = func;
+}
+
 /**
  * Gets the list of all instances of this class
 */
@@ -81,6 +86,12 @@ void ImageWidget::Draw()
     // Draw texture
     ImGui::Image(texture, ImVec2(_image.cols, _image.rows));
     _imageMutex.unlock();
+    // Draw additional UI if it exists
+    if (_additionalUI)
+    {
+        _additionalUI();
+    }
+
 
     // Get the coords of the above image
     _windowPos = ImGui::GetItemRectMin();

@@ -7,8 +7,11 @@
 
 CVPosition::CVPosition()
 {
+    std::cout << "Loading model" << std::endl;
     // load the model
     _net = cv::dnn::readNetFromONNX(MODEL_PATH);
+
+    std::cout << "Loaded model" << std::endl;
     _net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
     _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
 
@@ -22,6 +25,8 @@ CVPosition::CVPosition()
         while (true)
         {
             long id = camera.GetFrame(frame, last_id);
+            // print shape
+            std::cout << "shape: " << frame.size() << std::endl;
             last_id = id;
             boundingBox = ComputeRobotPosition(frame);
             boundingBoxMutex.lock();

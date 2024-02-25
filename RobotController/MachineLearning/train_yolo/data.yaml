@@ -1,5 +1,5 @@
-train: test3/train/images
-val: test3/val/images
+train: set4_forks_preprocessed/train/images
+val: set4_forks_preprocessed/val/images
 
 nc: 1
 names: ["orbitron"]
