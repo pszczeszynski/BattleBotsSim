@@ -29,7 +29,6 @@ public:
     IRobotLink& GetRobotLink();
 
     cv::Mat& GetDrawingImage(); // Returns the image for the overlays
-    cv::Mat GetFinalImageCopy(); // Returns the final image (background + overlays)
     Gamepad& GetGamepad();
 
     Clock visionClock;
@@ -81,7 +80,6 @@ private:
 
     ICameraReceiver& videoSource;
 
-    Vision vision;
     SelfRighter _selfRighter;
 
     bool _orbiting = false;

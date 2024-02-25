@@ -81,7 +81,10 @@ bool OdometryBase::Run( void )
             _videoSource->GetFrame(currFrame, frameID, &frameTime); // Blocking read until new frame available
 
             // Process the new frame
-            _ProcessNewFrame(currFrame, frameTime); 
+            if( !currFrame.empty())
+            {
+                _ProcessNewFrame(currFrame, frameTime); 
+            }
         }
 
         // Call any stop routines

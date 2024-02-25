@@ -6,7 +6,7 @@
 
 FieldWidget* FieldWidget::_instance = nullptr;
 
-FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetFinalImageCopy(), false)
+FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetDrawingImage(), false)
 {
     _instance = this;
 }

@@ -395,7 +395,9 @@ void RobotTracker::ProcessNewFrame(double currTime,  cv::Mat& foreground, cv::Ma
     MultiThreadCleanup cleanup(doneInt, mutex, doneCV);
     debugLine = "";
 
-    if( debug_DumpInfo) { debugImage = debugMat; }
+    if( debug_DumpInfo) 
+    { debugImage = debugMat; }
+    
     currTimeSaved = currTime;
 
     if( currTime > 2.0*41.855)

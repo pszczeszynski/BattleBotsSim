@@ -4,7 +4,6 @@
 #include "RobotController.h"
 #include "Odometry/BlobDetection/RobotClassifier.h"
 #include "RobotLink.h"
-// #include "Vision.h"
 #include <opencv2/core.hpp>
 #include <algorithm>
 #include "UIWidgets/IMUWidget.h"
@@ -120,6 +119,8 @@ void RobotController::Run()
 
     // receive until the peer closes the connection
     int videoID = -1;
+    cv::Mat failsafeImage;
+
     while (true)
     {
         loopClock.markEnd();
@@ -135,6 +136,22 @@ void RobotController::Run()
 
         // init drawing image to latest frame from camera
         videoSource.GetFrame(drawingImage, 0);
+
+        // Initialize failsafe image
+        if( failsafeImage.empty() && !drawingImage.empty())
+        { drawingImage.copyTo(failsafeImage);}
+
+        // If the frame is empty then keep old image
+        if( drawingImage.empty()) 
+        { 
+            if( failsafeImage.empty()) {continue;}
+            failsafeImage.copyTo(drawingImage);
+        }
+
+        // Convert the drawing stop RGB
+        if (drawingImage.channels() == 1) {
+            cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
+        }
 
         // update the gamepad
         gamepad.Update();
@@ -468,15 +485,6 @@ IRobotLink& RobotController::GetRobotLink()
     return robotLink;
 }
 
-// Returns a fresh copy of the internal image
-cv::Mat RobotController::GetFinalImageCopy()
-{
-    std::unique_lock<std::mutex> locker(_imageLock);
-    cv::Mat outCopy;
-    drawingImage.copyTo(outCopy);
-    return outCopy;
-}
-
 // Returns the image to do draw overlay info on
 cv::Mat& RobotController::GetDrawingImage()
 {
@@ -564,5 +572,4 @@ void RobotController::DrawStatusIndicators()
 
     cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
     cv::putText(drawingImage, "GP", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
->>>>>>> master_recents
 }

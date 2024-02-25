@@ -500,8 +500,6 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - videoFramePeriod);
 
-    std::unique_lock<std::mutex> locker(_frameMutex);
-
     // read the next frame
     if (playback_goback || playback_restart)
     {
