@@ -125,12 +125,12 @@ void RobotController::Run()
     {
         loopClock.markEnd();
 
-        // If the elapsed time is less then the minimum time for this loop, then sleep for the remaining
-        double delta_time = MIN_ROBOT_CONTROLLER_LOOP_TIME_MS - loopClock.getElapsedTime() * 1000.0f;
-        if (delta_time > 1.0f)
-        {
-            Sleep((DWORD)delta_time);
-        }
+        // // If the elapsed time is less then the minimum time for this loop, then sleep for the remaining
+        // double delta_time = MIN_ROBOT_CONTROLLER_LOOP_TIME_MS - loopClock.getElapsedTime() * 1000.0f;
+        // if (delta_time > 1.0f)
+        // {
+        //     Sleep((DWORD)delta_time);
+        // }
 
         loopClock.markStart();
 
