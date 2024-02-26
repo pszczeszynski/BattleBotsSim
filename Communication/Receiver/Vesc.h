@@ -9,6 +9,7 @@ private:
     float lastPowers[4] = { 0, 0, 0, 0 };
 
     void _SetMotorPower(float power, int motorIndex);
+    void _SetMotorCurrent(float current_amps, int motorIndex);
 public:
 
     static void OnMessage(const CAN_message_t &msg);
@@ -16,7 +17,7 @@ public:
     VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id);
 
     void Drive(float leftPower, float rightPower);
-    void DriveWeapons(float frontPower, float backPower);
+    void DriveWeapons(float frontCurrent_amps, float backCurrent_amps);
     void Update();
     
     void GetCurrents(unsigned char* outCurrents);

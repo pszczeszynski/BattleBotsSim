@@ -1,5 +1,14 @@
+#include "CameraDecoder.h"
+
+#include <opencv2/calib3d.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/flann.hpp>
+
 #include <iostream>
-#include "../../Globals.h"
+#include "Globals.h"
 #include <vector>
 #include <algorithm>
 #include <iterator>
@@ -10,18 +19,7 @@
 #include <filesystem>
 #include <condition_variable>
 #include <functional>
-#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/flann.hpp>
-#include "../../MathUtils.h"
-#include "../../RobotConfig.h"
-#include "HeuristicOdometry.h"
+
 
 
 
@@ -30,8 +28,67 @@
 // ****************************************
 
 
-HeuristicOdometry::HeuristicOdometry(ICameraReceiver *videoSource) : OdometryBase(videoSource)
+CameraDecoder::CameraDecoder(ICameraReceiver &overheadCam)
+    :   overheadCam(overheadCam)
 {
+    // create the processing thread in a loop
+    processingThread = std::thread([&]()
+                                   {
+        // holds the data of the current frame
+        cv::Mat currFrame;
+        Clock clock_FromStart;
+        Clock clock_outer;
+        clock_outer.markStart();
+        clock_FromStart.markStart();
+        double time_inner_avg = 0;
+        double avg_count = 200.0;
+        long frame_id = -1;
+
+        while (true)
+        {
+
+            // get the current frame from the camera, this will wait until frame available
+            frame_id = overheadCam.GetFrame(currFrame,frame_id);
+
+            // Mark time of the beggining of this frame
+            // Need this for velocity and extrapolation calcs
+            currTime = clock_FromStart.getElapsedTime();
+
+            // Clear our logging information
+            timing_list.clear();
+            timing_text.clear();
+            timing_clock.markStart();
+            markTime("TIME: ", currTime);  
+
+            // Change the picute to 8-bit B&W
+            cv::Mat converted_img;
+            cv::cvtColor( currFrame, converted_img, cv::COLOR_BGR2GRAY);
+
+            // Apply birds eye view
+            // preprocess the frame to get the birds eye view
+            birdsEyePreprocessor.Preprocess(converted_img, converted_img);
+
+            // Now process it
+            processNewFrame(converted_img);     
+
+            // Process our logging information
+            time_inner_avg = (time_inner_avg*(avg_count-1.0) + timing_clock.getElapsedTime())/avg_count;
+
+            if( clock_outer.getElapsedTime() > 1.0)
+            {
+                cv::Mat statsmat = cv::Mat::zeros(800, 800, CV_8UC3);
+                int y_offset = 20;
+
+                for( int i = 0; i < timing_list.size(); i++)
+                {
+                    printText(timing_text[i] + std::to_string(timing_list[i]*1000.0) + "ms", statsmat, y_offset);
+                    y_offset+=20;
+                }
+                cv::imshow("Statistics", statsmat);
+                clock_outer.markStart();
+            }
+
+        } });
 }
 
 // Statemachine definitions
@@ -46,58 +103,10 @@ CAMDECODER_SM camStateMachine = CMSM_LOADBACK;
 
 double lastTime = 0;
 
-void HeuristicOdometry::UpdateSettings()
-{
-    averagingCount =  HEU_BACKGROUND_AVGING;
-    trackedAvgCount = HEU_UNTRACKED_MOVING_BLOB_AVGING;
-    fg_threshold =  HEU_FOREGROUND_THRESHOLD;
-    fg_threshold_ratio = HEU_FOREGROUND_RATIO / 100.0f;
-    fg_bbox_minsize = HEU_FOREGROUND_MINSIZE;
-    fg_mask_blur_size = cv::Size(HEU_FOREGROUND_BLURSIZE,HEU_FOREGROUND_BLURSIZE);
-    fg_contour_bbox_growth = HEU_FOREGROUND_BUFFER;
-    RobotTracker::moveTowardsCenter = (float) HEU_POSITION_TO_CENTER_SPEED / 100.0f;
-    RobotTracker::robotVelocitySmoothing =  ((float) HEU_VELOCITY_AVERAGING)/100.0f;
-    RobotTracker::useMultithreading = HEU_ROBOT_PROCESSORS > 1;
-    RobotTracker::numberOfThreads = max(1,HEU_ROBOT_PROCESSORS);
-}
-
-void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos)
-{
-    // First reinitialize background
-    ReinitBackground( );
-
-    // Now lock onto robots
-    SetPosition(robotPos, false);
-    SetPosition(opponentPos, true);
-}
-
 // Called in CameraDecoder thread to process the new frame
-void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
+void CameraDecoder::processNewFrame(cv::Mat& newFrame)
 {
-    timing_list.clear();
-    timing_text.clear();
-    timing_clock.markStart();
-
-    currTime = frameTime;
-
     markTime("Start: ");
-
-    UpdateSettings(); // Update any settings from user
-    
-    // Change the picute to 8-bit B&W
-    cv::Mat newFrame;
-
-    // Convert to greyscale if required
-    if (currFrame.channels() == 1) {
-        newFrame = currFrame;
-    }
-    else if (currFrame.channels() == 3) {
-        cv::cvtColor(currFrame, newFrame, cv::COLOR_BGR2GRAY);
-    }
-    else if (currFrame.channels() == 4)
-    {
-        cv::cvtColor(currFrame, newFrame, cv::COLOR_BGRA2GRAY);
-    }
 
     // Find the proper x_offset and y_offset for a shaky image using background
     removeShake(newFrame);
@@ -106,52 +115,53 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::Rect cropparea( x_offset, y_offset, newFrame.cols-2*crop_x, newFrame.rows-2*crop_y);
     cv::Mat croppedFrame = newFrame( cropparea );
 
-    // ***********************************************
-    // ******* SERVICE USER REQUESTS *****************
 
-    if( save_background)
+    // Process our state machine
+    switch( camStateMachine)
     {
-        SaveBackground();
-        save_background = false;
-    }
+        // Load background, disable healing
+        case CMSM_LOADBACK:
+                leftRobotFound = false;
+                rightRobotFound = false;
+                allTrackedItems.clear();
+                all_bboxes.clear();
+                _enHealBackground = true;
+                LoadBackgrounds(newFrame);
+                camStateMachine = CMSM_WAIT_TO_START;
+                break;
 
-    if( reinit_bg)
-    {
-        ReinitBackground( );
-        reinit_bg = false;
-    }
+        // Now wait till match almost is read (a user should press a button to enable this)
+        case CMSM_WAIT_TO_START:              
+                if( currTime >= time_match_starts )
+                {
+                    if( LocateRobots(croppedFrame) && (allTrackedItems.size() >= 2) )
+                    {
+                        camStateMachine = CMSM_TRACKINGOK;
+                        ReinitializeBackground( regularBackground);
 
-    if( save_to_video_match_debug || save_to_video_output ) // Remeber that we are saving video
-    {
-        save_video_enabled = true;
-    }
-    else if( save_video_enabled) // If no longer, release video
-    {
-        save_video_enabled = false;
-        video.release();
+                    }
+                }
+                break;
+
+        case CMSM_TRACKINGOK:
+                _enHealBackground = true; // allow background to heal (if user enabled)
+                if( currTime >= time_to_stop_video && (save_to_video_match_debug ||save_to_video_output) )
+                {
+                    save_to_video_match_debug = false;
+                    save_to_video_output = false;
+                    video.release();
+                }
+                break;
     }
 
     // Save background to file
     if( save_background_to_files && (currTime - lastTime > 1.0))
     {
-        DumpBackground( "background_" + std::to_string((int) currTime), dumpBackgroundsPath);
+        SaveBackground( std::to_string((int) currTime));
         lastTime = currTime;
     }
-    
-    // ##############################
-    // Begin access of core tracking data lists
 
-    // From here on maniuplation of all_bboxes and/or tracker (core tracking data) is allowed
-    std::unique_lock<std::mutex> locker(_mutexAllBBoxes);
 
-    if( load_background) {   
-
-        _allRobotTrackersClear();
-        all_bboxes.clear();
-        _enHealBackground = true;
-        LoadBackground(newFrame);
-        load_background = false;
-    }
 
     // ************************************
     // FOREGROUND and BBOX EXTRACTION
@@ -167,171 +177,36 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // *************************************************
     // ROBOT/ITEM Tracking
     
+    
     cv::Mat frameToDisplay = newFrame;
-
-    // Lock all RobotTrackers from being access    
     TrackRobots(croppedFrame, currFrameColor);
 
     // Heal background
     healBackground(croppedFrame);
-
     markTime("Heal bg: ");
 
-    if(show_bg_mat ) { _imshow("background", currBackground); }
-    else { _imunshow("background"); };
+
+
+    cv::imshow("background", currBackground);
 
     DrawAllBBoxes(currFrameColor);
 
-    locker.unlock();
-    // End of access to core tracking lists
-    // ###################################
+    cv::imshow("NewFrame", currFrameColor);
+    // cv::imshow("mask",fg_mask);
+    cv::imshow("foreground", foreground);
 
-    // ********************
-    // Update our data
-    _UpdateData(frameTime);
-
-    if(show_track_mat ) { 
-        // Add foreground onto the color frame
-        cv::Mat fg_color;
-        cv::cvtColor(fg_mask, fg_color, cv::COLOR_GRAY2BGR);
-        fg_color.setTo(cv::Scalar(255, 100, 100), fg_mask);
-
-        cv::addWeighted(currFrameColor, 1.0f, fg_color, 0.3f, 0, currFrameColor );
-
-        _imshow("HeuristicData", currFrameColor);
-    }
-    else { _imunshow("HeuristicData"); };
-
-    if(show_fg_mat ) { _imshow("Foreground", foreground); }
-    else { _imunshow("Foreground"); };
-
-    // Service and requests from user (this needs to be done here)
-    if(save_to_video_output)
+    if(save_to_video_output )
     {
         SaveToVideo(currFrameColor);
     }
 
-    // Write timing information to my window
-    if( clock_outer.getElapsedTime() > 1.0)
-    {
-        cv::Mat statsmat = cv::Mat::zeros(800, 800, CV_8UC3);
-        int y_offset = 20;
-
-        for( int i = 0; i < timing_list.size(); i++)
-        {
-            printText(timing_text[i] + std::to_string(timing_list[i]*1000.0) + "ms", statsmat, y_offset);
-            y_offset+=20;
-        }
-
-        if(show_stats ) { _imshow("Statistics", statsmat); }
-        else { _imunshow("Statistics"); };
-
-        clock_outer.markStart();
-    }
-
-    // This updates images
     cv::pollKey();
 }
 
-void HeuristicOdometry::_UpdateData(double timestamp)
+void CameraDecoder::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDisplay)
 {
-    // Get unique access
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    // Make a copy of currData for velocity calls
-    OdometryData _prevDataRobot = _currDataRobot;
-    OdometryData _prevDataOpponent = _currDataOpponent;
-
-    _currDataRobot.id++;                   // Increment frame id
-    _currDataRobot.time = timestamp;       // Set to new time
-    _currDataOpponent.id++;             // Increment frame id
-    _currDataOpponent.time = timestamp; // Set to new time
-
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.isUs = true; // Make sure this is set
-    _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false; // Make sure this is set
-
-    // Update our robot position/velocity/angle
-    _UpdateOdometry( _currDataRobot, _prevDataRobot, ourRobotTracker);
-    _UpdateOdometry( _currDataOpponent, _prevDataOpponent, opponentRobotTracker);
-
-}
-
-void HeuristicOdometry::_UpdateOdometry(OdometryData& data, OdometryData& oldData, RobotTracker* tracker)
-{
-    if( tracker == nullptr)
-    {
-        data.Clear();
-        return;
-    }
-
-    data.robotPosValid = true;
-    data.robotPosition = tracker->position.Point2f();
-    data.robotVelocity = tracker->avgVelocity.Point2f();
-    data.rect = tracker->bbox;
-
-    data.robotAngleValid = true;
-    data.robotAngle = Angle( tracker->rotation.angleRad());
-
-    data.robotAngleVelocity = 0;
-    if( data.time - oldData.time > 0)
-    {
-        data.robotAngleVelocity = (data.robotAngle - oldData.robotAngle) / (data.time - oldData.time);
-    }
-
-}
-
-void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot) 
-{
-    // First lock for all robot tracking and find the robot
-    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
-    LocateRobots( newPos, opponentRobot);
-    locktracking.unlock();
 
 
-    // Now update the data
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    odoData.robotPosition = newPos;
-    odoData.robotPosValid = true;
-}
-
-
-void HeuristicOdometry::_imshow(std::string name, cv::Mat& image)
-{
-    cv::imshow(name, image);
-    cvWindows.insert(name);
-}
-
-void HeuristicOdometry::_imunshow(std::string name)
-{
-    if( cvWindows.erase(name) != 0)
-    {
-        cv::destroyWindow(name);
-    }
-}
-
-void HeuristicOdometry::_StartCalled()
-{
-    cvWindows.clear();
-}
-
-void HeuristicOdometry::_StopCalled()
-{
-    // destroy all the cv windows
-    for (const auto& name : cvWindows) {
-        cv::destroyWindow(name);
-    }
-}
-
-
-
-void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDisplay)
-{
     int starting_y = 0;
     
     // *** DEBUG video dump *****
@@ -359,7 +234,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
     
 
     // Step 1:  Let every robot mark which FG Box is the best fit
-    for( auto currItem : _allRobotTrackers) {
+    for( auto currItem : allTrackedItems) {
          currItem->FindBestBBox(currTime, all_bboxes);
     }
 
@@ -369,17 +244,17 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
     int processes_done = 0;
     int i = 0;
     int itarget = 0; // The number of the tracked item to output
-    for( auto currItem : _allRobotTrackers) {
+    for( auto currItem : allTrackedItems) {
         markTime("Starting Tracked Item # " + std::to_string(processes_run) + ": ");
         if( !useMultithreading)
         {
-            currItem->ProcessNewFrame(currTime,  foreground, croppedFrame, fg_mask, processes_done, conditionVarTrackRobots, _mutexTrackData, (save_to_video_match_debug && i==itarget) ? channels[1] :nullMat );
+            currItem->ProcessNewFrame(currTime,  foreground, croppedFrame, fg_mask, processes_done, conditionVarTrackRobots, mutexTrackRobots, (save_to_video_match_debug && i==itarget) ? channels[1] :nullMat );
         }
         else
         {
             ++processes_run;
             auto boundFunction = std::bind(&RobotTracker::ProcessNewFrame, currItem, currTime, std::ref(foreground), 
-            std::ref(croppedFrame), std::ref(fg_mask), std::ref(processes_done), std::ref(conditionVarTrackRobots),  std::ref(_mutexTrackData),std::ref((save_to_video_match_debug && i==itarget) ? channels[1] :nullMat ) );
+            std::ref(croppedFrame), std::ref(fg_mask), std::ref(processes_done), std::ref(conditionVarTrackRobots),  std::ref(mutexTrackRobots),std::ref((save_to_video_match_debug && i==itarget) ? channels[1] :nullMat ) );
 
             myThreads.enqueue(boundFunction);
         }
@@ -388,15 +263,15 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
 
     markTime("Track Items all started : ");
 
-    _mutexTrackData.lock();
+    mutexTrackRobots.lock();
     while( processes_done < processes_run)
     {
-        if( conditionVarTrackRobots.wait_for(_mutexTrackData,std::chrono::seconds(2))== std::cv_status::timeout )
+        if( conditionVarTrackRobots.wait_for(mutexTrackRobots,std::chrono::seconds(2))== std::cv_status::timeout )
         {
             markTime("Timeout occured in CameraDecoder::TrackRobots!! ");
         }
     }
-    _mutexTrackData.unlock();
+    mutexTrackRobots.unlock();
 
 
     markTime("Track Items all joined : ");
@@ -407,13 +282,13 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
     }
 
     // Draw the rectangle around our tracked items
-    for( auto currIter = _allRobotTrackers.begin(); currIter != _allRobotTrackers.end(); )
+    for( auto currIter = allTrackedItems.begin(); currIter != allTrackedItems.end(); )
     {   
         // Delete items that haven't been tracked for a while
         if((deleteForNoTrackingCount>0) && ((*currIter)->numFramesNotTracked > deleteForNoTrackingCount ))
         { 
-            _deleteTracker(*currIter);   
-            currIter = _allRobotTrackers.erase(currIter);
+            delete (*currIter);      
+            currIter = allTrackedItems.erase(currIter);
         }
         else
         {
@@ -440,10 +315,10 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
                 frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
             printText("velForMove=" + std::to_string((*currIter)->velForMovementDetection.mag()), 
                 frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
-            //printText("noMoving=" + std::to_string((*currIter)->timeNotMoving), 
-            //    frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
-            //printText("noTracking=" + std::to_string((*currIter)->numFramesNotTracked), 
-            //    frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
+            printText("noMoving=" + std::to_string((*currIter)->timeNotMoving), 
+                frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
+            printText("noTracking=" + std::to_string((*currIter)->numFramesNotTracked), 
+                frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
             printText("delta=(" + std::to_string((*currIter)->delta.x) + "," + std::to_string((*currIter)->delta.y) + ")", 
                 frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
             double angle = rad2deg(atan2( (*currIter)->rotation.y, (*currIter)->rotation.x));
@@ -464,20 +339,11 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
 
 }
 
-void HeuristicOdometry::_deleteTracker(RobotTracker* staleTracker)
-{
-    if(staleTracker == nullptr) { return;}
-
-    if( ourRobotTracker == staleTracker) { ourRobotTracker= nullptr;}
-    if( opponentRobotTracker == staleTracker ) { opponentRobotTracker = nullptr; }
-    delete(staleTracker);
-}
-
 // Adds the foreground around the bbox specified to the tracked list
-RobotTracker* HeuristicOdometry::AddTrackedItem(cv::Rect bbox)
+RobotTracker* CameraDecoder::AddTrackedItem(cv::Rect bbox)
 {
     RobotTracker* newItem = new RobotTracker(bbox);
-    _allRobotTrackers.push_back(newItem);
+    allTrackedItems.push_back(newItem);
 
     // Initialize items data
     newItem->fg_image = foreground(bbox).clone();
@@ -487,24 +353,7 @@ RobotTracker* HeuristicOdometry::AddTrackedItem(cv::Rect bbox)
     return newItem;
 }
 
-void HeuristicOdometry::_allRobotTrackersClear()
-{
-    for( auto currIter = _allRobotTrackers.begin(); currIter != _allRobotTrackers.end(); )
-    {   
-        _deleteTracker(*currIter);
-    }
-
-    _allRobotTrackers.clear();
-}
-
-// Saves currBackground to a file
-bool HeuristicOdometry::SaveBackground()
-{
-    currBackground.copyTo(regularBackground );
-    return DumpBackground("regularBackground", loadBackgroundsPath );
-}
-
-void HeuristicOdometry::LoadBackground(cv::Mat& currFrame)
+void CameraDecoder::LoadBackgrounds(cv::Mat& currFrame)
 {
     // Center anti-shake cropping
     x_offset = crop_x;
@@ -539,11 +388,11 @@ void HeuristicOdometry::LoadBackground(cv::Mat& currFrame)
 }
 
 // Saves currBackground to a file
-bool HeuristicOdometry::DumpBackground(std::string name, std::string path)
+bool CameraDecoder::SaveBackground(std::string name)
 {
     try
     {
-        std::filesystem::path dirPath = path;
+        std::filesystem::path dirPath = dumpBackgroundsPath;
 
         if (!std::filesystem::exists(dirPath)) 
         {
@@ -559,7 +408,7 @@ bool HeuristicOdometry::DumpBackground(std::string name, std::string path)
         compressionParams.push_back(jpegQuality);
 
         // Write the image to a file with the specified quality
-        return cv::imwrite(dirPath.string() + "/" + name + ".jpg", currBackground, compressionParams);
+        return cv::imwrite(dirPath.string() + "/background_" + name + ".jpg", currBackground, compressionParams);
     }
     catch(const std::exception& e)
     {
@@ -569,8 +418,7 @@ bool HeuristicOdometry::DumpBackground(std::string name, std::string path)
 }
 
 
-
-void HeuristicOdometry::SaveToVideo(cv::Mat& image)
+void CameraDecoder::SaveToVideo(cv::Mat& image)
 {
     if( !save_to_video_match_debug && !save_to_video_output) { return;}
 
@@ -589,7 +437,7 @@ void HeuristicOdometry::SaveToVideo(cv::Mat& image)
       
 }
 
-void HeuristicOdometry::DumpRobotTrackerInfo(cv::Mat& channel, std::string title)
+void CameraDecoder::DumpRobotTrackerInfo(cv::Mat& channel, std::string title)
 {
     printText("v1.2", channel, 20);
     printText(title, channel, 60);
@@ -597,7 +445,7 @@ void HeuristicOdometry::DumpRobotTrackerInfo(cv::Mat& channel, std::string title
     int robotid = 0;
 
     // Go through all the robots and add in their info
-    for( auto currRobot : _allRobotTrackers )
+    for( auto currRobot : allTrackedItems )
     {
         cv::Rect bbox = currRobot->bbox;
 
@@ -686,7 +534,7 @@ void HeuristicOdometry::DumpRobotTrackerInfo(cv::Mat& channel, std::string title
 
 }
 
-void HeuristicOdometry::DumpCurrFrameInfo(cv::Mat& channel, cv::Mat& currForeground, std::string title)
+void CameraDecoder::DumpCurrFrameInfo(cv::Mat& channel, cv::Mat& currForeground, std::string title)
 {
     printText(title, channel, 60);
 
@@ -701,44 +549,65 @@ void HeuristicOdometry::DumpCurrFrameInfo(cv::Mat& channel, cv::Mat& currForegro
 }
 
 
-// Returns true if any of the robot was found
-bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
+// Returns true if any of the robots were found
+bool CameraDecoder::LocateRobots(cv::Mat& currFrame)
 {
+    // First copy over the appropriate imag to the areas of interest
+    regularBackground(areaToLookForLeftRobot).copyTo( currBackground(areaToLookForLeftRobot));
+    regularBackground(areaToLookForRightRobot).copyTo( currBackground(areaToLookForRightRobot));
 
-    // First remove the old tracking info
-    RobotTracker*& robotTracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+    // Find the bounding boxes
+    ExtractForeground(currFrame);
 
-    if( robotTracker != nullptr)
+    if( !leftRobotFound)
     {
-        _allRobotTrackers.erase(std::remove(_allRobotTrackers.begin(), _allRobotTrackers.end(), robotTracker), _allRobotTrackers.end());
-        _deleteTracker(robotTracker);   
-    }
-    robotTracker = nullptr;
-   
+        // Check if there's a bounding box that overlaps starting areas
+        // First do Left Robot
+        cv::Rect bestBBox(0,0,0,0);
+        int index1=-1;
+        int area1 = FindBBoxWithLargestOverlap(all_bboxes, areaToLookForLeftRobot, bestBBox, index1);
 
-    // Find the closest bounding box
-    cv::Rect bestBBox(0,0,0,0);
-    int index1=-1;
-    int distance = FindClosestBBox(all_bboxes,newPos, bestBBox, index1);
-  
-    // If we found a bbox of sufficient size that is reasonably close
-    if( (index1 >= 0) && (distance < max_distance_to_locate) && (bestBBox.width >= fg_bbox_minsize) && (bestBBox.width <= maxDimension)
-                    && (bestBBox.height >= fg_bbox_minsize) && (bestBBox.height <= maxDimension) )
+        cv::rectangle(currFrame, areaToLookForLeftRobot,  cv::Scalar(200), 3);
+
+        // If we found a bbox of sufficient size
+        if( (index1 >= 0) && (bestBBox.width >= fg_bbox_minsize) && (bestBBox.width <= maxDimension)
+                        && (bestBBox.height >= fg_bbox_minsize) && (bestBBox.height <= maxDimension) )
+        {
+            // This is a valid bbox
+            AddTrackedItem(bestBBox);
+            leftRobotFound = true;
+
+            // Remove it from considered boxes
+            all_bboxes.erase( all_bboxes.begin() + index1);
+        }
+    }
+
+    if( !rightRobotFound)
     {
-        // This is a valid bbox and add it in
-        robotTracker = AddTrackedItem(bestBBox);
+        // Next do right Robot
+        cv::Rect bestBBox(0,0,0,0);
+        int index1=-1;
+        int area1 = FindBBoxWithLargestOverlap(all_bboxes, areaToLookForRightRobot, bestBBox, index1);
 
-        // Remove it from considered boxes
-        all_bboxes.erase( all_bboxes.begin() + index1);
+        cv::rectangle(currFrame, areaToLookForRightRobot,  cv::Scalar(200), 3);
 
-        return true;
+        // If we found a bbox of sufficient size
+        if( (index1 >= 0) && (bestBBox.width >= fg_bbox_minsize) && (bestBBox.width <= maxDimension)
+                        && (bestBBox.height >= fg_bbox_minsize) && (bestBBox.height <= maxDimension) )
+        {
+            // This is a valid bbox
+            AddTrackedItem(bestBBox);
+            rightRobotFound = true;
+            
+            // Remove it from considered boxes
+            all_bboxes.erase( all_bboxes.begin() + index1);
+        }
     }
 
-    return false;
+    return leftRobotFound && rightRobotFound;
 }
 
-
-void HeuristicOdometry::DrawAllBBoxes(cv::Mat& mat, int thickness, cv::Scalar scaler)
+void CameraDecoder::DrawAllBBoxes(cv::Mat& mat, int thickness, cv::Scalar scaler)
 {
     for(const auto& bbox : all_bboxes) 
     {
@@ -747,7 +616,7 @@ void HeuristicOdometry::DrawAllBBoxes(cv::Mat& mat, int thickness, cv::Scalar sc
     }
 }
 
-void HeuristicOdometry::ExtractForeground(cv::Mat& croppedFrame)
+void CameraDecoder::ExtractForeground(cv::Mat& croppedFrame)
 {
     // ************************************
     // FOREGROUND and BBOX EXTRACTION
@@ -758,14 +627,8 @@ void HeuristicOdometry::ExtractForeground(cv::Mat& croppedFrame)
     // First get the absolute difference (leaving >0 values where there is a difference)
     cv::absdiff(croppedFrame, currBackground, foreground);
 
-    // First get the mask that includes regions at least the minimum pixels away
+    // Threshold the difference to get a binary mask of the foreground
     cv::threshold(foreground, fg_mask, fg_threshold, 255, cv::THRESH_BINARY);
-
-    cv::Mat diffThreshold = fg_threshold_ratio * currBackground;
-    cv::Mat fg_maskRatio = foreground > diffThreshold;
-    cv::bitwise_and( fg_maskRatio, fg_mask, fg_mask);
-
-    // Next we want to look at pixels that changed at least a  certain percentage
 
     // Find contours in the mask
     // But the number it finds is way to large, thus we want to get rid of speckles 
@@ -901,7 +764,7 @@ void HeuristicOdometry::ExtractForeground(cv::Mat& croppedFrame)
 // to remove invalid areas that are tracked. We will thus implement a very slow decay for tracked
 // areas, and a much faster decay for untracked areas, relying on the fact that a robot should move
 // relativelly quickly.
-void HeuristicOdometry::healBackground(cv::Mat& currFrame)
+void CameraDecoder::healBackground(cv::Mat& currFrame)
 {
     // quit if we are not enabled 
     if( !enable_background_healing || !_enHealBackground) { return; }
@@ -932,7 +795,7 @@ void HeuristicOdometry::healBackground(cv::Mat& currFrame)
     }
    
     // Copy over the Robot areas    
-    for(auto trackedItem : _allRobotTrackers) 
+    for(auto trackedItem : allTrackedItems) 
     {
         cv::Rect fixedBBox = FixBBox( trackedItem->bbox, newBackground_16bit_slow);
 
@@ -949,14 +812,14 @@ void HeuristicOdometry::healBackground(cv::Mat& currFrame)
     currBackground_16bit.convertTo(currBackground, CV_8U, 1.0/256 );
 }
 
-void HeuristicOdometry::ReinitBackground()
+void CameraDecoder::ReinitializeBackground(cv::Mat& newBG)
 {
-    regularBackground.copyTo(currBackground);
+    currBackground = newBG;
     currBackground.convertTo(currBackground_16bit, CV_16U, 256);
 }
 
 
-void HeuristicOdometry::removeShake( cv::Mat& image)
+void CameraDecoder::removeShake( cv::Mat& image)
 {
     // If not enabled
     if( !enable_camera_antishake ) {  return; }

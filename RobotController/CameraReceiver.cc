@@ -300,6 +300,7 @@ bool CameraReceiver::_InitializeCamera()
     return true;
 }
 
+
 bool CameraReceiver::_CaptureFrame()
 {
     if (pCam == nullptr)
@@ -307,12 +308,10 @@ bool CameraReceiver::_CaptureFrame()
         std::cerr << "ERROR: camera not initialized!" << std::endl;
         return false;
     }
-
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
     // Get char data
     unsigned char *img_data = (unsigned char *)pResultImage->GetData();
-
     // Create a Mat with the data
     cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
 
@@ -404,6 +403,7 @@ bool CameraReceiverSim::_CaptureFrame()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+
 
     _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - 1.0 / MAX_CAP_FPS);
 

@@ -184,6 +184,7 @@ void RobotController::Run()
         DriveCommand response = RobotLogic();
 
         ApplyMoveScales(response);
+
         // send the response to the robot
         robotLink.Drive(response);
 
@@ -306,7 +307,7 @@ DriveCommand RobotController::AvoidMode()
 
     RobotSimState state;
 
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
 
     state.position = odoData.robotPosition;
     state.angle = odoData.robotAngle;

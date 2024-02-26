@@ -1,66 +1,44 @@
 #pragma once
 #include <opencv2/core.hpp>
-#include "HeuristicOdometry.h"
-#include "../../ThreadPool.h"
-#include "../../Clock.h"
-#include "../OdometryBase.h"
+#include "CameraReceiver.h"
+#include "VisionPreprocessor.h"
+#include "ThreadPool.h"
 #include "RobotTracker.h"
-#include  <unordered_set>
-
 
 
 // ***********************
 // Camera Decoder Class
-class HeuristicOdometry : public OdometryBase
+class CameraDecoder
 {
 public:
-    HeuristicOdometry(ICameraReceiver *videoSource);
-
+    CameraDecoder(ICameraReceiver &overheadCam);
     void processNewFrame(cv::Mat& newFrame);
-    void SetPosition(cv::Point2f newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point
 
-    void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
-    
     bool enable_camera_antishake = false;  // Turn off/on anti shake
     bool enable_background_healing = true; // Turn off/on background healing
     bool useMultithreading = false;
 
-
-    int averagingCount = 90;  // Rolling average scaling factor for background areas
-    int trackedAvgCount = 200; // Rolling average scaling factor for untracked bbox areas    
+    // Initial Robot localization
+    double time_match_starts = 2.0*21.0; // Time the match almost starts (e.g. 3/2/1)
+    cv::Rect areaToLookForLeftRobot = cv::Rect(10, 220, 200, 200);
+    cv::Rect areaToLookForRightRobot = cv::Rect(490, 130, 200, 200);
 
     // Debug
-    bool save_to_video_match_debug = false; // tracking robot info dump
+    bool save_to_video_match_debug = true; // tracking robot info dump
     bool save_to_video_output = false; 
-    bool save_background_to_files = false; // If set to true, will dump background ever 1s
-    bool save_background = false; // If set to true, will dump current background to the file to be loaded next time
-    bool load_background = true;  // Loads a new background from file
-    bool reinit_bg = false; // Re-initializes curr background from previous loaded one
+    bool save_background_to_files = false; // enable dumping background to files
     std::string dumpBackgroundsPath = "backgrounds/dump";
     std::string loadBackgroundsPath = "backgrounds"; // Please to look for preloaded backgrounds
-    std::string outputVideoFile = "Recordings/Heuristic_dataDump.mp4";
-
-    bool show_bg_mat = false;
-    bool show_fg_mat = false;
-    bool show_track_mat = false;
-    bool show_stats = false;
+    std::string outputVideoFile = "Videos/matchingData.mp4";
 
 private:
-    void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;  // Run every time a new frame is available
-    void _StartCalled() override;
-    void _StopCalled() override; // Use to destroy all opencv windows
-    void _imshow(std::string name, cv::Mat& image); // my own imshow to track the windows we opened
-    void _imunshow(std::string name); // deletes the window if it exists
-    std::unordered_set<std::string> cvWindows;
+    
+    
+    std::thread processingThread; // Run as seperate thread to process incoming images
+    ICameraReceiver& overheadCam; // The overhead camera to get raw image from
 
-    // Update our data
-    void _UpdateData(double timestamp);
-    void _UpdateOdometry(OdometryData& data, OdometryData& oldData, RobotTracker* tracker);
-    void UpdateSettings(); // Bring in user settings
-
-    Clock clock_outer; // Clock to tell us when to update statistic window (1x per second)
-
-    bool save_video_enabled = false; // Remembers if we were saving video
+    // Vision preprocessor
+    VisionPreprocessor birdsEyePreprocessor;
 
     // **** Background info
     cv::Mat currBackground; // The current background to subtract from image (cropped)
@@ -81,18 +59,16 @@ private:
 
     // Background healing options
     bool _enHealBackground = false; // Will be enabled once time-to-start passes
+    int averagingCount = 90;  // Rolling average scaling factor for background areas
+    int trackedAvgCount = 200; // Rolling average scaling factor for untracked bbox areas
     int robotAvgCount = 900; // NOT USED: Rolling average scaling factor for robot areas
 
     // Foreground threshold
     cv::Mat foreground; // The masked out foreground image
     cv::Mat fg_mask;    // The mask that defines the foreground
-    std::mutex _mutexAllBBoxes;
     std::vector<myRect> all_bboxes;  // All the bounding boxes around foreground objects
 
-
     int fg_threshold = 20; // Minimum intensity difference between background and fg
-    double fg_threshold_ratio = 0.1f; // Minimum ratio difference of pixels
-
     int fg_bbox_minsize = 30; // minimum size of a bounding box we want to consider
     cv::Size fg_mask_blur_size = cv::Size(15,15); // Blurring size
     int fg_post_blur_threshold = 90;
@@ -101,12 +77,11 @@ private:
     int fg_max_bbox_dimension = 300; //Maximum dimension of a bbox before we reject it
 
     // Robot Tracking
-    std::vector<RobotTracker*> _allRobotTrackers;
     bool leftRobotFound = false;
     bool rightRobotFound = false;
-    double currTime = 0.0; // Current frame time
-    RobotTracker* ourRobotTracker = NULL;
-    RobotTracker* opponentRobotTracker = NULL;
+    double currTime = 0.0; // Time since program start at the beggining of the frame ()
+    std::vector<RobotTracker*> allTrackedItems;
+    RobotTracker* ourRobot = NULL;
     int maxDimension = 150; // Maximum dimension of a bounding box
     double deleteForNoMovementTime = 0.7; // Number of s to delete a tracked object for not moving
     int deleteForNoTrackingCount = -1; // Number of frames to delete a tracked object that hasn't locked on
@@ -115,24 +90,19 @@ private:
     // *********  Functions
     void removeShake( cv::Mat& image);
     void healBackground(cv::Mat& currFrame);
-    void ReinitBackground();
-    bool SaveBackground(void); // Saves the current background to the default file
+    void ReinitializeBackground(cv::Mat& newBG);
 
     cv::Mat regularBackground; // Recalled 8-bit grayscale background from file
-    void LoadBackground(cv::Mat& currFrame);
-    bool DumpBackground(std::string name, std::string path); // Will continueously dump background to files evey 1s
+    void LoadBackgrounds(cv::Mat& currFrame);
+    bool SaveBackground(std::string name);
+    bool LocateRobots(cv::Mat& currFrame); // Tries to locate our starting bots in the confines of the areas given
     void ExtractForeground(cv::Mat& croppedFrame); 
     RobotTracker* AddTrackedItem(cv::Rect bbox);
-    void _allRobotTrackersClear(); // clears and deletes all robot trackers
     void DrawAllBBoxes(cv::Mat& mat, int thickness = 1, cv::Scalar scaler = cv::Scalar(255,0,0));
 
-    std::mutex _mutexTrackData;
+    std::mutex mutexTrackRobots;
     std::condition_variable_any conditionVarTrackRobots;
-    int max_distance_to_locate = 200;
-
     void TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDisplay);
-    bool LocateRobots(cv::Point2f newPos, bool opponentRobot);
-    void _deleteTracker(RobotTracker* staleTracker);
 
     // Video Saving for debugging
     cv::VideoWriter  video;

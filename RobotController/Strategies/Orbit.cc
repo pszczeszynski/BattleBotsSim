@@ -25,7 +25,7 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     #define NUM_PREDICTION_ITERS 1
 
     // get odometry data
-    OdometryData odoData = RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
 
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
@@ -64,9 +64,10 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
 #define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
 double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f orbitCenter, double orbitRadius)
 {
-    static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     // get odometry data
-    OdometryData odoData = RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
+
+    static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     // get our velocity
     double velocityNorm = cv::norm(odoData.robotVelocity);
     // scale the radius based on our velocity
@@ -99,14 +100,15 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
-    OdometryData odoData = RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
-    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent(Clock::programClock.getElapsedTime());
 
     // our pos + angle
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
+
     cv::Point2f ourPosition = odoData.robotPosition;
     double ourAngle = odoData.robotAngle;
 
     // opponent pos + angle
+    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent();
     cv::Point2f opponentPos = opponentData.robotPosition;
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
@@ -227,6 +229,7 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
     // scale the radius based on the triggers
     orbitRadius *= 1.0 + gamepad.GetRightTrigger();
     orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
+
 
     return orbitRadius;
 }

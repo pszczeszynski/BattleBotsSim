@@ -117,7 +117,7 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("Num Of Processors:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 0, 32); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 1, 32); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Checkbox(":Show BG Mat   ", &heuristic.show_bg_mat);
     ImGui::SameLine();

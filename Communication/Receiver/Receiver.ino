@@ -4,6 +4,7 @@
 #include "Vesc.h"
 #include "Communication.h"
 #include "Motor.h"
+#include <FastLED.h>
 
 #define VENDOR_ID               0x16C0
 #define PRODUCT_ID              0x0480
@@ -40,7 +41,11 @@
 // closest to the middle of the teensy
 #define SELF_RIGHTER_MOTOR_PIN 14
 
-// stuff and things
+#define LED_BRIGHTNESS 255
+#define NUM_LEDS 3
+#define LED_PIN 2
+CRGB leds[NUM_LEDS];
+
 // components
 #ifdef USE_IMU
 IMU imu{};
@@ -67,6 +72,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     vesc.Drive(0, 0);
     vesc.DriveWeapons(0, 0);
+    FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 }
 
 /**
@@ -221,6 +227,8 @@ void WaitForRadioData()
     }
 }
 
+unsigned long lastReceiveTime = 0;
+
 /**
  * Checks if there is a message and then calls drive
  * There is a watchdog timer that auto stops after 250 ms
@@ -243,8 +251,8 @@ void DriveWithLatestMessage()
         // sanity check command fields
         if (command.movement > 1 || command.movement < -1 ||
             command.turn > 1 || command.turn < -1 ||
-            command.frontWeaponPower > 1 || command.frontWeaponPower < -1 ||
-            command.backWeaponPower > 1 || command.backWeaponPower < -1 ||
+            command.frontWeaponPower > 1000 || command.frontWeaponPower < -1000 ||
+            command.backWeaponPower > 1000 || command.backWeaponPower < -1000 ||
             command.selfRighterPower > 1 || command.selfRighterPower < -1)
         {
             command.valid = false;
@@ -331,6 +339,86 @@ void DriveWithLatestMessage()
     }
 }
 
+/**
+ * Drives the LEDs based on the message
+ */
+void DriveLEDs(RobotMessage &message)
+{
+    static unsigned char lastFETTemps[4] = {0, 0, 0, 0};
+    static long flashStartTime = 0;
+
+    // color variable
+    static CRGB color = CRGB::Blue;
+
+    // if the message is a radio message
+    if (message.type == RobotMessageType::RADIO_DATA)
+    {
+        // green if recent packet
+        if (millis() - lastReceiveTime < 100)
+        {
+            color = CRGB::Green;
+        }
+        // yellow if delay is high
+        else if (message.radioData.averageDelayMS > 30)
+        {
+            color = CRGB::Yellow;
+        }
+        // red if no packets
+        else
+        {
+            color = CRGB::Red;
+        }
+    }
+    // blink whenever a vesc temp comes back valid
+    else if (message.type == RobotMessageType::CAN_DATA)
+    {
+        // if any of the fet temps changed
+        for (int i = 0; i < 4; i++)
+        {
+            // turned on
+            if ((int) message.canData.escFETTemp[i] > 0 && (int) lastFETTemps[i] == 0)
+            {
+                flashStartTime = millis();
+            }
+        }
+
+        // save the last temps
+        for (int i = 0; i < 4; i++)
+        {
+            lastFETTemps[i] = message.canData.escFETTemp[i];
+        }
+    }
+
+    if (millis() - flashStartTime < 1000)
+    {
+        // for first 300 ms, turn on
+        if (millis() - flashStartTime < 333)
+        {
+            // purple
+            color = CRGB::Blue;
+        }
+        else if (millis() - flashStartTime < 666)
+        {
+            // off
+            color = CRGB::Black;
+        }
+        else
+        {
+            // purple
+            color = CRGB::Blue;
+        }
+    }
+
+    // set the color
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+        leds[i] = color;
+    }
+
+    // show the color
+    FastLED.show();
+}
+
 void loop()
 {
     // wait for a message to be available
@@ -341,6 +429,8 @@ void loop()
 
     // Compute response message
     RobotMessage message = Update();
+
+    DriveLEDs(message);
 
     // send the message
     SendOutput result = radio.Send(message);

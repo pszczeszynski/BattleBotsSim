@@ -28,8 +28,8 @@ public:
     bool IsRunning(OdometryAlg algorithm); // Returns true if the algorithm is running
 
     // Retrieve data. It extrapolates to current time if currTime is specified
-    OdometryData Robot(double currTime = 0);
-    OdometryData Opponent(double currTime = 0);
+    OdometryData Robot(double currTime = Clock::programClock.getElapsedTime());
+    OdometryData Opponent(double currTime = Clock::programClock.getElapsedTime());
 
     void Update(); // Updates the odometry based on current data
 

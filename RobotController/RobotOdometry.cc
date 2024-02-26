@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "Input/InputState.h"
 #include "RobotConfig.h"
+#include "CVPosition.h"
 
 RobotOdometry::RobotOdometry(ICameraReceiver& videoSource) :
     _videoSource(videoSource), 
@@ -84,7 +85,7 @@ void RobotOdometry::Update(void)
  * @brief returns the odometry data extrapolated to current time
  * 
  */
-OdometryData RobotOdometry::Robot(double currTime)
+OdometryData RobotOdometry::Robot(double currTime )
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData currData = _dataRobot;
@@ -100,7 +101,7 @@ OdometryData RobotOdometry::Robot(double currTime)
  * @brief returns the odometry data extrapolated to current time
  * 
  */
-OdometryData RobotOdometry::Opponent(double currTime)
+OdometryData RobotOdometry::Opponent(double currTime )
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData currData = _dataOpponent;
@@ -150,25 +151,24 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
         visualPos = _position;
     }
 
+    // // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
+    // // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
+    // if (this == &RobotOdometry::Robot())
+    // {
+    //     std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+    //     visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+
+    //     std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
+
+    //     // draw the position on the drawing image
+    //     SAFE_DRAW
+    //     cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
+    //     END_SAFE_DRAW
+    // }
+
     /////////////////////// ANGLE ///////////////////////
     // set the fused angle to the imu angle
     double fusedAngle = _UpdateAndGetIMUAngle();
-    // calculate angle using the visual information
-    double visualAngle = CalcAnglePathTangent();
-    // if can use the visual information and the user presses enter (to realign)
-    if (_visualAngleValid && (ImGui::IsKeyDown(ImGuiKey::ImGuiKey_LeftCtrl) || RobotController::GetInstance().gamepad.GetDpadLeft()))
-    {
-        // if we have visual information, use the visual angle
-        fusedAngle = InterpolateAngles(Angle(fusedAngle), Angle(visualAngle), FUSE_ANGLE_WEIGHT);
-    }
-
-    // if we should use the rotation network
-    if (ROTATION_NET_ENABLED)
-    {
-        std::cout << "Computing robot rotation" << std::endl;
-        // use the ml model to get the angle entirely
-        fusedAngle = CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), visualPos);
-    }
 
     // update using the weighted average
     _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
@@ -187,8 +187,6 @@ void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
     //////////////////////// ANGLE ////////////////////////
     // set the angle using just the imu
     Angle angle = Angle(_UpdateAndGetIMUAngle());
-
-    // angle = Angle(CVRotation::GetInstance().ComputeRobotRotation(RobotController::GetInstance().GetDrawingImage(), _position));
 
     // update normally
     _PostUpdate(_position, velocity, angle);

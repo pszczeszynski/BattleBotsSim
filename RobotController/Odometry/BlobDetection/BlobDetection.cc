@@ -29,7 +29,7 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // Move currFrame to previousImage
     // But only if both our robot and opponent robot have been found, or we exceeded a timer
     
-    if (robotData.GetRobotBlob() != nullptr || robotData.GetOpponentBlob() != nullptr || _prevImageTimer.getElapsedTime() > 0.05f)
+    if (robotData.GetRobotBlob() != nullptr || robotData.GetOpponentBlob() != nullptr || _prevImageTimer.getElapsedTime() > (1.0 / BLOBS_MIN_FPS))
     {
         // save the current frame as the previous frame
         _previousImage = currFrame;
@@ -275,7 +275,7 @@ void BlobDetection::UpdateVisionOnly(MotionBlob* blob, OdometryData& currData, O
 */
 #define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 250
 #define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
-void BlobDetection::_GetSmoothedVisualVelocity(OdometryData& prevData, OdometryData& currData)
+void BlobDetection::_GetSmoothedVisualVelocity(OdometryData& currData, OdometryData& prevData)
 {
     // If the previous or current position isnt valid or the total elapsed time is too long, then restart velocity
     double elapsedVelTime = currData.time - prevData.userDataDouble["lastVelTime"];

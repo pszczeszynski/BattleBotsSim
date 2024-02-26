@@ -1,7 +1,7 @@
 #include "RobotTracker.h"
 
 #include <iostream>
-#include "../../Globals.h"
+#include "Globals.h"
 #include <vector>
 #include <algorithm>
 #include <iterator>
@@ -12,33 +12,6 @@
 #include <filesystem>
 #include <condition_variable>
 #include <functional>
-#include "../../MathUtils.h"
-
-
-// Initialize static variables
-bool RobotTracker::useMultithreading = true;
-int RobotTracker::numberOfThreads = 8.0;
-int RobotTracker::maxNewBBoxIncrease = 40; // Number of pixels new box can grow by
-float RobotTracker::robotVelocitySmoothing = 0.2; // (s) smoothing of the velocity projection
-float RobotTracker::detectionVelocitySmoothing = 1.0; // (s) smoothing of the background detection
-float RobotTracker::minVelocity = 7.0; // Min number of pixels/s movement required
-float RobotTracker::moveTowardsCenter = 40.0; // Amount of pixels per second to move towards center (?20?)
-float RobotTracker::rotateTowardsMovement = 0; // Amount of radians per second to move towards velocity dir (?2?)
-float RobotTracker::rotateTowardsWeight = 1.0/50.0; // Scaling factor to increase weight vs speed 
-float RobotTracker::minSpeedForRotationCorrection = 30.0; // Minimum speed in pixels/s before we add in movement
-float RobotTracker::bboxFoundIsMuchSmallerThreshold = 0.75; // The area reduction in bounding box that will trigger regeneration of Foreground
-int RobotTracker::combinedBBoxScanBuffer = 15; // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
-bool RobotTracker::matchingAreaAddOurBBoxes = true; // increase matching area to always include our bbox and predicted bbox
-bool RobotTracker::derateResultsByDistance = true;
-float RobotTracker::distanceDerating_start = 1.0; // The mutliplier to results at the expected location
-float RobotTracker::distanceDerating_stop = 0.5; // The maximum derating for things far away
-float RobotTracker::distanceDerating_distance = 15.0; // The radial distance at which we reach _stop intensity
-int RobotTracker::distanceDeratingMatSize = 999; // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
-
-// Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
-float RobotTracker::deltaAngleSweep = 8; // Delta +/- angle to sweep
-float RobotTracker::deltaAngleStep = 0.5; // Number of degrees to step angle sweep
-int RobotTracker::matchBufffer = 10; // number of pixels around all edges to expand search (fixed pixels)
 
 
 
@@ -70,30 +43,6 @@ int FindBBoxWithLargestOverlap(const std::vector<myRect>& allBBoxes, const cv::R
     }
 
     return bestArea;
-}
-
-// Returns the closest distance and stores the best bbox 
-int FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  )
-{
-    // Go through all the bboxes and find the one whos center is the closes
-    indexFound = -1;
-    float closest = -1;
-
-    // Lets compare the distance
-    for(int index = 0;  index < allBBoxes.size(); index++)
-    {
-        // Check the distance
-        float newDistance = distance( GetRectCenter( allBBoxes[index]), point);        
-
-        if((closest < 0) || (newDistance < closest))
-        {
-            indexFound = index;
-            closest = newDistance;
-            bestBBox = allBBoxes[index];
-        }       
-    }
-
-    return indexFound;
 }
 
 // Generic function to print text on the image for debugging
@@ -156,7 +105,7 @@ cv::Rect FixBBox(const cv::Rect& bbox, const cv::Size& matSize)
     return bbox & matBBox;
 }
 
-cv::Point2f GetRectCenter(const cv::Rect& inbox)
+cv::Point2f GetRectCenter(cv::Rect& inbox)
 {
     cv::Point2f center(inbox.x + inbox.width/2.0, inbox.y + inbox.height/2.0);
     return center;
@@ -275,15 +224,6 @@ float Vector2::angle(void)
     return angleWrap( rad2deg(atan2f(y,x)));
 }
 
-float Vector2::angleRad(void)
-{
-    return deg2rad(angle());
-}
-
-cv::Point2f Vector2::Point2f()
-{
-    return cv::Point2f(x, y);
-}
 // ****************************************
 // RobotTracker 
 // ****************************************
@@ -395,9 +335,7 @@ void RobotTracker::ProcessNewFrame(double currTime,  cv::Mat& foreground, cv::Ma
     MultiThreadCleanup cleanup(doneInt, mutex, doneCV);
     debugLine = "";
 
-    if( debug_DumpInfo) 
-    { debugImage = debugMat; }
-    
+    if( debug_DumpInfo) { debugImage = debugMat; }
     currTimeSaved = currTime;
 
     if( currTime > 2.0*41.855)
@@ -474,7 +412,7 @@ void RobotTracker::ProcessNewFrame(double currTime,  cv::Mat& foreground, cv::Ma
 
     // Case (2): much smaller bounding box
     bool doFixPartialForeground = false;
-    if( false && ( matchingBBox.area() < bbox.area() * bboxFoundIsMuchSmallerThreshold ) )
+    if( matchingBBox.area() < bbox.area() * bboxFoundIsMuchSmallerThreshold  )
     {
         // The foreground bbox is going to be increased before matching template to allow it to be scanned
         // Here we want to mark we want to keep our old bbox, although we may want to grow the width or height if new
@@ -557,15 +495,9 @@ void RobotTracker::ProcessNewFrame(double currTime,  cv::Mat& foreground, cv::Ma
         deltaTime = 0.001;
     }
 
-    double avgScaler = deltaTime/moveTowardsCenter;
-    if( avgScaler <= 0.0) { avgScaler = 0.001f; }
-    if( avgScaler > 1.0f) { avgScaler = 1.0f;}
-
     // Slowly move the point to the center of the bounding box
-    newPos.x = newPos.x * (1.0f-avgScaler) + avgScaler*center_of_new_pos.x;
-    newPos.y = newPos.y * (1.0f - avgScaler) + avgScaler*center_of_new_pos.y;
-    //newPos.x += (center_of_new_pos.x>newPos.x) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
-    //newPos.y += (center_of_new_pos.y>newPos.y) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
+    newPos.x += (center_of_new_pos.x>newPos.x) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
+    newPos.y += (center_of_new_pos.y>newPos.y) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
 
     // Calculate velocity
     Vector2 newVelocity( (newPos.x-position.x)/deltaTime, (newPos.y-position.y)/deltaTime);
@@ -662,9 +594,6 @@ void RobotTracker::FixPartialForeground(cv::Mat& currFrame, cv::Mat& foreground,
         // Move bbox to new location
         bbox += delta - deltaAdjust;
 
-        // Our old bbox was increased in size so that even though the new bestBBox area is much smaller, any single dimension is now equal to or
-        // smaller then the old bbox as well.
-
         // Copy over foreground and mask
         cv::Mat temp_fg_image = foreground(bbox).clone();
         cv::Mat temp_fg_mask = new_fg_mask(bbox).clone();
@@ -747,7 +676,7 @@ double RobotTracker::FindNewPosAndRotUsingMatchTemplate( cv::Mat& currFrame,  cv
     processes_done = 0;
     int processes_run = 0;
 
-    float currAngleIncrement = 2.0*deltaAngleSweep/((float) numberOfThreads);
+    float currAngleIncrement = 2.0*deltaAngleSweep/numberOfThreads;
 
     for( float currAngle =-1*deltaAngleSweep; currAngle < deltaAngleSweep; currAngle +=  currAngleIncrement )
     {
