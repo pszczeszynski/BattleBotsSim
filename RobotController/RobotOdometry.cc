@@ -300,17 +300,21 @@ cv::Point2f RobotOdometry::_GetSmoothedVisualVelocity(MotionBlob& blob)
     // visual velocity
     cv::Point2f visualVelocity = (blob.center - _position) / _lastVelocityCalcClock.getElapsedTime();
 
-    // add the velocity to the graph
-    velocityGraph.AddData(cv::norm(visualVelocity));
-
     // compute weight for interpolation
     double weight = _lastVelocityCalcClock.getElapsedTime() * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
 
     // interpolate towards the visual velocity so it's not so noisy
     cv::Point2f smoothedVisualVelocity = InterpolatePoints(_lastVelocity, visualVelocity, weight);
 
-    // add the smoothed velocity to the graph
-    velocityGraphSmooth.AddData(cv::norm(smoothedVisualVelocity));
+    // if it's the robto
+    if (this == &Robot())
+    {
+        // add the velocity to the graph
+        velocityGraph.AddData(cv::norm(visualVelocity));
+
+        // add the smoothed velocity to the graph
+        velocityGraphSmooth.AddData(cv::norm(smoothedVisualVelocity));
+    }
 
     // restart the clock
     _lastVelocityCalcClock.markStart();
