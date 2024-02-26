@@ -169,20 +169,20 @@ void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
         visualPos = _position;
     }
 
-    // // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
-    // // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
-    // if (this == &RobotOdometry::Robot())
-    // {
-    //     std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-    //     visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+    // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
+    // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
+    if (this == &RobotOdometry::Robot())
+    {
+        std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+        visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
 
-    //     std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
+        std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
 
-    //     // draw the position on the drawing image
-    //     SAFE_DRAW
-    //     cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
-    //     END_SAFE_DRAW
-    // }
+        // draw the position on the drawing image
+        SAFE_DRAW
+        cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
+        END_SAFE_DRAW
+    }
 
     /////////////////////// ANGLE ///////////////////////
     // set the fused angle to the imu angle
