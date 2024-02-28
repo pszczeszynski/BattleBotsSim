@@ -59,24 +59,40 @@ void ConfigWidget::Draw()
     // Background Management
     HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-    if (ImGui::Button(  "Auto Lock Us Start Left" )) { heuristic.MatchStart(cv::Point2f(30,350),cv::Point2f(700,350) ); }
+    if (ImGui::Button("Auto Lock Us Start Left"))
+    {
+        heuristic.MatchStart(cv::Point2f(30, 350), cv::Point2f(700, 350));
+    }
     ImGui::SameLine();
     ImGui::Text("     ");
     ImGui::SameLine();
-    if (ImGui::Button(  "Auto Lock Us Start Right" )) { heuristic.MatchStart(cv::Point2f(30,350),cv::Point2f(700,350) ); }
+    if (ImGui::Button("Auto Lock Us Start Right"))
+    {
+        heuristic.MatchStart(cv::Point2f(30, 350), cv::Point2f(700, 350));
+    }
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
-    if (ImGui::Button(  "Load Bg" )) { heuristic.reinit_bg = true; }
+    if (ImGui::Button("Load Bg"))
+    {
+        heuristic.reinit_bg = true;
+    }
     ImGui::SameLine();
-    if (ImGui::Button(  "Save Bg" )) { heuristic.save_background = true; }
+    if (ImGui::Button("Save Bg"))
+    {
+        heuristic.save_background = true;
+    }
     ImGui::SameLine();
     ImGui::Text("  BG Averaging:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250); ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 400); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(250);
+    ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 400);
+    ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("  Obj Decay:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250); ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 800); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(250);
+    ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 800);
+    ImGui::PopItemWidth();
     ImGui::Checkbox(":EN Healing    ", &heuristic.enable_background_healing);
     ImGui::SameLine();
     ImGui::Checkbox(":FORCE HEALING EVEN IF NO BOTS", &heuristic.force_background_averaging);

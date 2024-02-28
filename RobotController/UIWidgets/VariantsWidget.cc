@@ -7,25 +7,30 @@
 
 VariantsWidget::VariantsWidget()
 {
-
 }
 
 void VariantsWidget::Draw()
 {
     ImGui::Begin("Variant Selection");
 
-    RobotOdometry& odometry = RobotController::GetInstance().odometry;
+    RobotOdometry &odometry = RobotController::GetInstance().odometry;
 
     // **********************
     // Blob Detection
     CenterText("Blob");
 
-    bool isRunning = odometry.IsRunning(OdometryAlg::Blob );
+    bool isRunning = odometry.IsRunning(OdometryAlg::Blob);
 
-    if (ImGui::Button(  isRunning ? "Stop Blob" : "Run Blob") )
+    if (ImGui::Button(isRunning ? "Stop Blob" : "Run Blob"))
     {
-        if( isRunning) { odometry.Stop(OdometryAlg::Blob); }
-        else { odometry.Run(OdometryAlg::Blob); }
+        if (isRunning)
+        {
+            odometry.Stop(OdometryAlg::Blob);
+        }
+        else
+        {
+            odometry.Run(OdometryAlg::Blob);
+        }
     }
 
     ImGui::SameLine();
@@ -35,32 +40,43 @@ void VariantsWidget::Draw()
     // Heuristic Detection
     CenterText("Heuristic");
 
-    isRunning = odometry.IsRunning(OdometryAlg::Heuristic );
+    isRunning = odometry.IsRunning(OdometryAlg::Heuristic);
 
-    if (ImGui::Button(  isRunning ? "Stop Heuristic" : "Run Heuristic") )
+    if (ImGui::Button(isRunning ? "Stop Heuristic" : "Run Heuristic"))
     {
-        if( isRunning) { odometry.Stop(OdometryAlg::Heuristic); }
-        else { odometry.Run(OdometryAlg::Heuristic); }
+        if (isRunning)
+        {
+            odometry.Stop(OdometryAlg::Heuristic);
+        }
+        else
+        {
+            odometry.Run(OdometryAlg::Heuristic);
+        }
     }
 
     ImGui::SameLine();
     ImGui::Text(isRunning ? "Running" : "Stopped");
 
-   // **********************
+    // **********************
     // IMU
     CenterText("IMU");
 
-    isRunning = odometry.IsRunning(OdometryAlg::IMU );
+    isRunning = odometry.IsRunning(OdometryAlg::IMU);
 
-    if (ImGui::Button(  isRunning ? "Stop IMU" : "Run IMU") )
+    if (ImGui::Button(isRunning ? "Stop IMU" : "Run IMU"))
     {
-        if( isRunning) { odometry.Stop(OdometryAlg::IMU); }
-        else { odometry.Run(OdometryAlg::IMU); }
+        if (isRunning)
+        {
+            odometry.Stop(OdometryAlg::IMU);
+        }
+        else
+        {
+            odometry.Run(OdometryAlg::IMU);
+        }
     }
 
     ImGui::SameLine();
     ImGui::Text(isRunning ? "Running" : "Stopped");
-
 
     // ************** OLD CODE *******************
 
@@ -74,7 +90,6 @@ void VariantsWidget::Draw()
 
     ImGui::SameLine();
     ImGui::Text(ROTATION_NET_ENABLED ? "ENABLED" : "DISABLED");
-
 
     ImGui::Spacing();
 

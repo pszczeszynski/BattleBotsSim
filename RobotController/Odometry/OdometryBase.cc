@@ -1,44 +1,46 @@
 #include "OdometryBase.h"
 #include <opencv2/core.hpp>
 
-
-
 // ctor for odometry data
-OdometryData::OdometryData() : robotPosition(-1.0f, -1.0f), robotVelocity(0,0)
-{}
+OdometryData::OdometryData() : robotPosition(-1.0f, -1.0f), robotVelocity(0, 0)
+{
+}
 
-// Clear all position data 
+// Clear all position data
 void OdometryData::Clear()
 {
-  // Our Position
-    robotPosValid = false;   
-    robotPosition = cv::Point2f(-1.0f,-1.0f);
-    robotVelocity = cv::Point2f(0,0); // pixels/second
+    // Our Position
+    robotPosValid = false;
+    robotPosition = cv::Point2f(-1.0f, -1.0f);
+    robotVelocity = cv::Point2f(0, 0); // pixels/second
 
-    rect = cv::Rect2i(0,0,0,0);
+    rect = cv::Rect2i(0, 0, 0, 0);
 
     // Our Rotation
-    robotAngleValid = false;  
+    robotAngleValid = false;
     robotAngle = Angle(0);
-    robotAngleVelocity = 0; // Clockwise, rads/s 
+    robotAngleVelocity = 0; // Clockwise, rads/s
 
     // Clear user data
     userDataDouble.clear();
 }
 
 // Modifies internal data to extrapolate values
-void OdometryData::Extrapolate(double newtime )
+void OdometryData::Extrapolate(double newtime)
 {
     // Only extrapolate into the future
-    if( newtime < time) { newtime = time;}
+    if (newtime < time)
+    {
+        newtime = time;
+    }
 
     // Extrapolate only if data is marked as valid
-    if( robotPosValid)
+    if (robotPosValid)
     {
         robotPosition += robotVelocity * (newtime - time);
     }
 
-    if(robotAngleValid)
+    if (robotAngleValid)
     {
         robotAngle = robotAngle + Angle(robotAngleVelocity * (newtime - time));
     }
@@ -46,27 +48,26 @@ void OdometryData::Extrapolate(double newtime )
     time = newtime;
 }
 
-
 // ***********************************************
 // ************ Odometry Base ********************
 // ***********************************************
 
-OdometryBase::OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSource) 
-{ 
-    _currDataRobot.isUs = true; // Make sure this is set
+OdometryBase::OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSource)
+{
+    _currDataRobot.isUs = true;     // Make sure this is set
     _currDataOpponent.isUs = false; // Make sure this is set
 };
 
-bool OdometryBase::IsRunning( void )
+bool OdometryBase::IsRunning(void)
 {
     return _running;
 }
 
 // Start the thread
 // Returns false if already running
-bool OdometryBase::Run( void )
+bool OdometryBase::Run(void)
 {
-    if( _running )
+    if (_running)
     {
         // Already running, you need to stop existing thread first
         return false;
@@ -74,7 +75,7 @@ bool OdometryBase::Run( void )
 
     // Start the new thread
     processingThread = std::thread([&]()
-    {
+                                   {
         // Mark we are running
         _running = true;
 
@@ -83,18 +84,18 @@ bool OdometryBase::Run( void )
 
         long frameID = -1;
 
-        while(_running && !_stopWhenAble)
+        while (_running && !_stopWhenAble)
         {
             // Get the new frame video frame
-            // Its going to be pre-processed already (e.g. birdseyeview) and black-and-white
+            // Iats going to be pre-processed already (e.g. birdseyeview) and black-and-white
             cv::Mat currFrame;
             double frameTime = -1.0f;
             _videoSource->GetFrame(currFrame, frameID, &frameTime); // Blocking read until new frame available
 
             // Process the new frame
-            if( !currFrame.empty())
+            if (!currFrame.empty())
             {
-                _ProcessNewFrame(currFrame, frameTime); 
+                _ProcessNewFrame(currFrame, frameTime);
             }
         }
 
@@ -103,18 +104,19 @@ bool OdometryBase::Run( void )
 
         // Exiting thread
         _running = false;
-        _stopWhenAble = false;           
-    });
+        _stopWhenAble = false; });
 
     return true;
 }
 
-
 // Stop the main thread
-bool OdometryBase::Stop(void) 
+bool OdometryBase::Stop(void)
 {
     // If not running, return true
-    if( !_running) { return true; }
+    if (!_running)
+    {
+        return true;
+    }
 
     // Try to stop the thread
     _stopWhenAble = true;
@@ -122,21 +124,20 @@ bool OdometryBase::Stop(void)
     Clock clockWaiting;
 
     // Wait with a timeout to have it end
-    while( _stopWhenAble && (clockWaiting.getElapsedTime() < ODOMETRY_STOP_TIMEOUT) )
+    while (_stopWhenAble && (clockWaiting.getElapsedTime() < ODOMETRY_STOP_TIMEOUT))
     {
         // Sleep for 1ms
         Sleep(1);
     }
 
     // See if it ended. The thread may have died thus also check if its joinable.
-    if( !_stopWhenAble || processingThread.joinable())
+    if (!_stopWhenAble || processingThread.joinable())
     {
         processingThread.join();
-        
+
         // Reset these in case the thread died and didnt reset it
         _running = false;
         _stopWhenAble = false;
-        
 
         return true;
     }
@@ -145,12 +146,11 @@ bool OdometryBase::Stop(void)
     return false;
 }
 
-
 // Check if new data is available
 bool OdometryBase::NewDataValid(int oldId, bool getOpponent)
 {
     // Mutex not required since we're just comparing an int
-    if( getOpponent)
+    if (getOpponent)
     {
         return _currDataOpponent.id > oldId;
     }
@@ -168,7 +168,7 @@ OdometryData OdometryBase::GetData(bool getOpponent)
     return (getOpponent) ? _currDataOpponent : _currDataRobot;
 }
 
-void OdometryBase::SwitchRobots( void )
+void OdometryBase::SwitchRobots(void)
 {
     // Switch who's who
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -184,7 +184,7 @@ void OdometryBase::SetPosition(cv::Point2f newPos, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
 
-    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
     odoData.robotPosition = newPos;
     odoData.robotPosValid = true;
@@ -194,7 +194,7 @@ void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
 
-    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
     odoData.robotVelocity = newVel;
 }
@@ -203,11 +203,9 @@ void OdometryBase::SetAngle(double newAngle, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
 
-    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
     odoData.robotAngle = Angle(newAngle);
     odoData.robotAngleValid = true;
     odoData.robotAngleVelocity = 0;
 }
-
-

@@ -15,20 +15,18 @@ struct RobotCalibrationData
     double diameter;
 };
 
-
 class RobotClassifier
 {
 public:
     RobotClassifier();
 
-    VisionClassification ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData);
+    VisionClassification ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData);
 
 private:
-    double ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData);
-    void RecalibrateRobot(RobotCalibrationData& data, MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage);
-    cv::Scalar GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage);
+    double ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData);
+    void RecalibrateRobot(RobotCalibrationData &data, MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage);
+    cv::Scalar GetMeanColorOfBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage);
 
     RobotCalibrationData robotCalibrationData;
     RobotCalibrationData opponentCalibrationData;
 };
-

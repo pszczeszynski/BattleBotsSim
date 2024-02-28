@@ -2,7 +2,6 @@
 #include "../../Globals.h"
 #include "../../RobotConfig.h"
 
-
 RobotClassifier::RobotClassifier(void)
 {
     robotCalibrationData.meanColor = cv::Scalar(0, 0, 100);
@@ -48,7 +47,7 @@ cv::Mat calcHistogram(const cv::Mat &img, const cv::Mat &mask)
 
     cv::calcHist(&bgr_planes[0], 1, 0, mask, b_hist, 1, &histSize, &histRange);
 
-    if( bgr_planes.size() >= 2)
+    if (bgr_planes.size() >= 2)
     {
         cv::calcHist(&bgr_planes[1], 1, 0, mask, g_hist, 1, &histSize, &histRange);
     }
@@ -57,7 +56,7 @@ cv::Mat calcHistogram(const cv::Mat &img, const cv::Mat &mask)
         g_hist = b_hist;
     }
 
-    if( bgr_planes.size() >= 3)
+    if (bgr_planes.size() >= 3)
     {
         cv::calcHist(&bgr_planes[2], 1, 0, mask, r_hist, 1, &histSize, &histRange);
     }
@@ -84,8 +83,7 @@ double compareHistograms(const cv::Mat &hist1, const cv::Mat &hist2)
     return cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
 }
 
-
-cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
+cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage)
 {
     cv::Rect reduced = blob.rect;
     // reduced.x += reduced.width / 4;
@@ -99,22 +97,20 @@ cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob& blob, cv::Mat& frame,
     return mean;
 }
 
-void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage)
+void RobotClassifier::RecalibrateRobot(RobotCalibrationData &data, MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage)
 {
     data.meanColor = GetMeanColorOfBlob(blob, frame, motionImage);
     data.diameter = (blob.rect.width + blob.rect.height) / 2;
     data.histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
-    
+
     // fill DRAWING_IMAGE with red at (blob.rect masked with motionimage)
     cv::Mat redImage = cv::Mat::zeros(frame.size(), CV_8UC3);
     redImage.setTo(cv::Scalar(0, 0, 255), motionImage);
     SAFE_DRAW
     cv::addWeighted(drawingImage, 1, redImage, 0.5, 0, drawingImage);
     END_SAFE_DRAW
-    
 
     // visualizeHistogram(data.histogram);
-
 
     // if (&data == &robotCalibrationData)
     // {
@@ -126,16 +122,15 @@ void RobotClassifier::RecalibrateRobot(RobotCalibrationData& data, MotionBlob& b
     // }
 }
 
-
 #define HISTOGRAM_WEIGHT 0.0
 #define DISTNACE_WEIGHT 1.0
 /**
  * Returns a number that is more negative the more we think the robot is us.
- * 
+ *
  * What does that look for?
  * Being more blue in the lastFrame
-*/
-double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData)
+ */
+double RobotClassifier::ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData)
 {
     // now let's take their location into account
     double distanceToRobot = cv::norm(robotData.robotPosition - blob.center);
@@ -150,8 +145,8 @@ double RobotClassifier::ClassifyBlob(MotionBlob& blob, cv::Mat& frame, cv::Mat& 
 
 /**
  * Returns the closest blob to the given point and removes it from the list
-*/
-MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob>& blobs, cv::Point2f point)
+ */
+MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs, cv::Point2f point)
 {
     int index = 0;
     double minDist = 10000000;
@@ -171,8 +166,6 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob>& blobs, cv::Point2f p
     return closest;
 }
 
-
-
 #define MATCHING_DIST_THRESHOLD 100 * WIDTH / 720
 #define TIME_UNTIL_BIGGER_THRESH_SECONDS 3
 /**
@@ -180,8 +173,8 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob>& blobs, cv::Point2f p
  * @param blobs the blobs to classify
  * @param frame the latest frame from the camera
  * @param motionImage a frame with only the motion as white pixels
-*/
-VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blobs, cv::Mat& frame, cv::Mat& motionImage, OdometryData& robotData, OdometryData& opponentData)
+ */
+VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData)
 {
     VisionClassification classificationResult;
 
@@ -191,7 +184,6 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
 
     double matchingDistThresholdRobot = MATCHING_DIST_THRESHOLD;
     double matchingDistThresholdOpponent = MATCHING_DIST_THRESHOLD;
-
 
     // // if haven't matched the robot for a while, increase the dist threshold for it
     // if (noRobotClock.getElapsedTime() > 3)
@@ -261,13 +253,12 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob>& blo
         filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, robotData.robotPosition));
         filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, opponentData.robotPosition));
 
-
         double firstIsRobot = ClassifyBlob(filtered[0], frame, motionImage, robotData, opponentData);
         double secondIsRobot = ClassifyBlob(filtered[1], frame, motionImage, robotData, opponentData);
         double preference = firstIsRobot - secondIsRobot;
 
-        MotionBlob& robot = preference <= 0 ? filtered[0] : filtered[1];
-        MotionBlob& opponent = preference <= 0 ? filtered[1] : filtered[0];
+        MotionBlob &robot = preference <= 0 ? filtered[0] : filtered[1];
+        MotionBlob &opponent = preference <= 0 ? filtered[1] : filtered[0];
 
         RecalibrateRobot(robotCalibrationData, robot, frame, motionImage);
         RecalibrateRobot(opponentCalibrationData, opponent, frame, motionImage);
