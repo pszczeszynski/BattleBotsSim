@@ -114,7 +114,7 @@ void RobotController::Run()
 
     // Do IMU
     odometry.Run(OdometryAlg::IMU);
-    
+
     std::cout << "Starting GUI threads..." << std::endl;
 
     // run the gui in a separate thread
@@ -191,13 +191,19 @@ void RobotController::Run()
 */
 int RobotController::UpdateDrawingImage()
 {
-    static cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
+    cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
 
-    // get the LATEST frame from the camera (0 means latest)
-    int retId = videoSource.GetFrame(drawingImage, 0);
+    int retId = -1;
+    // check if we have a new frame from the camera
+    if (videoSource.NewFrameReady(0))
+    {
+        // get the LATEST frame from the camera (0 means latest)
+        retId = videoSource.GetFrame(drawingImage, 0);
+    }
+
 
     // If the frame is empty then keep old image
-    if (drawingImage.empty())
+    if (retId == -1 || drawingImage.empty())
     {
         failsafeImage.copyTo(drawingImage);
     }
