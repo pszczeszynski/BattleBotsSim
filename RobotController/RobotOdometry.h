@@ -11,8 +11,8 @@
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
 #include "Odometry/IMU/OdometryIMU.h"
 
-#define DEFAULT_ODOMETRY_EXTRAPOLATION 0
-// #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
+// #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
+#define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
 
 class OdometryIMU;
 

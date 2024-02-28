@@ -3,15 +3,15 @@
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
 
-OdometryIMU::OdometryIMU( ) :  OdometryBase(nullptr)
+OdometryIMU::OdometryIMU() : OdometryBase(nullptr)
 {
 }
 
 // Start the thread
 // Returns false if already running
-bool OdometryIMU::Run( void )
+bool OdometryIMU::Run(void)
 {
-    if( _running )
+    if (_running)
     {
         // Already running, you need to stop existing thread first
         return false;
@@ -19,7 +19,7 @@ bool OdometryIMU::Run( void )
 
     // Start the new thread
     processingThread = std::thread([&]()
-    {
+                                   {
         // Mark we are running
         _running = true;
 
@@ -31,28 +31,25 @@ bool OdometryIMU::Run( void )
             double frameTime = -1.0f;
 
             IMUData newMessage;
-            long frameIDnew = RobotController::GetInstance().GetIMUFrame( newMessage, frameID, &frameTime); // Blocking read until new frame available
+            long frameIDnew = RobotController::GetInstance().GetIMUFrame(newMessage, frameID, &frameTime); // Blocking read until new frame available
 
-            if( frameIDnew >= 0) // If a new frame was obtained do this
+            if (frameIDnew >= 0) // If a new frame was obtained do this
             {
-               frameID = frameIDnew;
+                frameID = frameIDnew;
 
                 // Update the data
-                _UpdateData( newMessage, frameTime);
+                _UpdateData(newMessage, frameTime);
             }
         }
 
-
         // Exiting thread
         _running = false;
-        _stopWhenAble = false;           
-    });
+        _stopWhenAble = false; });
 
     return true;
 }
 
-
-void  OdometryIMU::_UpdateData(IMUData& imuData, double timestamp)
+void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 {
     // Get unique access
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -67,20 +64,22 @@ void  OdometryIMU::_UpdateData(IMUData& imuData, double timestamp)
     _currDataRobot.isUs = true; // Make sure this is set
     _currDataOpponent.Clear();
     _currDataOpponent.isUs = false; // Make sure this is set
-    
+
     // Set our rotation
     _currDataRobot.robotAngleValid = true;
     _currDataRobot.robotAngle = Angle(imuData.rotation + _angleOffset);
     _currDataRobot.robotAngleVelocity = imuData.rotationVelocity;
 
     _lastIMUAngle = imuData.rotation;
-
 }
 
 void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
 {
     // Only do this for our robot
-    if( opponentRobot) { return; }
+    if (opponentRobot)
+    {
+        return;
+    }
 
     // Don't need mutex acces to angleOffset;
     _angleOffset = newAngle - _lastIMUAngle;

@@ -102,16 +102,17 @@ void RobotOdometry::Update(void)
 
 /**
  * @brief returns the odometry data extrapolated to current time
- *
  */
+#define MAX_EXTRAPOLATION_TIME_S 0.1
 OdometryData RobotOdometry::Robot(double currTime)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData currData = _dataRobot;
     locker.unlock();
 
-    // Extrpolate data
-    currData.Extrapolate(currTime);
+    double extrapolateTime = min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
+    currData.Extrapolate(extrapolateTime);
+
     return currData;
 }
 
@@ -125,8 +126,9 @@ OdometryData RobotOdometry::Opponent(double currTime)
     OdometryData currData = _dataOpponent;
     locker.unlock();
 
-    // Extrpolate data
-    currData.Extrapolate(currTime);
+    double extrapolateTime = min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
+    currData.Extrapolate(extrapolateTime);
+
     return currData;
 }
 

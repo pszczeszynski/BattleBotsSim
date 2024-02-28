@@ -168,26 +168,53 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     // Get unique access
     std::unique_lock<std::mutex> locker(_updateMutex);
 
-    // Make a copy of currData for velocity calls
-    _prevDataRobot = _currDataRobot;
-    _prevDataOpponent = _currDataOpponent;
+    MotionBlob* robot = robotBlobData.GetRobotBlob();
+    MotionBlob* opponent = robotBlobData.GetOpponentBlob();
 
-    _currDataRobot.id++;                // Increment frame id
-    _currDataRobot.time = timestamp;    // Set to new time
-    _currDataOpponent.id++;             // Increment frame id
-    _currDataOpponent.time = timestamp; // Set to new time
+    if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot))
+    {
+        // Make a copy of currData for velocity calls
+        _prevDataRobot = _currDataRobot;
 
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.isUs = true; // Make sure this is set
-    _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false; // Make sure this is set
+        _currDataRobot.id++;             // Increment frame id
+        _currDataRobot.time = timestamp; // Set to new time
 
-    // Update our robot position/velocity/angle
-    UpdateVisionOnly(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
+        // Clear curr data
+        _currDataRobot.Clear();
+        _currDataRobot.isUs = true; // Make sure this is set
 
-    // Update opponent position/velocity info
-    UpdateVisionOnly(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
+        // Update our robot position/velocity/angle
+        SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
+    }
+    else
+    {
+        std::cout << "marking as invalid" << std::endl;
+        std::cout << "Invalid Count: " << _currDataRobot.userDataDouble["invalidCount"] << std::endl;
+        // increase invalid count + mark as invalid
+        _currDataRobot.robotPosValid = _currDataRobot.userDataDouble["invalidCount"] < 10;
+        _currDataRobot.userDataDouble["invalidCount"]++;
+    }
+
+    if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent))
+    {
+        // Make a copy of currData for velocity calls
+        _prevDataOpponent = _currDataOpponent;
+
+        _currDataOpponent.id++;             // Increment frame id
+        _currDataOpponent.time = timestamp; // Set to new time
+
+        // Clear curr data
+        _currDataOpponent.Clear();
+        _currDataOpponent.isUs = false; // Make sure this is set
+
+        // Update opponent position/velocity info
+        SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
+    }
+    else
+    {
+        _currDataOpponent.robotPosValid = _currDataOpponent.userDataDouble["invalidCount"] < 10;
+        _currDataOpponent.userDataDouble["invalidCount"]++;
+    }
 }
 
 // the displacement required to update the angle
@@ -202,71 +229,62 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
 // max rotational speed to update the angle radians per second
 #define MAX_ROTATION_SPEED_TO_ALIGN 250 * TO_RAD
 
-bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData)
+/**
+ * Makes sure the blob didn't shrink too much. Permitted to shrink if 
+ * we have too many invalid marks
+*/
+bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &prevData)
 {
     double blobArea = blobNew.rect.area();
-    double lastVelocityNorm = cv::norm(prevData.robotVelocity);
-
-    // Get previous data. If they dont exist, it will return 0.
     double numUpdatesInvalid = prevData.userDataDouble["invalidCount"];
     double lastBlobArea = prevData.userDataDouble["blobAarea"];
-
     bool invalidBlob = blobArea < lastBlobArea * 0.8 && numUpdatesInvalid < 10;
-
-    // if the blob is too small and we haven't had too many invalid blobs
-    if (invalidBlob)
-    {
-        // we are invalid, so increment the number of invalid blobs
-        numUpdatesInvalid++;
-    }
-    else
-    {
-        // reset the number of invalid blobs
-        numUpdatesInvalid = 0;
-        lastBlobArea = blobArea;
-    }
-
-    currData.userDataDouble["invalidCount"] = lastBlobArea;
-    currData.userDataDouble["blobArea"] = lastBlobArea;
 
     return !invalidBlob;
 }
+// bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData)
+// {
+//     double blobArea = blobNew.rect.area();
+
+//     // Get previous data. If they dont exist, it will return 0.
+//     double numUpdatesInvalid = prevData.userDataDouble["invalidCount"];
+//     double lastBlobArea = prevData.userDataDouble["blobAarea"];
+
+//     bool invalidBlob = blobArea < lastBlobArea * 0.8 && numUpdatesInvalid < 10;
+
+//     // if the blob is too small and we haven't had too many invalid blobs
+//     if (invalidBlob)
+//     {
+//         // we are invalid, so increment the number of invalid blobs
+//         numUpdatesInvalid++;
+//     }
+//     else
+//     {
+//         // reset the number of invalid blobs
+//         numUpdatesInvalid = 0;
+//         lastBlobArea = blobArea;
+//     }
+
+//     currData.userDataDouble["invalidCount"] = numUpdatesInvalid;
+//     currData.userDataDouble["blobArea"] = lastBlobArea;
+
+//     return !invalidBlob;
+// }
 
 /**
- * @brief updates with just visual information. this should only be called for the opponent (since we don't have their imu)
- * Updates the position of the robot to the given position.
+ * @brief our position and velocity using just visual data
  * @param blob - the MotionBlob to update to
+ * @param currData - the current data to update (will set the position and velocity)
  */
-void BlobDetection::UpdateVisionOnly(MotionBlob *blob, OdometryData &currData, OdometryData &prevData)
+void BlobDetection::SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData)
 {
+    double elapsedSincePrev = Clock::programClock.getElapsedTime() - prevData.time;
+
     //////////////////////// POS ////////////////////////
     // use the blob's center for the visual position
-    if ((blob != nullptr) && _IsValidBlob(*blob, currData, prevData)) // If we found a blob and its valid
-    {
-        currData.robotPosValid = true;
-        currData.robotPosition = (*blob).center;
-        currData.rect = (*blob).rect;
-    }
-    else if (prevData.robotPosValid) // Try to extrapolate
-    {
-        currData.robotPosValid = true;
-        currData.robotPosition = prevData.robotPosition;
-        currData.rect = prevData.rect;
-
-        /*
-        // Otherwise we extrapolate
-        currData.robotPosValid = true;
-        cv::Point2f deltapos = prevData.robotVelocity * (currData.time - prevData.time);
-        currData.robotPosition = prevData.robotPosition + deltapos;
-        currData.rect = cv::Rect( prevData.rect.tl(),  prevData.rect.size());
-        currData.rect.x += std::round(deltapos.x);
-        currData.rect.y += std::round(deltapos.y);
-        */
-    }
-    else // Otherwise we cant calculate position
-    {
-        currData.robotPosValid = false;
-    }
+    currData.robotPosValid = true;
+    currData.robotPosition = (*blob).center;
+    currData.rect = (*blob).rect;
 
     //////////////////////// VEL ////////////////////////
     _GetSmoothedVisualVelocity(currData, prevData);
@@ -291,14 +309,6 @@ void BlobDetection::_GetSmoothedVisualVelocity(OdometryData &currData, OdometryD
     {
         currData.userDataDouble["lastVelTime"] = currData.time;
         currData.robotVelocity = cv::Point2f(0, 0);
-        return;
-    }
-
-    // If currData is invalid or time delta is 0 or prev position is invalid, just copy over the old velocity
-    if (!currData.robotPosValid || !prevData.robotPosValid || (elapsedVelTime == 0))
-    {
-        currData.userDataDouble["lastVelTime"] = prevData.userDataDouble["lastVelTime"];
-        currData.robotVelocity = prevData.robotVelocity;
         return;
     }
 

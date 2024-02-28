@@ -44,6 +44,13 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
                                      videoSource{overheadCamL_real}
 #endif
 {
+#ifdef SIMULATION
+    std::cout << "Running in simulation mode" << std::endl;
+#elif defined(VIDEO_FILES)
+    std::cout << "Running in video file mode" << std::endl;
+#else
+    std::cout << "Running in real robot mode" << std::endl;
+#endif
 }
 
 RobotController &RobotController::GetInstance()
@@ -124,9 +131,7 @@ void RobotController::Run()
     ClockWidget loopClock("Total loop time");
     cv::Mat zeroArray;
 
-    // receive until the peer closes the connection
     int videoID = -1;
-    cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
 
     while (true)
     {
@@ -134,29 +139,7 @@ void RobotController::Run()
         loopClock.markStart();
 
         // init drawing image to latest frame from camera
-        videoID = videoSource.GetFrame(drawingImage, 0);
-
-        // Initialize failsafe image
-        if (failsafeImage.empty() && !drawingImage.empty())
-        {
-            drawingImage.copyTo(failsafeImage);
-        }
-
-        // If the frame is empty then keep old image
-        if (drawingImage.empty())
-        {
-            if (failsafeImage.empty())
-            {
-                continue;
-            }
-            failsafeImage.copyTo(drawingImage);
-        }
-
-        // Convert the drawingImage to RGB
-        if (drawingImage.channels() == 1)
-        {
-            cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
-        }
+        videoID = UpdateDrawingImage();
 
         // update the gamepad
         gamepad.Update();
@@ -182,15 +165,14 @@ void RobotController::Run()
             _lastCanMessageMutex.unlock();
         }
 
-
         // Update all our odometry data
         odometry.Update();
 
         // run our robot controller loop
         DriveCommand response = RobotLogic();
 
+        // enforce valid ranges and allow scaling down the movement via sliders
         ApplyMoveScales(response);
-
 
         // send the response to the robot
         robotLink.Drive(response);
@@ -203,6 +185,31 @@ void RobotController::Run()
     }
 }
 
+/**
+ * Consumes the next frame from the camera and updates the drawing image
+ * Will enforce 3 channels, and if the frame is empty, will return a black image
+*/
+int RobotController::UpdateDrawingImage()
+{
+    static cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
+
+    // get the LATEST frame from the camera (0 means latest)
+    int retId = videoSource.GetFrame(drawingImage, 0);
+
+    // If the frame is empty then keep old image
+    if (drawingImage.empty())
+    {
+        failsafeImage.copyTo(drawingImage);
+    }
+
+    // Convert the drawingImage to RGB
+    if (drawingImage.channels() == 1)
+    {
+        cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
+    }
+
+    return retId;
+}
 
 long RobotController::GetIMUFrame(IMUData &output, long old_id, double* frameTime)
 {

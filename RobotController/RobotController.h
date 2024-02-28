@@ -41,6 +41,8 @@ private:
     DriveCommand ManualMode();
     DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
    
+    int UpdateDrawingImage();
+
     // Not used at the moment
     void UpdateRobotTrackers();
 

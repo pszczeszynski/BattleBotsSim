@@ -26,9 +26,10 @@ private:
     VisionClassification DoBlobDetection(cv::Mat &currFrame, cv::Mat &prevFrame); // The core blob detection algorithm
     void UpdateData(VisionClassification robotData, double timestamp);            // Updates the core data so others can poll it
 
-    bool _IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData); // Checks if blob is valid
+    bool _IsValidBlob(MotionBlob &blobNew, OdometryData &prevData);
+    // bool _IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData); // Checks if blob is valid
     void _GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData);        // Averages velocity since its comming in jittery
-    void UpdateVisionOnly(MotionBlob *blob, OdometryData &currData, OdometryData &prevData);
+    void SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData);
     void CalcAnglePathTangent(OdometryData &currData, OdometryData &prevData);
 
     RobotClassifier _robotClassifier; // Takes the blobs and figures out whos who
