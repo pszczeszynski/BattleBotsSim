@@ -15,7 +15,7 @@ DriveCommand RobotMovement::DriveToPosition(RobotSimState exState,
 {
     static Clock c;
 
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
 
     cv::Point2f currPos = odoData.robotPosition;
     double currAngle = odoData.robotAngle;

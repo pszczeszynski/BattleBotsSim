@@ -498,7 +498,9 @@ bool CameraReceiverVideo::_CaptureFrame()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - videoFramePeriod);
+    float deltaTimeLeft = min(_prevFrameTimer.getElapsedTime() - videoFramePeriod,videoFramePeriod); 
+
+    _prevFrameTimer.markStart(deltaTimeLeft);
 
     // read the next frame
     if (playback_goback || playback_restart)

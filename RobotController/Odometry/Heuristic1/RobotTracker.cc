@@ -73,7 +73,7 @@ int FindBBoxWithLargestOverlap(const std::vector<myRect>& allBBoxes, const cv::R
 }
 
 // Returns the closest distance and stores the best bbox 
-int FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  )
+float FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  )
 {
     // Go through all the bboxes and find the one whos center is the closes
     indexFound = -1;
@@ -93,7 +93,7 @@ int FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& poi
         }       
     }
 
-    return indexFound;
+    return closest;
 }
 
 // Generic function to print text on the image for debugging
@@ -969,4 +969,9 @@ cv::Rect RobotTracker::correctResultsForDistance(cv::Mat& results, const cv::Rec
     return deratingROI;
 }
 
+void RobotTracker::SetRotation(double angleRad)
+{
+    rotation.x = cos(angleRad); 
+    rotation.y = sin(angleRad);
+}
 

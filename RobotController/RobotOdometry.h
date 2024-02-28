@@ -9,11 +9,18 @@
 #include "Odometry/OdometryBase.h"
 #include "Odometry/BlobDetection/BlobDetection.h"
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
+#include "Odometry/IMU/OdometryIMU.h"
+
+#define DEFAULT_ODOMETRY_EXTRAPOLATION 0
+// #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
+
+class OdometryIMU;
 
 enum OdometryAlg
 {
     Blob = 0,
     Heuristic,
+    IMU,
     Neural
 };
 
@@ -28,8 +35,8 @@ public:
     bool IsRunning(OdometryAlg algorithm); // Returns true if the algorithm is running
 
     // Retrieve data. It extrapolates to current time if currTime is specified
-    OdometryData Robot(double currTime = Clock::programClock.getElapsedTime());
-    OdometryData Opponent(double currTime = Clock::programClock.getElapsedTime());
+    OdometryData Robot(double currTime = DEFAULT_ODOMETRY_EXTRAPOLATION);
+    OdometryData Opponent(double currTime =  DEFAULT_ODOMETRY_EXTRAPOLATION);
 
     void Update(); // Updates the odometry based on current data
 
@@ -38,10 +45,6 @@ public:
     // used for calibration
     void UpdateForceSetAngle(double newAngle, bool opponentRobot );
     void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );
-
-    // CODE that needs to be stripped out into an independent heuristic
-    void UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame);
-    void UpdateIMUOnly(cv::Mat& frame);
 
     HeuristicOdometry& GetHeuristicOdometry();
 
@@ -58,16 +61,13 @@ private:
     OdometryData _dataRobot_Heuristic;
     OdometryData _dataOpponent_Heuristic;
 
+    OdometryIMU _odometry_IMU;
+    OdometryData _dataRobot_IMU;
+
     // Final Data
     std::mutex _updateMutex;    // Mutex for updating core results
     OdometryData _dataRobot;
     OdometryData _dataOpponent;
-
-
-
-    void _PostUpdate(cv::Point2f position, cv::Point2f velocity, Angle angle);
-    double _UpdateAndGetIMUAngle();
-
 
     double _lastIMUAngle;
 

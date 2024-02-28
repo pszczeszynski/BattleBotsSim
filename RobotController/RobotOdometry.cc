@@ -13,6 +13,7 @@ RobotOdometry::RobotOdometry(ICameraReceiver& videoSource) :
     _odometry_Blob(&videoSource),
     _odometry_Heuristic(&videoSource)
 {
+    
 }
 
 
@@ -60,6 +61,17 @@ void RobotOdometry::Update(void)
         }
     }
 
+    // Get IMU
+    if( _odometry_IMU.IsRunning() )
+    {
+        // Update our data
+        if( _odometry_IMU.NewDataValid(_dataRobot_IMU.id, false))
+        {
+            _dataRobot_IMU =  _odometry_IMU.GetData(false);
+            newDataArrived = true;
+        }      
+    }
+
     // No new data and thus nothing to do
     if(!newDataArrived) { return;}
 
@@ -76,6 +88,15 @@ void RobotOdometry::Update(void)
         _dataRobot =_dataRobot_Blob;
         _dataOpponent = _dataOpponent_Blob;
     }
+
+    // If IMU is running, then use IMU's angle information
+    if( _odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
+    {
+        _dataRobot.robotAngleValid = true;
+        _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
+        _dataRobot.robotAngleVelocity =  _dataRobot_IMU.robotAngleVelocity;
+    }
+
 
     // locker will get unlocked here automatically
 }
@@ -123,100 +144,6 @@ static double GetImuAngleVelocityRadPerSec()
 {
     // get angular velocity from imu
     return RobotController::GetInstance().GetIMUData().rotationVelocity;
-}
-
-
-
-/**
- * @brief updates with both visual and imu information. this should only be called for our robot (since we have our imu)
- * However, sometimes we don't have the visual information in which we call UpdateIMUOnly
-*/
-#define FUSE_ANGLE_WEIGHT 0.15
-
-void RobotOdometry::UpdateVisionAndIMU(MotionBlob& blob, cv::Mat& frame)
-{
-/*
-    //////////////////////// POS ////////////////////////
-    cv::Point2f visualPos = blob.center;
-    cv::Point2f predictedPosition = _position + _lastVelocity * _lastUpdateClock.getElapsedTime();
-
-    bool valid = _IsValidBlob(blob);
-    valid = true;
-
-    //////////////////////// VEL ////////////////////////
-    cv::Point2f smoothedVisualVelocity = _GetSmoothedVisualVelocity(blob);
-    if (!valid)
-    {
-        smoothedVisualVelocity = _lastVelocity;
-        visualPos = _position;
-    }
-
-    // // TODO: MAKE THIS RUN AS A SEPARATE CONSUMER THREAD AND TAKE THE FIELD
-    // // IMAGE DIRECTLY FROM THE CAMERA RECEIVER
-    // if (this == &RobotOdometry::Robot())
-    // {
-    //     std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-    //     visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
-
-    //     std::cout << "x " << visualPos.x << " y " << visualPos.y << " w " << visualPosition[2] << " h " << visualPosition[3] << std::endl;
-
-    //     // draw the position on the drawing image
-    //     SAFE_DRAW
-    //     cv::circle(drawingImage, visualPos, 20, cv::Scalar(255, 0, 0), 2);
-    //     END_SAFE_DRAW
-    // }
-
-    /////////////////////// ANGLE ///////////////////////
-    // set the fused angle to the imu angle
-    double fusedAngle = _UpdateAndGetIMUAngle();
-
-    // update using the weighted average
-    _PostUpdate(visualPos, smoothedVisualVelocity, Angle(fusedAngle));
-    */
-}
-
-/**
- * Called when we only have the imu information. This should only be called for our robot (since we have our imu)
-*/
-void RobotOdometry::UpdateIMUOnly(cv::Mat& frame)
-{
-/*    //////////////////////// VEL ////////////////////////
-    // just use the last velocity
-    cv::Point2f velocity = _lastVelocity;
-
-    //////////////////////// ANGLE ////////////////////////
-    // set the angle using just the imu
-    Angle angle = Angle(_UpdateAndGetIMUAngle());
-
-    // update normally
-    _PostUpdate(_position, velocity, angle);
-*/
-}
-
-/**
- * Tracks the change in the imu angle
- * Should be called every time we update using an imu
- * 
- * @return the new angle with the change in angle added
-*/
-double RobotOdometry::_UpdateAndGetIMUAngle()
-{
-/*
-    // 1. compute angle change
-    // get the new angle
-    double newAngleImuRad = GetImuAngleRad();
-    // calculate the change in angle (there are no angle wraps since the imu is continuous)
-    double angleChange = newAngleImuRad - _lastIMUAngle;
-    // update the last angle
-    _lastIMUAngle = newAngleImuRad;
-
-    // 2. compute and save angular velocity for later
-    _angleVelocity = GetImuAngleVelocityRadPerSec();
-
-    // 3. return the current angle + change in angle
-    return _angle + angleChange;
-*/
-    return 0;
 }
 
 
@@ -313,6 +240,9 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
         case OdometryAlg::Heuristic:
             return _odometry_Heuristic.Run();            
 
+        case OdometryAlg::IMU:
+            return _odometry_IMU.Run();     
+
         case OdometryAlg::Neural:
             break;
 
@@ -331,6 +261,9 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
         case OdometryAlg::Heuristic:
             return _odometry_Heuristic.Stop();
 
+        case OdometryAlg::IMU:
+            return _odometry_IMU.Stop();   
+
         case OdometryAlg::Neural:
             break;
 
@@ -348,6 +281,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
             
         case OdometryAlg::Heuristic:
             return _odometry_Heuristic.IsRunning();
+        
+        case OdometryAlg::IMU:
+            return _odometry_IMU.IsRunning();   
 
         case OdometryAlg::Neural:
             break;

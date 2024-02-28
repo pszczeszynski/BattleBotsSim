@@ -46,6 +46,21 @@ void VariantsWidget::Draw()
     ImGui::SameLine();
     ImGui::Text(isRunning ? "Running" : "Stopped");
 
+   // **********************
+    // IMU
+    CenterText("IMU");
+
+    isRunning = odometry.IsRunning(OdometryAlg::IMU );
+
+    if (ImGui::Button(  isRunning ? "Stop IMU" : "Run IMU") )
+    {
+        if( isRunning) { odometry.Stop(OdometryAlg::IMU); }
+        else { odometry.Run(OdometryAlg::IMU); }
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(isRunning ? "Running" : "Stopped");
+
 
     // ************** OLD CODE *******************
 

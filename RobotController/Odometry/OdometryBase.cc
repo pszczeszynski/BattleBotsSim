@@ -30,7 +30,7 @@ void OdometryData::Clear()
 void OdometryData::Extrapolate(double newtime )
 {
     // Only extrapolate into the future
-    if( newtime < time) { return;}
+    if( newtime < time) { newtime = time;}
 
     // Extrapolate only if data is marked as valid
     if( robotPosValid)
@@ -45,6 +45,17 @@ void OdometryData::Extrapolate(double newtime )
 
     time = newtime;
 }
+
+
+// ***********************************************
+// ************ Odometry Base ********************
+// ***********************************************
+
+OdometryBase::OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSource) 
+{ 
+    _currDataRobot.isUs = true; // Make sure this is set
+    _currDataOpponent.isUs = false; // Make sure this is set
+};
 
 bool OdometryBase::IsRunning( void )
 {

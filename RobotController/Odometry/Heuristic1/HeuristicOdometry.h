@@ -18,16 +18,21 @@ public:
 
     void processNewFrame(cv::Mat& newFrame);
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point
+    void SwitchRobots(void) override; // Switches who's who
+    void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
+    void SetAngle(double newAngle, bool opponentRobot) override;
 
     void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
     
     bool enable_camera_antishake = false;  // Turn off/on anti shake
     bool enable_background_healing = true; // Turn off/on background healing
+    bool force_background_averaging = false;
     bool useMultithreading = false;
 
 
     int averagingCount = 90;  // Rolling average scaling factor for background areas
-    int trackedAvgCount = 200; // Rolling average scaling factor for untracked bbox areas    
+    int trackedAvgCount = 200; // Rolling average scaling factor for untracked bbox areas   
+    double angleVelocityTimeConstant = 0.2f; // Time constant in seconds for averaging angle velocity 
 
     // Debug
     bool save_to_video_match_debug = false; // tracking robot info dump
@@ -80,7 +85,6 @@ private:
     int max_shake_correction = 3; // Only allow up to 3 pixel correction
 
     // Background healing options
-    bool _enHealBackground = false; // Will be enabled once time-to-start passes
     int robotAvgCount = 900; // NOT USED: Rolling average scaling factor for robot areas
 
     // Foreground threshold
@@ -102,8 +106,6 @@ private:
 
     // Robot Tracking
     std::vector<RobotTracker*> _allRobotTrackers;
-    bool leftRobotFound = false;
-    bool rightRobotFound = false;
     double currTime = 0.0; // Current frame time
     RobotTracker* ourRobotTracker = NULL;
     RobotTracker* opponentRobotTracker = NULL;

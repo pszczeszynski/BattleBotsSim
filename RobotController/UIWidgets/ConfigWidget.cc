@@ -72,11 +72,14 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("  BG Averaging:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250); ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 200); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(250); ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 400); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("  Obj Decay:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250); ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 400); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(250); ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 800); ImGui::PopItemWidth();
+    ImGui::Checkbox(":EN Healing    ", &heuristic.enable_background_healing);
+    ImGui::SameLine();
+    ImGui::Checkbox(":FORCE HEALING EVEN IF NO BOTS", &heuristic.force_background_averaging);
 
     // Foreground Management
     ImGui::Text("FOREGROUND:  ");
@@ -119,14 +122,17 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 1, 32); ImGui::PopItemWidth();
     ImGui::SameLine();
-    ImGui::Checkbox(":Show BG Mat   ", &heuristic.show_bg_mat);
+    ImGui::Checkbox(":Show BG Mat ", &heuristic.show_bg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show FG Mat     ", &heuristic.show_fg_mat);
+    ImGui::Checkbox(":Show FG Mat   ", &heuristic.show_fg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show Tracking Mat     ", &heuristic.show_track_mat);
+    ImGui::Checkbox(":Show Tracking Mat   ", &heuristic.show_track_mat);
     ImGui::SameLine();
     ImGui::Checkbox(":Show Stats", &heuristic.show_stats);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Save Video Debug", &heuristic.save_to_video_match_debug);
     ImGui::End();
+
 
     ImGui::Begin("Radio Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);

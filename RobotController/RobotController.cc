@@ -96,12 +96,19 @@ void RobotController::Run()
     robotLink.Drive(c);
 #endif
 
+    std::cout << "Starting odometry threads..." << std::endl;
+
     // Start the odometry threads
     // Do blob detection
     odometry.Run(OdometryAlg::Blob);
 
     // Do Heuristic
     odometry.Run(OdometryAlg::Heuristic);
+
+    // Do IMU
+    odometry.Run(OdometryAlg::IMU);
+    
+    std::cout << "Starting GUI threads..." << std::endl;
 
     // run the gui in a separate thread
     std::thread guiThread = std::thread([]() {
@@ -135,11 +142,13 @@ void RobotController::Run()
         loopClock.markStart();
 
         // init drawing image to latest frame from camera
-        videoSource.GetFrame(drawingImage, 0);
+        videoID = videoSource.GetFrame(drawingImage, 0);
 
+        
         // Initialize failsafe image
         if( failsafeImage.empty() && !drawingImage.empty())
         { drawingImage.copyTo(failsafeImage);}
+
 
         // If the frame is empty then keep old image
         if( drawingImage.empty()) 
@@ -177,6 +186,7 @@ void RobotController::Run()
             _lastCanMessageMutex.unlock();
         }
 
+
         // Update all our odometry data
         odometry.Update();
 
@@ -184,6 +194,7 @@ void RobotController::Run()
         DriveCommand response = RobotLogic();
 
         ApplyMoveScales(response);
+
 
         // send the response to the robot
         robotLink.Drive(response);
@@ -200,13 +211,17 @@ void RobotController::Run()
 long RobotController::GetIMUFrame(IMUData &output, long old_id, double* frameTime)
 {
     // Using scoped mutex locker because conditional variable integrates with it
-    // This creates and locks the mutex
+    // This creates the locker and locks the mutex
     std::unique_lock<std::mutex> locker(_imudataMutex);
 
     while ((_imuID <= 0) || (_imuID <= old_id))
     {
         // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
-        _imuCV.wait(locker);
+        if( _imuCV.wait_for(locker, ODO_MUTEX_TIMEOUT) ==  std::cv_status::timeout )
+        {
+            // Unable to get a new frame, exit
+            return -1;
+        }
     }
 
     // At this point our mutex is locked and a frame is ready
@@ -224,56 +239,6 @@ long RobotController::GetIMUFrame(IMUData &output, long old_id, double* frameTim
     return old_id;
 }
 
-
-
-/**
- * 
-*/
-void RobotController::UpdateRobotTrackers()
-{
-    
-
-
-
-/*
-    static int updatesWithoutOpponent = 0;
-
-    // if vision detected our robot
-    if (classification.GetRobotBlob() != nullptr)
-    {
-        MotionBlob robot = *classification.GetRobotBlob();
-        cv::Mat& frame = *(classification.GetRobotBlob()->frame);
-
-        RobotOdometry::Robot().UpdateVisionAndIMU(robot, frame);
-
-        cv::rectangle(drawingImage, robot.rect, cv::Scalar(255, 0, 0, 1));
-    }
-    else
-    {
-        // otherwise just update using the imu
-        // TODO: DONT JUST USE THE DRAWING IMAGE, that's hacky
-        RobotOdometry::Robot().UpdateIMUOnly(drawingImage);
-    }
-
-    // if vision detected the opponent
-    if (classification.GetOpponentBlob() != nullptr)
-    {
-        MotionBlob opponent = *classification.GetOpponentBlob();
-        cv::Mat& frame = *(classification.GetOpponentBlob()->frame);
-        RobotOdometry::Opponent().UpdateVisionOnly(opponent, frame);
-        updatesWithoutOpponent = 0;
-    }
-    else
-    {
-        updatesWithoutOpponent++;
-        if (updatesWithoutOpponent > 10)
-        {
-            RobotOdometry::Opponent().Invalidate();
-        }
-    }
-*/
-
-}
 
 
 // Function to draw the rectangle and display the value underneath
@@ -394,7 +359,7 @@ DriveCommand RobotController::ManualMode()
 DriveCommand RobotController::RobotLogic()
 {
     // draw arrow in the direction of the robot
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
 
 
     cv::Point2f robotPos = odoData.robotPosition;
@@ -403,15 +368,14 @@ DriveCommand RobotController::RobotLogic()
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
+
     DriveCommand responseManual = ManualMode();
+
     DriveCommand responseOrbit = orbitMode.Execute(gamepad);
     // DriveCommand responseAvoid = AvoidMode();
 
     // start with just manual control
     DriveCommand ret = responseManual;
-
-
-
 
     // if gamepad pressed dpad up, _orbiting = true
     if (gamepad.GetDpadUp())

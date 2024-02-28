@@ -64,6 +64,7 @@ bool RobotControllerGUI::Update()
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
     _variantsWidget.Draw();
+    _odoData.Draw();
 
 #ifdef VIDEO_FILES
     // Only playback widget if in video playback mode

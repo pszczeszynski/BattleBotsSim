@@ -27,7 +27,7 @@ class myRect;
 // ******************************
 // General purpose function
 int FindBBoxWithLargestOverlap(const std::vector<myRect>& allBBoxes, const cv::Rect& targetBBox,  cv::Rect& bestBBox,int& indexFound  );
-int FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  );
+float FindClosestBBox(const std::vector<myRect>& allBBoxes, const cv::Point2f& point,  cv::Rect& bestBBox, int& indexFound  );
 void printText(std::string text, cv::Mat& image, int yoffset=50, int xoffset=50);
 extern ThreadPool myThreads; // Will initialize to maximum threads it can
 cv::Rect FixBBox(const cv::Rect& bbox, const cv::Mat& mat); // Retuns a bbox that is clamped to the image
@@ -173,7 +173,7 @@ public:
     void ProcessNewFrame(double currTime,  cv::Mat& foreground,  cv::Mat& currFrame,  cv::Mat& new_fg_mask, int& doneInt, std::condition_variable_any& doneCV, std::mutex& mutex, cv::Mat& debugMat );//Porcess new frame, return true if lock occured
 
     cv::Point GetCenter(void);
-
+    void SetRotation(double angleRad);
 
    
     cv::Rect predictedBBox;

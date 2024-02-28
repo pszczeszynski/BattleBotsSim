@@ -97,6 +97,7 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
  */
 DriveCommand Orbit::Execute(Gamepad& gamepad)
 {
+
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
@@ -219,7 +220,7 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
 double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
 {
     // get odometry data
-    OdometryData odoData = RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData = RobotController::GetInstance().odometry.Robot();
     // our pos + angle
     cv::Point2f ourPosition = odoData.robotPosition;
 

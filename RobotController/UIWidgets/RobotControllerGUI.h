@@ -18,6 +18,7 @@
 #include "VariantsWidget.h"
 #include "PlaybackWidget.h"
 #include "ManualControlWidget.h"
+#include "ODataWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -50,6 +51,7 @@ private:
     VariantsWidget _variantsWidget;
     PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
+    ODataWidget _odoData;
 };
 
 static void glfw_error_callback(int error, const char *description)

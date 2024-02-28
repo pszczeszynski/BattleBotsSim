@@ -1,16 +1,22 @@
 #pragma once
 #include "../OdometryBase.h"
-#include "../../RobotController.h"
+#include "../../../Communication/Communication.h"
+
+class RobotController;
 
 // OdometryIMU calss
 class OdometryIMU : public OdometryBase
 {
-    OdometryIMU(RobotController &controller);
+public:
+    OdometryIMU();
+    void SetAngle(double newAngle, bool opponentRobot) override;
+    void SwitchRobots(void) override {}; // Dont do anything for SwitchRobots
 
     bool Run( void ) override; // Starts the thread(s) to decode data. Returns true if succesful
 
 private:
-    RobotController& _controller;
-    void _UpdateData(IMUData& imuData, double time);
+    void _UpdateData(IMUData& imuData, double timestamp);
+    float _lastIMUAngle = 0;
+    float _angleOffset = 0;
 
 };

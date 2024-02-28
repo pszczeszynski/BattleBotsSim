@@ -93,6 +93,7 @@ set(SOURCES
     UIWidgets/VariantsWidget.cc
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
+    UIWidgets/ODataWidget.cc
     CVRotation.cc
     CVPosition.cc
     MovementStrategy.cc

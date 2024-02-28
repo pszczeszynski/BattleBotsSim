@@ -13,7 +13,7 @@
 
 // The total time to wait stopping the main task in seconds before killing it 
 #define ODOMETRY_STOP_TIMEOUT 0.1f
-
+#define ODO_MUTEX_TIMEOUT std::chrono::milliseconds(250) 
 
 class OdometryData
 {
@@ -59,7 +59,7 @@ public:
     // The Odometry algorithm is expected to run a parallel thread that gets new video
     // frames from the videoSource as often as it wants.
     // The processing of the image for birds eye view is thus going to be done by the videoSource
-    OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSource) { };
+    OdometryBase(ICameraReceiver *videoSource);
     OdometryBase(void) { };
 
     virtual bool NewDataValid(int oldId, bool getOpponent = false); // Returns true if new data is present

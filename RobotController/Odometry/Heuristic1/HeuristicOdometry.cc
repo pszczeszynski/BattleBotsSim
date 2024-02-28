@@ -66,7 +66,8 @@ void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos
     // First reinitialize background
     ReinitBackground( );
 
-    // Now lock onto robots
+    // Now lock onto robots. Set position here tries to find the best BBox closes to the position
+    // It does not actually set it to that position
     SetPosition(robotPos, false);
     SetPosition(opponentPos, true);
 }
@@ -148,7 +149,6 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         _allRobotTrackersClear();
         all_bboxes.clear();
-        _enHealBackground = true;
         LoadBackground(newFrame);
         load_background = false;
     }
@@ -206,7 +206,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     else { _imunshow("Foreground"); };
 
     // Service and requests from user (this needs to be done here)
-    if(save_to_video_output)
+    if(save_video_enabled && save_to_video_output)
     {
         SaveToVideo(currFrameColor);
     }
@@ -276,9 +276,11 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData& data, OdometryData& oldDat
     data.robotAngle = Angle( tracker->rotation.angleRad());
 
     data.robotAngleVelocity = 0;
-    if( data.time - oldData.time > 0)
+
+    double deltaTime = data.time - oldData.time;
+    if( deltaTime > 0)
     {
-        data.robotAngleVelocity = (data.robotAngle - oldData.robotAngle) / (data.time - oldData.time);
+        data.robotAngleVelocity = data.robotAngleVelocity*(1.0-deltaTime/angleVelocityTimeConstant) + angleVelocityTimeConstant*(data.robotAngle - oldData.robotAngle);
     }
 
 }
@@ -298,6 +300,71 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
 
     odoData.robotPosition = newPos;
     odoData.robotPosValid = true;
+}
+
+void HeuristicOdometry::SetAngle(double newAngle, bool opponentRobot) 
+{
+  // First lock for all robot tracking and find the robot
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+
+   // Update robot trackers
+    RobotTracker* tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+
+    if( tracker != NULL )
+    {
+        tracker->SetRotation(newAngle);
+    }
+    locktracking.unlock();
+
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+
+    odoData.robotAngle = Angle(newAngle);
+    odoData.robotAngleValid = true;
+    odoData.robotAngleVelocity = 0;
+
+}
+
+void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
+{
+    // First lock for all robot tracking and find the robot
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+
+    // Update robot trackers
+    RobotTracker* tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+
+    if( tracker != NULL )
+    {           
+        tracker->avgVelocity.x = newVel.x;
+        tracker->avgVelocity.y = newVel.y;
+    }
+    locktracking.unlock();
+
+    std::unique_lock<std::mutex> locker(_updateMutex);
+
+    OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+
+    odoData.robotVelocity = newVel;
+
+}
+
+void HeuristicOdometry::SwitchRobots( void )
+{
+    // First lock for all robot tracking and find the robot
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+    RobotTracker* tempTracker = ourRobotTracker;
+    ourRobotTracker = opponentRobotTracker;
+    opponentRobotTracker = tempTracker;
+    locktracking.unlock();
+
+    // Switch who's who
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData temp_Robot = _currDataRobot;
+    _currDataRobot = _currDataOpponent;
+    _currDataOpponent = temp_Robot;
+
+    _currDataRobot.isUs = true;
+    _currDataOpponent.isUs = false;
 }
 
 
@@ -338,7 +405,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
     cv::Mat nullMat;
     cv::Mat videoFrame; 
     std::vector<cv::Mat> channels;
-    if( save_to_video_match_debug )
+    if( save_video_enabled && save_to_video_match_debug )
     {
         videoFrame = cv::Mat::zeros( frameToDisplay.size(), frameToDisplay.type());
         cv::split(videoFrame, channels);
@@ -373,13 +440,13 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
         markTime("Starting Tracked Item # " + std::to_string(processes_run) + ": ");
         if( !useMultithreading)
         {
-            currItem->ProcessNewFrame(currTime,  foreground, croppedFrame, fg_mask, processes_done, conditionVarTrackRobots, _mutexTrackData, (save_to_video_match_debug && i==itarget) ? channels[1] :nullMat );
+            currItem->ProcessNewFrame(currTime,  foreground, croppedFrame, fg_mask, processes_done, conditionVarTrackRobots, _mutexTrackData, (save_video_enabled && save_to_video_match_debug && i==itarget) ? channels[1] :nullMat );
         }
         else
         {
             ++processes_run;
             auto boundFunction = std::bind(&RobotTracker::ProcessNewFrame, currItem, currTime, std::ref(foreground), 
-            std::ref(croppedFrame), std::ref(fg_mask), std::ref(processes_done), std::ref(conditionVarTrackRobots),  std::ref(_mutexTrackData),std::ref((save_to_video_match_debug && i==itarget) ? channels[1] :nullMat ) );
+            std::ref(croppedFrame), std::ref(fg_mask), std::ref(processes_done), std::ref(conditionVarTrackRobots),  std::ref(_mutexTrackData),std::ref((save_video_enabled && save_to_video_match_debug && i==itarget) ? channels[1] :nullMat ) );
 
             myThreads.enqueue(boundFunction);
         }
@@ -401,7 +468,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
 
     markTime("Track Items all joined : ");
 
-    if( save_to_video_match_debug )
+    if( save_video_enabled && save_to_video_match_debug )
     {
         DumpRobotTrackerInfo(channels[0], "                           End Data");
     }
@@ -455,7 +522,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat& croppedFrame, cv::Mat& frameToDispl
     }
 
     // Merge the channels
-    if( save_to_video_match_debug)
+    if(save_video_enabled && save_to_video_match_debug)
     {
         cv::merge(channels, videoFrame);
 
@@ -572,13 +639,14 @@ bool HeuristicOdometry::DumpBackground(std::string name, std::string path)
 
 void HeuristicOdometry::SaveToVideo(cv::Mat& image)
 {
-    if( !save_to_video_match_debug && !save_to_video_output) { return;}
+    if( !save_video_enabled ) { return;}
 
     // Make sure we are initialized
     if( !video.isOpened())
     {
         // Open the video 
-        video = cv::VideoWriter(outputVideoFile, cv::VideoWriter::fourcc('M','J','P','G'), 60, cv::Size(image.cols,image.rows));
+       // video = cv::VideoWriter(outputVideoFile, cv::VideoWriter::fourcc('M','J','P','G'), 60, cv::Size(image.cols,image.rows));
+       video = cv::VideoWriter(outputVideoFile, cv::VideoWriter::fourcc('a','v','c','1'), 60, cv::Size(image.cols,image.rows));
 
         // Failed to open, must have writing permissions wrong
         if( !video.isOpened()) { return;}
@@ -719,7 +787,7 @@ bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
     // Find the closest bounding box
     cv::Rect bestBBox(0,0,0,0);
     int index1=-1;
-    int distance = FindClosestBBox(all_bboxes,newPos, bestBBox, index1);
+    float distance = FindClosestBBox(all_bboxes,newPos, bestBBox, index1);
   
     // If we found a bbox of sufficient size that is reasonably close
     if( (index1 >= 0) && (distance < max_distance_to_locate) && (bestBBox.width >= fg_bbox_minsize) && (bestBBox.width <= maxDimension)
@@ -904,7 +972,15 @@ void HeuristicOdometry::ExtractForeground(cv::Mat& croppedFrame)
 void HeuristicOdometry::healBackground(cv::Mat& currFrame)
 {
     // quit if we are not enabled 
-    if( !enable_background_healing || !_enHealBackground) { return; }
+    if( !enable_background_healing ) { return; }
+
+    // If we haven't found both robots or either one is not tracking, don't heal
+    if( !force_background_averaging && ( 
+            (ourRobotTracker==NULL) || (opponentRobotTracker==NULL) || 
+            (ourRobotTracker->numFramesNotTracked > 1) || (opponentRobotTracker->numFramesNotTracked > 1) ) )
+    {
+        return;
+    }
 
     // NEed 16-bit version of our frame for averaging manipulations later
     cv::Mat currFrame_16bit;

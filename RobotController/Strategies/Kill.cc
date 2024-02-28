@@ -15,7 +15,7 @@ DriveCommand Kill::Execute(Gamepad &gamepad)
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
 
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot(Clock::programClock.getElapsedTime());
+    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
 
     RobotSimState currentState;
     currentState.position = odoData.robotPosition;
@@ -29,7 +29,7 @@ DriveCommand Kill::Execute(Gamepad &gamepad)
 
     RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Auto;
 
-    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent(Clock::programClock.getElapsedTime());
+    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent();
 
     DriveCommand ret;
     // drive directly to the opponent
