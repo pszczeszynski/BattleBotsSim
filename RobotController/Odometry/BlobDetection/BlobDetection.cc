@@ -182,14 +182,13 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         // Clear curr data
         _currDataRobot.Clear();
         _currDataRobot.isUs = true; // Make sure this is set
+        _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
 
         // Update our robot position/velocity/angle
         SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
     }
     else
     {
-        std::cout << "marking as invalid" << std::endl;
-        std::cout << "Invalid Count: " << _currDataRobot.userDataDouble["invalidCount"] << std::endl;
         // increase invalid count + mark as invalid
         _currDataRobot.robotPosValid = _currDataRobot.userDataDouble["invalidCount"] < 10;
         _currDataRobot.userDataDouble["invalidCount"]++;
@@ -206,6 +205,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         // Clear curr data
         _currDataOpponent.Clear();
         _currDataOpponent.isUs = false; // Make sure this is set
+        _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
 
         // Update opponent position/velocity info
         SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
@@ -237,7 +237,8 @@ bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &prevData)
 {
     double blobArea = blobNew.rect.area();
     double numUpdatesInvalid = prevData.userDataDouble["invalidCount"];
-    double lastBlobArea = prevData.userDataDouble["blobAarea"];
+    double lastBlobArea = prevData.userDataDouble["blobArea"];
+    // it's possible the motion detector's blob shrunk due to detecting only a portion 
     bool invalidBlob = blobArea < lastBlobArea * 0.8 && numUpdatesInvalid < 10;
 
     return !invalidBlob;
@@ -446,7 +447,6 @@ void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot)
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
     odoData.robotPosition = newPos;
     odoData.robotPosValid = true;
 
@@ -460,7 +460,6 @@ void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot)
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
     odoData.robotVelocity = newVel;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;

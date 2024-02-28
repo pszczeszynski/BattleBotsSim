@@ -469,7 +469,6 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
     command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
     command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
-
     // check if should invert movements
     if (INVERT_MOVEMENT)
     {

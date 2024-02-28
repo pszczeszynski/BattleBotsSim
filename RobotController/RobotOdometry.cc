@@ -97,6 +97,13 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
 
+    static Clock shiftClock{};
+    // increment position using gamepad stick
+    _dataRobot.robotPosition += cv::Point2f(RobotController::GetInstance().gamepad.GetLeftStickX(),
+                                            -RobotController::GetInstance().gamepad.GetLeftStickY()) *
+                                shiftClock.getElapsedTime() * 1000.0;
+    shiftClock.markStart();
+
     // locker will get unlocked here automatically
 }
 
