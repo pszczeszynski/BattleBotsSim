@@ -126,39 +126,35 @@ void RobotController::Run()
 
     // receive until the peer closes the connection
     int videoID = -1;
-    cv::Mat failsafeImage;
+    cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
 
     while (true)
     {
         loopClock.markEnd();
-
-        // // If the elapsed time is less then the minimum time for this loop, then sleep for the remaining
-        // double delta_time = MIN_ROBOT_CONTROLLER_LOOP_TIME_MS - loopClock.getElapsedTime() * 1000.0f;
-        // if (delta_time > 1.0f)
-        // {
-        //     Sleep((DWORD)delta_time);
-        // }
-
         loopClock.markStart();
 
         // init drawing image to latest frame from camera
         videoID = videoSource.GetFrame(drawingImage, 0);
 
-        
         // Initialize failsafe image
-        if( failsafeImage.empty() && !drawingImage.empty())
-        { drawingImage.copyTo(failsafeImage);}
-
+        if (failsafeImage.empty() && !drawingImage.empty())
+        {
+            drawingImage.copyTo(failsafeImage);
+        }
 
         // If the frame is empty then keep old image
-        if( drawingImage.empty()) 
-        { 
-            if( failsafeImage.empty()) {continue;}
+        if (drawingImage.empty())
+        {
+            if (failsafeImage.empty())
+            {
+                continue;
+            }
             failsafeImage.copyTo(drawingImage);
         }
 
-        // Convert the drawing stop RGB
-        if (drawingImage.channels() == 1) {
+        // Convert the drawingImage to RGB
+        if (drawingImage.channels() == 1)
+        {
             cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
         }
 
