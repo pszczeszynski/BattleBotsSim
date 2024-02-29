@@ -10,7 +10,8 @@ public class VisionAITrainer : MonoBehaviour
 {
     [SerializeField]
     private Transform robotTransform;
-
+    [SerializeField]
+    private BoxCollider robotBoundsCollider;
     [SerializeField]
     private Camera captureCamera;
     [SerializeField]
@@ -57,10 +58,18 @@ public class VisionAITrainer : MonoBehaviour
 
     private void Start()
     {
+        _imagesSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs");
+        _labelsSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingKeys");
+        if (!Directory.Exists(_imagesSavePath))
+            Directory.CreateDirectory(_imagesSavePath);
+
+        if (!Directory.Exists(_labelsSavePath))
+            Directory.CreateDirectory(_labelsSavePath);
+
         if (!replaceExisting)
         {
             // get max index of existing images
-            int maxIndex = 0;
+            int maxIndex = -1;
             foreach (string file in Directory.GetFiles(Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs")))
             {
                 string fileName = Path.GetFileNameWithoutExtension(file);
@@ -92,7 +101,7 @@ public class VisionAITrainer : MonoBehaviour
         rt = new RenderTexture(CAMERA_WIDTH, CAMERA_HEIGHT, 16, RenderTextureFormat.ARGB32);
         rt.Create();
         captureTexture = new Texture2D(CAMERA_WIDTH, CAMERA_HEIGHT, TextureFormat.RGBA32, false);
-
+        Debug.Log("start: " + captureTexture);
         // save original camera position and rotation
         _originalCameraPosition = captureCamera.transform.position;
         _originalCameraRotation = captureCamera.transform.rotation;
@@ -230,14 +239,39 @@ public class VisionAITrainer : MonoBehaviour
     }
 
     // returns the roi in the camera that the robot is
-    private Vector2 GetRobotScreenPos()
+    private Vector4 GetRobotScreenPos()
     {
-        Transform robotBody = robotTransform.Find("Body");
-        Vector3 robotPos = robotBody.position;
-        // robotPos.y = 0;
-        Vector3 robotScreenPos = captureCamera.WorldToScreenPoint(robotPos);
-        return new Vector2(robotScreenPos.x, CAMERA_HEIGHT - robotScreenPos.y);
+        float Xmax = 0, Xmin = int.MaxValue, Ymax = 0, Ymin = int.MaxValue;
+
+        BoxCollider col = robotBoundsCollider;
+
+        var trans = robotBoundsCollider.transform;
+        var min = col.center - col.size * 0.5f;
+        var max = col.center + col.size * 0.5f;
+
+        ComparePoint(trans.TransformPoint(new Vector3(min.x, min.y, min.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(min.x, min.y, max.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(min.x, max.y, min.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(min.x, max.y, max.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(max.x, min.y, min.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(max.x, min.y, max.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(max.x, max.y, min.z)));
+        ComparePoint(trans.TransformPoint(new Vector3(max.x, max.y, max.z)));
+        //Debug.DrawLine(trans.TransformPoint(min), trans.TransformPoint(max), UnityEngine.Color.red, 10f);
+
+        void ComparePoint(Vector3 worldPos)
+        {
+            var screenPos = captureCamera.WorldToScreenPoint(worldPos);
+            Xmax = Mathf.Max(Xmax, screenPos.x);
+            Xmin = Mathf.Min(Xmin, screenPos.x);
+            Ymin = Mathf.Min(Ymin, screenPos.y);
+            Ymax = Mathf.Max(Ymax, screenPos.y);
+        }
+
+        Debug.Log($"{Xmax} {Xmin} {Ymax} {Ymin}");
+        return new Vector4((Xmax+Xmin)/2, CAMERA_HEIGHT - (Ymax+Ymin)/2, Xmax-Xmin, Ymax-Ymin);
     }
+
 
     private void CaptureAndSaveData()
     {
@@ -270,7 +304,7 @@ public class VisionAITrainer : MonoBehaviour
     [System.Serializable]
     public class PositionRotationData
     {
-        public Vector2 position;
+        public Vector4 position;
         public float rotation;
     }
 }

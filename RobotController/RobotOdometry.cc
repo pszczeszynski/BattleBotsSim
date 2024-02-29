@@ -7,6 +7,7 @@
 #include "Input/InputState.h"
 #include "RobotConfig.h"
 #include "CVPosition.h"
+#include "UIWidgets/GraphWidget.h"
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
                                                              _odometry_Blob(&videoSource),

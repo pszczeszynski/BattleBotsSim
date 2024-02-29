@@ -74,8 +74,8 @@ void ManualControlWidget::Draw()
     // text for weapons
     ImGui::Text("Weapons");
     // sliders for the weapon speeds
-    ImGui::SliderFloat("Bar Speed", &MAX_FRONT_WEAPON_SPEED, 0, 1.0);
-    ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 1.0);
+    ImGui::SliderFloat("Bar Speed", &MAX_FRONT_WEAPON_SPEED, 0, 300.0);
+    ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 300.0);
 
     ImGui::End();
 }

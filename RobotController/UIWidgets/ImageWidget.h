@@ -20,6 +20,7 @@ public:
     cv::Point2f GetMousePos();
     bool IsMouseOver();
     void UpdateMat(cv::Mat& image);
+    void AddAdditionalUI(std::function<void()> func);
 
 protected:
     ImVec2 _windowPos;
@@ -28,4 +29,6 @@ protected:
 
     std::mutex _imageMutex;
     cv::Mat _image;
+
+    std::function<void()> _additionalUI;
 };

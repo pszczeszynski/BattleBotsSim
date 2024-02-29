@@ -13,9 +13,9 @@ reload(Utilities)
 from Utilities import prepare_and_augment_image, Augmentations
 sys.path.remove('..')
 
-train_size = 16000
-test_size = 4000
-data_dir = "test3"
+train_size = 20000
+test_size = 5000
+data_dir = "set4_forks_preprocessed"
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 - 0.5

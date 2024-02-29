@@ -17,25 +17,28 @@ void ConfigWidget::Draw()
 {
     ImGui::Begin("Go To Point Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
-    ImGui::SliderInt("Turn Thresh 1 Deg", &TURN_THRESH_1_DEG, 0, 360);
-    ImGui::SliderInt("Turn Thresh 2 Deg", &TURN_THRESH_2_DEG, 0, 360);
-    ImGui::SliderInt("Min Turn Power (%)", &MIN_TURN_POWER_PERCENT, 0, 100);
-    ImGui::SliderInt("Max Turn Power (%)", &MAX_TURN_POWER_PERCENT, 0, 100);
-    ImGui::SliderInt("Scale Down Movement (%)", &SCALE_DOWN_MOVEMENT_PERCENT, 0, 100);
-    ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
-    ImGui::SliderInt("Master Move Scale (%)", &MASTER_MOVE_SCALE_PERCENT, 0, 100);
-    ImGui::SliderInt("Master Turn Scale (%)", &MASTER_TURN_SCALE_PERCENT, 0, 100);
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
     ImGui::Begin("Orbit Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
+    // button for LEAD_WITH_BAR
+    if (ImGui::Button("Lead with Bar or Disk?"))
+    {
+        LEAD_WITH_BAR = !LEAD_WITH_BAR;
+    }
+    ImGui::SameLine();
+    // text for BAR
+    ImGui::Text(LEAD_WITH_BAR ? "BAR" : "DISK");
+
     ImGui::SliderInt("Angle Extrapolate (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
-    ImGui::SliderInt("Orbit Radius MovAvg Speed (%)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 100);
+    ImGui::SliderFloat("Orbit Radius MovAvg Blend Time (sec)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1.0f);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Go Around Radius", &GO_AROUND_RADIUS, 0, 500);
+
+
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
