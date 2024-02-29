@@ -66,6 +66,7 @@ extern int GO_AROUND_RADIUS;
 extern float FISHEYE_SCALE;
 extern float FISHEYE_FL;
 extern float FISHEYE_Y;
+extern bool WASD_ENABLED;
 
 template <typename T>
 std::string convertValueToString(const T &value);

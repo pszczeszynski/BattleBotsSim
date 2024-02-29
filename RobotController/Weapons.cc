@@ -43,25 +43,25 @@ void Weapons::UpdateSpinnerPowers()
     Gamepad& gamepad = RobotController::GetInstance().GetGamepad();
 
     // if a pressed
-    if (gamepad.GetButtonA() || InputState::GetInstance().IsKeyDown(ImGuiKey_W))
+    if (gamepad.GetButtonA())
     {
         weaponOnB = true;
     }
 
     // if b pressed
-    if (gamepad.GetButtonB() || InputState::GetInstance().IsKeyDown(ImGuiKey_S))
+    if (gamepad.GetButtonB())
     {
         weaponOnB = false;
     }
 
     // if x pressed
-    if (gamepad.GetButtonX() || InputState::GetInstance().IsKeyDown(ImGuiKey_I))
+    if (gamepad.GetButtonX())
     {
         weaponOnF = true;
     }
 
     // if y pressed
-    if (gamepad.GetButtonY() || InputState::GetInstance().IsKeyDown(ImGuiKey_K))
+    if (gamepad.GetButtonY())
     {
         weaponOnF = false;
     }

@@ -47,6 +47,7 @@ public:
     void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );
 
     HeuristicOdometry& GetHeuristicOdometry();
+    void _AdjustAngleWithArrowKeys();
 
 private:
     // Video source to initialize odometry olgorithms with
@@ -70,7 +71,6 @@ private:
     OdometryData _dataOpponent;
 
     double _lastIMUAngle;
-
 
     Angle CalcAnglePathTangent();
     bool _visualAngleValid = false;

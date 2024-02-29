@@ -25,7 +25,7 @@ bool OdometryIMU::Run(void)
 
         long frameID = -1;
 
-        while(_running && !_stopWhenAble)
+        while (_running && !_stopWhenAble)
         {
             // Get the new IMU data
             double frameTime = -1.0f;
@@ -75,11 +75,12 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
     }
 
     // increment the robot angle
-    _currDataRobot.robotAngle = Angle(_angleOffset + imuData.rotation - _lastImuAngle);
+    _currDataRobot.robotAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
     _currDataRobot.robotAngleVelocity = imuData.rotationVelocity;
 
     _lastImuAngle = imuData.rotation;
     _lastRadioChannel = RADIO_CHANNEL;
+    _lastAngle = _currDataRobot.robotAngle;
 }
 
 void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
@@ -90,6 +91,6 @@ void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
         return;
     }
 
-    // Don't need mutex acces to angleOffset;
-    _angleOffset = newAngle - _lastImuAngle;
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    _lastAngle = Angle(newAngle);
 }

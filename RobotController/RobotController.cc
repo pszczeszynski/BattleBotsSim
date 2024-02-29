@@ -337,12 +337,20 @@ DriveCommand RobotController::ManualMode()
     response.frontWeaponPower = weapons.GetFrontWeaponTargetPower();
     response.backWeaponPower = weapons.GetBackWeaponTargetPower();
 
-    float power = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
+    float selfRighterPower = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
+    selfRighterPower += InputState::GetInstance().IsKeyDown(ImGuiKey_J) - InputState::GetInstance().IsKeyDown(ImGuiKey_U);
 
-    power += InputState::GetInstance().IsKeyDown(ImGuiKey_J) - InputState::GetInstance().IsKeyDown(ImGuiKey_U);
+    // control with keyboard if enabled
+    if (WASD_ENABLED)
+    {
+        response.movement += (int) InputState::GetInstance().IsKeyDown(ImGuiKey_W) - (int) InputState::GetInstance().IsKeyDown(ImGuiKey_S);
+        response.turn += (int) InputState::GetInstance().IsKeyDown(ImGuiKey_A) - (int) InputState::GetInstance().IsKeyDown(ImGuiKey_D);
+    }
+
+    odometry._AdjustAngleWithArrowKeys();
 
     // control the self righter
-    _selfRighter.Move(power, response, drawingImage);
+    _selfRighter.Move(selfRighterPower, response, drawingImage);
 
     // deadband the movement
     if (abs(response.movement) < 0.07)

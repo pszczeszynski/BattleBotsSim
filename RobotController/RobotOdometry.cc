@@ -14,6 +14,21 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
 {
 }
 
+void RobotOdometry::_AdjustAngleWithArrowKeys()
+{
+    static Clock updateClock;
+    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 30 * M_PI / 180.0);
+    updateClock.markStart();
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
+    {
+        UpdateForceSetAngle(_dataRobot.robotAngle - angleUserAdjust, false);
+    }
+    else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow))
+    {
+        UpdateForceSetAngle(_dataRobot.robotAngle + angleUserAdjust, false);
+    }
+}
+
 // Updates internal Odometry data
 void RobotOdometry::Update(void)
 {
@@ -97,13 +112,6 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
 
-    static Clock shiftClock{};
-    // increment position using gamepad stick
-    _dataRobot.robotPosition += cv::Point2f(RobotController::GetInstance().gamepad.GetLeftStickX(),
-                                            -RobotController::GetInstance().gamepad.GetLeftStickY()) *
-                                shiftClock.getElapsedTime() * 1000.0;
-    shiftClock.markStart();
-
     // locker will get unlocked here automatically
 }
 
@@ -151,23 +159,6 @@ static double GetImuAngleVelocityRadPerSec()
     return RobotController::GetInstance().GetIMUData().rotationVelocity;
 }
 
-Angle _AdjustAngleWithArrowKeys(Angle angle)
-{
-    static Clock updateClock;
-    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 30 * M_PI / 180.0);
-    updateClock.markStart();
-    if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
-    {
-        return angle - angleUserAdjust;
-    }
-    else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow))
-    {
-        return angle + angleUserAdjust;
-    }
-
-    return angle;
-}
-
 /**
  * Allows artificially setting the angle of the robot
  * This is mainly used for manual recalibration.
@@ -179,6 +170,7 @@ void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot)
     // Go through each Odometry and update it
     _odometry_Blob.SetAngle(newAngle, opponentRobot);
     _odometry_Heuristic.SetAngle(newAngle, opponentRobot);
+    _odometry_IMU.SetAngle(newAngle, opponentRobot);
 
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
