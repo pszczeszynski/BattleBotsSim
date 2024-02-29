@@ -7,6 +7,7 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
 #include "UIWidgets/GraphWidget.h"
+#include "RobotController.h"
 
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
@@ -72,6 +73,7 @@ RobotMessage IRobotLink::Receive()
     {
         // display delay
         radioPacketLoss.AddData(_receiveClock.getElapsedTime() * 1000);
+        // restart the last receive clock
         _receiveClock.markStart();
     }
 
@@ -249,11 +251,66 @@ RobotLinkReal::RobotLinkReal()
             } });
 }
 
+/**
+ * Chooses the best of 3 channels to send on
+ * Monitors for dropouts and switches channels if necessary
+ */
+int RobotLinkReal::ChooseBestChannel()
+{
+    if (!_transmitterConnected)
+    {
+        return RADIO_CHANNEL;
+    }
+
+    // draw WARNING if switched
+    if (AUTO_SWITCH_CHANNEL && _lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
+    {
+        cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
+        cv::putText(drawingImage, "Switched to Radio " + std::to_string(RADIO_CHANNEL),
+                    cv::Point(WIDTH / 2 - 200, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    }
+
+    // return the current channel if auto switch not enabled or if we have switched too recently
+    if (!AUTO_SWITCH_CHANNEL || _lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
+    {
+        return RADIO_CHANNEL;
+    }
+
+    // get the latest radio data
+    RadioData data = GetLastRadioMessage().radioData;
+
+    // check if the average delay is too high
+    if (data.averageDelayMS > MAX_AVERAGE_DELAY_MS ||
+        _receiveClock.getElapsedTime() * 1000 > MAX_AVERAGE_DELAY_MS)
+    {
+        // restart the cooldown clock
+        _lastRadioSwitchClock.markStart();
+
+        // switch to the next channel
+        if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            return TEENSY_RADIO_2;
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            return TEENSY_RADIO_3;
+        }
+        else
+        {
+            return TEENSY_RADIO_1;
+        }
+    }
+
+    // keep the current channel
+    return RADIO_CHANNEL;
+}
+
 void RobotLinkReal::Drive(DriveCommand &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
 
     // set the radio channel
+    RADIO_CHANNEL = ChooseBestChannel();
     command.radioChannel = RADIO_CHANNEL;
 
     // if we have sent a packet too recently, return

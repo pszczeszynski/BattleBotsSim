@@ -3,7 +3,7 @@
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
 
-OdometryIMU::OdometryIMU() : OdometryBase(nullptr)
+OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0)
 {
 }
 
@@ -67,10 +67,19 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 
     // Set our rotation
     _currDataRobot.robotAngleValid = true;
-    _currDataRobot.robotAngle = Angle(imuData.rotation + _angleOffset);
+
+    // reset the last imu angle if we changed radio channels
+    if (RADIO_CHANNEL != _lastRadioChannel)
+    {
+        _lastImuAngle = imuData.rotation;
+    }
+
+    // increment the robot angle
+    _currDataRobot.robotAngle = Angle(_angleOffset + imuData.rotation - _lastImuAngle);
     _currDataRobot.robotAngleVelocity = imuData.rotationVelocity;
 
-    _lastIMUAngle = imuData.rotation;
+    _lastImuAngle = imuData.rotation;
+    _lastRadioChannel = RADIO_CHANNEL;
 }
 
 void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
@@ -82,5 +91,5 @@ void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
     }
 
     // Don't need mutex acces to angleOffset;
-    _angleOffset = newAngle - _lastIMUAngle;
+    _angleOffset = newAngle - _lastImuAngle;
 }

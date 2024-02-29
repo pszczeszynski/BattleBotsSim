@@ -16,7 +16,8 @@ public:
 
 private:
     void _UpdateData(IMUData& imuData, double timestamp);
-    float _lastIMUAngle = 0;
+    float _lastImuAngle = 0;
+    int _lastRadioChannel = 0;
     float _angleOffset = 0;
 
 };

@@ -71,6 +71,8 @@ public:
     ~RobotLinkReal();
 
 private:
+    int ChooseBestChannel();
+
     std::thread _radioThread;
 
     std::deque<RobotMessage> _unconsumedMessages;
@@ -83,6 +85,8 @@ private:
 
 
     std::mutex _comPortMutex;
+
+    Clock _lastRadioSwitchClock;
 };
 
 #endif
