@@ -121,6 +121,13 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         reinit_bg = false;
     }
 
+    if( set_currFrame_to_bg)
+    {
+        set_currFrame_to_bg = false;
+        croppedFrame.copyTo(regularBackground);
+        ReinitBackground();
+    }
+
     if (save_to_video_match_debug || save_to_video_output) // Remeber that we are saving video
     {
         save_video_enabled = true;

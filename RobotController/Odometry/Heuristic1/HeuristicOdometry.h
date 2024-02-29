@@ -38,6 +38,7 @@ public:
     bool save_background = false;          // If set to true, will dump current background to the file to be loaded next time
     bool load_background = true;           // Loads a new background from file
     bool reinit_bg = false;                // Re-initializes curr background from previous loaded one
+    bool set_currFrame_to_bg = false;        // Makes curr frame into background
     std::string dumpBackgroundsPath = "backgrounds/dump";
     std::string loadBackgroundsPath = "backgrounds"; // Please to look for preloaded backgrounds
     std::string outputVideoFile = "Recordings/Heuristic_dataDump.mp4";

@@ -26,10 +26,15 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
 
     // Do Blob detection and figure out which blobs is us versus opponent
-    VisionClassification robotData = DoBlobDetection(currFrame, _previousImage);
+    // Defer blocking of locker until inside DoBlobDetection core so that we give more chances to update data by other threads
+    std::unique_lock<std::mutex> locker(_updateMutex, std::defer_lock);
+    VisionClassification robotData = DoBlobDetection(currFrame, _previousImage, locker); // Locks the locker
 
     // Now update our standard data
     UpdateData(robotData, frameTime);
+    _tempData = _currDataRobot;
+
+    locker.unlock();
 
     // Move currFrame to previousImage
     // But only if both our robot and opponent robot have been found, or we exceeded a timer
@@ -46,7 +51,7 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
  * Locates the robots in the frame
  * Note: Incoming images are black and white
  */
-VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat &previousFrame)
+VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat &previousFrame, std::unique_lock<std::mutex> &locker)
 {
     static ImageWidget motionImageWidget{"Motion", true};
 
@@ -155,18 +160,14 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     // classify the blobs and save them for later
     // Need previous data to be able to predict this data
     // Should we use extrapolated data? In this case maybe not so that we dont compound a bad reading?
-    std::unique_lock<std::mutex> locker(_updateMutex);
-    OdometryData lastDataUs = _prevDataRobot;
-    OdometryData lastDataOpponent = _prevDataOpponent;
-    locker.unlock();
-
-    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, lastDataUs, lastDataOpponent);
+    locker.lock();
+    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent);
 }
 
 void BlobDetection::UpdateData(VisionClassification robotBlobData, double timestamp)
 {
-    // Get unique access
-    std::unique_lock<std::mutex> locker(_updateMutex);
+    // Get unique access (already locked from calling function)
+    //  std::unique_lock<std::mutex> locker(_updateMutex);
 
     MotionBlob* robot = robotBlobData.GetRobotBlob();
     MotionBlob* opponent = robotBlobData.GetOpponentBlob();
@@ -449,6 +450,7 @@ void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot)
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
     odoData.robotPosition = newPos;
     odoData.robotPosValid = true;
+    odoData.id++;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
     odoData2.robotPosition = newPos;
@@ -461,6 +463,7 @@ void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
     odoData.robotVelocity = newVel;
+    odoData.id++;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
     odoData2.robotVelocity = newVel;
@@ -475,6 +478,7 @@ void BlobDetection::SetAngle(double newAngle, bool opponentRobot)
     odoData.robotAngle = Angle(newAngle);
     odoData.robotAngleValid = true;
     odoData.robotAngleVelocity = 0;
+    odoData.id++;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
 

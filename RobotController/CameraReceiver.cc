@@ -13,9 +13,8 @@
 #include "UIWidgets/ClockWidget.h"
 #include "VisionPreprocessor.h"
 
-
-#define VIDEO_READ
 #define GET_FRAME_TIMEOUT_MS 500
+#define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
 
 double MAX_CAP_FPS = 100.0;
 
@@ -72,7 +71,7 @@ void ICameraReceiver::_StartCaptureThread()
  * @param frameTime (Optional) pointer to a double that will store the frame elapsed time when it was acquired
  * @return the id of the new frame
  */
-long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime)
+long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime, bool blockUntilReady)
 {
     // Using scoped mutex locker because conditional variable integrates with it
     // This creates and locks the mutex
@@ -80,8 +79,16 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime)
 
     while ((_frameID <= 0) || (_frameID <= old_id))
     {
-        // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
-        _frameCV.wait(locker);
+        if( blockUntilReady )
+        {
+            _frameCV.wait(locker);
+        }
+        else       // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
+        if( _frameCV.wait_for(locker, GET_FRAME_MUTEX_TIMEOUT) ==  std::cv_status::timeout )
+        {
+            // Unable to get a new frame, exit
+            return -1;
+        }
     }
 
     // At this point our mutex is locked and a frame is ready

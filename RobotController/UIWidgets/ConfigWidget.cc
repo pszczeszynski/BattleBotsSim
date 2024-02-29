@@ -81,6 +81,13 @@ void ConfigWidget::Draw()
     {
         heuristic.save_background = true;
     }
+
+    ImGui::SameLine();
+    if (ImGui::Button("ReBoot BG"))
+    {
+        heuristic.set_currFrame_to_bg = true;
+    }
+
     ImGui::SameLine();
     ImGui::Text("  BG Averaging:");
     ImGui::SameLine();
@@ -114,7 +121,7 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("  FG Blur Size:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 5, 30); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 2, 30); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("  BBox Buffer:");
     ImGui::SameLine();

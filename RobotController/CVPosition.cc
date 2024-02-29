@@ -21,7 +21,7 @@ CVPosition::CVPosition()
         std::vector<int> boundingBox;
         while (true)
         {
-            long id = camera.GetFrame(frame, last_id);
+            long id = camera.GetFrame(frame, last_id); // Block until a new frame is present which may be forever
             last_id = id;
             boundingBox = ComputeRobotPosition(frame);
             boundingBoxMutex.lock();

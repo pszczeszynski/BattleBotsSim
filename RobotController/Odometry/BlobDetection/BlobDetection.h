@@ -23,7 +23,7 @@ public:
 private:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override; // Run every time a new frame is available
 
-    VisionClassification DoBlobDetection(cv::Mat &currFrame, cv::Mat &prevFrame); // The core blob detection algorithm
+    VisionClassification DoBlobDetection(cv::Mat &currFrame, cv::Mat &prevFrame, std::unique_lock<std::mutex> &locker); // The core blob detection algorithm
     void UpdateData(VisionClassification robotData, double timestamp);            // Updates the core data so others can poll it
 
     bool _IsValidBlob(MotionBlob &blobNew, OdometryData &prevData);
@@ -40,4 +40,6 @@ private:
     cv::Mat _lastDrawingImage;      // Copy of the last image for other processes to pull
     OdometryData _prevDataRobot;    // Contains the previous data, useful for velocity calculations, etc..
     OdometryData _prevDataOpponent; // Contains the previous data, useful for velocity calculations, etc..
+
+    OdometryData _tempData;
 };
