@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 
-#define MODEL_PATH "MachineLearning/best.onnx"
+#define MODEL_PATH "MachineLearning/train_yolo/model2_orbitron_unpreprocessed.onnx"
 
 class CVPosition
 {
