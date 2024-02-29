@@ -493,7 +493,7 @@ void RobotController::ApplyMoveScales(DriveCommand& command)
 
 void RobotController::DrawStatusIndicators()
 {
-    // get the latest can data
+    // get the latest can datax
     RadioData data = robotLink.GetLastRadioMessage().radioData;
 
     cv::Scalar color = cv::Scalar(0, 255, 0);
