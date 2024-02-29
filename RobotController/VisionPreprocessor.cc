@@ -1,5 +1,6 @@
 #include "VisionPreprocessor.h"
 #include "RobotConfig.h"
+#include "UIWidgets/CameraWidget.h"
 
 const int CLOSE = 20;
 
@@ -52,16 +53,44 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     // If frame is invalid, dont do it
     if( frame.empty() ) { return; }
 
+    // Apply fish-eye removal
+    cv::Mat map1, map2;
+    cv::Mat outputImage;
+
+    if( CameraWidget::DoFisheye)
+    {
+        _generateCameraParameters(FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y, frame.size(), K, D);
+
+        // Compute the undistortion and rectification transformation map
+        cv::Size newsize = frame.size();
+        newsize.width = newsize.width * 1.25; // Correct the width for the expansion required
+        cv::fisheye::initUndistortRectifyMap(K, D, cv::Matx33d::eye(), K, newsize, CV_16SC2, map1, map2);
+
+        // Apply the undistortion and rectification transformation to the image
+        cv::remap(frame, outputImage, map1, map2, cv::INTER_LINEAR);
+
+        if( CameraWidget::ShowFisheyeImg)
+        {
+            cv::imshow("Fisheye Post", outputImage);
+            cv::pollKey();
+        }
+    }
+    else
+    {
+        outputImage = frame;
+    }
+
     // recompute the transformation matrix
     ComputeTransformationMatrix();
 
     // Apply the perspective transformation
-    warpPerspective(frame, dst, _transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
+    warpPerspective(outputImage, dst, _transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
 
 #ifdef STABALIZE
     _StabalizeImage(dst, dst);
 #endif
 
+    
 }
 
 void VisionPreprocessor::_StabalizeImage(cv::Mat &frame, cv::Mat &dst)
@@ -142,4 +171,30 @@ cv::Point2f VisionPreprocessor::_TrackFeature(cv::Mat& prevFrame, cv::Mat& frame
     }
 
     return bestTranslation;
+}
+
+// Function to generate a guess at the camera parameters
+void VisionPreprocessor::_generateCameraParameters(float scaler_fl, float scaler_intensity, float scaler_y, cv::Size imageSize, cv::Matx33d &K, cv::Vec4d &D) 
+{
+    // Assume the focal lengths (fx, fy) are proportional to the scaler
+    double fx = 2.8 * scaler_fl;  // Focal length in x direction
+    double fy = 2.8 * scaler_fl;  // Focal length in y direction
+
+    // Assume the principal point (cx, cy) is at the center of the image
+    double cx = imageSize.width/2.0;  // Principal point in x direction
+    double cy = imageSize.height*scaler_y;  // Principal point in y direction
+
+    // Set the camera matrix (Intrinsic matrix)
+    K = cv::Matx33d(fx,  0, cx,
+                     0, fy, cy,
+                     0,  0,  1);
+
+    // Assume the distortion coefficients (k1, k2, p1, p2) are proportional to the scaler
+    double k1 = 0.1 * scaler_intensity;  // Radial distortion coefficient
+    double k2 = 0.01 * scaler_intensity; // Radial distortion coefficient
+    double p1 = 0.001 * scaler_intensity; // Tangential distortion coefficient
+    double p2 = 0.001 * scaler_intensity; // Tangential distortion coefficient
+
+    // Set the distortion coefficients
+    D = cv::Vec4d(k1, k2, p1, p2);
 }

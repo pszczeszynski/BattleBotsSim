@@ -11,6 +11,7 @@
 */
 void ODataWidget::Draw()
 {
+    ImGui::Begin("Odometry Data");
     // Get Latest data
     RobotOdometry& odometry = RobotController::GetInstance().odometry;
     currRobot = odometry.Robot();
@@ -35,6 +36,8 @@ void ODataWidget::Draw()
     ImGui::Text("        Angle = %.1f deg", rad2deg(currOdo2.robotAngle));
     ImGui::Text("        Vel =(%.1f, %.1f)", currOdo2.robotVelocity.x,currOdo2.robotVelocity.y);
     ImGui::Text("        Angle Vel  =%.1f deg/s", rad2deg(currOdo2.robotAngleVelocity));
+
+    ImGui::End();
 
 }
 

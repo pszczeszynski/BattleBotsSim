@@ -94,6 +94,7 @@ set(SOURCES
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     UIWidgets/ODataWidget.cc
+    UIWidgets/CameraWidget.cc
     CVRotation.cc
     CVPosition.cc
     MovementStrategy.cc

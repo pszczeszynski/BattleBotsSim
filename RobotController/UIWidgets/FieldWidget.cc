@@ -3,6 +3,7 @@
 #include "../GuiUtils.h"
 #include "../RobotConfig.h"
 #include "../Input/InputState.h"
+#include "CameraWidget.h"
 
 FieldWidget* FieldWidget::_instance = nullptr;
 
@@ -13,6 +14,8 @@ FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance()
 
 void FieldWidget::AdjustFieldCrop()
 {
+    if( CameraWidget::LockCamera) { return;}
+    
     static int cornerToAdjust = -1;
     static cv::Point2f mousePosLast = cv::Point2f(0, 0);
     static cv::Point2f cornerHandles[4] = {cv::Point2f(0, 0),

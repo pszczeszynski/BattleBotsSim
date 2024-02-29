@@ -60,6 +60,9 @@ extern int HEU_POSITION_TO_CENTER_SPEED;
 extern int HEU_VELOCITY_AVERAGING;
 extern int RADIO_CHANNEL;
 extern int GO_AROUND_RADIUS;
+extern float FISHEYE_SCALE;
+extern float FISHEYE_FL;
+extern float FISHEYE_Y;
 
 template <typename T>
 std::string convertValueToString(const T &value);

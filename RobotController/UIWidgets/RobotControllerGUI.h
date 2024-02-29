@@ -19,6 +19,7 @@
 #include "PlaybackWidget.h"
 #include "ManualControlWidget.h"
 #include "ODataWidget.h"
+#include "CameraWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -52,6 +53,7 @@ private:
     PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
     ODataWidget _odoData;
+    CameraWidget _cameraWidget;
 };
 
 static void glfw_error_callback(int error, const char *description)
