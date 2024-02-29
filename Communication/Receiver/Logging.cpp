@@ -2,6 +2,7 @@
 
 Logger::Logger()
 {
+    Serial.println("Initializing SD card...");
     // zero out all the data
     for (int i = 0; i < ESC_COUNT; i++)
     {
@@ -31,13 +32,16 @@ Logger::Logger()
     // init overflow
     overflow = false;
 
-    // Initialize SD card
-    initialized = true;
-    if (!SD.begin(SD_CARD))
+}
+
+bool Logger::init()
+{
+    // check if sd card exists
+    initialized = SD.begin(SD_CARD);
+    if (!initialized)
     {
-        Serial.println("SD initialization failed.");
-        initialized = false;
-        return;
+        // return failure
+        return false;
     }
 
     File root = SD.open("/");
@@ -116,6 +120,9 @@ Logger::Logger()
     dataFile.println(header);
 
     dataFile.flush();
+
+    Serial.println("Success!");
+    return true;
 }
 
 void Logger::update()

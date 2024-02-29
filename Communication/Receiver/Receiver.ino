@@ -13,7 +13,6 @@
 
 
 #define VERBOSE_RADIO
-#define LOG_DATA
 
 #include "IMU.h"
 #include "Logging.h"
@@ -53,9 +52,7 @@ IMU imu{};
 VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
 Radio<RobotMessage, DriveCommand> radio{};
 Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
-#ifdef LOG_DATA
 Logger logger{};
-#endif
 
 // variables
 
@@ -73,6 +70,11 @@ void setup()
     vesc.Drive(0, 0);
     vesc.DriveWeapons(0, 0);
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+
+    if (!logger.init())
+    {
+        Serial.println("WARNING: logger failed to initialize");
+    }
 }
 
 /**

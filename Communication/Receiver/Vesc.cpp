@@ -201,7 +201,6 @@ void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
     CAN_message_t message;
     uint32_t targetCurrent_mA = 1000 * current_amps;
     message.id = (frame_id << 8) | _ids[motorIndex];
-    Serial.println("message.id: " + (String) message.id);
     message.len = 4;
     message.flags.extended = 1;
 

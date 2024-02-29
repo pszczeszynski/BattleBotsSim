@@ -24,8 +24,8 @@ public:
     void updateRadioData(int radioStatus, int powerLevel, long invalidPacketCount, int radioChannel);
     void updateSelfRighterData(float speed);
     void updateFlag(bool flag);
-
     void update();
+    bool init();
 
 private:
     const String escs[ESC_COUNT] = {"LD", "RD", "FW", "RW"};
