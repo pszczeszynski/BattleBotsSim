@@ -13,7 +13,7 @@
 
 
 #define VERBOSE_RADIO
-// #define LOG_DATA
+ #define LOG_DATA
 
 #include "IMU.h"
 #include "Logging.h"
@@ -54,7 +54,7 @@ VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPO
 Radio<RobotMessage, DriveCommand> radio{};
 Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
 #ifdef LOG_DATA
-Logger logger{const_cast<char *>("dataLog.txt")};
+Logger logger{};
 #endif
 
 // variables
@@ -194,10 +194,6 @@ RobotMessage Update()
 #endif
     }
 
-#ifdef LOG_DATA
-    logger.logMessage(logger.formatRobotMessage(ret));
-#endif
-
     return ret;
 }
 
@@ -287,11 +283,6 @@ void DriveWithLatestMessage()
             // update the last receive time
             lastReceiveTime = millis();
 
-#ifdef LOG_DATA
-            logger.logMessage(logger.formatDriveCommand(command));
-#endif
-            // reset timeout flag
-            noPacketWatchdogTrigger = false;
         }
         // if the command is invalid
         else
@@ -324,7 +315,6 @@ void DriveWithLatestMessage()
             DriveSelfRighter(command);
             noPacketWatchdogTrigger = true;
         }
-
 #ifdef LOG_DATA
         logger.logMessage("Radio Timeout");
 #endif
@@ -438,9 +428,7 @@ void loop()
     if (result != SEND_SUCCESS)
     {
         Serial.println("Failed to send radio message. Result: " + (String) result);
-#ifdef LOG_DATA
-        if (result == FIFO_FAIL) logger.logMessage("Radio fifo failed to clear");
-        else if (result == HW_FAULT) logger.logMessage("Radio hardware failure detected");
-#endif
+
     }
+    logger->update();
 }
