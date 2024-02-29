@@ -37,6 +37,7 @@ Logger::Logger()
     {
         Serial.println("SD initialization failed.");
         initialized = false;
+        return;
     }
 
     File root = SD.open("/");
@@ -119,6 +120,11 @@ Logger::Logger()
 
 void Logger::update()
 {
+    if (!initialized)
+    {
+        return;
+    }
+
     if (millis() - lastLogTime >= LOG_TIME)
     {        
         // time to log
