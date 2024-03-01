@@ -71,8 +71,17 @@ extern int GO_AROUND_RADIUS;
 extern float FISHEYE_SCALE;
 extern float FISHEYE_FL;
 extern float FISHEYE_Y;
+extern bool FISHEYE_ENABLE;
 extern bool WASD_ENABLED;
 extern bool LEAD_WITH_BAR;
+extern bool ODO_BLOB_ENABLED;
+extern bool ODO_HEUR_ENABLED;
+extern bool ODO_IMU_ENABLED;
+extern float HEU_LEFTSTART_X;
+extern float HEU_LEFTSTART_Y;
+extern float HEU_RIGHTSTART_X;
+extern float HEU_RIGHTSTART_Y;
+
 
 template <typename T>
 std::string convertValueToString(const T &value);

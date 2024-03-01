@@ -14,4 +14,7 @@ public:
 
     static FieldWidget* GetInstance();
     static FieldWidget* _instance;
+    static cv::Point2f leftClickPoint;
+    static cv::Point2f rightClickPoint;
+
 };

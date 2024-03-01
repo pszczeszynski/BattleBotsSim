@@ -57,7 +57,7 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     cv::Mat map1, map2;
     cv::Mat outputImage;
 
-    if( CameraWidget::DoFisheye)
+    if( FISHEYE_ENABLE)
     {
         _generateCameraParameters(FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y, frame.size(), K, D);
 

@@ -115,11 +115,13 @@ GLFWwindow *RobotControllerGUI::SetupWindow()
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+
-    // only glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // 3.0+ only
+
+    
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only 
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // 3.0+ only
 
     // Create window with graphics context
-    GLFWwindow *window = glfwCreateWindow(IMGUI_WIDTH, IMGUI_HEIGHT, "RobotController", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(IMGUI_WIDTH, IMGUI_HEIGHT, "RobotController",nullptr, nullptr);
     if (window == nullptr)
     {
         // return failure
@@ -128,7 +130,7 @@ GLFWwindow *RobotControllerGUI::SetupWindow()
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(IMGUI_ENABLE_VSYNC); // Enable vsync
-    glfwIconifyWindow(window); // minimize the starting window
+    // glfwIconifyWindow(window); // minimize the starting window
 
     return window;
 }
@@ -170,6 +172,7 @@ void RobotControllerGUI::SetupIMGUI(GLFWwindow *window)
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
+
     // GL 3.0 + GLSL 130
     const char *glsl_version = "#version 130";
 

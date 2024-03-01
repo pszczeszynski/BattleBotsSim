@@ -128,7 +128,7 @@ set(SPINNAKER_LIBS2 "C:/Program Files/Teledyne/Spinnaker/lib64/vs2015/Spinnaker_
 target_link_libraries(RobotController opencv_world Xinput ${CMAKE_SOURCE_DIR}/libs/DS5W/ds5w_x64.lib 
                       ${CMAKE_SOURCE_DIR}/libs/IMGUI/glfw/lib-vc2010-64/glfw3.lib ${OPENGL_LIBRARIES}
                       hid setupapi
-                      ${SPINNAKER_LIBS})
+                      ${SPINNAKER_LIBS2})
 
 
 add_custom_command(TARGET RobotController POST_BUILD

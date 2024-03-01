@@ -5,6 +5,7 @@
 #include "../RobotController.h"
 #include "../Odometry/Heuristic1/HeuristicOdometry.h"
 #include "../../Communication/Communication.h"
+#include "FieldWidget.h"
 
 ConfigWidget::ConfigWidget()
 {
@@ -64,20 +65,37 @@ void ConfigWidget::Draw()
 
     if (ImGui::Button("Auto Lock Us Start Left"))
     {
-        heuristic.MatchStart(cv::Point2f(30, 350), cv::Point2f(700, 350));
+        heuristic.MatchStart(leftStart, rightStart);
     }
     ImGui::SameLine();
     ImGui::Text("     ");
     ImGui::SameLine();
     if (ImGui::Button("Auto Lock Us Start Right"))
     {
-        heuristic.MatchStart(cv::Point2f(30, 350), cv::Point2f(700, 350));
+        heuristic.MatchStart(rightStart, leftStart);
     }
+    ImGui::SameLine();
+    ImGui::Text("  Left Pos=(%g,%g)", leftStart.x, leftStart.y);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Set L-Click"))
+    {
+        leftStart = FieldWidget::leftClickPoint;
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("       Right Pos=(%g,%g)", rightStart.x, rightStart.y);
+    ImGui::SameLine();
+    if (ImGui::Button("Set R-Click"))
+    {
+        rightStart = FieldWidget::rightClickPoint;
+    }
+
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
     if (ImGui::Button("Load Bg"))
     {
-        heuristic.reinit_bg = true;
+        heuristic.load_background = true;
     }
     ImGui::SameLine();
     if (ImGui::Button("Save Bg"))
@@ -94,13 +112,13 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("  BG Averaging:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250);
+    ImGui::PushItemWidth(100);
     ImGui::SliderInt("##BGAveraging", &HEU_BACKGROUND_AVGING, 5, 400);
     ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("  Obj Decay:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(250);
+    ImGui::PushItemWidth(100);
     ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 800);
     ImGui::PopItemWidth();
     ImGui::Checkbox(":EN Healing    ", &heuristic.enable_background_healing);
@@ -147,7 +165,7 @@ void ConfigWidget::Draw()
     ImGui::Text("Num Of Processors:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 1, 32); ImGui::PopItemWidth();
-    ImGui::SameLine();
+
     ImGui::Checkbox(":Show BG Mat ", &heuristic.show_bg_mat);
     ImGui::SameLine();
     ImGui::Checkbox(":Show FG Mat   ", &heuristic.show_fg_mat);

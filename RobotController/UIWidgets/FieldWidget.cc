@@ -6,6 +6,9 @@
 #include "CameraWidget.h"
 
 FieldWidget* FieldWidget::_instance = nullptr;
+cv::Point2f FieldWidget::leftClickPoint = cv::Point2f(0,0);
+cv::Point2f FieldWidget::rightClickPoint = cv::Point2f(0,0);
+
 
 FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance().GetDrawingImage(), false)
 {
@@ -14,7 +17,7 @@ FieldWidget::FieldWidget() : ImageWidget("Field", RobotController::GetInstance()
 
 void FieldWidget::AdjustFieldCrop()
 {
-    if( CameraWidget::LockCamera) { return;}
+    bool enableCrop = !CameraWidget::LockCamera;
     
     static int cornerToAdjust = -1;
     static cv::Point2f mousePosLast = cv::Point2f(0, 0);
@@ -31,15 +34,18 @@ void FieldWidget::AdjustFieldCrop()
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
     // draw the corners
-    for (int i = 0; i < 4; i++)
+    if(enableCrop)
     {
-        if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
+        for (int i = 0; i < 4; i++)
         {
-            cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
-        }
-        else
-        {
-            cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
+            if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
+            {
+                cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
+            }
+            else
+            {
+                cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
+            }
         }
     }
     
@@ -49,7 +55,7 @@ void FieldWidget::AdjustFieldCrop()
         // corner adjustment
 
         // If the user left clicks near one of the corners
-        if (InputState::GetInstance().IsMouseDown(0))
+        if (enableCrop && InputState::GetInstance().IsMouseDown(0))
         {
             if (cornerToAdjust == -1)
             {
@@ -101,6 +107,7 @@ void FieldWidget::AdjustFieldCrop()
             // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
             if (InputState::GetInstance().IsMouseDown(0))
             {
+                leftClickPoint = currMousePos;
                 // set the robot to the mouse position
                 RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, false);
             }
@@ -108,6 +115,7 @@ void FieldWidget::AdjustFieldCrop()
             // if the user right clicks
             if (InputState::GetInstance().IsMouseDown(1))// && input.IsMouseOverImage())
             {
+                rightClickPoint = currMousePos;
                 // set the opponent to the mouse position
                RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, true);
             }

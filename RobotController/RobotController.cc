@@ -116,6 +116,7 @@ void RobotController::Run()
 
     std::cout << "Starting GUI threads..." << std::endl;
 
+    // Initialize GUI on main thread:    
     // run the gui in a separate thread
     std::thread guiThread = std::thread([]() {
         RobotControllerGUI::GetInstance();
@@ -187,8 +188,6 @@ void RobotController::Run()
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
         _fieldWidget.UpdateMat(drawingImage);
-
-
     
     // if save video is enabled, save the frame
 #ifdef SAVE_VIDEO

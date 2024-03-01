@@ -21,9 +21,14 @@ void VariantsWidget::Draw()
 
     bool isRunning = odometry.IsRunning(OdometryAlg::Blob);
 
-    if (ImGui::Button(isRunning ? "Stop Blob" : "Run Blob"))
+    if( ImGui::Button(ODO_BLOB_ENABLED ? "Stop Blob" : "Run Blob") )
     {
-        if (isRunning)
+        ODO_BLOB_ENABLED = !ODO_BLOB_ENABLED;
+    }
+
+    if( isRunning != ODO_BLOB_ENABLED)
+    {
+        if (!ODO_BLOB_ENABLED)
         {
             odometry.Stop(OdometryAlg::Blob);
         }
@@ -32,6 +37,7 @@ void VariantsWidget::Draw()
             odometry.Run(OdometryAlg::Blob);
         }
     }
+     
 
     ImGui::SameLine();
     ImGui::Text(isRunning ? "Running" : "Stopped");
@@ -42,9 +48,14 @@ void VariantsWidget::Draw()
 
     isRunning = odometry.IsRunning(OdometryAlg::Heuristic);
 
-    if (ImGui::Button(isRunning ? "Stop Heuristic" : "Run Heuristic"))
+    if( ImGui::Button(ODO_HEUR_ENABLED ? "Stop Heuristic" : "Run Heuristic") )
     {
-        if (isRunning)
+        ODO_HEUR_ENABLED = !ODO_HEUR_ENABLED;
+    }
+
+    if( isRunning != ODO_HEUR_ENABLED)
+    {
+        if (!ODO_HEUR_ENABLED)
         {
             odometry.Stop(OdometryAlg::Heuristic);
         }
@@ -65,7 +76,12 @@ void VariantsWidget::Draw()
 
     if (ImGui::Button(isRunning ? "Stop IMU" : "Run IMU"))
     {
-        if (isRunning)
+        ODO_IMU_ENABLED = !ODO_IMU_ENABLED;
+    }
+
+    if( isRunning != ODO_IMU_ENABLED)
+    {
+        if (!ODO_IMU_ENABLED)
         {
             odometry.Stop(OdometryAlg::IMU);
         }
@@ -74,6 +90,7 @@ void VariantsWidget::Draw()
             odometry.Run(OdometryAlg::IMU);
         }
     }
+
 
     ImGui::SameLine();
     ImGui::Text(isRunning ? "Running" : "Stopped");

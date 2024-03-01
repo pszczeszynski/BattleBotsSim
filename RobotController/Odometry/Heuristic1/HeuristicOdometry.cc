@@ -153,9 +153,8 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     if (load_background)
     {
-
-        _allRobotTrackersClear();
-        all_bboxes.clear();
+        //_allRobotTrackersClear();
+        // all_bboxes.clear();
         LoadBackground(newFrame);
         load_background = false;
     }

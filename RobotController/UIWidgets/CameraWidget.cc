@@ -16,6 +16,7 @@ void CameraWidget::Draw()
     ImGui::Begin("Camera");
 
     ImGui::Checkbox("Lock Camera", &LockCamera);
+    DoFisheye = FISHEYE_ENABLE;
 
     if( !LockCamera) {    
         if( ImGui::Button("Reset Pre-Process Corners") )
@@ -32,7 +33,8 @@ void CameraWidget::Draw()
             
         }
 
-        ImGui::Checkbox("Enable Fisheye", &DoFisheye);
+        ImGui::Checkbox("Enable Fisheye", &FISHEYE_ENABLE);
+        DoFisheye = FISHEYE_ENABLE;
         if( DoFisheye)
         {
             ImGui::Text("Fisheye Compensation:");
