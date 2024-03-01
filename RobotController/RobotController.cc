@@ -133,10 +133,6 @@ void RobotController::Run()
 
     int videoID = -1;
 
-#ifdef SAVE_VIDEO
-    static cv::VideoWriter _videoWriter{"Recordings/output.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, cv::Size(WIDTH, HEIGHT)};
-#endif
-    Clock videoWriteClock;
 
     // receive until the peer closes the connection
     while (true)
@@ -189,14 +185,6 @@ void RobotController::Run()
         _fieldWidget.AdjustFieldCrop();
         _fieldWidget.UpdateMat(drawingImage);
     
-    // if save video is enabled, save the frame
-#ifdef SAVE_VIDEO
-        if (videoWriteClock.getElapsedTime() > 1.0 / 60.0)
-        {
-            _videoWriter.write(drawingImage);
-            videoWriteClock.markStart();
-        }
-#endif
     }
 }
 
@@ -206,6 +194,11 @@ void RobotController::Run()
 */
 int RobotController::UpdateDrawingImage()
 {
+#ifdef SAVE_VIDEO
+    static cv::VideoWriter _videoWriter{"Recordings/output.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
+#endif
+    static Clock videoWriteClock;
+
     cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
 
     int retId = -1;
@@ -228,6 +221,14 @@ int RobotController::UpdateDrawingImage()
     {
         cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
     }
+    // if save video is enabled, save the frame
+#ifdef SAVE_VIDEO
+    if (videoWriteClock.getElapsedTime() > 1.0 / 60.0)
+    {
+        _videoWriter.write(drawingImage);
+        videoWriteClock.markStart();
+    }
+#endif
 
     return retId;
 }

@@ -193,7 +193,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
 
         // ******* Output Data Settings *******
 
-        pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_BayerRG8); // Only some of the formats work, this is one of them and is fast.
+        pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_Mono8); // Only some of the formats work, this is one of them and is fast.
 
         // Compression may be useful, but not tested for delay
         // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
@@ -343,8 +343,6 @@ bool CameraReceiver::_CaptureFrame()
 
     // Notify new frame is ready
     _frameCV.notify_all();
-
-    std::cout << "Frame captured" << std::endl;
 
     // return success
     return true;
