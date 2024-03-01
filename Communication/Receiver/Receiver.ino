@@ -37,6 +37,12 @@
 #define FRONT_WEAPON_CAN_ID 2
 #define BACK_WEAPON_CAN_ID 4
 
+// status leds
+#define STATUS_1_LED_PIN 3
+#define STATUS_2_LED_PIN 4
+#define STATUS_3_LED_PIN 5
+#define STATUS_4_LED_PIN 6
+
 // closest to the middle of the teensy
 #define SELF_RIGHTER_MOTOR_PIN 14
 
@@ -67,14 +73,14 @@ void setup()
     Serial.println("Hello, I'm Orbitron :)");
     // Start serial port to display messages on Serial Monitor Window
     Serial.begin(SERIAL_BAUD);
-    vesc.Drive(0, 0);
-    vesc.DriveWeapons(0, 0);
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
-    if (!logger.init())
-    {
-        Serial.println("WARNING: logger failed to initialize");
-    }
+    // if (!logger.init())
+    // {
+    //     Serial.println("WARNING: logger failed to initialize");
+    // }
+
+    pinMode(STATUS_1_LED_PIN, OUTPUT);
 }
 
 /**
@@ -94,6 +100,9 @@ void Drive(DriveCommand &command)
         rightPower /= maxPower;
     }
 
+    // set status led
+    digitalWrite(STATUS_1_LED_PIN, HIGH);
+
     // apply powers
     vesc.Drive(leftPower, rightPower);
 }
@@ -103,6 +112,9 @@ void Drive(DriveCommand &command)
  */
 void DriveWeapons(DriveCommand &command)
 {
+    // set status led
+    digitalWrite(STATUS_2_LED_PIN, HIGH);
+
     vesc.DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
 }
 
@@ -288,6 +300,8 @@ void DriveWithLatestMessage()
 
             // update the last receive time
             lastReceiveTime = millis();
+            // unset the watchdog trigger
+            noPacketWatchdogTrigger = false;
 
         }
         // if the command is invalid
@@ -306,7 +320,6 @@ void DriveWithLatestMessage()
     {
         // if haven't received a message in a while, stop the robot. But only once
         // this allows us to switch to a backup teensy, without this one stopping the robot
-
         if (!noPacketWatchdogTrigger)
         {
             DriveCommand command{0};
@@ -329,6 +342,10 @@ void DriveWithLatestMessage()
             Serial.println("Reinit radio");
             radio.InitRadio();
         }
+
+        // set status led
+        digitalWrite(STATUS_1_LED_PIN, LOW);
+        digitalWrite(STATUS_2_LED_PIN, LOW);
     }
 }
 
