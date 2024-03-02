@@ -113,6 +113,13 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
 
+
+    std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+    cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+    // draw the position on the drawing image
+    cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
+
+
     // locker will get unlocked here automatically
 }
 
