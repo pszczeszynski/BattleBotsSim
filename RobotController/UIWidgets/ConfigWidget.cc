@@ -63,30 +63,30 @@ void ConfigWidget::Draw()
     // Background Management
     HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-    if (ImGui::Button("Auto Lock Us Start Left"))
+    if (ImGui::Button("Auto Lock Us Left"))
     {
         heuristic.MatchStart(leftStart, rightStart);
     }
     ImGui::SameLine();
     ImGui::Text("     ");
     ImGui::SameLine();
-    if (ImGui::Button("Auto Lock Us Start Right"))
+    if (ImGui::Button("Auto Lock Us Right"))
     {
         heuristic.MatchStart(rightStart, leftStart);
     }
     ImGui::SameLine();
-    ImGui::Text("  Left Pos=(%g,%g)", leftStart.x, leftStart.y);
+    ImGui::Text(" Left=(%g,%g)", leftStart.x, leftStart.y);
 
     ImGui::SameLine();
-    if (ImGui::Button("Set L-Click"))
+    if (ImGui::Button("Set LB"))
     {
         leftStart = FieldWidget::leftClickPoint;
     }
 
     ImGui::SameLine();
-    ImGui::Text("       Right Pos=(%g,%g)", rightStart.x, rightStart.y);
+    ImGui::Text("   Right=(%g,%g)", rightStart.x, rightStart.y);
     ImGui::SameLine();
-    if (ImGui::Button("Set R-Click"))
+    if (ImGui::Button("Set RB"))
     {
         rightStart = FieldWidget::rightClickPoint;
     }
@@ -119,7 +119,7 @@ void ConfigWidget::Draw()
     ImGui::Text("  Obj Decay:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100);
-    ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 50, 800);
+    ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 5, 400);
     ImGui::PopItemWidth();
     ImGui::Checkbox(":EN Healing    ", &heuristic.enable_background_healing);
     ImGui::SameLine();
@@ -139,25 +139,25 @@ void ConfigWidget::Draw()
     ImGui::Text("  FG Min Size:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##FGMinSize", &HEU_FOREGROUND_MINSIZE, 5, 70); ImGui::PopItemWidth();
-    ImGui::SameLine();
-    ImGui::Text("  FG Blur Size:");
-    ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 2, 30); ImGui::PopItemWidth();
-    ImGui::SameLine();
-    ImGui::Text("  BBox Buffer:");
-    ImGui::SameLine();
-    ImGui::PushItemWidth(50); ImGui::SliderInt("##FGBuffer", &HEU_FOREGROUND_BUFFER, 0, 10); ImGui::PopItemWidth();
+    // ImGui::SameLine();
+    //ImGui::Text("  FG Blur Size:");
+    //ImGui::SameLine();
+    //ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 2, 30); ImGui::PopItemWidth();
+    //ImGui::SameLine();
+    //ImGui::Text("  BBox Buffer:");
+    //ImGui::SameLine();
+    //ImGui::PushItemWidth(50); ImGui::SliderInt("##FGBuffer", &HEU_FOREGROUND_BUFFER, 0, 10); ImGui::PopItemWidth();
 
     // Tracked Robot Management
     ImGui::Text("TRACKING:  ");
     ImGui::SameLine();
     ImGui::Text("Pos Centering Speed:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(200); ImGui::SliderInt("##TRPosSpeed", &HEU_POSITION_TO_CENTER_SPEED, 1, 400); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(150); ImGui::SliderInt("##TRPosSpeed", &HEU_POSITION_TO_CENTER_SPEED, 1, 200); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("Vel Averaging:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(200); ImGui::SliderInt("##TRVelAvg", &HEU_VELOCITY_AVERAGING, 1, 100); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelAvg", &HEU_VELOCITY_AVERAGING, 1, 100); ImGui::PopItemWidth();
         
     // Tracked Robot Management
     ImGui::Text("INTERNALS:  ");
@@ -168,11 +168,11 @@ void ConfigWidget::Draw()
 
     ImGui::Checkbox(":Show BG Mat ", &heuristic.show_bg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show FG Mat   ", &heuristic.show_fg_mat);
+    ImGui::Checkbox(":Show FG Mat  ", &heuristic.show_fg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show Tracking Mat   ", &heuristic.show_track_mat);
+    ImGui::Checkbox(":Show Tracking  ", &heuristic.show_track_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show Stats", &heuristic.show_stats);
+    ImGui::Checkbox(":Show Stats ", &heuristic.show_stats);
     ImGui::SameLine();
     ImGui::Checkbox(":Save Video Debug", &heuristic.save_to_video_match_debug);
     ImGui::End();

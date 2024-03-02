@@ -1,6 +1,7 @@
 #include "VisionPreprocessor.h"
 #include "RobotConfig.h"
 #include "UIWidgets/CameraWidget.h"
+#include "MathUtils.h"
 
 const int CLOSE = 20;
 
@@ -18,6 +19,25 @@ VisionPreprocessor::VisionPreprocessor()
 
     // compute initial transformation matrix
     ComputeTransformationMatrix();
+
+    // Initialize our dstPointsList. Also populate srcPointList so we dont have to do it later
+    for( float y=0; y <= gridSize-1; y += 1.0)
+    {
+        for( float x=0; x <= gridSize-1; x += 1.0)
+        {
+            std::vector<cv::Point2f> innerRec;
+            innerRec.push_back(cv::Point2f(x*WIDTH/gridSize, y*HEIGHT/gridSize));
+            innerRec.push_back(cv::Point2f((x+1)*WIDTH/gridSize, y*HEIGHT/gridSize));
+            innerRec.push_back(cv::Point2f((x+1)*WIDTH/gridSize, (y+1)*HEIGHT/gridSize));
+            innerRec.push_back(cv::Point2f(x*WIDTH/gridSize, (y+1)*HEIGHT/gridSize));
+            dstPointsList.push_back(innerRec);
+
+            std::vector<cv::Point2f> innerRecCopy(innerRec);
+            srcPointsList.push_back(innerRecCopy);
+        }
+    }
+
+
 }
 
 cv::Point2f VisionPreprocessor::TransformPoint(const cv::Point2f &pt)
@@ -57,7 +77,7 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     cv::Mat map1, map2;
     cv::Mat outputImage;
 
-    if( FISHEYE_ENABLE)
+    if( false &&  FISHEYE_ENABLE)
     {
         _generateCameraParameters(FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y, frame.size(), K, D);
 
@@ -75,10 +95,14 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
             cv::pollKey();
         }
     }
-    else
+    else 
     {
         outputImage = frame;
     }
+
+#ifdef STABALIZE
+    _StabalizeImage(dst, dst);
+#endif
 
     // recompute the transformation matrix
     ComputeTransformationMatrix();
@@ -86,9 +110,17 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     // Apply the perspective transformation
     warpPerspective(outputImage, dst, _transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
 
-#ifdef STABALIZE
-    _StabalizeImage(dst, dst);
-#endif
+    // Apply poor-mans fisheye correction
+    if( FISHEYE_ENABLE)
+    {
+        // Get the src points
+        ComputePMFisheyePointList(dst);
+
+        // Do the Fisheye correctoin
+        // TBD TBD
+    }
+
+
 
     
 }
@@ -197,4 +229,45 @@ void VisionPreprocessor::_generateCameraParameters(float scaler_fl, float scaler
 
     // Set the distortion coefficients
     D = cv::Vec4d(k1, k2, p1, p2);
+}
+
+void VisionPreprocessor::ComputePMFisheyePointList(cv::Mat& image)
+{
+    // Create the src pointlist
+    for(size_t i = 0; i < dstPointsList.size(); i++)
+    {
+        for(size_t j =0; j < dstPointsList[i].size(); j++)
+        {
+            srcPointsList[i][j] = GetPMFisheyeStartPoint(dstPointsList[i][j]);
+        }
+    }
+
+    // Now display it
+    for(size_t i = 0; i < srcPointsList.size(); i++)
+    {
+        cv::line(image, srcPointsList[i][0], srcPointsList[i][1], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        cv::line(image, srcPointsList[i][1], srcPointsList[i][2], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        cv::line(image, srcPointsList[i][2], srcPointsList[i][3], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        cv::line(image, srcPointsList[i][3], srcPointsList[i][0], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+    }
+
+}
+
+cv::Point2f VisionPreprocessor::GetPMFisheyeStartPoint(cv::Point2f& point)
+{
+    // FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y
+    
+    cv::Point2f center( WIDTH/2.0, HEIGHT*FISHEYE_Y);
+
+    // Calculate the length
+    double regRadius = norm(point - center);
+
+    if(regRadius < 0.01f)
+    {
+        return center;
+    }
+    // Get the radius along the distorted image
+    // double disRadius = 1000/FISHEYE_FL * atan(2*regRadius*tan(FISHEYE_FL/2000));
+    double disRadius = 4.0 * FISHEYE_FL * sin(atan(regRadius/FISHEYE_FL/2.0)/2.0);
+    return center + FISHEYE_SCALE/10.0f * disRadius/regRadius * (point - center);
 }

@@ -60,8 +60,13 @@ void HeuristicOdometry::UpdateSettings()
 
 void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos)
 {
+
     // First reinitialize background
-    ReinitBackground();
+    reinit_bg = true;
+    while (reinit_bg)
+    {
+        Sleep(1);
+    }
 
     // Now lock onto robots. Set position here tries to find the best BBox closes to the position
     // It does not actually set it to that position
@@ -194,13 +199,14 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     DrawAllBBoxes(currFrameColor);
 
-    locker.unlock();
+    
     // End of access to core tracking lists
     // ###################################
 
     // ********************
     // Update our data
     _UpdateData(frameTime);
+    locker.unlock();
 
     if (show_track_mat)
     {
@@ -290,7 +296,13 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
 {
     if (tracker == nullptr)
     {
-        data.Clear();
+        // If no tracker found, keep previous position (no velocities)
+        data.robotPosition = oldData.robotPosition;
+        data.robotAngle = oldData.robotAngle;
+        data.robotVelocity = cv::Point2f(0,0);
+        data.robotAngleVelocity = 0;
+        data.robotPosValid = false;
+        data.robotAngleValid = false;
         return;
     }
 
@@ -316,6 +328,7 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     // First lock for all robot tracking and find the robot
     std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
     LocateRobots(newPos, opponentRobot);
+
     locktracking.unlock();
 
     // Now update the data
@@ -809,6 +822,11 @@ bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
 
     if (robotTracker != nullptr)
     {
+        // Add its box back into all_bboxes
+        if(robotTracker->numFramesNotTracked < 1)
+        {
+            all_bboxes.push_back(robotTracker->bbox);
+        }
         _allRobotTrackers.erase(std::remove(_allRobotTrackers.begin(), _allRobotTrackers.end(), robotTracker), _allRobotTrackers.end());
         _deleteTracker(robotTracker);
     }
