@@ -109,7 +109,12 @@
         "qpalette": "cpp",
         "qvboxlayout": "cpp",
         "shared_mutex": "cpp",
-        "*.def": "cpp"
+        "*.def": "cpp",
+        "*.inc": "cpp",
+        "bitset": "cpp",
+        "cfenv": "cpp",
+        "stack": "cpp",
+        "typeindex": "cpp"
     },
     "cmake.configureOnOpen": true,
     "workbench.colorCustomizations": {

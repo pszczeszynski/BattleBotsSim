@@ -75,6 +75,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
+    selfRightMotor.init();
     if (!logger.init())
     {
         Serial.println("WARNING: logger failed to initialize");
