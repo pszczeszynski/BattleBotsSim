@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include "imgui.h"
 #include "Input/InputState.h"
-#include "UIWidgets/ClockWidget.h"
 #include "VisionPreprocessor.h"
 
 #define GET_FRAME_TIMEOUT_MS 500

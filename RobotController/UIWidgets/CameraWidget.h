@@ -12,6 +12,7 @@ public:
     static bool LockCamera;
     static bool ShowFisheyeImg;
     static bool DoFisheye;
+    static bool tuningMode;
 
 private:
 

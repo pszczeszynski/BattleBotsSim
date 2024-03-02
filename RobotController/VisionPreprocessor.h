@@ -7,6 +7,8 @@
 #include <opencv2/opencv.hpp>
 
 #include "Globals.h"
+#include "ThreadPool.h"
+#include "UIWidgets/ClockWidget.h"
 
 class VisionPreprocessor
 {
@@ -32,13 +34,24 @@ private:
     // PoorMans Fisheye
     std::vector<std::vector<cv::Point2f>> srcPointsList;
     std::vector<std::vector<cv::Point2f>> dstPointsList;
-    float gridSize = 6; // 6x6 grid
+    float gridSize = 5; // 5x5 grid
     void ComputePMFisheyePointList(cv::Mat& image);
     cv::Point2f GetPMFisheyeStartPoint(cv::Point2f& point);
+    void DoPMFishEye(cv::Mat& inImage, cv::Mat& outImage);
+    void PMFishEyeCoreThread(size_t i, cv::Mat& inImage, cv::Mat& dst, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex);
+    std::mutex _mutexFisheye;
+    std::mutex _mutexDrawImage;
+    std::condition_variable_any _cvFisheye;
+    bool _FIImageShown = false;
+
+
+    std::vector<cv::Point> convertPoints(const std::vector<cv::Point2f>& points2f);
 
     cv::Point2f _dstPoints[4];
     cv::Mat _prevFrame;
     cv::Mat _transformationMatrix;
+
+    ClockWidget preprocessClock{"Image Preprocess"};
 
 
 

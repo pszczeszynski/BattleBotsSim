@@ -5,6 +5,23 @@
 
 #include "ThreadPool.h"
 
+ThreadPool ThreadPool::myThreads(32); // Will initialize to maximum threads it can
+
+
+// Multhithread cleanup
+// increments a counter and notifies all
+MultiThreadCleanup::MultiThreadCleanup(int &count_to_increment, std::mutex &mutex, std::condition_variable_any &cv) : count_to_increment_(count_to_increment), mutex_(mutex), cv_(cv){};
+
+MultiThreadCleanup::~MultiThreadCleanup()
+{
+    mutex_.lock();
+    ++count_to_increment_;
+    mutex_.unlock();
+
+    cv_.notify_all();
+}
+
+
 ThreadPool::ThreadPool(size_t num_threads) 
 {
     // Create all the threads to be used later

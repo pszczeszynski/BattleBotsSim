@@ -482,7 +482,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDispl
             auto boundFunction = std::bind(&RobotTracker::ProcessNewFrame, currItem, currTime, std::ref(foreground),
                                            std::ref(croppedFrame), std::ref(fg_mask), std::ref(processes_done), std::ref(conditionVarTrackRobots), std::ref(_mutexTrackData), std::ref((save_video_enabled && save_to_video_match_debug && i == itarget) ? channels[1] : nullMat));
 
-            myThreads.enqueue(boundFunction);
+            ThreadPool::myThreads.enqueue(boundFunction);
         }
         i++;
     }

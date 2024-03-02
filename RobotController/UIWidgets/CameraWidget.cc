@@ -7,6 +7,7 @@
 bool CameraWidget::LockCamera = true;
 bool CameraWidget::ShowFisheyeImg = false;
 bool CameraWidget::DoFisheye = true;
+bool CameraWidget::tuningMode = false;
 
 /**
  * @brief Draws the Camera Widget
@@ -27,13 +28,17 @@ void CameraWidget::Draw()
             preprocess_br_y = HEIGHT;
 
             preprocess_tl_x = 0;
-            preprocess_tr_x = WIDTH;
+            preprocess_tr_x = WIDTH*2;
             preprocess_bl_x = 0;
-            preprocess_br_x = WIDTH;
+            preprocess_br_x = WIDTH*2;
             
         }
 
         ImGui::Checkbox("Enable Fisheye", &FISHEYE_ENABLE);
+        ImGui::SameLine();
+
+        ImGui::Checkbox("Enable TUNING", &tuningMode);
+        
         DoFisheye = FISHEYE_ENABLE;
         if( DoFisheye)
         {
@@ -44,7 +49,7 @@ void CameraWidget::Draw()
         }
     }
 
-    ImGui::Checkbox("Show Fisheye Correction Img", &ShowFisheyeImg);
+    // ImGui::Checkbox("Show Fisheye Correction Img", &ShowFisheyeImg);
     ImGui::End();
 }
 

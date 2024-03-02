@@ -28,7 +28,6 @@ class myRect;
 int FindBBoxWithLargestOverlap(const std::vector<myRect> &allBBoxes, const cv::Rect &targetBBox, cv::Rect &bestBBox, int &indexFound);
 float FindClosestBBox(const std::vector<myRect> &allBBoxes, const cv::Point2f &point, cv::Rect &bestBBox, int &indexFound);
 void printText(std::string text, cv::Mat &image, int yoffset = 50, int xoffset = 50);
-extern ThreadPool myThreads;                                // Will initialize to maximum threads it can
 cv::Rect FixBBox(const cv::Rect &bbox, const cv::Mat &mat); // Retuns a bbox that is clamped to the image
 cv::Rect FixBBox(const cv::Rect &bbox, const cv::Size &matSize);
 cv::Point2f GetRectCenter(const cv::Rect &inbox);
@@ -46,20 +45,6 @@ extern std::vector<double> timing_list;
 extern std::vector<std::string> timing_text;
 void markTime(std::string note = "Time:", double time = -1);
 
-// This class only does something when it is destroyed
-// It locks the mutext, increments the count and unlocks the mutex.
-// It also notifies_all the conditional variable when it is destroyed.
-class MultiThreadCleanup
-{
-public:
-    MultiThreadCleanup(int &count_to_increment, std::mutex &mutex, std::condition_variable_any &cv);
-    ~MultiThreadCleanup();
-
-private:
-    int &count_to_increment_;
-    std::condition_variable_any &cv_;
-    std::mutex &mutex_;
-};
 
 // ***************************
 // Vector2 Class

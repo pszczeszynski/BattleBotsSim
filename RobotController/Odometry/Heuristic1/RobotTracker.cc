@@ -43,7 +43,7 @@ int RobotTracker::matchBufffer = 10;      // number of pixels around all edges t
 // General Purpose Functions
 // **********************************
 // Returns the area of the overlap
-ThreadPool myThreads(32); // Will initialize to maximum threads it can
+
 
 int FindBBoxWithLargestOverlap(const std::vector<myRect> &allBBoxes, const cv::Rect &targetBBox, cv::Rect &bestBBox, int &indexFound)
 {
@@ -123,18 +123,6 @@ void markTime(std::string note, double time)
     mutexMarkTime.unlock();
 }
 
-// Multhithread cleanup
-// increments a counter and notifies all
-MultiThreadCleanup::MultiThreadCleanup(int &count_to_increment, std::mutex &mutex, std::condition_variable_any &cv) : count_to_increment_(count_to_increment), mutex_(mutex), cv_(cv){};
-
-MultiThreadCleanup::~MultiThreadCleanup()
-{
-    mutex_.lock();
-    ++count_to_increment_;
-    mutex_.unlock();
-
-    cv_.notify_all();
-}
 
 cv::Rect FixBBox(const cv::Rect &bbox, const cv::Mat &mat)
 {
@@ -790,7 +778,7 @@ double RobotTracker::FindNewPosAndRotUsingMatchTemplate(cv::Mat &currFrame, cv::
         else
         {
 
-            myThreads.enqueue([this, &fgFoundBBox, &matchingMat, currAngle, currAngleStop]
+            ThreadPool::myThreads.enqueue([this, &fgFoundBBox, &matchingMat, currAngle, currAngleStop]
                               { this->matchTemplateThread(fgFoundBBox, matchingMat, currAngle, currAngleStop); });
             processes_run++;
         }

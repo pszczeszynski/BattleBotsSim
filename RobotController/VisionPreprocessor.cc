@@ -2,6 +2,7 @@
 #include "RobotConfig.h"
 #include "UIWidgets/CameraWidget.h"
 #include "MathUtils.h"
+#include "UIWidgets/ClockWidget.h"
 
 const int CLOSE = 20;
 
@@ -70,6 +71,9 @@ void VisionPreprocessor::ComputeTransformationMatrix()
 
 void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
 {
+
+    preprocessClock.markStart();
+
     // If frame is invalid, dont do it
     if( frame.empty() ) { return; }
 
@@ -77,6 +81,7 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     cv::Mat map1, map2;
     cv::Mat outputImage;
 
+/*  // Old fisheye code that is too slow
     if( false &&  FISHEYE_ENABLE)
     {
         _generateCameraParameters(FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y, frame.size(), K, D);
@@ -99,6 +104,8 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     {
         outputImage = frame;
     }
+*/
+    outputImage = frame;
 
 #ifdef STABALIZE
     _StabalizeImage(dst, dst);
@@ -117,11 +124,29 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
         ComputePMFisheyePointList(dst);
 
         // Do the Fisheye correctoin
-        // TBD TBD
+        cv::Mat correctedImage;
+        DoPMFishEye(dst, correctedImage);
+
+        if( CameraWidget::tuningMode)
+        {
+            _FIImageShown = true;
+            cv::imshow("Fisheye Post", correctedImage);
+            cv::pollKey();
+        }
+        else if(_FIImageShown )
+        {
+            cv::destroyWindow("Fisheye Post");
+            _FIImageShown = false;
+        }
+
+        if( ! CameraWidget::tuningMode)
+        {   
+            correctedImage.copyTo(dst);
+        }
     }
 
 
-
+    preprocessClock.markEnd();
     
 }
 
@@ -243,20 +268,21 @@ void VisionPreprocessor::ComputePMFisheyePointList(cv::Mat& image)
     }
 
     // Now display it
-    for(size_t i = 0; i < srcPointsList.size(); i++)
+    if( CameraWidget::tuningMode)
     {
-        cv::line(image, srcPointsList[i][0], srcPointsList[i][1], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
-        cv::line(image, srcPointsList[i][1], srcPointsList[i][2], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
-        cv::line(image, srcPointsList[i][2], srcPointsList[i][3], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
-        cv::line(image, srcPointsList[i][3], srcPointsList[i][0], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        for(size_t i = 0; i < srcPointsList.size(); i++)
+        {
+            cv::line(image, srcPointsList[i][0], srcPointsList[i][1], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+            cv::line(image, srcPointsList[i][1], srcPointsList[i][2], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+            cv::line(image, srcPointsList[i][2], srcPointsList[i][3], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+            cv::line(image, srcPointsList[i][3], srcPointsList[i][0], cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        }
     }
-
 }
 
 cv::Point2f VisionPreprocessor::GetPMFisheyeStartPoint(cv::Point2f& point)
 {
     // FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y
-    
     cv::Point2f center( WIDTH/2.0, HEIGHT*FISHEYE_Y);
 
     // Calculate the length
@@ -269,5 +295,71 @@ cv::Point2f VisionPreprocessor::GetPMFisheyeStartPoint(cv::Point2f& point)
     // Get the radius along the distorted image
     // double disRadius = 1000/FISHEYE_FL * atan(2*regRadius*tan(FISHEYE_FL/2000));
     double disRadius = 4.0 * FISHEYE_FL * sin(atan(regRadius/FISHEYE_FL/2.0)/2.0);
-    return center + FISHEYE_SCALE/10.0f * disRadius/regRadius * (point - center);
+    return (center + FISHEYE_SCALE/10.0f * disRadius/regRadius * (point - center));
+
+}
+
+// Poor-Mans Fish-eye 
+// Ok so this Poor-Mans fish-eye removal takes > 20ms single-threaded, but it can be threaded as opposed to a single remap call
+void VisionPreprocessor::DoPMFishEye(cv::Mat& inImage, cv::Mat& outImage)
+{
+    // Since inImage may = outImage, will first create a buffer
+    cv::Mat dst = cv::Mat::zeros(inImage.size(), inImage.type());
+
+    int processes_run = 0;  
+    int processes_done = 0;
+
+    for (size_t i = 0; i < srcPointsList.size(); ++i) 
+    {
+        
+        ++processes_run;
+        auto boundFunction = std::bind(&VisionPreprocessor::PMFishEyeCoreThread, this, i, std::ref(inImage), std::ref(dst), 
+                                        std::ref(processes_done), std::ref(_cvFisheye), std::ref(_mutexFisheye));
+
+        ThreadPool::myThreads.enqueue(boundFunction);
+    }
+    
+    _mutexFisheye.lock();
+    while (processes_done < processes_run)
+    {
+        if (_cvFisheye.wait_for(_mutexFisheye, std::chrono::milliseconds(200)) == std::cv_status::timeout)
+        {
+            std::cout << "Timeout occured in Fisheye Processing " << std::endl;
+        }
+    }
+    _mutexFisheye.unlock();
+
+    // Output final image
+    dst.copyTo(outImage);
+}
+
+void VisionPreprocessor::PMFishEyeCoreThread(size_t i, cv::Mat& inImage, cv::Mat& dst, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex)
+{
+        MultiThreadCleanup cleanup(doneInt, mutex, doneCV);
+
+        // Compute the perspective transform matrix
+        cv::Mat M = cv::getPerspectiveTransform(srcPointsList[i], dstPointsList[i]);
+
+        // Apply the perspective transformation to the source image
+        cv::Mat warped;
+        cv::warpPerspective(inImage, warped, M, dst.size());
+
+        // Create a mask from the warped image
+        cv::Mat mask = cv::Mat::zeros(warped.size(), CV_8UC1);
+        cv::fillConvexPoly(mask, convertPoints(dstPointsList[i]), cv::Scalar(255));
+
+        // Copy the warped image into the destination image using the mask to restrict the copy operation to the transformed trapezoid
+        _mutexDrawImage.lock();
+        warped.copyTo(dst, mask);
+        _mutexDrawImage.unlock();
+}
+
+std::vector<cv::Point> VisionPreprocessor::convertPoints(const std::vector<cv::Point2f>& points2f)
+{
+    std::vector<cv::Point> points;
+    for (const auto& point2f : points2f)
+    {
+        points.push_back(cv::Point(static_cast<int>(roundf(point2f.x)), static_cast<int>(roundf(point2f.y))));
+    }
+    return points;
 }
