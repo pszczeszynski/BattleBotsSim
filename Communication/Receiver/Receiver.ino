@@ -75,12 +75,17 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
-    // if (!logger.init())
-    // {
-    //     Serial.println("WARNING: logger failed to initialize");
-    // }
+    if (!logger.init())
+    {
+        Serial.println("WARNING: logger failed to initialize");
+    }
 
     pinMode(STATUS_1_LED_PIN, OUTPUT);
+    pinMode(STATUS_2_LED_PIN, OUTPUT);
+    pinMode(STATUS_3_LED_PIN, OUTPUT);
+    pinMode(STATUS_4_LED_PIN, OUTPUT);
+
+    digitalWrite(STATUS_4_LED_PIN, true);
 }
 
 /**
