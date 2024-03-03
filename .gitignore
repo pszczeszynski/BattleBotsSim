@@ -21,3 +21,4 @@ RobotController/MachineLearning/train_yolo/runs
 Communication/Transmitter/Communication.h
 Communication/Receiver/Communication.h
 RobotController/backgrounds/regularBackground.jpg
+.DS_store
