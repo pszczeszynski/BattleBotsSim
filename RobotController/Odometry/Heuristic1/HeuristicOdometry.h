@@ -107,7 +107,6 @@ private:
     double currTime = 0.0; // Current frame time
     RobotTracker *ourRobotTracker = NULL;
     RobotTracker *opponentRobotTracker = NULL;
-    int maxDimension = 150;               // Maximum dimension of a bounding box
     double deleteForNoMovementTime = 0.7; // Number of s to delete a tracked object for not moving
     int deleteForNoTrackingCount = -1;    // Number of frames to delete a tracked object that hasn't locked on
 

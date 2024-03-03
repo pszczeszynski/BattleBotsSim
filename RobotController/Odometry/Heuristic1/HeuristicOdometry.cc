@@ -837,6 +837,7 @@ bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
     int index1 = -1;
     float distance = FindClosestBBox(all_bboxes, newPos, bestBBox, index1);
 
+    int maxDimension = (opponentRobot) ? MAX_OPPONENT_BLOB_SIZE : MAX_ROBOT_BLOB_SIZE;
     // If we found a bbox of sufficient size that is reasonably close
     if ((index1 >= 0) && (distance < max_distance_to_locate) && (bestBBox.width >= fg_bbox_minsize) && (bestBBox.width <= maxDimension) && (bestBBox.height >= fg_bbox_minsize) && (bestBBox.height <= maxDimension))
     {
