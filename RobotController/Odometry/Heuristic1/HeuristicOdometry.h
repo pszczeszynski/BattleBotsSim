@@ -42,6 +42,7 @@ public:
     std::string dumpBackgroundsPath = "backgrounds/dump";
     std::string loadBackgroundsPath = "backgrounds"; // Please to look for preloaded backgrounds
     std::string outputVideoFile = "Recordings/Heuristic_dataDump.mp4";
+    int max_distance_to_locate = 100;
 
     bool show_bg_mat = false;
     bool show_fg_mat = false;
@@ -126,7 +127,7 @@ private:
 
     std::mutex _mutexTrackData;
     std::condition_variable_any conditionVarTrackRobots;
-    int max_distance_to_locate = 200;
+    
 
     void TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDisplay);
     bool LocateRobots(cv::Point2f newPos, bool opponentRobot);
