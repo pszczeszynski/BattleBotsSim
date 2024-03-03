@@ -10,6 +10,5 @@ class Kill : public Strategy
 public:
     Kill();
 
-    virtual DriveCommand Execute(Gamepad& gamepad) override;
-
+    virtual DriverStationMessage Execute(Gamepad& gamepad) override;
 };

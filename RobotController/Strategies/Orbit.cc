@@ -142,9 +142,8 @@ cv::Point2f ProjectPointOntoLineWithAngle(cv::Point2f linePoint, double lineAngl
  * Orbits the robot around the opponent at a fixed distance.
  * @param message The current state of the robot
  */
-DriveCommand Orbit::Execute(Gamepad& gamepad)
+DriverStationMessage Orbit::Execute(Gamepad& gamepad)
 {
-
     static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
 
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
@@ -250,28 +249,20 @@ DriveCommand Orbit::Execute(Gamepad& gamepad)
     cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
     cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
-    DriveCommand response = DriveToPosition(exState, targetPoint,
-                                            TURN_THRESH_1_DEG_ORBIT, TURN_THRESH_2_DEG_ORBIT,
-                                            MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT,
-                                            direction);
+    DriverStationMessage response = HoldAngle(exState.position, targetPoint,
+                                              ORBIT_ANGLE_EXTRAPOLATE_MS,
+                                              TURN_THRESH_1_DEG_ORBIT, TURN_THRESH_2_DEG_ORBIT,
+                                              MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT,
+                                              SCALE_DOWN_MOVEMENT_PERCENT_ORBIT,
+                                              direction);
 
-    // if on inside of circle and pointed outwards
-    if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
-    {
-        // force 100% move power
-        response.movement = 1.0;
-        response.turn *= 0.5;
-    }
-
-    // plot horizontal bar to show turn (green for right, red for left)
-    cv::Point2f turnBarStart = cv::Point2f(WIDTH / 2, HEIGHT / 2);
-    cv::Point2f turnBarEnd = turnBarStart + cv::Point2f(100 * response.turn, 0);
-    cv::line(drawingImage, turnBarStart, turnBarEnd, response.turn > 0 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 10);
-
-    // plot movement as a vertical bar (green for forward, red for backward)
-    cv::Point2f moveBarStart = cv::Point2f(WIDTH / 2, HEIGHT / 2);
-    cv::Point2f moveBarEnd = moveBarStart + cv::Point2f(0, -100 * response.movement);
-    cv::line(drawingImage, moveBarStart, moveBarEnd, response.movement > 0 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 10);
+    // // if on inside of circle and pointed outwards
+    // if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
+    // {
+    //     // force 100% move power
+    //     response.autoDrive.movement = 1.0;
+    //     // response.turn *= 0.5;
+    // }
 
     return response;
 }

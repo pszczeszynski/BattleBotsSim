@@ -98,7 +98,6 @@ set(SOURCES
     CVRotation.cc
     CVPosition.cc
     MovementStrategy.cc
-    Strategies/Avoid.cc
     Strategies/Kill.cc
     Strategies/Orbit.cc
     Strategies/RobotMovement.cc

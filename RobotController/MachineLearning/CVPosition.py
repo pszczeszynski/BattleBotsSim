@@ -8,6 +8,7 @@ import cv2
 SHARED_FILE_NAME = 'cv_pos_img'
 SHAPE = (720, 720)
 PORT = 11116
+SCALE_RATIO = 0.5
 
 def get_mat(name) -> Optional[np.ndarray]:
     """
@@ -75,7 +76,11 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float):
 
 
 def run_inference(model, img: np.ndarray):
-    print("shape: ", img.shape)
+    black_img = np.zeros(img.shape, dtype=np.uint8)
+    shrunk_img = cv2.resize(img, (int(SHAPE[0]*SCALE_RATIO), int(SHAPE[1]*SCALE_RATIO)))
+    black_img[:int(SHAPE[0]*SCALE_RATIO), :int(SHAPE[1]*SCALE_RATIO)] = shrunk_img
+    print("shape: ", black_img.shape)
+    img = black_img
     # if gray, stack to 3 channels
     if len(img.shape) == 2:
         img = np.stack((img, img, img), axis=2)
@@ -91,9 +96,9 @@ def run_inference(model, img: np.ndarray):
     for r in results:
         if len(r.boxes.conf) == 0:
             return False, None, None
-        if r.boxes.conf > max_conf:
+        if r.boxes.conf.item() > max_conf:
             max_conf = r.boxes.conf
-            bounding_box = r.boxes.xywh
+            bounding_box = r.boxes.xywh / SCALE_RATIO
     
     return True, max_conf, bounding_box
 
@@ -107,9 +112,9 @@ def main():
         # 1. get the imge
         img = get_mat(SHARED_FILE_NAME)
         # imshow
-        cv2.imshow("Image", img)
+        # cv2.imshow("Image", img)
         # wait key
-        cv2.waitKey(1)
+        # cv2.waitKey(1)
         print("Got image")
         # 2. retry if None
         if img is None:
@@ -118,7 +123,7 @@ def main():
         result, max_conf, bounding_box = run_inference(model, img)
 
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
-        if result and max_conf > 0.5:
+        if result and max_conf > 0.0:
             send_results_to_rc(bounding_box, max_conf.item())
 
 if __name__ == '__main__':

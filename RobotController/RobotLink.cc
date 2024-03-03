@@ -228,7 +228,7 @@ RobotLinkReal::RobotLinkReal()
                         sendTime.markStart();
 
                         // copy over the message to send
-                        memcpy(buf, &_messageToSend, sizeof(DriveCommand));
+                        memcpy(buf, &_messageToSend, sizeof(DriverStationMessage));
 
                         // send the message
                         status = rawhid_send(0, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
@@ -305,7 +305,7 @@ int RobotLinkReal::ChooseBestChannel()
     return RADIO_CHANNEL;
 }
 
-void RobotLinkReal::Drive(DriveCommand &command)
+void RobotLinkReal::Drive(DriverStationMessage &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
 
@@ -316,6 +316,24 @@ void RobotLinkReal::Drive(DriveCommand &command)
     // if we have sent a packet too recently, return
     if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
     {
+        return;
+    }
+    static GraphWidget stickX("Applied Movement", -1, 1, "");
+    static GraphWidget stickY("Applied Turn", -1, 1, "");
+
+    if (command.type == DRIVE_COMMAND)
+    {
+        stickX.AddData(command.driveCommand.movement / (MASTER_MOVE_SCALE_PERCENT / 100.0));
+        stickY.AddData(command.driveCommand.turn / (MASTER_TURN_SCALE_PERCENT / 100.00));
+    }
+    else if (command.type == AUTO_DRIVE)
+    {
+        stickX.AddData(command.autoDrive.movement / (MASTER_MOVE_SCALE_PERCENT / 100.0));
+        stickY.AddData(command.autoDrive.targetAngle / (MASTER_TURN_SCALE_PERCENT / 100.00));
+    }
+    else if (command.type == INVALID_DS)
+    {
+        std::cerr << "ERROR: invalid driver station message type" << std::endl;
         return;
     }
 
@@ -376,8 +394,16 @@ RobotLinkSim::RobotLinkSim()
 {
 }
 
-void RobotLinkSim::Drive(DriveCommand &command)
+void RobotLinkSim::Drive(DriverStationMessage &msg)
 {
+    // TODO: implement the auto drive in simulation
+    if (msg.type != DRIVE_COMMAND)
+    {
+        std::cerr << "ERROR: invalid driver station message type for simulation" << std::endl;
+        return;
+    }
+
+    DriveCommand command = msg.driveCommand;
     UnityDriveCommand message = {command.movement, command.turn, (double)command.frontWeaponPower, (double)command.backWeaponPower};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }

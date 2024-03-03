@@ -19,7 +19,7 @@
 class IRobotLink
 {
 public:
-    virtual void Drive(DriveCommand& command) = 0; // sends data to robot
+    virtual void Drive(DriverStationMessage& command) = 0; // sends data to robot
     virtual RobotMessage Receive();
     RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
@@ -50,7 +50,7 @@ class RobotLinkSim : public IRobotLink
 {
 public:
     RobotLinkSim();
-    virtual void Drive(DriveCommand& command) override;
+    virtual void Drive(DriverStationMessage& command) override;
     virtual std::vector<RobotMessage> _ReceiveImpl() override;
 
 private:
@@ -65,7 +65,7 @@ class RobotLinkReal : public IRobotLink
 {
 public:
     RobotLinkReal();
-    virtual void Drive(DriveCommand &command) override;
+    virtual void Drive(DriverStationMessage &command) override;
     virtual std::vector<RobotMessage> _ReceiveImpl() override;
 
     ~RobotLinkReal();
@@ -80,7 +80,7 @@ private:
 
     // these fields are mutex protected
     std::mutex _sendMessageMutex;
-    DriveCommand _messageToSend;
+    DriverStationMessage _messageToSend;
     bool _requestSend;
 
 

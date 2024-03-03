@@ -25,8 +25,13 @@
 #define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
 
 
-#define LED_PORT 16
-Radio<DriveCommand, RobotMessage>* radio;
+// status leds
+#define STATUS_1_LED_PIN 3
+#define STATUS_2_LED_PIN 4
+#define STATUS_3_LED_PIN 5
+#define STATUS_4_LED_PIN 6
+
+Radio<DriverStationMessage, RobotMessage>* radio;
 const byte address[6] = "00001"; // Define address/pipe to use.
 
 //===============================================================================
@@ -37,15 +42,20 @@ void setup()
     Serial.println("Powering on Transmitter!");
     Serial.println("Initializing...");
     // initialize the digital pin as an output.
-    pinMode(LED_PORT, OUTPUT);
+    pinMode(STATUS_1_LED_PIN, OUTPUT);
+    pinMode(STATUS_2_LED_PIN, OUTPUT);
+    pinMode(STATUS_3_LED_PIN, OUTPUT);
+    pinMode(STATUS_4_LED_PIN, OUTPUT);
 
     Serial.begin(460800);
     
     Serial.println("Initializing radio...");
-    radio = new Radio<DriveCommand, RobotMessage>();
+    radio = new Radio<DriverStationMessage, RobotMessage>();
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
+
+    digitalWrite(STATUS_1_LED_PIN, HIGH);
 
 }
 
@@ -71,9 +81,9 @@ void loop()
     int n;
     n = RawHID.recv(buffer, RECEIVE_TIMEOUT);
 
-    if (n > sizeof(DriveCommand))
+    if (n > sizeof(DriverStationMessage))
     {
-        DriveCommand command;
+        DriverStationMessage command;
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
 
@@ -81,6 +91,13 @@ void loop()
 
         // send over radio to receiver
         radio->Send(command);
+
+        // blink the LED
+        digitalWrite(STATUS_2_LED_PIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(STATUS_2_LED_PIN, LOW);
     }
 
     bool hadData = false;
@@ -99,6 +116,13 @@ void loop()
         n = RawHID.send(sendBuffer, SEND_TIMEOUT);
 
         hadData = true;
+
+        // blink the LED
+        digitalWrite(STATUS_3_LED_PIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(STATUS_3_LED_PIN, LOW);
     }
 
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)

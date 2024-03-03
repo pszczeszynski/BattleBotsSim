@@ -11,7 +11,7 @@ class Orbit : public Strategy
 public:
     Orbit();
 
-    virtual DriveCommand Execute(Gamepad &gamepad) override;
+    virtual DriverStationMessage Execute(Gamepad &gamepad) override;
     void StartOrbit();
     void StopOrbit();
 

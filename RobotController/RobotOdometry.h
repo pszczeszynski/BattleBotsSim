@@ -38,6 +38,9 @@ public:
     OdometryData Robot(double currTime = DEFAULT_ODOMETRY_EXTRAPOLATION);
     OdometryData Opponent(double currTime =  DEFAULT_ODOMETRY_EXTRAPOLATION);
 
+
+    float GetIMUOffset();
+
     void Update(); // Updates the odometry based on current data
 
     void SwitchRobots(); // Switches who's who
@@ -69,8 +72,6 @@ private:
     std::mutex _updateMutex;    // Mutex for updating core results
     OdometryData _dataRobot;
     OdometryData _dataOpponent;
-
-    double _lastIMUAngle;
 
     Angle CalcAnglePathTangent();
     bool _visualAngleValid = false;

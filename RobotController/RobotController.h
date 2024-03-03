@@ -35,25 +35,19 @@ public:
     RobotOdometry odometry;
 
     void Run();
-private:
-    DriveCommand RobotLogic();
-    DriveCommand AvoidMode();
-    DriveCommand ManualMode();
-    DriveCommand DriveToPosition(const cv::Point2f& targetPos, bool chooseNewTarget);
-   
-    int UpdateDrawingImage();
+    XBox gamepad;
 
-    // Not used at the moment
-    void UpdateRobotTrackers();
+private:
+    DriverStationMessage RobotLogic();
+    DriverStationMessage ManualMode();
+
+    int UpdateDrawingImage();
 
     cv::Mat drawingImage;
 
     MovementStrategy _movementStrategy;
 
-public:
-    XBox gamepad;
-private:
-    void ApplyMoveScales(DriveCommand& command);
+    void ApplyMoveScales(DriverStationMessage& command);
     void DrawStatusIndicators();
 
     // IMU DATA

@@ -57,18 +57,6 @@ struct Point
 #define TEENSY_RADIO_2 50
 #define TEENSY_RADIO_3 64
 
-// driver station -> robot
-struct DriveCommand
-{
-    float movement;
-    float turn;
-    float frontWeaponPower;
-    float backWeaponPower;
-    float selfRighterPower;
-    unsigned char radioChannel;
-    bool valid; // should always be true, used to check for blank messages
-};
-
 // disable padding
 #pragma pack(push, 1)
 
@@ -139,6 +127,51 @@ struct RobotMessage
     };
 
     bool valid;
+};
+
+// specifies coefficients for the autonomous go to angle
+struct AutoDrive
+{
+    float movement;
+    float targetAngle; // SHOULD BE ADJUSTED FOR THIS TEENSY (is not a global angle)
+    short ANGLE_EXTRAPOLATE_MS;
+    short TURN_THRESH_1_DEG;
+    short TURN_THRESH_2_DEG;
+    short MAX_TURN_POWER_PERCENT;
+    short MIN_TURN_POWER_PERCENT;
+    short SCALE_DOWN_MOVEMENT_PERCENT;
+    bool invertTurn;
+};
+
+// driver station -> robot
+struct DriveCommand
+{
+    float movement;
+    float turn;
+    float frontWeaponPower;
+    float backWeaponPower;
+    float selfRighterPower;
+};
+
+enum DriverStationMessageType : char
+{
+    INVALID_DS = 0,
+    DRIVE_COMMAND,
+    AUTO_DRIVE
+};
+
+struct DriverStationMessage
+{
+    DriverStationMessageType type;
+    unsigned char radioChannel;
+
+    union
+    {
+        DriveCommand driveCommand;
+        AutoDrive autoDrive;
+    };
+
+    bool valid; // should always be true, used to check for blank messages
 };
 
 #pragma pack(pop)

@@ -4,6 +4,7 @@
 #include "Vesc.h"
 #include "Communication.h"
 #include "Motor.h"
+#include "RobotMovement.h"
 #include <FastLED.h>
 
 #define VENDOR_ID               0x16C0
@@ -13,6 +14,7 @@
 
 
 #define VERBOSE_RADIO
+// #define DEBUG_AUTO
 
 #include "IMU.h"
 #include "Logging.h"
@@ -56,7 +58,7 @@ CRGB leds[NUM_LEDS];
 IMU imu{};
 #endif
 VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
-Radio<RobotMessage, DriveCommand> radio{};
+Radio<RobotMessage, DriverStationMessage> radio{};
 Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
 Logger logger{};
 
@@ -66,6 +68,8 @@ Logger logger{};
 int validMessageCount = 0;
 int invalidMessageCount = 0;
 DriveCommand lastDriveCommand;
+AutoDrive lastAutoCommand;
+DriverStationMessage lastMessage;
 int maxReceiveDelayMs = 0;
 
 void setup()
@@ -75,7 +79,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
-    selfRightMotor.init();
+    // selfRightMotor.init();
     if (!logger.init())
     {
         Serial.println("WARNING: logger failed to initialize");
@@ -86,6 +90,7 @@ void setup()
     pinMode(STATUS_3_LED_PIN, OUTPUT);
     pinMode(STATUS_4_LED_PIN, OUTPUT);
 
+    // set the program status led on
     digitalWrite(STATUS_4_LED_PIN, true);
 }
 
@@ -129,8 +134,8 @@ void DriveWeapons(DriveCommand &command)
  */
 void DriveSelfRighter(DriveCommand &command)
 {
-    selfRightMotor.SetPower(command.selfRighterPower);
-    logger.updateSelfRighterData(command.selfRighterPower);
+    // selfRightMotor.SetPower(command.selfRighterPower);
+    // logger.updateSelfRighterData(command.selfRighterPower);
 }
 
 /**
@@ -260,41 +265,84 @@ void DriveWithLatestMessage()
     // if there is a message available
     if (radio.Available())
     {
-        // receive latest drive command
-        DriveCommand command = radio.Receive();
-        // save the last drive command
-        lastDriveCommand = command;
+        // receive latest driver station message
+        DriverStationMessage msg = radio.Receive();
 
-        // sanity check command fields
-        if (command.movement > 1 || command.movement < -1 ||
-            command.turn > 1 || command.turn < -1 ||
-            command.frontWeaponPower > 1000 || command.frontWeaponPower < -1000 ||
-            command.backWeaponPower > 1000 || command.backWeaponPower < -1000 ||
-            command.selfRighterPower > 1 || command.selfRighterPower < -1)
+        // if the message is a drive command
+        if (msg.type == DRIVE_COMMAND)
         {
-            command.valid = false;
+            DriveCommand command = msg.driveCommand;
+
+            // sanity check command fields
+            if (command.movement > 1.1 || command.movement < -1.1 ||
+                command.turn > 1.1 || command.turn < -1.1 ||
+                command.frontWeaponPower > 1000 || command.frontWeaponPower < -1000 ||
+                command.backWeaponPower > 1000 || command.backWeaponPower < -1000 ||
+                command.selfRighterPower > 1.1 || command.selfRighterPower < -1.1)
+            {
+                msg.valid = false;
+            }
+
+            // check for NAN
+            if (isnan(command.movement) || isnan(command.turn) ||
+                isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) ||
+                isnan(command.selfRighterPower))
+            {
+                msg.valid = false;
+            }
+        }
+        // else if the message is an auto drive command
+        else if (msg.type == AUTO_DRIVE)
+        {
+            // sanity check command fields
+            if (msg.autoDrive.movement > 1.1 || msg.autoDrive.movement < -1.1 ||
+                msg.autoDrive.targetAngle > 2 * M_PI || msg.autoDrive.targetAngle < -2 * M_PI ||
+                msg.autoDrive.ANGLE_EXTRAPOLATE_MS < 0 ||
+                msg.autoDrive.TURN_THRESH_1_DEG < 0 || msg.autoDrive.TURN_THRESH_1_DEG > 360 ||
+                msg.autoDrive.TURN_THRESH_2_DEG < 0 || msg.autoDrive.TURN_THRESH_2_DEG > 360 ||
+                msg.autoDrive.MAX_TURN_POWER_PERCENT < 0 || msg.autoDrive.MAX_TURN_POWER_PERCENT > 100 ||
+                msg.autoDrive.MIN_TURN_POWER_PERCENT < 0 || msg.autoDrive.MIN_TURN_POWER_PERCENT > 100 ||
+                msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT < 0 || msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT > 100)
+            {
+                msg.valid = false;
+            }
+
+            // check for nan
+            if (isnan(msg.autoDrive.movement) || isnan(msg.autoDrive.targetAngle) ||
+                isnan(msg.autoDrive.ANGLE_EXTRAPOLATE_MS) || isnan(msg.autoDrive.TURN_THRESH_1_DEG) ||
+                isnan(msg.autoDrive.TURN_THRESH_2_DEG) || isnan(msg.autoDrive.MAX_TURN_POWER_PERCENT) ||
+                isnan(msg.autoDrive.MIN_TURN_POWER_PERCENT) || isnan(msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT))
+            {
+                msg.valid = false;
+            }
+        }
+        // otherwise, the message is invalid
+        else
+        {
+            msg.valid = false;
         }
 
-        // check for NAN
-        if (isnan(command.movement) || isnan(command.turn) ||
-            isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) ||
-            isnan(command.selfRighterPower))
+
+
+
+
+
+
+        // check if the message is valid
+        if (msg.valid)
         {
-            command.valid = false;
-        }
+            // save the last message
+            if (msg.type == DRIVE_COMMAND)
+            {
+                lastDriveCommand = msg.driveCommand;
+            }
+            else if (msg.type == AUTO_DRIVE)
+            {
+                lastAutoCommand = msg.autoDrive;
+            }
+            lastMessage = msg;
 
-        // check if the command is valid
-        if (command.valid)
-        {
-            // add to the logger
-            logger.updateRadioCommandData(command.movement, command.turn, command.frontWeaponPower, command.backWeaponPower);
-
-            // drive the robot, weapons, self righter
-            Drive(command);
-            DriveWeapons(command);
-            DriveSelfRighter(command);
-
-            // increment message count
+            // increment valid message count
             validMessageCount++;
 
             // save the max delay
@@ -308,18 +356,16 @@ void DriveWithLatestMessage()
             lastReceiveTime = millis();
             // unset the watchdog trigger
             noPacketWatchdogTrigger = false;
-
         }
-        // if the command is invalid
+        // if the message is invalid
         else
         {
             // increment invalid message count
             invalidMessageCount++;
             // print error message
-            Serial.println("Invalid drive command received");
+            Serial.println("Invalid message received");
         }
     }
-
 
     // if it's time to stop the robot
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
@@ -328,30 +374,91 @@ void DriveWithLatestMessage()
         // this allows us to switch to a backup teensy, without this one stopping the robot
         if (!noPacketWatchdogTrigger)
         {
+            Serial.println("NO PACKET WATCHDOG TRIGGERED, STOPPING ROBOT!");
             DriveCommand command{0};
             command.movement = 0;
             command.turn = 0;
             command.frontWeaponPower = 0;
             command.backWeaponPower = 0;
             command.selfRighterPower = 0;
-            command.valid = true;
             Drive(command);
             DriveWeapons(command);
-            DriveSelfRighter(command);
             noPacketWatchdogTrigger = true;
         }
 
+        // force self righer to 0 power if watchdog triggered
+        DriveCommand command{0};
+        DriveSelfRighter(command);
+
         // check if we should reinit the radio
-        if (millis() - lastReinitRadioTime > 1000)
+        if (millis() - lastReinitRadioTime > 5000)
         {
             lastReinitRadioTime = millis();
             Serial.println("Reinit radio");
             radio.InitRadio();
         }
 
-        // set status led
+        // set all status leds off since the watchdog has triggered
         digitalWrite(STATUS_1_LED_PIN, LOW);
         digitalWrite(STATUS_2_LED_PIN, LOW);
+        digitalWrite(STATUS_3_LED_PIN, LOW);
+    }
+    else if (lastMessage.type == AUTO_DRIVE)
+    {
+        // drive to the target angle
+        DriveCommand command = DriveToAngle(imu.getRotation(),
+                                            imu.getRotationVelocity(),
+                                            lastAutoCommand.targetAngle,
+                                            lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
+                                            lastAutoCommand.TURN_THRESH_1_DEG,
+                                            lastAutoCommand.TURN_THRESH_2_DEG,
+                                            lastAutoCommand.MAX_TURN_POWER_PERCENT,
+                                            lastAutoCommand.MIN_TURN_POWER_PERCENT,
+                                            lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+
+#ifdef DEBUG_AUTO
+        Serial.println("imu rotation: " + (String)imu.getRotation());
+        Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
+        Serial.println("target angle: " + (String)lastAutoCommand.targetAngle);
+        Serial.println("Auto drive command translated to: " + (String)command.movement + " " + (String)command.turn);
+
+        // print coefficients
+        Serial.println("ANGLE_EXTRAPOLATE_MS: " + (String)lastAutoCommand.ANGLE_EXTRAPOLATE_MS);
+        Serial.println("TURN_THRESH_1_DEG: " + (String)lastAutoCommand.TURN_THRESH_1_DEG);
+        Serial.println("TURN_THRESH_2_DEG: " + (String)lastAutoCommand.TURN_THRESH_2_DEG);
+        Serial.println("MAX_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MAX_TURN_POWER_PERCENT);
+        Serial.println("MIN_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MIN_TURN_POWER_PERCENT);
+        Serial.println("SCALE_DOWN_MOVEMENT_PERCENT: " + (String)lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+        
+#endif
+        // invert the turn if we need to
+        if (lastAutoCommand.invertTurn)
+        {
+            command.turn *= -1;
+        }
+
+        // drive the robot using the imu
+        Drive(command);
+        // still drive the weapons with the last drive command
+        DriveWeapons(lastMessage.driveCommand);
+
+        // set status led for autonomous drive
+        digitalWrite(STATUS_3_LED_PIN, HIGH);
+    }
+    else if (lastMessage.type == DRIVE_COMMAND)
+    {
+        // add to the logger
+        logger.updateRadioCommandData(lastDriveCommand.movement,
+                                      lastDriveCommand.turn,
+                                      lastDriveCommand.frontWeaponPower,
+                                      lastDriveCommand.backWeaponPower);
+#ifdef DEBUG_AUTO
+        Serial.println("Manual drive command translated to: " + (String)lastDriveCommand.movement + " " + (String)lastDriveCommand.turn);
+#endif
+        // drive the robot, weapons, self righter
+        Drive(lastDriveCommand);
+        DriveWeapons(lastDriveCommand);
+        DriveSelfRighter(lastDriveCommand);
     }
 }
 

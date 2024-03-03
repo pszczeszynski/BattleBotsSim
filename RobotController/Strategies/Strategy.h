@@ -9,5 +9,5 @@
 class Strategy
 {
 public:
-    virtual DriveCommand Execute(Gamepad& gamepad) = 0;
+    virtual DriverStationMessage Execute(Gamepad& gamepad) = 0;
 };

@@ -16,6 +16,7 @@
 #include "UIWidgets/KillWidget.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
+#include "CVPosition.h"
 
 int main()
 {
@@ -98,8 +99,10 @@ void RobotController::Run()
 
     // For real robot, send a stop drive command to start
 #ifndef SIMULATION
-    DriveCommand c{0, 0};
-    robotLink.Drive(c);
+    DriverStationMessage stopCommand;
+    stopCommand.type = DriverStationMessageType::DRIVE_COMMAND;
+    stopCommand.driveCommand = {0, 0, 0, 0, 0};
+    robotLink.Drive(stopCommand);
 #endif
 
     std::cout << "Starting odometry threads..." << std::endl;
@@ -171,7 +174,7 @@ void RobotController::Run()
         odometry.Update();
 
         // run our robot controller loop
-        DriveCommand response = RobotLogic();
+        DriverStationMessage response = RobotLogic();
 
         // enforce valid ranges and allow scaling down the movement via sliders
         ApplyMoveScales(response);
@@ -180,6 +183,12 @@ void RobotController::Run()
         robotLink.Drive(response);
 
         DrawStatusIndicators();
+
+        std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+        cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+        // draw the position on the drawing image
+        cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
+
 
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
@@ -312,7 +321,7 @@ void SpaceSwitchesRobots()
  * ManualMode
  * Allows the user to drive the robot manually
  */
-DriveCommand RobotController::ManualMode()
+DriverStationMessage RobotController::ManualMode()
 {
     // drive the robot with the gamepad
     DriveCommand response{0, 0};
@@ -355,7 +364,11 @@ DriveCommand RobotController::ManualMode()
         response.turn = 0;
     }
 
-    return response;
+    DriverStationMessage ret;
+    ret.type = DriverStationMessageType::DRIVE_COMMAND;
+    ret.driveCommand = response;
+
+    return ret;
 }
 
 /**
@@ -364,7 +377,7 @@ DriveCommand RobotController::ManualMode()
  */
 // sets the resolution of the extrapolation
 #define NUM_PREDICTION_ITERS 50
-DriveCommand RobotController::RobotLogic()
+DriverStationMessage RobotController::RobotLogic()
 {
     // draw arrow in the direction of the robot
     OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
@@ -376,13 +389,9 @@ DriveCommand RobotController::RobotLogic()
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
-
-    DriveCommand responseManual = ManualMode();
-
-    DriveCommand responseOrbit = orbitMode.Execute(gamepad);
     // start with just manual control
-    DriveCommand ret = responseManual;
-
+    DriverStationMessage ret = ManualMode();
+    DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
     if (gamepad.GetLeftBumper() && !gamepad.GetRightBumper())
@@ -434,17 +443,14 @@ DriveCommand RobotController::RobotLogic()
     // if we are killing, execute kill mode
     if (_killing)
     {
-        DriveCommand responseGoToPoint = killMode.Execute(gamepad);
-        ret.turn = responseGoToPoint.turn;
-        ret.movement = responseManual.movement * abs(responseGoToPoint.movement);
+        ret = killMode.Execute(gamepad);
         _killing = true;
     }
     // if driver wants to evade (left bumper)
     else if (_orbiting)
     {
         // orbit around them
-        ret.turn = responseOrbit.turn;
-        ret.movement = responseManual.movement * abs(responseOrbit.movement);
+        ret = orbit;
         _orbiting = true;
     }
 
@@ -463,30 +469,57 @@ cv::Mat& RobotController::GetDrawingImage()
     return drawingImage;
 }
 
-void RobotController::ApplyMoveScales(DriveCommand& command)
+void RobotController::ApplyMoveScales(DriverStationMessage& msg)
 {
-    // force command to be between -1 and 1
-    command.movement = std::max(-1.0f, std::min(1.0f, command.movement));
-    command.turn = std::max(-1.0f, std::min(1.0f, command.turn));
-
-    // scale command by the master scales
-    command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
-    command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
-
-    // check if should invert movements
-    if (INVERT_MOVEMENT)
+    if (msg.type == DriverStationMessageType::DRIVE_COMMAND)
     {
-        command.movement *= -1;
-    }
+        DriveCommand& command = msg.driveCommand;
+        // force command to be between -1 and 1
+        command.movement = std::max(-1.0f, std::min(1.0f, command.movement));
+        command.turn = std::max(-1.0f, std::min(1.0f, command.turn));
+        // scale command by the master scales
+        command.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+        command.turn *= MASTER_TURN_SCALE_PERCENT / 100.0;
+        // check if should invert movements
+        if (INVERT_MOVEMENT)
+        {
+            command.movement *= -1;
+        }
 
-    if (INVERT_TURN)
+        if (INVERT_TURN)
+        {
+            command.turn *= -1;
+        }
+
+        // spinner
+        command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
+        command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
+    }
+    else if (msg.type == DriverStationMessageType::AUTO_DRIVE)
     {
-        command.turn *= -1;
-    }
+        AutoDrive& autoDrive = msg.autoDrive;
+        // force command to be between -1 and 1
+        autoDrive.movement = std::max(-1.0f, std::min(1.0f, autoDrive.movement));
 
-    // spinner
-    command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
-    command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
+        // scale command by the master scales
+        autoDrive.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
+
+        // TODO: this works but it should really be a scale factor after all the calculations
+        autoDrive.MAX_TURN_POWER_PERCENT *= MASTER_TURN_SCALE_PERCENT / 100.0;
+        autoDrive.MIN_TURN_POWER_PERCENT *= MASTER_TURN_SCALE_PERCENT / 100.0;
+
+        // check if should invert movements
+        if (INVERT_MOVEMENT)
+        {
+            autoDrive.movement *= -1;
+        }
+
+        // invert the turn if necessary
+        if (INVERT_TURN)
+        {
+            autoDrive.invertTurn = true;
+        }
+    }
 }
 
 void RobotController::DrawStatusIndicators()

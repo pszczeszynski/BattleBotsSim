@@ -14,11 +14,11 @@ public:
 
     bool Run( void ) override; // Starts the thread(s) to decode data. Returns true if succesful
 
+    float GetOffset();
+
 private:
     void _UpdateData(IMUData& imuData, double timestamp);
     float _lastImuAngle = 0;
     Angle _lastAngle;
     int _lastRadioChannel = 0;
-    float _angleOffset = 0;
-
 };

@@ -114,12 +114,6 @@ void RobotOdometry::Update(void)
     }
 
 
-    std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-    cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
-    // draw the position on the drawing image
-    cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
-
-
     // locker will get unlocked here automatically
 }
 
@@ -138,6 +132,15 @@ OdometryData RobotOdometry::Robot(double currTime)
 
     return currData;
 }
+
+/**
+ * @brief Returns the angle to add to the global angle to get the internal imu angle (in radians)
+*/
+float RobotOdometry::GetIMUOffset()
+{
+    return _odometry_IMU.GetOffset();
+}
+
 
 /**
  * @brief returns the odometry data extrapolated to current time

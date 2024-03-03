@@ -49,6 +49,15 @@ bool OdometryIMU::Run(void)
     return true;
 }
 
+/**
+ * Gets the angle to add to the current angle to get the internal imu angle
+*/
+float OdometryIMU::GetOffset()
+{
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    return _lastImuAngle - _lastAngle;
+}
+
 void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 {
     // Get unique access

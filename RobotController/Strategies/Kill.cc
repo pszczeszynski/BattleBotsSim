@@ -10,34 +10,28 @@ Kill::Kill()
 
 #define NUM_PREDICTION_ITERS 25
 
-DriveCommand Kill::Execute(Gamepad &gamepad)
+DriverStationMessage Kill::Execute(Gamepad &gamepad)
 {
-    // simulates the movement of the robot
-    RobotSimulator robotSimulator;
-
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
-
-    RobotSimState currentState;
-    currentState.position = odoData.robotPosition;
-    currentState.angle =  odoData.robotAngle;
-    currentState.velocity = odoData.robotVelocity;
-    double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
-    currentState.angularVelocity = odoData.robotAngleVelocity * angleExtrapolate / POSITION_EXTRAPOLATE_MS;
-
-    // predict where the robot will be in a couple milliseconds
-    RobotSimState exState = robotSimulator.Simulate(currentState, POSITION_EXTRAPOLATE_MS / 1000.0, NUM_PREDICTION_ITERS);
-
     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
-    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent();
+    // extrapolate our position into the future
+    OdometryData ourData = RobotController::GetInstance().odometry.Robot();
+    ourData.Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
 
-    DriveCommand ret;
-    // drive directly to the opponent
-    DriveCommand responseGoToPoint = RobotMovement::DriveToPosition(exState, opponentData.robotPosition,
-                                                                    TURN_THRESH_1_DEG_KILL, TURN_THRESH_1_DEG_KILL,
-                                                                    TURN_THRESH_1_DEG_KILL, TURN_THRESH_1_DEG_KILL,
-                                                                    direction);
-    ret.turn = responseGoToPoint.turn;
-    ret.movement = gamepad.GetRightStickY() * abs(responseGoToPoint.movement);
+    // extrapolate the opponent's position into the future
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+    opponentData.Extrapolate(Clock::programClock.getElapsedTime() + (OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0));
+
+    // hold angle to the opponent
+    DriverStationMessage ret = RobotMovement::HoldAngle(ourData.robotPosition,
+                                                        opponentData.robotPosition,
+                                                        KILL_ANGLE_EXTRAPOLATE_MS,
+                                                        TURN_THRESH_1_DEG_KILL,
+                                                        TURN_THRESH_2_DEG_KILL,
+                                                        MAX_TURN_POWER_PERCENT_KILL,
+                                                        MIN_TURN_POWER_PERCENT_KILL,
+                                                        SCALE_DOWN_MOVEMENT_PERCENT_KILL,
+                                                        direction);
+
     return ret;
 }
