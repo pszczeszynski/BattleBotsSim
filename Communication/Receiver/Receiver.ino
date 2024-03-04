@@ -12,10 +12,10 @@
 #define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
 #define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
 
-// #define ENABLE_AUTONOMOUS_DRIVE
+#define ENABLE_AUTONOMOUS_DRIVE
 
 // disable for backup teensies
-// #define ENABLE_SELF_RIGHTER
+#define ENABLE_SELF_RIGHTER
 
 #define VERBOSE_RADIO
 // #define DEBUG_AUTO
