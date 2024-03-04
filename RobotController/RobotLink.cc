@@ -329,7 +329,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
     else if (command.type == AUTO_DRIVE)
     {
         stickX.AddData(command.autoDrive.movement / (MASTER_MOVE_SCALE_PERCENT / 100.0));
-        stickY.AddData(command.autoDrive.targetAngle / (MASTER_TURN_SCALE_PERCENT / 100.00));
+        stickY.AddData(command.autoDrive.targetAngle);
     }
     else if (command.type == INVALID_DS)
     {

@@ -2,6 +2,15 @@
 
 #include <Arduino.h>
 
+
+// SIDE BOARD CONFIG
+// #define SCALE_UP_GYRO_FACTOR 1.02316240643
+// #define GYRO_AXIS gyrX
+
+// MAIN BOARD CONFIG
+#define SCALE_UP_GYRO_FACTOR 1.0
+#define GYRO_AXIS gyrY
+
 IMU::IMU()
 {
     Serial.println("Initializing IMU...");
@@ -56,6 +65,19 @@ IMU::IMU()
     Serial.println("Success!");
 }
 
+void IMU::ForceCalibrate()
+{
+    delay(30);
+    double sample1 = -myICM.GYRO_AXIS() * TO_RAD;
+    delay(30);
+    double sample2 = -myICM.GYRO_AXIS() * TO_RAD;
+    delay(30);
+    double sample3 = -myICM.GYRO_AXIS() * TO_RAD;
+
+    double average = (sample1 + sample2 + sample3) / 3;
+    _calibrationRotVelZ = average;
+}
+
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
 #define GYRO_CALIBRATE_PERIOD_MS 10000
 // the threshold for the gyro to be considered "stationary"
@@ -68,7 +90,9 @@ IMU::IMU()
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
-    _currRotVelZ = -myICM.gyrY() * TO_RAD;
+    _currRotVelZ = -myICM.GYRO_AXIS() * TO_RAD;
+    _currRotVelZ *= SCALE_UP_GYRO_FACTOR;
+
     double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
 

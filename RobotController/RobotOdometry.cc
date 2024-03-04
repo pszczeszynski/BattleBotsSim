@@ -105,6 +105,11 @@ void RobotOdometry::Update(void)
         _dataOpponent = _dataOpponent_Blob;
     }
 
+    std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
+    cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
+    // draw the position on the drawing image
+    cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
+
     // If IMU is running, then use IMU's angle information
     if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
     {

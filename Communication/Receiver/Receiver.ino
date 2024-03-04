@@ -12,6 +12,10 @@
 #define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
 #define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
 
+// #define ENABLE_AUTONOMOUS_DRIVE
+
+// disable for backup teensies
+// #define ENABLE_SELF_RIGHTER
 
 #define VERBOSE_RADIO
 // #define DEBUG_AUTO
@@ -85,6 +89,8 @@ void setup()
         Serial.println("WARNING: logger failed to initialize");
     }
 
+    imu.ForceCalibrate();
+
     pinMode(STATUS_1_LED_PIN, OUTPUT);
     pinMode(STATUS_2_LED_PIN, OUTPUT);
     pinMode(STATUS_3_LED_PIN, OUTPUT);
@@ -134,8 +140,10 @@ void DriveWeapons(DriveCommand &command)
  */
 void DriveSelfRighter(DriveCommand &command)
 {
-    // selfRightMotor.SetPower(command.selfRighterPower);
-    // logger.updateSelfRighterData(command.selfRighterPower);
+#ifdef ENABLE_SELF_RIGHTER
+    selfRightMotor.SetPower(command.selfRighterPower);
+    logger.updateSelfRighterData(command.selfRighterPower);
+#endif
 }
 
 /**
@@ -416,6 +424,9 @@ void DriveWithLatestMessage()
                                             lastAutoCommand.MIN_TURN_POWER_PERCENT,
                                             lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
 
+        // apply the movement from the last drive command
+        command.movement = lastMessage.driveCommand.movement;
+
 #ifdef DEBUG_AUTO
         Serial.println("imu rotation: " + (String)imu.getRotation());
         Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
@@ -437,6 +448,7 @@ void DriveWithLatestMessage()
             command.turn *= -1;
         }
 
+#ifdef ENABLE_AUTONOMOUS_DRIVE
         // drive the robot using the imu
         Drive(command);
         // still drive the weapons with the last drive command
@@ -444,6 +456,7 @@ void DriveWithLatestMessage()
 
         // set status led for autonomous drive
         digitalWrite(STATUS_3_LED_PIN, HIGH);
+#endif
     }
     else if (lastMessage.type == DRIVE_COMMAND)
     {

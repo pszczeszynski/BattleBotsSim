@@ -16,6 +16,7 @@ class IMU
 public:
     IMU();
     void Update();
+    void ForceCalibrate();
     bool dataReady();
     Point getAccel();
     Point getVelocity();

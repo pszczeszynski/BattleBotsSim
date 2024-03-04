@@ -184,16 +184,9 @@ void RobotController::Run()
 
         DrawStatusIndicators();
 
-        std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-        cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
-        // draw the position on the drawing image
-        cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
-
-
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
         _fieldWidget.UpdateMat(drawingImage);
-    
     }
 }
 
@@ -317,6 +310,11 @@ void SpaceSwitchesRobots()
     spacePressedLast = spacePressed;
 }
 
+int Sign(double val)
+{
+    return (0 < val) - (val < 0);
+}
+
 /**
  * ManualMode
  * Allows the user to drive the robot manually
@@ -330,7 +328,6 @@ DriverStationMessage RobotController::ManualMode()
 
     // update the spinner powers
     Weapons& weapons = Weapons::GetInstance();
-
     weapons.UpdateSpinnerPowers();
 
     // apply weapon powers
@@ -364,6 +361,10 @@ DriverStationMessage RobotController::ManualMode()
         response.turn = 0;
     }
 
+    // apply x^2 scaling to the movement
+    response.movement = Sign(response.movement) * pow(abs(response.movement), 2);
+    response.turn = Sign(response.turn) * pow(abs(response.turn), 2);
+
     DriverStationMessage ret;
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
     ret.driveCommand = response;
@@ -391,6 +392,7 @@ DriverStationMessage RobotController::RobotLogic()
 
     // start with just manual control
     DriverStationMessage ret = ManualMode();
+    float originalMovement = ret.driveCommand.movement;
     DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
@@ -454,6 +456,11 @@ DriverStationMessage RobotController::RobotLogic()
         _orbiting = true;
     }
 
+    if (ret.type == AUTO_DRIVE)
+    {
+        ret.autoDrive.movement = originalMovement;
+    }
+
     // return the response
     return ret;
 }
@@ -503,10 +510,6 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
 
         // scale command by the master scales
         autoDrive.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
-
-        // TODO: this works but it should really be a scale factor after all the calculations
-        autoDrive.MAX_TURN_POWER_PERCENT *= MASTER_TURN_SCALE_PERCENT / 100.0;
-        autoDrive.MIN_TURN_POWER_PERCENT *= MASTER_TURN_SCALE_PERCENT / 100.0;
 
         // check if should invert movements
         if (INVERT_MOVEMENT)

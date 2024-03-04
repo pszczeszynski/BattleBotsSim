@@ -33,6 +33,7 @@ void ConfigWidget::Draw()
     ImGui::Text(LEAD_WITH_BAR ? "BAR" : "DISK");
 
     ImGui::SliderInt("Angle Extrapolate (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
+    ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
     ImGui::SliderFloat("Orbit Radius MovAvg Blend Time (sec)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1.0f);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);

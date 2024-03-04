@@ -72,7 +72,7 @@ enum RobotMessageType : char
 
 struct IMUData
 {
-    float rotation;
+    double rotation;
     float rotationVelocity;
     float accelX;
     float accelY;
