@@ -5,10 +5,12 @@ from typing import Optional
 import socket
 import json
 import cv2
+
 SHARED_FILE_NAME = 'cv_pos_img'
 SHAPE = (720, 720)
 PORT = 11116
 SCALE_RATIO = 0.5
+CONFIDENCE_THRESHOLD = 0
 
 def get_mat(name) -> Optional[np.ndarray]:
     """
@@ -25,7 +27,7 @@ def get_mat(name) -> Optional[np.ndarray]:
     try:
         # Access the existing shared memory block
         # Windows-specific way to open shared memory
-        existing_shm = mmap.mmap(-1, SHAPE[0] * SHAPE[1], tagname=SHARED_FILE_NAME, access=mmap.ACCESS_READ)
+        existing_shm = mmap.mmap(-1, SHAPE[0] * SHAPE[1], tagname=name, access=mmap.ACCESS_READ)
 
         # Read data from shared memory
         data = existing_shm.read(SHAPE[0] * SHAPE[1])
@@ -35,23 +37,11 @@ def get_mat(name) -> Optional[np.ndarray]:
     # Create a NumPy array backed by the shared memory
     # Note: The total size is calculated by multiplying the dimensions of the shape
     np_array = np.ndarray(SHAPE, dtype=np.uint8, buffer=data)
-    # print(np_array)
-
-
-    # # squash to gray
-    # if np_array.shape[2] == 4:
-    #     np_array = cv2.cvtColor(np_array, cv2.COLOR_RGBA2GRAY)
 
     # return the np array
     return np_array
 
-
-print("Initializing socket")
-# Create a UDP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-print("Socket initialized")
-
-def send_results_to_rc(bounding_box: np.ndarray, conf: float):
+def send_results_to_rc(sock, bounding_box: np.ndarray, conf: float):
     """
     Sends bounding box information to the robot controller via UDP.
 
@@ -60,7 +50,7 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float):
     - conf: the confidence
     """
     # Convert the bounding box numpy array to a list and then to JSON string
-    bounding_box_list = bounding_box.tolist()[0]
+    bounding_box_list = bounding_box.tolist()
 
     print("Bounding box: ", bounding_box_list)
     print("Confidence: ", conf)
@@ -76,55 +66,59 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float):
 
 
 def run_inference(model, img: np.ndarray):
-    black_img = np.zeros(img.shape, dtype=np.uint8)
     shrunk_img = cv2.resize(img, (int(SHAPE[0]*SCALE_RATIO), int(SHAPE[1]*SCALE_RATIO)))
-    black_img[:int(SHAPE[0]*SCALE_RATIO), :int(SHAPE[1]*SCALE_RATIO)] = shrunk_img
-    print("shape: ", black_img.shape)
-    img = black_img
+    img = np.zeros(img.shape, dtype=np.uint8)
+    img[:int(SHAPE[0]*SCALE_RATIO), :int(SHAPE[1]*SCALE_RATIO)] = shrunk_img
+
     # if gray, stack to 3 channels
     if len(img.shape) == 2:
         img = np.stack((img, img, img), axis=2)
     
-    results = model.predict(img, device=0)
+    results = model.predict(img, device=0)[0]
 
-    if not results or len(results) == 0:
+    if not results or len(results) == 0 or len(results.boxes.conf) == 0:
         return False, None, None
     
     max_conf, bounding_box = 0, np.zeros(4)
 
-    
-    for r in results:
-        if len(r.boxes.conf) == 0:
-            return False, None, None
-        if r.boxes.conf.item() > max_conf:
-            max_conf = r.boxes.conf
-            bounding_box = r.boxes.xywh / SCALE_RATIO
+    try:
+        for i in range(len(results.boxes.conf)):
+            if results.boxes.conf[i] > max_conf:
+                max_conf = results.boxes.conf[i].item()
+                bounding_box = results.boxes.xywh[i] / SCALE_RATIO
+    except:
+        return False, None, None
     
     return True, max_conf, bounding_box
 
 def main():
+    print("Initializing socket")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print("Socket initialized")
+
     print("Initializing YOLO model")
     model = YOLO('train_yolo/model4_orbitron_preprocessed_forks.pt')
     print("YOLO model initialized")
 
     while True:
-        print("Getting image")
         # 1. get the imge
+        print("Getting image")
         img = get_mat(SHARED_FILE_NAME)
+        print("Got image")
+
         # imshow
         # cv2.imshow("Image", img)
         # wait key
         # cv2.waitKey(1)
-        print("Got image")
+
         # 2. retry if None
         if img is None:
             continue
 
         result, max_conf, bounding_box = run_inference(model, img)
-
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
-        if result and max_conf > 0.0:
-            send_results_to_rc(bounding_box, max_conf.item())
+        if result and max_conf > CONFIDENCE_THRESHOLD:
+            send_results_to_rc(sock, bounding_box, max_conf)
 
 if __name__ == '__main__':
     main()
