@@ -115,6 +115,9 @@ void RobotController::Run()
     // Do IMU
     odometry.Run(OdometryAlg::IMU);
 
+    // Do Neural
+    odometry.Run(OdometryAlg::Neural);
+
     std::cout << "Starting GUI threads..." << std::endl;
 
     // Initialize GUI on main thread:    

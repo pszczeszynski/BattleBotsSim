@@ -6,7 +6,7 @@
 #include "imgui.h"
 #include "Input/InputState.h"
 #include "RobotConfig.h"
-#include "CVPosition.h"
+#include "odometry/Neural/CVPosition.h"
 #include "UIWidgets/GraphWidget.h"
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
@@ -86,21 +86,15 @@ void RobotOdometry::Update(void)
     }
 
     // Get Neural
-    // TODO: make this a standard odometry algorithm
-    static int neuralDataID = 0;
-
-    int newNeuralDataID = 0;
-    cv::Point2f neuralPos = CVPosition::GetInstance().GetCenter(&newNeuralDataID);
-    // draw the position on the drawing image
-    cv::circle(RobotController::GetInstance().GetDrawingImage(), neuralPos, 20, cv::Scalar(255, 0, 0), 2);
-
-    // if there's new data, update the neuralDataID
-    if (newNeuralDataID > neuralDataID)
+    if (_odometry_Neural.IsRunning())
     {
-        neuralDataID = newNeuralDataID;
-        newDataArrived = true;
+        // Update our data
+        if (_odometry_Neural.NewDataValid(_dataRobot_Neural.id, false))
+        {
+            _dataRobot_Neural = _odometry_Neural.GetData(false);
+            newDataArrived = true;
+        }
     }
-
 
     // No new data and thus nothing to do
     if (!newDataArrived)
@@ -122,6 +116,35 @@ void RobotOdometry::Update(void)
         _dataOpponent = _dataOpponent_Blob;
     }
 
+    // if neural data is available and far away from the robot
+    if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
+    {
+        _dataRobot = _dataRobot_Neural;
+        // // get the distance from the robot to the neural position
+        // float distanceToRobot = cv::norm(_dataRobot_Neural.robotPosition - _dataRobot.robotPosition);
+        // cv::circle(RobotController::GetInstance().GetDrawingImage(), _dataRobot_Neural.robotPosition, 20, cv::Scalar(255, 0, 0), 2);
+        // // if the distance is greater than 50 pixels
+        // if (distanceToRobot > 70)
+        // {
+        //     float distanceToOpponent = cv::norm(_dataRobot_Neural.robotPosition - _dataOpponent.robotPosition);
+
+        //     // if (distanceToRobot > distanceToOpponent)
+        //     // {
+        //     //     _odometry_Blob.SwitchRobots();
+        //     //     _odometry_Blob.SetPosition(neuralPos, false);
+        //     // }
+
+        //     if (_odometry_Blob.IsRunning())
+        //     {
+        //         _odometry_Blob.SetPosition(_dataRobot_Neural.robotPosition, false);
+        //     }
+        //     else if (_odometry_Heuristic.IsRunning())
+        //     {
+        //         _odometry_Heuristic.SetPosition(_dataRobot_Neural.robotPosition, false);
+        //     }
+        // }
+    }
+
 
     // If IMU is running, then use IMU's angle information
     if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
@@ -130,36 +153,8 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
-    
 
 
-    // if neural data is available and far away from the robot
-    if (neuralDataID > 0)
-    {
-        // get the distance from the robot to the neural position
-        float distanceToRobot = cv::norm(neuralPos - _dataRobot.robotPosition);
-
-        // if the distance is greater than 50 pixels
-        if (distanceToRobot > 70)
-        {
-            float distanceToOpponent = cv::norm(neuralPos - _dataOpponent.robotPosition);
-
-            // if (distanceToRobot > distanceToOpponent)
-            // {
-            //     _odometry_Blob.SwitchRobots();
-            //     _odometry_Blob.SetPosition(neuralPos, false);
-            // }
-
-            if (_odometry_Blob.IsRunning())
-            {
-                _odometry_Blob.SetPosition(neuralPos, false);
-            }
-            else if (_odometry_Heuristic.IsRunning())
-            {
-                _odometry_Heuristic.SetPosition(neuralPos, false);
-            }
-        }
-    }
 
     // locker will get unlocked here automatically
 }
@@ -297,6 +292,8 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
         return _odometry_IMU.Run();
 
     case OdometryAlg::Neural:
+        return _odometry_Neural.Run();
+    default:
         break;
     }
 

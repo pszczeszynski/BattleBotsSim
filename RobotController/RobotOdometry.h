@@ -10,6 +10,7 @@
 #include "Odometry/BlobDetection/BlobDetection.h"
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
 #include "Odometry/IMU/OdometryIMU.h"
+#include "Odometry/Neural/CVPosition.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
 #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
@@ -64,6 +65,9 @@ private:
     HeuristicOdometry _odometry_Heuristic;
     OdometryData _dataRobot_Heuristic;
     OdometryData _dataOpponent_Heuristic;
+
+    CVPosition _odometry_Neural;
+    OdometryData _dataRobot_Neural;
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;

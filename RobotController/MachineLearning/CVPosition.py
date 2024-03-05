@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import numpy as np
 import mmap
-from typing import Optional
+from typing import List, Optional
 import socket
 import json
 import cv2
@@ -51,21 +51,23 @@ print("Initializing socket")
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 print("Socket initialized")
 
-def send_results_to_rc(bounding_box: np.ndarray, conf: float):
+def send_results_to_rc(bounding_box: np.ndarray, conf: float, frame_id: int, time_milliseconds: int):
     """
     Sends bounding box information to the robot controller via UDP.
 
     Parameters:
     - bounding_box: A numpy.ndarray containing bounding box information.
     - conf: the confidence
+    - frame_id: the frame id (extracted from the first pixel)
+    - time_milliseconds: the time in milliseconds (extracted from the next 4 pixels)
     """
     # Convert the bounding box numpy array to a list and then to JSON string
-    bounding_box_list = bounding_box.tolist()[0]
+    bounding_box_list: List = bounding_box.tolist()[0]
 
     print("Bounding box: ", bounding_box_list)
     print("Confidence: ", conf)
 
-    message = json.dumps({'bounding_box': bounding_box_list, 'conf': conf})
+    message = json.dumps({'bounding_box': bounding_box_list, 'conf': conf, 'frame_id': int(frame_id), 'time_milliseconds': int(time_milliseconds)})
 
     try:
         # Send the message
@@ -116,6 +118,18 @@ def main():
         print("Getting image")
         # 1. get the imge
         img = get_mat(SHARED_FILE_NAME)
+
+        # the first 4 pixels are the frame id
+        frame_id = 0
+        for i in range(4):
+            frame_id += img[0, i] << (8 * i)
+
+        # parse the time from the next 4 pixels
+        time_milliseconds = 0
+        for i in range(4):
+            time_milliseconds += img[0, i + 4] << (8 * i)
+
+        print("id: ", frame_id)
         print("Got image")
         # 2. retry if None
         if img is None:
@@ -128,11 +142,20 @@ def main():
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
         if result and max_conf > 0.0:
             bb = bounding_box.tolist()[0]
-            img = cv2.rectangle(img, (int(bb[0] - bb[2] / 2), int(bb[1] - bb[3] / 2)), (int(bb[0] + bb[2] / 2), int(bb[1] + bb[3] / 2)), (0, 255, 0), 2)
-            cv2.imshow("Bounding Box", img)
-            cv2.waitKey(1)
+            if (len(bb) < 4):
+                print("continuing")
+                continue
 
-            send_results_to_rc(bounding_box, max_conf.item())
+            # draw circle at bb[0] and bb[1]
+
+            # img = cv2.rectangle(img, (int(bb[0] - bb[2] / 2), int(bb[1] - bb[3] / 2)), (int(bb[0] + bb[2] / 2), int(bb[1] + bb[3] / 2)), (0, 255, 0), 2)
+            # cv2.imshow("Bounding Box", img)
+            # cv2.waitKey(1)
+
+            print("bb[0]: " + str(bb[0]))
+
+            print("bounding box: ", bounding_box)
+            send_results_to_rc(bounding_box, max_conf.item(), frame_id, time_milliseconds)
 
 if __name__ == '__main__':
     main()

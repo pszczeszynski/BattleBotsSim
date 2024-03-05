@@ -2,35 +2,43 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 #include <thread>
-#include "ServerSocket.h"
+#include "../../ServerSocket.h"
+#include "../Odometrybase.h"
 
-#define MODEL_PATH "MachineLearning/train_yolo/model2_orbitron_unpreprocessed.onnx"
 
-class CVPosition
+struct CVPositionData
+{
+    std::vector<int> boundingBox;
+    cv::Point2f center;
+    uint32_t frameID;
+    uint32_t time_millis;
+};
+
+class CVPosition : public OdometryBase
 {
 public:
     CVPosition();
-    static CVPosition& GetInstance();
 
     std::vector<int> GetBoundingBox(int* outFrameID = nullptr);
     cv::Point2f GetCenter(int* outFrameID = nullptr);
 
-private:
-    cv::dnn::Net _net;
-    cv::Point2f _lastPosition;
+    void SwitchRobots(void) override{}; // Dont do anything for SwitchRobots
+    bool Run(void) override; // Starts the thread(s) to decode data. Returns true if succesful
 
+private:
+    cv::Point2f _lastPosition;
     std::vector<std::string> classes{"orbitron"};
 
     cv::Size modelShape{};
 
     std::thread workerThread;
 
-    std::vector<int> _boundingBox;
-    std::mutex _boundingBoxMutex;
-    std::mutex _frameIdMutex;
+    CVPositionData _lastData;
+    std::mutex _lastDataMutex;
 
-    std::vector<int> _ComputeRobotPosition();
+    CVPositionData _GetDataFromPython();
 
+    void _UpdateData(CVPositionData data, cv::Point2f velocity);
 
 
     // shared memory
@@ -44,5 +52,4 @@ private:
 
     ServerSocket _pythonSocket;
 
-    int _frameId;
 };
