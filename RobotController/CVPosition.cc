@@ -78,12 +78,12 @@ CVPosition::CVPosition() : _pythonSocket("11116")
             // get the next frame
             last_id = camera.GetFrame(sharedImage, last_id);
 
-            boundingBox = ComputeRobotPosition();
+            boundingBox = _ComputeRobotPosition();
 
             // copy over the bounding box
-            boundingBoxMutex.lock();
+            _boundingBoxMutex.lock();
             _boundingBox = boundingBox;
-            boundingBoxMutex.unlock();
+            _boundingBoxMutex.unlock();
         }
     });
 }
@@ -94,16 +94,28 @@ CVPosition& CVPosition::GetInstance()
     return instance;
 }
 
-std::vector<int> CVPosition::GetBoundingBox()
+std::vector<int> CVPosition::GetBoundingBox(int* outFrameID)
 {
     std::vector<int> boundingBox;
-    boundingBoxMutex.lock();
+    _boundingBoxMutex.lock();
     boundingBox = _boundingBox;
-    boundingBoxMutex.unlock();
+    if (outFrameID != nullptr)
+    {
+        _frameIdMutex.lock();
+        *outFrameID = _frameId;
+        _frameIdMutex.unlock();
+    }
+    _boundingBoxMutex.unlock();
     return boundingBox;
 }
 
-std::vector<int> CVPosition::ComputeRobotPosition()
+cv::Point2f CVPosition::GetCenter(int* outFrameID)
+{
+    std::vector<int> boundingBox = GetBoundingBox(outFrameID);
+    return cv::Point2f(boundingBox[0], boundingBox[1]);
+}
+
+std::vector<int> CVPosition::_ComputeRobotPosition()
 {
     // receive from socket
     std::string data = _pythonSocket.receive();
@@ -112,6 +124,11 @@ std::vector<int> CVPosition::ComputeRobotPosition()
     {
         return _boundingBox;
     }
+
+    // copy over the bounding box
+    _frameIdMutex.lock();
+    _frameId ++;
+    _frameIdMutex.unlock();
 
     // parse using json
     nlohmann::json j = nlohmann::json::parse(data);

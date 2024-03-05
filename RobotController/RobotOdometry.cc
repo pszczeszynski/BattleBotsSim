@@ -85,6 +85,23 @@ void RobotOdometry::Update(void)
         }
     }
 
+    // Get Neural
+    // TODO: make this a standard odometry algorithm
+    static int neuralDataID = 0;
+
+    int newNeuralDataID = 0;
+    cv::Point2f neuralPos = CVPosition::GetInstance().GetCenter(&newNeuralDataID);
+    // draw the position on the drawing image
+    cv::circle(RobotController::GetInstance().GetDrawingImage(), neuralPos, 20, cv::Scalar(255, 0, 0), 2);
+
+    // if there's new data, update the neuralDataID
+    if (newNeuralDataID > neuralDataID)
+    {
+        neuralDataID = newNeuralDataID;
+        newDataArrived = true;
+    }
+
+
     // No new data and thus nothing to do
     if (!newDataArrived)
     {
@@ -105,10 +122,6 @@ void RobotOdometry::Update(void)
         _dataOpponent = _dataOpponent_Blob;
     }
 
-    std::vector<int> visualPosition = CVPosition::GetInstance().GetBoundingBox();
-    cv::Point2f visualPos = cv::Point2f(visualPosition[0], visualPosition[1]);
-    // draw the position on the drawing image
-    cv::circle(RobotController::GetInstance().GetDrawingImage(), visualPos, 20, cv::Scalar(255, 0, 0), 2);
 
     // If IMU is running, then use IMU's angle information
     if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
@@ -117,7 +130,36 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
+    
 
+
+    // if neural data is available and far away from the robot
+    if (neuralDataID > 0)
+    {
+        // get the distance from the robot to the neural position
+        float distanceToRobot = cv::norm(neuralPos - _dataRobot.robotPosition);
+
+        // if the distance is greater than 50 pixels
+        if (distanceToRobot > 70)
+        {
+            float distanceToOpponent = cv::norm(neuralPos - _dataOpponent.robotPosition);
+
+            // if (distanceToRobot > distanceToOpponent)
+            // {
+            //     _odometry_Blob.SwitchRobots();
+            //     _odometry_Blob.SetPosition(neuralPos, false);
+            // }
+
+            if (_odometry_Blob.IsRunning())
+            {
+                _odometry_Blob.SetPosition(neuralPos, false);
+            }
+            else if (_odometry_Heuristic.IsRunning())
+            {
+                _odometry_Heuristic.SetPosition(neuralPos, false);
+            }
+        }
+    }
 
     // locker will get unlocked here automatically
 }

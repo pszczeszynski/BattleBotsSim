@@ -38,4 +38,6 @@ private:
     };
 
     OrbitState _orbitState = OrbitState::IDLE;
+
+    double _startingOrbitRadius = 0;
 };

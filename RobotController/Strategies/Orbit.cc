@@ -13,6 +13,10 @@ Orbit::Orbit()
 void Orbit::StartOrbit()
 {
     _orbitState = OrbitState::LARGE_CIRCLE;
+
+    // initialize orbit radius to the distance to the opponent
+    _startingOrbitRadius = cv::norm(RobotController::GetInstance().odometry.Robot().robotPosition -
+                                    RobotController::GetInstance().odometry.Opponent().robotPosition);
 }
 
 void Orbit::StopOrbit()
@@ -65,7 +69,7 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
  * @return The pure pursuit radius
 */
 #define MAX_PURE_PURSUIT_RADIUS_SCALE 3.0
-#define MIN_PURE_PURSUIT_RADIUS_SCALE 0.5
+#define MIN_PURE_PURSUIT_RADIUS_SCALE 1.0
 #define TIME_BETWEEN_RADIUS_UPDATES 0.01
 double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f orbitCenter, double orbitRadius)
 {
@@ -164,9 +168,7 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     // the orbit center is the opponent position
     cv::Point2f orbitCenter = opponentPosEx;
 
-    double orbitRadiusLargeCircle = _CalculateOrbitRadius(orbitCenter, gamepad);
-    // calculate the radius of the orbit. Depending on the state, it could be the large circle radius or the go around radius
-    double orbitRadius = _orbitState != OrbitState::GO_AROUND ? orbitRadiusLargeCircle : GO_AROUND_RADIUS;
+    double orbitRadius = _CalculateOrbitRadius(orbitCenter, gamepad);
 
     // get the angle from us to the center
     cv::Point2f usToCenter = orbitCenter - ourPosition;
@@ -267,8 +269,13 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     return response;
 }
 
+
+// time to grow to the regular orbit radius
+#define SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S 100.0
+
 double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
 {
+    static Clock updateClock;
     // get odometry data
     OdometryData odoData = RobotController::GetInstance().odometry.Robot();
     // our pos + angle
@@ -280,6 +287,15 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
     // scale the radius based on the triggers
     orbitRadius *= 1.0 + gamepad.GetRightTrigger();
     orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
+
+    if (_startingOrbitRadius < orbitRadius)
+    {
+        orbitRadius = _startingOrbitRadius;
+    }
+
+    // move the _startingOrbitRadius towards the orbitRadius
+    _startingOrbitRadius += SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S * updateClock.getElapsedTime();
+    updateClock.markStart();
 
 
     return orbitRadius;

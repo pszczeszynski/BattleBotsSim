@@ -12,8 +12,9 @@ public:
     CVPosition();
     static CVPosition& GetInstance();
 
-    // std::vector<int> ComputeRobotPosition(cv::Mat& fieldImage);
-    std::vector<int> GetBoundingBox();
+    std::vector<int> GetBoundingBox(int* outFrameID = nullptr);
+    cv::Point2f GetCenter(int* outFrameID = nullptr);
+
 private:
     cv::dnn::Net _net;
     cv::Point2f _lastPosition;
@@ -25,9 +26,10 @@ private:
     std::thread workerThread;
 
     std::vector<int> _boundingBox;
-    std::mutex boundingBoxMutex;
+    std::mutex _boundingBoxMutex;
+    std::mutex _frameIdMutex;
 
-    std::vector<int> ComputeRobotPosition();
+    std::vector<int> _ComputeRobotPosition();
 
 
 
@@ -42,4 +44,5 @@ private:
 
     ServerSocket _pythonSocket;
 
+    int _frameId;
 };

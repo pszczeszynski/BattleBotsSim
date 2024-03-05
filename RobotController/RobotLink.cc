@@ -7,6 +7,8 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
 #include "UIWidgets/GraphWidget.h"
+#include "Strategies/DriveToAngleSimulation.h"
+#include "Odometry/OdometryBase.h"
 #include "RobotController.h"
 
 #define USB_RETRY_TIME 50
@@ -396,14 +398,34 @@ RobotLinkSim::RobotLinkSim()
 
 void RobotLinkSim::Drive(DriverStationMessage &msg)
 {
-    // TODO: implement the auto drive in simulation
-    if (msg.type != DRIVE_COMMAND)
+    DriveCommand command;
+
+    if (msg.type == DRIVE_COMMAND)
     {
-        std::cerr << "ERROR: invalid driver station message type for simulation" << std::endl;
-        return;
+        command = msg.driveCommand;
+    }
+    else if (msg.type == AUTO_DRIVE)
+    {
+        OdometryData odometry = RobotController::GetInstance().odometry.Robot();
+        float imu_rotation = odometry.robotAngle;
+        float imu_rotation_velocity = odometry.robotAngleVelocity;
+
+        AutoDrive lastAutoCommand = msg.autoDrive;
+
+        // drive to the target angle
+        command = DriveToAngle(imu_rotation,
+                               imu_rotation_velocity,
+                               lastAutoCommand.targetAngle,
+                               lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
+                               lastAutoCommand.TURN_THRESH_1_DEG,
+                               lastAutoCommand.TURN_THRESH_2_DEG,
+                               lastAutoCommand.MAX_TURN_POWER_PERCENT,
+                               lastAutoCommand.MIN_TURN_POWER_PERCENT,
+                               lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+        
+        command.movement = lastAutoCommand.movement;
     }
 
-    DriveCommand command = msg.driveCommand;
     UnityDriveCommand message = {command.movement, command.turn, (double)command.frontWeaponPower, (double)command.backWeaponPower};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }

@@ -2,7 +2,6 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
-#include "Odometry/BlobDetection/RobotClassifier.h"
 #include "RobotLink.h"
 #include <opencv2/core.hpp>
 #include <algorithm>
@@ -16,7 +15,6 @@
 #include "UIWidgets/KillWidget.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
-#include "CVPosition.h"
 
 int main()
 {
@@ -396,25 +394,21 @@ DriverStationMessage RobotController::RobotLogic()
     DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
-    if (gamepad.GetLeftBumper() && !gamepad.GetRightBumper())
+    if (gamepad.GetLeftStickY() > 0.7)
     {
         _orbiting = true;
         _killing = false; 
     }
-    else if (gamepad.GetRightBumper() && !gamepad.GetLeftBumper())
+    else if (gamepad.GetLeftStickY() < -0.7)
     {
         _killing = true;
         _orbiting = false;
     }
-
-    LEAD_WITH_BAR = gamepad.GetRightStickY() >= 0.0;
-    // if there is any turning on the left stick, disable orbiting and killing
-    if (abs(gamepad.GetLeftStickX()) > 0.1)
+    else
     {
         _killing = false;
         _orbiting = false;
     }
-
 
     static bool _orbitingLast = false;
     // start an orbit if we just started orbiting

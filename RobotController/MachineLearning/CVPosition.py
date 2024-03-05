@@ -8,7 +8,7 @@ import cv2
 SHARED_FILE_NAME = 'cv_pos_img'
 SHAPE = (720, 720)
 PORT = 11116
-SCALE_RATIO = 0.5
+SCALE_RATIO = 1.0
 
 def get_mat(name) -> Optional[np.ndarray]:
     """
@@ -85,7 +85,9 @@ def run_inference(model, img: np.ndarray):
     if len(img.shape) == 2:
         img = np.stack((img, img, img), axis=2)
     
-    results = model.predict(img, device=0)
+    print("image shape: " + str(img.shape))
+    
+    results = model.predict(img)
 
     if not results or len(results) == 0:
         return False, None, None
@@ -93,13 +95,16 @@ def run_inference(model, img: np.ndarray):
     max_conf, bounding_box = 0, np.zeros(4)
 
     
-    for r in results:
-        if len(r.boxes.conf) == 0:
-            return False, None, None
-        if r.boxes.conf.item() > max_conf:
-            max_conf = r.boxes.conf
-            bounding_box = r.boxes.xywh / SCALE_RATIO
-    
+    try:
+        for r in results:
+            if len(r.boxes.conf) == 0:
+                return False, None, None
+            if r.boxes.conf.item() > max_conf:
+                max_conf = r.boxes.conf
+                bounding_box = r.boxes.xywh / SCALE_RATIO
+    except Exception as e:
+        print("Error in run_inference: ", e)
+        return False, None, None
     return True, max_conf, bounding_box
 
 def main():
@@ -111,10 +116,6 @@ def main():
         print("Getting image")
         # 1. get the imge
         img = get_mat(SHARED_FILE_NAME)
-        # imshow
-        # cv2.imshow("Image", img)
-        # wait key
-        # cv2.waitKey(1)
         print("Got image")
         # 2. retry if None
         if img is None:
@@ -122,8 +123,15 @@ def main():
 
         result, max_conf, bounding_box = run_inference(model, img)
 
+        # draw the bounding box
+
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
         if result and max_conf > 0.0:
+            bb = bounding_box.tolist()[0]
+            img = cv2.rectangle(img, (int(bb[0] - bb[2] / 2), int(bb[1] - bb[3] / 2)), (int(bb[0] + bb[2] / 2), int(bb[1] + bb[3] / 2)), (0, 255, 0), 2)
+            cv2.imshow("Bounding Box", img)
+            cv2.waitKey(1)
+
             send_results_to_rc(bounding_box, max_conf.item())
 
 if __name__ == '__main__':

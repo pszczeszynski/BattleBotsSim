@@ -175,7 +175,7 @@ public class Robot_BB_Orbitron : RobotInterface3D
             
             JointMotor motor2 = spinner2.motor;
             motor2.targetVelocity = (float)input.Value.back_weapon_power * SPINNER_SPEED;
-            spinner2.motor = motor1;
+            spinner2.motor = motor2;
         }
 
         _tankDrive.Drive(movement_amount, turn_amount);
