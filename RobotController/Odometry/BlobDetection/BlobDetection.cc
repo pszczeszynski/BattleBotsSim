@@ -244,34 +244,6 @@ bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &prevData)
 
     return !invalidBlob;
 }
-// bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData)
-// {
-//     double blobArea = blobNew.rect.area();
-
-//     // Get previous data. If they dont exist, it will return 0.
-//     double numUpdatesInvalid = prevData.userDataDouble["invalidCount"];
-//     double lastBlobArea = prevData.userDataDouble["blobAarea"];
-
-//     bool invalidBlob = blobArea < lastBlobArea * 0.8 && numUpdatesInvalid < 10;
-
-//     // if the blob is too small and we haven't had too many invalid blobs
-//     if (invalidBlob)
-//     {
-//         // we are invalid, so increment the number of invalid blobs
-//         numUpdatesInvalid++;
-//     }
-//     else
-//     {
-//         // reset the number of invalid blobs
-//         numUpdatesInvalid = 0;
-//         lastBlobArea = blobArea;
-//     }
-
-//     currData.userDataDouble["invalidCount"] = numUpdatesInvalid;
-//     currData.userDataDouble["blobArea"] = lastBlobArea;
-
-//     return !invalidBlob;
-// }
 
 /**
  * @brief our position and velocity using just visual data

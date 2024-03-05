@@ -119,7 +119,9 @@ void RobotOdometry::Update(void)
     // if neural data is available and far away from the robot
     if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
     {
+        cv::Point2f oldVel = _dataRobot.robotVelocity;
         _dataRobot = _dataRobot_Neural;
+        _dataRobot.robotVelocity = oldVel;
         // // get the distance from the robot to the neural position
         // float distanceToRobot = cv::norm(_dataRobot_Neural.robotPosition - _dataRobot.robotPosition);
         // cv::circle(RobotController::GetInstance().GetDrawingImage(), _dataRobot_Neural.robotPosition, 20, cv::Scalar(255, 0, 0), 2);
@@ -345,4 +347,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
 HeuristicOdometry &RobotOdometry::GetHeuristicOdometry()
 {
     return _odometry_Heuristic;
+}
+
+CVPosition &RobotOdometry::GetNeuralOdometry()
+{
+    return _odometry_Neural;
 }

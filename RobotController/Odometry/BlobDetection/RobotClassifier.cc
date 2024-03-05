@@ -12,124 +12,11 @@ RobotClassifier::RobotClassifier(void)
     opponentCalibrationData.diameter = 50;
 }
 
-void visualizeHistogram(const cv::Mat &hist)
-{
-    int hist_w = 512, hist_h = 400;
-    int bin_w = cvRound((double)hist_w / hist.rows);
-    cv::Mat histImage(hist_h, hist_w, CV_8UC3, cv::Scalar(0, 0, 0));
-
-    /// Normalize the result to [ 0, histImage.rows ]
-    cv::normalize(hist, hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat());
-
-    for (int i = 1; i < hist.rows; i++)
-    {
-        cv::line(histImage, cv::Point(bin_w * (i - 1), hist_h - cvRound(hist.at<float>(i - 1))),
-                 cv::Point(bin_w * (i), hist_h - cvRound(hist.at<float>(i))),
-                 cv::Scalar(255, 0, 0), 2, 8, 0);
-    }
-
-    /// Display
-    cv::namedWindow("calcHist Demo", cv::WINDOW_AUTOSIZE);
-    cv::imshow("calcHist Demo", histImage);
-    cv::waitKey(1);
-}
-
-cv::Mat calcHistogram(const cv::Mat &img, const cv::Mat &mask)
-{
-    // The image may be B&W or color. If black and white, use the single channel for all
-    std::vector<cv::Mat> bgr_planes;
-    cv::split(img, bgr_planes);
-
-    int histSize = 256;
-    float range[] = {0, 256}; // the upper boundary is exclusive
-    const float *histRange = {range};
-
-    cv::Mat b_hist, g_hist, r_hist;
-
-    cv::calcHist(&bgr_planes[0], 1, 0, mask, b_hist, 1, &histSize, &histRange);
-
-    if (bgr_planes.size() >= 2)
-    {
-        cv::calcHist(&bgr_planes[1], 1, 0, mask, g_hist, 1, &histSize, &histRange);
-    }
-    else
-    {
-        g_hist = b_hist;
-    }
-
-    if (bgr_planes.size() >= 3)
-    {
-        cv::calcHist(&bgr_planes[2], 1, 0, mask, r_hist, 1, &histSize, &histRange);
-    }
-    else
-    {
-        r_hist = b_hist;
-    }
-
-    cv::Mat hist;
-    cv::vconcat(std::vector<cv::Mat>{b_hist, g_hist, r_hist}, hist);
-
-    return hist;
-}
-
-// returns a number between 0 and 1, where 0 means the histograms are identical
-double compareHistograms(const cv::Mat &hist1, const cv::Mat &hist2)
-{
-    // check if valid to compare
-    if (hist1.rows != hist2.rows || hist1.cols != hist2.cols)
-    {
-        return 0;
-    }
-
-    return cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
-}
-
-cv::Scalar RobotClassifier::GetMeanColorOfBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage)
-{
-    cv::Rect reduced = blob.rect;
-    // reduced.x += reduced.width / 4;
-    // reduced.y += reduced.height / 4;
-    // reduced.width /= 2;
-    // reduced.height /= 2;
-
-    cv::Mat croppedFrame = frame(reduced);
-    cv::Mat croppedMotion = motionImage(reduced);
-    cv::Scalar mean = cv::mean(croppedFrame, croppedMotion);
-    return mean;
-}
-
-void RobotClassifier::RecalibrateRobot(RobotCalibrationData &data, MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage)
-{
-    data.meanColor = GetMeanColorOfBlob(blob, frame, motionImage);
-    data.diameter = (blob.rect.width + blob.rect.height) / 2;
-    data.histogram = calcHistogram(frame(blob.rect), motionImage(blob.rect));
-
-    // fill DRAWING_IMAGE with red at (blob.rect masked with motionimage)
-    cv::Mat redImage = cv::Mat::zeros(frame.size(), CV_8UC3);
-    redImage.setTo(cv::Scalar(0, 0, 255), motionImage);
-    SAFE_DRAW
-    cv::addWeighted(drawingImage, 1, redImage, 0.5, 0, drawingImage);
-    END_SAFE_DRAW
-
-    // visualizeHistogram(data.histogram);
-
-    // if (&data == &robotCalibrationData)
-    // {
-    //     std::cout << "recalibrated robot to color: " << data.meanColor << std::endl;
-    // }
-    // else
-    // {
-    //     std::cout << "recalibrated opponent to color: " << data.meanColor << std::endl;
-    // }
-}
-
-#define HISTOGRAM_WEIGHT 0.0
 #define DISTNACE_WEIGHT 1.0
+
 /**
  * Returns a number that is more negative the more we think the robot is us.
  *
- * What does that look for?
- * Being more blue in the lastFrame
  */
 double RobotClassifier::ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData)
 {
@@ -180,23 +67,65 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
     VisionClassification classificationResult;
 
     static int lastBlobsSize = 0;
+    static int lastNeuralID = -1;
     static Clock noRobotClock;
     static Clock noOpponentClock;
 
     double matchingDistThresholdRobot = MATCHING_DIST_THRESHOLD;
     double matchingDistThresholdOpponent = MATCHING_DIST_THRESHOLD;
 
-    // // if haven't matched the robot for a while, increase the dist threshold for it
-    // if (noRobotClock.getElapsedTime() > 3)
-    // {
-    //     matchingDistThresholdRobot = WIDTH * 3;
-    // }
+    CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
 
-    // // if we haven't matched the opponent in a while, increase the dist threshold for it
-    // if (noOpponentClock.getElapsedTime() > 3)
-    // {
-    //     matchingDistThresholdOpponent = WIDTH * 3;
-    // }
+    // check if the neural network has a new position
+    if (cvPosition.IsRunning() && cvPosition.NewDataValid(lastNeuralID))
+    {
+        lastNeuralID = cvPosition.GetData().id;
+
+        // get the latest position from the neural network
+        cv::Point2f neuralPosition = cvPosition.GetData().robotPosition;
+
+        if (blobs.size() > 0)
+        {
+            // find closest blob to the neural position
+            MotionBlob closest = GetClosestBlobAndRemove(blobs, neuralPosition);
+
+            // if the closest blob is close enough to the neural position
+            if (cv::norm(closest.center - neuralPosition) < matchingDistThresholdRobot)
+            {
+                // set robot
+                classificationResult.SetRobot(closest);
+                noRobotClock.markStart();
+            }
+        }
+
+        // remove any blob within the matching threshold of the neural position
+        for (int i = 0; i < blobs.size(); i++)
+        {
+            if (cv::norm(blobs[i].center - neuralPosition) < matchingDistThresholdRobot)
+            {
+                blobs.erase(blobs.begin() + i);
+                i--;
+            }
+        }
+
+        if (blobs.size() > 0)
+        {
+            // find the closest blob to the opponent
+            MotionBlob closest = GetClosestBlobAndRemove(blobs, opponentData.robotPosition);
+
+            // if close to the opponent
+            if (cv::norm(closest.center - opponentData.robotPosition) < matchingDistThresholdOpponent && 
+                // and far from us
+                cv::norm(closest.center - robotData.robotPosition) > matchingDistThresholdRobot)
+            {
+                // set opponent
+                classificationResult.SetOpponent(closest);
+                noOpponentClock.markStart(); 
+            }
+        }
+
+        return classificationResult;
+    }
 
     // if only one blob
     if (blobs.size() == 1)
@@ -225,7 +154,6 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
                 sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
                 sqrt(blobs[0].rect.area()) <= MAX_ROBOT_BLOB_SIZE)
             {
-                RecalibrateRobot(robotCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetRobot(blobs[0]);
                 noRobotClock.markStart();
             }
@@ -238,7 +166,6 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
                 sqrt(blobs[0].rect.area()) <= MAX_OPPONENT_BLOB_SIZE)
             {
 
-                RecalibrateRobot(opponentCalibrationData, blobs[0], frame, motionImage);
                 classificationResult.SetOpponent(blobs[0]);
                 noRobotClock.markStart();
             }
@@ -260,9 +187,6 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
 
         MotionBlob &robot = preference <= 0 ? filtered[0] : filtered[1];
         MotionBlob &opponent = preference <= 0 ? filtered[1] : filtered[0];
-
-        RecalibrateRobot(robotCalibrationData, robot, frame, motionImage);
-        RecalibrateRobot(opponentCalibrationData, opponent, frame, motionImage);
 
         // if the robot blob is close to the robot tracker
         if (norm(robot.center - robotData.robotPosition) < matchingDistThresholdRobot &&

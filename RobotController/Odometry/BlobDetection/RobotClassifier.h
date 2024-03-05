@@ -25,7 +25,6 @@ public:
 private:
     double ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData);
     void RecalibrateRobot(RobotCalibrationData &data, MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage);
-    cv::Scalar GetMeanColorOfBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage);
 
     RobotCalibrationData robotCalibrationData;
     RobotCalibrationData opponentCalibrationData;

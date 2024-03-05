@@ -6,6 +6,8 @@
 #include "../../CameraReceiver.h"
 #include <nlohmann/json.hpp>
 
+#define VELOCITY_RESET_FRAMES 100
+
 // Function to create shared memory and return a pointer to it
 void *createSharedMemory(std::string name, int size)
 {
@@ -125,8 +127,13 @@ bool CVPosition::Run(void)
 
             // compute velocity
             cv::Point2f velocity = (data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
-            std::cout << "velocity: " << velocity << std::endl;
             lastPos = data.center;
+
+            if (data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES)
+            {
+                // force the velocity to be 0 if the data is too old
+                velocity = cv::Point2f(0, 0);
+            }
 
             _UpdateData(data, velocity);
 

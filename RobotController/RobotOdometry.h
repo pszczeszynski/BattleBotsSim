@@ -51,6 +51,7 @@ public:
     void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );
 
     HeuristicOdometry& GetHeuristicOdometry();
+    CVPosition& GetNeuralOdometry();
     void _AdjustAngleWithArrowKeys();
 
 private:
