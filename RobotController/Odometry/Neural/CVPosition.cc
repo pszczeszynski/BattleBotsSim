@@ -57,97 +57,63 @@ void CVPosition::_InitSharedImage()
     sharedImage = cv::Mat(height, width, type, sharedData);
 }
 
-CVPosition::CVPosition() : _pythonSocket("11116"), _lastData(CVPositionData())
+CVPosition::CVPosition(ICameraReceiver *videoSource) : _pythonSocket("11116"), _lastData(CVPositionData()), OdometryBase(videoSource)
 {
     _InitSharedImage();
 }
 
 // Start the thread
 // Returns false if already running
-bool CVPosition::Run(void)
+void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
 {
-    if (_running)
+    // writ the id to the frame
+    for (int i = 0; i < 4; i++)
     {
-        // Already running, you need to stop existing thread first
-        return false;
+        frame.at<uchar>(0, i) = (frameID >> (8 * i)) & 0xFF;
     }
 
-    // Start the new thread
-    processingThread = std::thread([&]()
-                                   {
-        // Mark we are running
-        _running = true;
+    // the next pixels are the time in milliseconds
+    uint32_t timeMillis = (uint32_t) (frameTime * 1000.0);
 
-        long frameID = -1;
+    // add the time to the frame
+    for (int i = 0; i < 4; i++)
+    {
+        frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
+    }
 
-        ICameraReceiver& camera = ICameraReceiver::GetInstance();
-        long last_id = -1;
-        std::vector<int> boundingBox;
+    // copy to shared memory
+    frame.copyTo(sharedImage);
 
-        cv::Point2f lastPos = cv::Point2f(0, 0);
+    CVPositionData data = _GetDataFromPython();
 
-        while (_running && !_stopWhenAble)
-        {
-            // spin until new frame is ready
-            if (!camera.NewFrameReady(last_id))
-            {
-                continue;
-            }
+    // make sure the data is newer than the last data
+    if (data.frameID <= _lastData.frameID)
+    {
+        return;
+    }
 
-            cv::Mat frame{height, width, CV_8UC1};
+    // compute velocity
+    // If lastpos isn't invalid, set to current position (0 velocity)
+    if( (lastPos.x < 0) || (lastPos.y < 0) )
+    {
+        lastPos = data.center;
+    }
 
-            // get the next frame
-            uint32_t id = camera.GetFrame(frame, last_id);
+    cv::Point2f velocity = (data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
+    lastPos = data.center;
 
-            // writ the id to the frame
-            for (int i = 0; i < 4; i++)
-            {
-                frame.at<uchar>(0, i) = (id >> (8 * i)) & 0xFF;
-            }
+    if (data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES)
+    {
+        // force the velocity to be 0 if the data is too old
+        velocity = cv::Point2f(0, 0);
+    }
 
-            // the next pixels are the time in milliseconds
-            uint32_t timeMillis = (uint32_t) (Clock::programClock.getElapsedTime() * 1000.0);
+    _UpdateData(data, velocity);
 
-            // add the time to the frame
-            for (int i = 0; i < 4; i++)
-            {
-                frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
-            }
-
-            // copy to shared memory
-            frame.copyTo(sharedImage);
-
-            CVPositionData data = _GetDataFromPython();
-
-            // make sure the data is newer than the last data
-            if (data.frameID <= _lastData.frameID)
-            {
-                continue;
-            }
-
-            // compute velocity
-            cv::Point2f velocity = (data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
-            lastPos = data.center;
-
-            if (data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES)
-            {
-                // force the velocity to be 0 if the data is too old
-                velocity = cv::Point2f(0, 0);
-            }
-
-            _UpdateData(data, velocity);
-
-            // copy over the data
-            _lastDataMutex.lock();
-            _lastData = data;
-            _lastDataMutex.unlock();
-        }
-
-        // Exiting thread
-        _running = false;
-        _stopWhenAble = false; });
-
-    return true;
+    // copy over the data
+    _lastDataMutex.lock();
+    _lastData = data;
+    _lastDataMutex.unlock();
 }
 
 void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
@@ -173,6 +139,7 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
 
     // Set our rotation
     _currDataRobot.robotAngleValid = false;
+    
 }
 
 /**

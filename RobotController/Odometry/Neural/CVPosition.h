@@ -17,21 +17,19 @@ struct CVPositionData
 class CVPosition : public OdometryBase
 {
 public:
-    CVPosition();
+    CVPosition(ICameraReceiver *videoSource);
 
     std::vector<int> GetBoundingBox(int* outFrameID = nullptr);
     cv::Point2f GetCenter(int* outFrameID = nullptr);
 
     void SwitchRobots(void) override{}; // Dont do anything for SwitchRobots
-    bool Run(void) override; // Starts the thread(s) to decode data. Returns true if succesful
 
 private:
-    cv::Point2f _lastPosition;
+    void _ProcessNewFrame(cv::Mat frame, double frameTime) override; // Run every time a new frame is available
+    cv::Point2f lastPos = cv::Point2f(-1,-1);
     std::vector<std::string> classes{"orbitron"};
 
     cv::Size modelShape{};
-
-    std::thread workerThread;
 
     CVPositionData _lastData;
     std::mutex _lastDataMutex;
@@ -39,7 +37,6 @@ private:
     CVPositionData _GetDataFromPython();
 
     void _UpdateData(CVPositionData data, cv::Point2f velocity);
-
 
     // shared memory
     std::string memName = "cv_pos_img";

@@ -79,6 +79,7 @@ protected:
     virtual void _StopCalled(){};                                         // Run when stop is initiated
 
     ICameraReceiver *_videoSource = nullptr;
+    long frameID = -1;
 
     // Core thread
     std::thread processingThread; // Main thread of the algorithm

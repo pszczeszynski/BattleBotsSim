@@ -82,7 +82,7 @@ bool OdometryBase::Run(void)
         // Initialize anything that needs initilialization
         _StartCalled();
 
-        long frameID = -1;
+        frameID = -1;
 
         while (_running && !_stopWhenAble)
         {
