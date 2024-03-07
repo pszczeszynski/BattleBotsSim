@@ -5,13 +5,13 @@
 #include "../../ServerSocket.h"
 #include "../Odometrybase.h"
 
-
 struct CVPositionData
 {
     std::vector<int> boundingBox;
     cv::Point2f center;
     uint32_t frameID;
     uint32_t time_millis;
+    bool valid;
 };
 
 class CVPosition : public OdometryBase

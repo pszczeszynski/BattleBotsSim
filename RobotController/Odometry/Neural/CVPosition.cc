@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #define VELOCITY_RESET_FRAMES 100
+#define MIN_CONFIDENCE 0.5
 
 // Function to create shared memory and return a pointer to it
 void *createSharedMemory(std::string name, int size)
@@ -106,6 +107,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     {
         // force the velocity to be 0 if the data is too old
         velocity = cv::Point2f(0, 0);
+        data.valid = false;
     }
 
     _UpdateData(data, velocity);
@@ -124,12 +126,13 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     // Clear curr data
     _currDataRobot.Clear();
     _currDataRobot.isUs = true; // Make sure this is set
-    _currDataRobot.robotPosValid = true;
+    _currDataRobot.robotPosValid = data.valid;
     _currDataRobot.id = data.frameID;             // Set id based on the frame
     _currDataRobot.time = data.time_millis / 1000.0;    // Set to new time
     _currDataRobot.robotPosition = data.center; // Set new position
     _currDataRobot.robotVelocity = velocity;
     
+    std::cout << "adding neural data. Is it valid? " << data.valid << std::endl;
     // compute velocity using the last position
 
 
@@ -182,7 +185,9 @@ CVPositionData CVPosition::_GetDataFromPython()
 
     if (data == "")
     {
-        return _lastData;
+        CVPositionData ret = _lastData;
+        ret.valid = false;
+        return ret;
     }
 
     // parse using json
@@ -214,6 +219,7 @@ CVPositionData CVPosition::_GetDataFromPython()
     ret.frameID = id;
     ret.time_millis = time_milliseconds;
     ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
+    ret.valid = conf >= MIN_CONFIDENCE;
 
     return ret;
 }

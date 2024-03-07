@@ -142,6 +142,12 @@ void RobotOdometry::FuseAndUpdatePositions()
     bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid;
     bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
 
+    // check if the neural net is far away from the candidate, override to neural net if yes
+    double currTimeSeconds = Clock::programClock.getElapsedTime();
+    double ageOfNeural = currTimeSeconds - _dataRobot_Neural.time;
+    // the neural is valid if it isn't too old && it's running
+    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && ageOfNeural < 0.3;
+
     // IF only heuristic is valid, the candidate is the heuristic
     if (heuristicValid && !blobValid)
     {
@@ -156,11 +162,11 @@ void RobotOdometry::FuseAndUpdatePositions()
     else if (heuristicValid && blobValid)
     {
         // if neural net is running and valid, take the one closer to the neural net
-        if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
+        if (neuralValid)
         {
             OdometryData robotNeural = _dataRobot_Neural;
             // extrapolate to current time
-            _dataRobot_Neural.Extrapolate(Clock::programClock.getElapsedTime());
+            robotNeural.Extrapolate(Clock::programClock.getElapsedTime());
             cv::Point2f robotPosNeural = robotNeural.robotPosition;
 
             double distHeuristic = cv::norm(_dataRobot_Heuristic.robotPosition - robotPosNeural);
@@ -178,18 +184,12 @@ void RobotOdometry::FuseAndUpdatePositions()
         }
     }
 
-    // check if the neural net is far away from the candidate, override to neural net if yes
-    double currTimeSeconds = Clock::programClock.getElapsedTime();
-    double ageOfNeural = currTimeSeconds - _dataRobot_Neural.time;
-    // the neural is valid if it isn't too old && it's running
-    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && ageOfNeural < 0.3;
-
     // if the neural net is valid, then check if it is far away from the candidate
-    if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
+    if (neuralValid)
     {
         OdometryData robotNeural = _dataRobot_Neural;
         // extrapolate to current time
-        _dataRobot_Neural.Extrapolate(Clock::programClock.getElapsedTime());
+        robotNeural.Extrapolate(Clock::programClock.getElapsedTime());
         cv::Point2f robotPosNeural = robotNeural.robotPosition;
 
         // compute distance from the current candidate
@@ -474,7 +474,7 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
         return _odometry_IMU.Stop();
 
     case OdometryAlg::Neural:
-        break;
+        return _odometry_Neural.Stop();
     }
 
     return false;
