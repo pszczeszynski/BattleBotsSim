@@ -90,8 +90,8 @@ enum MotorIndexes
 
 // what to multiply the scaled rpm from the package by to get actual rpm
 #define ERPM_FIELD_SCALAR 1000.0
-#define ERPM_TO_RPM (1.0 / 6.0)
-#define RPM_TO_ERPM 6.0
+#define ERPM_TO_RPM (1.0 / 8.0)
+#define RPM_TO_ERPM 8.0
 
 struct CANData
 {

@@ -30,12 +30,14 @@ public:
 
     cv::Mat& GetDrawingImage(); // Returns the image for the overlays
     Gamepad& GetGamepad();
+    Gamepad& GetGamepad2();
 
     Clock visionClock;
     RobotOdometry odometry;
 
     void Run();
     XBox gamepad;
+    XBox gamepad2;
 
 private:
     DriverStationMessage RobotLogic();

@@ -28,6 +28,7 @@ int main()
 
 
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
+                                     gamepad2{1},
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      odometry{overheadCamL_sim},
@@ -134,7 +135,6 @@ void RobotController::Run()
 
     int videoID = -1;
 
-
     // receive until the peer closes the connection
     while (true)
     {
@@ -146,6 +146,7 @@ void RobotController::Run()
 
         // update the gamepad
         gamepad.Update();
+        gamepad2.Update();
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
@@ -172,6 +173,7 @@ void RobotController::Run()
         odometry.Update();
         odometry.DrawAlgorithmData();
 
+
         // run our robot controller loop
         DriverStationMessage response = RobotLogic();
 
@@ -185,6 +187,7 @@ void RobotController::Run()
 
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
+
         _fieldWidget.UpdateMat(drawingImage);
     }
 }
@@ -289,6 +292,11 @@ void drawAndDisplayValue(cv::Mat &image, double value, double xPosition, cv::Sca
 Gamepad& RobotController::GetGamepad()
 {
     return gamepad;
+}
+
+Gamepad& RobotController::GetGamepad2()
+{
+    return gamepad2;
 }
 
 /**

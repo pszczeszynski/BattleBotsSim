@@ -38,7 +38,6 @@ void RobotOdometry::Update(void)
 {
     // ******************************
     // Retrieve new data if available
-
     bool newDataArrived = false;
 
     // Get Blob detection
@@ -107,7 +106,6 @@ void RobotOdometry::Update(void)
 
     // At this time use only a priority set for all inputs
     std::unique_lock<std::mutex> locker(_updateMutex);
-
     FuseAndUpdatePositions();
 
     // If IMU is running, then use IMU's angle information
@@ -126,7 +124,7 @@ void RobotOdometry::Update(void)
 void RobotOdometry::FuseAndUpdatePositions()
 {
     static ICameraReceiver &camera = ICameraReceiver::GetInstance();
-    static long last_id = -1;
+    static long last_id = 0;
     if (camera.NewFrameReady(last_id))
     {
         last_id = camera.GetFrame(trackingMat, last_id);

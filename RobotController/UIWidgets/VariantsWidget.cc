@@ -99,10 +99,24 @@ void VariantsWidget::Draw()
 
     CenterText("Robot Odometry");
 
+    isRunning = odometry.IsRunning(OdometryAlg::Neural);
+
     if (ImGui::Button("Rotation Neural Net"))
     {
         // toggle the rotation network on or off
         ROTATION_NET_ENABLED = !ROTATION_NET_ENABLED;
+    }
+
+    if (isRunning != ROTATION_NET_ENABLED)
+    {
+        if (!ROTATION_NET_ENABLED)
+        {
+            odometry.Stop(OdometryAlg::Neural);
+        }
+        else
+        {
+            odometry.Run(OdometryAlg::Neural);
+        }
     }
 
     ImGui::SameLine();
