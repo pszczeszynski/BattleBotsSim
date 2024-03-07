@@ -101,36 +101,36 @@ void FieldWidget::AdjustFieldCrop()
             preprocess_bl_x += adjustment.x;
             preprocess_bl_y += adjustment.y;
         }
-        else if (IsMouseOver())
-        {
-            // robot tracker calibration
-            // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
-            if (InputState::GetInstance().IsMouseDown(0))
-            {
-                leftClickPoint = currMousePos;
-                // set the robot to the mouse position
-                RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, false);
-            }
+        // else if (IsMouseOver())
+        // {
+        //     // robot tracker calibration
+        //     // if the user left clicks, aren't pressing shift, and are over the image, and not near a corner
+        //     if (InputState::GetInstance().IsMouseDown(0))
+        //     {
+        //         leftClickPoint = currMousePos;
+        //         // set the robot to the mouse position
+        //         RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, false);
+        //     }
 
-            // if the user right clicks
-            if (InputState::GetInstance().IsMouseDown(1))// && input.IsMouseOverImage())
-            {
-                rightClickPoint = currMousePos;
-                // set the opponent to the mouse position
-               RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, true);
-            }
-        }
+        //     // if the user right clicks
+        //     if (InputState::GetInstance().IsMouseDown(1))// && input.IsMouseOverImage())
+        //     {
+        //         rightClickPoint = currMousePos;
+        //         // set the opponent to the mouse position
+        //        RobotController::GetInstance().odometry.UpdateForceSetPosAndVel(currMousePos, cv::Point2f{0, 0}, true);
+        //     }
+        // }
     }
     else if (IsMouseOver()) // else the user is pressing shift
     {
-        // if the user presses the left mouse button with shift
-        if (InputState::GetInstance().IsMouseDown(0))
-        {
-            // set the robot angle
-            cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
-            double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-            RobotController::GetInstance().odometry.UpdateForceSetAngle(newAngle, false);
-        }
+        // // if the user presses the left mouse button with shift
+        // if (InputState::GetInstance().IsMouseDown(0))
+        // {
+        //     // set the robot angle
+        //     cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
+        //     double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
+        //     RobotController::GetInstance().odometry.UpdateForceSetAngle(newAngle, false);
+        // }
     }
 
     // save the last mouse position

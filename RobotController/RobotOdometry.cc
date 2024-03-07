@@ -8,6 +8,8 @@
 #include "RobotConfig.h"
 #include "odometry/Neural/CVPosition.h"
 #include "UIWidgets/GraphWidget.h"
+#include "UIWidgets/ImageWidget.h"
+#include "Globals.h"
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
                                                              _odometry_Blob(&videoSource),
@@ -105,48 +107,7 @@ void RobotOdometry::Update(void)
     // At this time use only a priority set for all inputs
     std::unique_lock<std::mutex> locker(_updateMutex);
 
-    if (_odometry_Heuristic.IsRunning())
-    {
-        _dataRobot = _dataRobot_Heuristic;
-        _dataOpponent = _dataOpponent_Heuristic;
-    }
-    else if (_odometry_Blob.IsRunning())
-    {
-        _dataRobot = _dataRobot_Blob;
-        _dataOpponent = _dataOpponent_Blob;
-    }
-
-    // if neural data is available and far away from the robot
-    if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
-    {
-        cv::Point2f oldVel = _dataRobot.robotVelocity;
-        _dataRobot = _dataRobot_Neural;
-        _dataRobot.robotVelocity = oldVel;
-        // // get the distance from the robot to the neural position
-        // float distanceToRobot = cv::norm(_dataRobot_Neural.robotPosition - _dataRobot.robotPosition);
-        // cv::circle(RobotController::GetInstance().GetDrawingImage(), _dataRobot_Neural.robotPosition, 20, cv::Scalar(255, 0, 0), 2);
-        // // if the distance is greater than 50 pixels
-        // if (distanceToRobot > 70)
-        // {
-        //     float distanceToOpponent = cv::norm(_dataRobot_Neural.robotPosition - _dataOpponent.robotPosition);
-
-        //     // if (distanceToRobot > distanceToOpponent)
-        //     // {
-        //     //     _odometry_Blob.SwitchRobots();
-        //     //     _odometry_Blob.SetPosition(neuralPos, false);
-        //     // }
-
-        //     if (_odometry_Blob.IsRunning())
-        //     {
-        //         _odometry_Blob.SetPosition(_dataRobot_Neural.robotPosition, false);
-        //     }
-        //     else if (_odometry_Heuristic.IsRunning())
-        //     {
-        //         _odometry_Heuristic.SetPosition(_dataRobot_Neural.robotPosition, false);
-        //     }
-        // }
-    }
-
+    FuseAndUpdatePositions();
 
     // If IMU is running, then use IMU's angle information
     if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
@@ -159,6 +120,203 @@ void RobotOdometry::Update(void)
 
 
     // locker will get unlocked here automatically
+}
+
+void RobotOdometry::FuseAndUpdatePositions()
+{
+    static ICameraReceiver &camera = ICameraReceiver::GetInstance();
+    static long last_id = -1;
+    if (camera.NewFrameReady(last_id))
+    {
+        last_id = camera.GetFrame(trackingMat, last_id);
+        // convert to rgb
+        cv::cvtColor(trackingMat, trackingMat, cv::COLOR_GRAY2BGR);
+    }
+
+
+
+
+
+
+    OdometryData* candidateRobot = &_dataRobot_Heuristic;
+
+    bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid;
+    bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
+
+    // IF only heuristic is valid, the candidate is the heuristic
+    if (heuristicValid && !blobValid)
+    {
+        candidateRobot = &_dataRobot_Heuristic;
+    }
+    // IF only blob is valid, the candidate is blob
+    else if (blobValid && !heuristicValid)
+    {
+        candidateRobot = &_dataRobot_Blob;
+    }
+    // IF both are valid
+    else if (heuristicValid && blobValid)
+    {
+        // if neural net is running and valid, take the one closer to the neural net
+        if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
+        {
+            OdometryData robotNeural = _dataRobot_Neural;
+            // extrapolate to current time
+            _dataRobot_Neural.Extrapolate(Clock::programClock.getElapsedTime());
+            cv::Point2f robotPosNeural = robotNeural.robotPosition;
+
+            double distHeuristic = cv::norm(_dataRobot_Heuristic.robotPosition - robotPosNeural);
+            double distBlob = cv::norm(_dataRobot_Blob.robotPosition - robotPosNeural);
+
+            // choose the one closer to the neural net
+            if (distHeuristic < distBlob)
+            {
+                candidateRobot = &_dataRobot_Heuristic;
+            }
+            else
+            {
+                candidateRobot = &_dataRobot_Blob;
+            }
+        }
+    }
+
+    // check if the neural net is far away from the candidate, override to neural net if yes
+    double currTimeSeconds = Clock::programClock.getElapsedTime();
+    double ageOfNeural = currTimeSeconds - _dataRobot_Neural.time;
+    // the neural is valid if it isn't too old && it's running
+    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && ageOfNeural < 0.3;
+
+    // if the neural net is valid, then check if it is far away from the candidate
+    if (_odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid)
+    {
+        OdometryData robotNeural = _dataRobot_Neural;
+        // extrapolate to current time
+        _dataRobot_Neural.Extrapolate(Clock::programClock.getElapsedTime());
+        cv::Point2f robotPosNeural = robotNeural.robotPosition;
+
+        // compute distance from the current candidate
+        double distCandidate = cv::norm(candidateRobot->robotPosition - robotPosNeural);
+
+        // if far away, then use the neural net
+        if (distCandidate > 50)
+        {
+            candidateRobot = &_dataRobot_Neural;
+
+            // call set position on the other two algorithms so we re-lock
+            _odometry_Blob.SetPosition(candidateRobot->robotPosition, false);
+            _odometry_Heuristic.SetPosition(candidateRobot->robotPosition, false);
+        }
+    }
+
+
+    cv::Scalar color = cv::Scalar(0, 255, 0);
+    std::string algorithmName = "None";
+    if (candidateRobot == &_dataRobot_Blob)
+    {
+        // set to blue
+        color = cv::Scalar(0, 0, 255);
+        algorithmName = "Blob";
+    }
+    else if (candidateRobot == &_dataRobot_Heuristic)
+    {
+        // set to yellow - orange
+        color = cv::Scalar(0, 180, 255);
+        algorithmName = "Heuristic";
+    }
+    else if (candidateRobot == &_dataRobot_Neural)
+    {
+        // set to purple
+        color = cv::Scalar(255, 0, 255);
+        algorithmName = "Neural";
+    }
+
+    // put text at top center of the image
+    cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+
+    _dataRobot = *candidateRobot;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //////////////// OPPONENT //////////////////
+    OdometryData* candidateOpponent = &_dataOpponent_Blob;
+
+    heuristicValid = _odometry_Heuristic.IsRunning() && _dataOpponent_Heuristic.robotPosValid;
+    blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
+
+    // IF only heuristic is valid, the candidate is the heuristic
+    if (heuristicValid && !blobValid)
+    {
+        candidateOpponent = &_dataOpponent_Heuristic;
+    }
+    // IF only blob is valid, the candidate is blob
+    else if (blobValid && !heuristicValid)
+    {
+        candidateOpponent = &_dataOpponent_Blob;
+    }
+    // IF both are valid
+    else if (heuristicValid && blobValid)
+    {
+        OdometryData oldOpponent = _dataOpponent;
+        // extrapolate the old opponent to current time
+        oldOpponent.Extrapolate(Clock::programClock.getElapsedTime());
+
+        // choose the one closer to the old opponent
+        double distHeuristic = cv::norm(_dataOpponent_Heuristic.robotPosition - oldOpponent.robotPosition);
+        double distBlob = cv::norm(_dataOpponent_Blob.robotPosition - oldOpponent.robotPosition);
+
+        if (distHeuristic < distBlob)
+        {
+            candidateOpponent = &_dataOpponent_Heuristic;
+        }
+        else
+        {
+            candidateOpponent = &_dataOpponent_Blob;
+        }
+    }
+
+
+    std::string algorithmNameOpponent = "None";
+    cv::Scalar colorOpponent = cv::Scalar(0, 255, 0);
+
+    if (candidateOpponent == &_dataOpponent_Blob)
+    {
+        // set to blue
+        colorOpponent = cv::Scalar(0, 0, 255);
+        algorithmNameOpponent = "Blob";
+    }
+    else if (candidateOpponent == &_dataOpponent_Heuristic)
+    {
+        // set to yellow - orange
+        colorOpponent = cv::Scalar(0, 180, 255);
+        algorithmNameOpponent = "Heuristic";
+    }
+
+    // put text at top center of the image
+    cv::putText(trackingMat, "Opponent using " + algorithmNameOpponent, cv::Point(trackingMat.cols / 2 - 75, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+
+
+    _dataOpponent = *candidateOpponent;   
+
+    int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
+    // draw on the tracking mat a square
+    cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size), _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255), 2);
+
+
+    size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
+
+    // draw a circle for the opponent
+    cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
 }
 
 /**
@@ -338,6 +496,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
         return _odometry_IMU.IsRunning();
 
     case OdometryAlg::Neural:
+        return _odometry_Neural.IsRunning();
+    
+    default:
         break;
     }
 
@@ -352,4 +513,112 @@ HeuristicOdometry &RobotOdometry::GetHeuristicOdometry()
 CVPosition &RobotOdometry::GetNeuralOdometry()
 {
     return _odometry_Neural;
+}
+
+void DrawX(cv::Mat& mat, cv::Point2f pos, cv::Scalar color, int size)
+{
+    cv::line(mat, pos + cv::Point2f(-size, -size), pos + cv::Point2f(size, size), color, 2);
+    cv::line(mat, pos + cv::Point2f(-size, size), pos + cv::Point2f(size, -size), color, 2);
+}
+
+void RobotOdometry::DrawAlgorithmData()
+{
+    // blob is blue
+    cv::Scalar blobColor = cv::Scalar(255, 0, 0);
+
+    // neural is purple
+    cv::Scalar neuralColor = cv::Scalar(255, 0, 255);
+
+    // heursitic is yellow - orange
+    cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
+
+    // go through every odometry algorithm and draw the tracking results
+    if (IsRunning(OdometryAlg::Blob))
+    {
+        OdometryData robot = _odometry_Blob.GetData(false);
+        robot.Extrapolate(Clock::programClock.getElapsedTime());
+        DrawX(trackingMat, robot.robotPosition, blobColor, 20);
+
+        OdometryData opponent = _odometry_Blob.GetData(true);
+        opponent.Extrapolate(Clock::programClock.getElapsedTime());
+
+        cv::circle(trackingMat, opponent.robotPosition, 20, blobColor, 2);
+    }
+
+    if (IsRunning(OdometryAlg::Heuristic))
+    {
+        OdometryData robot = _odometry_Heuristic.GetData(false);
+        robot.Extrapolate(Clock::programClock.getElapsedTime());
+
+        if (robot.robotPosValid)
+        {
+            DrawX(trackingMat, robot.robotPosition, heuristicColor, 20);
+        }
+
+        OdometryData opponent = _odometry_Heuristic.GetData(true);
+        opponent.Extrapolate(Clock::programClock.getElapsedTime());
+
+        if (opponent.robotPosValid)
+        {
+            cv::circle(trackingMat, opponent.robotPosition, 20, heuristicColor, 2);
+        }
+    }
+
+    if (IsRunning(OdometryAlg::Neural))
+    {
+        OdometryData robot = _odometry_Neural.GetData(false);
+        robot.Extrapolate(Clock::programClock.getElapsedTime());
+        if (robot.robotPosValid)
+        {
+            DrawX(trackingMat, robot.robotPosition, neuralColor, 30);
+        }
+    }
+
+
+    // check if mouse is over the image
+    if (trackingImage.IsMouseOver())
+    {
+        // if pressing not pressing shift
+        if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
+        {
+            if (EDITING_BLOB)
+            {
+                if (InputState::GetInstance().IsMouseDown(0))
+                {
+                    _odometry_Blob.SetPosition(trackingImage.GetMousePos(), false);
+                }
+                else if (InputState::GetInstance().IsMouseDown(1))
+                {
+                    _odometry_Blob.SetPosition(trackingImage.GetMousePos(), true);
+                }
+            }
+            if (EDITING_HEU)
+            {
+                if (InputState::GetInstance().IsMouseDown(0))
+                {
+                    _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), false);
+                }
+                else if (InputState::GetInstance().IsMouseDown(1))
+                {
+                    _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), true);
+                }
+            }
+        }
+        // else pressing shift
+        else
+        {
+            // if the user presses the left mouse button with shift
+            if (InputState::GetInstance().IsMouseDown(0))
+            {
+                // set the robot angle
+                cv::Point2f robotPos = Robot().robotPosition;
+                cv::Point2f currMousePos = trackingImage.GetMousePos();
+                double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
+                UpdateForceSetAngle(newAngle, false);
+            }
+        }
+    }
+
+
+    trackingImage.UpdateMat(trackingMat);
 }

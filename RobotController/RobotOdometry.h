@@ -11,6 +11,7 @@
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/Neural/CVPosition.h"
+#include "UIWidgets/ImageWidget.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
 #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
@@ -44,7 +45,11 @@ public:
 
     void Update(); // Updates the odometry based on current data
 
+    void FuseAndUpdatePositions();
+
     void SwitchRobots(); // Switches who's who
+
+    void DrawAlgorithmData();
 
     // used for calibration
     void UpdateForceSetAngle(double newAngle, bool opponentRobot );
@@ -87,4 +92,7 @@ private:
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
+
+    cv::Mat trackingMat{WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
+    ImageWidget trackingImage{"Tracking", trackingMat, false};
 };

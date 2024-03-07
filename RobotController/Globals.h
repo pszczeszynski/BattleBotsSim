@@ -10,8 +10,8 @@
 
 extern bool CAN_DRAW;
 
-extern float frontWeaponCurrRPMPercent;
-extern float backWeaponCurrRPMPercent; 
+extern bool EDITING_HEU;
+extern bool EDITING_BLOB;
 
 extern float playback_speed;
 extern bool playback_play;
