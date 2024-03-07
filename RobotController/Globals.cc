@@ -4,11 +4,14 @@ cv::Mat P_DRAWING_IMAGE = cv::Mat(cv::Mat::zeros(HEIGHT, WIDTH, CV_8UC3));
 
 std::mutex DRAWING_IMAGE_MUTEX;
 
-float frontWeaponCurrRPMPercent = 0;
-float backWeaponCurrRPMPercent = 0;
 float playback_speed = 1.0f;
 bool playback_play = true;
 bool playback_goback = false;
 bool playback_restart = false;
 std::string playback_file = "./Recordings/fight1.avi";
 bool playback_file_changed = true;
+
+
+bool EDITING_HEU = false;
+bool EDITING_BLOB = false;
+

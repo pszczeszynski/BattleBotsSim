@@ -16,11 +16,6 @@ ConfigWidget::ConfigWidget()
 
 void ConfigWidget::Draw()
 {
-    ImGui::Begin("Go To Point Config");
-    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
-    EndSetMaxWidthWithMargin();
-    ImGui::End();
-
     ImGui::Begin("Orbit Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     // button for LEAD_WITH_BAR

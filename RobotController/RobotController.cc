@@ -79,9 +79,6 @@ CANData RobotController::GetCANData()
     ret = _lastCANMessage.canData;
     // unlock the mutex
     _lastCanMessageMutex.unlock();
-
-    frontWeaponCurrRPMPercent = ret.motorERPM[2] / 88.0f;
-    backWeaponCurrRPMPercent = ret.motorERPM[3] / 88.0f;
     // return the data
     return ret;
 }
@@ -173,6 +170,7 @@ void RobotController::Run()
 
         // Update all our odometry data
         odometry.Update();
+        odometry.DrawAlgorithmData();
 
         // run our robot controller loop
         DriverStationMessage response = RobotLogic();
