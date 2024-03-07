@@ -1,5 +1,5 @@
-train: set4_forks_preprocessed/train/images
-val: set4_forks_preprocessed/val/images
+train: set7_orbitron_preprocessed_forks_dim_spinners/train/images
+val: set7_orbitron_preprocessed_forks_dim_spinners/val/images
 
 nc: 1
 names: ["orbitron"]
