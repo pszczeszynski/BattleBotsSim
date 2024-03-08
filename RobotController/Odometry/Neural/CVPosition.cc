@@ -100,6 +100,15 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
         lastPos = data.center;
     }
 
+    if (abs(norm(data.center - lastPos)) > _min_distance_threshold)
+    {
+        _valid_frames_counter = 0;
+    }
+    else
+    {
+        _valid_frames_counter++;
+    }
+
     cv::Point2f velocity = (data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
     lastPos = data.center;
 
@@ -109,6 +118,8 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
         velocity = cv::Point2f(0, 0);
         data.valid = false;
     }
+
+    data.valid = _valid_frames_counter >= 10;
 
     _UpdateData(data, velocity);
 
