@@ -49,4 +49,6 @@ private:
 
     ServerSocket _pythonSocket;
 
+    _valid_frames_counter = 0;
+    _min_distance_threshold = 100;
 };
