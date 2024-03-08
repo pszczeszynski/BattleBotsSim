@@ -13,6 +13,7 @@ public:
     static bool ShowFisheyeImg;
     static bool DoFisheye;
     static bool tuningMode;
+    static bool DrawMask;
 
 private:
 

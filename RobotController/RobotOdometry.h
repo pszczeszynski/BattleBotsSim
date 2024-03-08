@@ -47,6 +47,8 @@ public:
 
     void FuseAndUpdatePositions();
 
+    bool IsTrackingGoodQuality();
+
     void SwitchRobots(); // Switches who's who
 
     void DrawAlgorithmData();

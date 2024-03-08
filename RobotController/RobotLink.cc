@@ -257,7 +257,7 @@ RobotLinkReal::RobotLinkReal()
  * Chooses the best of 3 channels to send on
  * Monitors for dropouts and switches channels if necessary
  */
-int RobotLinkReal::ChooseBestChannel()
+int RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
 {
     if (!_transmitterConnected)
     {
@@ -265,11 +265,18 @@ int RobotLinkReal::ChooseBestChannel()
     }
 
     // draw WARNING if switched
-    if (AUTO_SWITCH_CHANNEL && _lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
+    if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
     {
         cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
         cv::putText(drawingImage, "Switched to Radio " + std::to_string(RADIO_CHANNEL),
                     cv::Point(WIDTH / 2 - 200, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    }
+
+    // return to teensy_channel_1 if self righter is activated since only the center board can control it
+    if (msg.type == DriverStationMessageType::DRIVE_COMMAND && abs(msg.driveCommand.selfRighterPower) > 0)
+    {
+        RADIO_CHANNEL = TEENSY_RADIO_1;
+        _lastRadioSwitchClock.markStart();
     }
 
     // return the current channel if auto switch not enabled or if we have switched too recently
@@ -312,7 +319,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
     static ClockWidget clockWidget{"Send drive command"};
 
     // set the radio channel
-    RADIO_CHANNEL = ChooseBestChannel();
+    RADIO_CHANNEL = ChooseBestChannel(command);
     command.radioChannel = RADIO_CHANNEL;
 
     // if we have sent a packet too recently, return

@@ -123,6 +123,7 @@ void RobotOdometry::Update(void)
 
 void RobotOdometry::FuseAndUpdatePositions()
 {
+    // 1. populate the tracking mat (for display purposes)
     static ICameraReceiver &camera = ICameraReceiver::GetInstance();
     static long last_id = 0;
     if (camera.NewFrameReady(last_id))
@@ -316,6 +317,65 @@ void RobotOdometry::FuseAndUpdatePositions()
 
     // draw a circle for the opponent
     cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
+}
+
+/*
+ * Returns true if the tracking data can be trusted + used for orbit + kill mode
+ * False otherwise.
+ * 
+ * Criteria are:
+ * 1. Good if both blob + heuristic are valid + agree, and neural net isn't running
+ * 2. Good if the current selected robot pos with the neural net + neural net valid + recent
+ * 3. Bad otherwise
+ */
+bool RobotOdometry::IsTrackingGoodQuality()
+{
+    const double AGREEMENT_DIST_THRESH_PX = 50;
+
+    bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid && _dataRobot_Heuristic.GetAge() < 0.3;
+    bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
+    // the neural is valid if it isn't too old && it's running
+    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && _dataRobot_Neural.GetAge() < 0.3;
+
+    // std::cout << "heuristicValid: " << heuristicValid << std::endl;
+    // std::cout << "blobValid: " << blobValid << std::endl;
+    // std::cout << "neuralValid: " << neuralValid << std::endl;
+    // std::cout << "heuristic robot pos valid? " << _dataRobot_Heuristic.robotPosValid << std::endl;
+    // std::cout << "heuristic age: " << _dataRobot_Heuristic.GetAge() << std::endl;
+    // if everybody is crying, return false :(
+    if (!heuristicValid && !blobValid && !neuralValid)
+    {
+        // std::cout << "case 1" << std::endl;
+        return false;
+    }
+
+    // if heuristic and blob valid, but neural net isn't running
+    if (heuristicValid && blobValid && !neuralValid)
+    {
+        double distBetweenRobot = cv::norm(_dataRobot_Heuristic.robotPosition - _dataRobot_Blob.robotPosition);
+        double distBetweenOpponent = cv::norm(_dataOpponent_Heuristic.robotPosition - _dataOpponent_Blob.robotPosition);
+
+        // std::cout << "distBetweenRobot: " << distBetweenRobot << std::endl;
+        // std::cout << "distBetweenOpponent: " << distBetweenOpponent << std::endl;
+        // return true if they agree, false otherwise
+        return distBetweenRobot < AGREEMENT_DIST_THRESH_PX && distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
+    }
+
+    // if the neural net is running and predicting
+    if (neuralValid)
+    {
+        // check for agreement with neural net + agreement between the other two algorithms for the opponent
+        double distToRobot = cv::norm(_dataRobot.robotPosition - _dataRobot_Neural.robotPosition);
+        double distBetweenOpponent = cv::norm(_dataOpponent_Heuristic.robotPosition - _dataOpponent_Blob.robotPosition);
+        // std::cout << "distToRobot: " << distToRobot << std::endl;
+        // std::cout << "distBetweenOpponent: " << distBetweenOpponent << std::endl;
+
+        return distToRobot < AGREEMENT_DIST_THRESH_PX && distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
+    }
+
+    // std::cout << "default case" << std::endl;
+    // otherwise return false, since we don't have enough confidence
+    return false;
 }
 
 /**

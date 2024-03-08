@@ -71,7 +71,7 @@ public:
     ~RobotLinkReal();
 
 private:
-    int ChooseBestChannel();
+    int ChooseBestChannel(DriverStationMessage& command);
 
     std::thread _radioThread;
 

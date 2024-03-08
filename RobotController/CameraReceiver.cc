@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "Input/InputState.h"
 #include "VisionPreprocessor.h"
+#include "UIWidgets/FieldWidget.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -325,6 +326,10 @@ bool CameraReceiver::_CaptureFrame()
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(bayerImage, finalImage);
 
+    // apply mask
+    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    finalImage = finalImage(mask);
+
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
 
@@ -431,6 +436,10 @@ bool CameraReceiverSim::_CaptureFrame()
     // Apply processing to it
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(captured, finalImage);
+
+    // apply mask
+    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
@@ -551,7 +560,11 @@ bool CameraReceiverVideo::_CaptureFrame()
     // Apply processing to it
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
-    
+
+    // apply mask
+    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+
     std::unique_lock<std::mutex> locker(_frameMutex);
 
     // Copy it over

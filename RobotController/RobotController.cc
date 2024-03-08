@@ -188,6 +188,10 @@ void RobotController::Run()
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();
 
+        // Allow the user to mask out areas of the image.
+        // They will be set to black when you get a frame from a camera
+        _fieldWidget.MaskOutRegions();
+
         _fieldWidget.UpdateMat(drawingImage);
     }
 }
@@ -399,7 +403,7 @@ DriverStationMessage RobotController::RobotLogic()
 
     // start with just manual control
     DriverStationMessage ret = ManualMode();
-    float originalMovement = ret.driveCommand.movement;
+    DriverStationMessage manual = ret;
     DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
@@ -461,7 +465,9 @@ DriverStationMessage RobotController::RobotLogic()
 
     if (ret.type == AUTO_DRIVE)
     {
-        ret.autoDrive.movement = originalMovement;
+        ret.autoDrive.movement = manual.driveCommand.movement;
+        ret.autoDrive.frontWeaponPower = (unsigned char) std::max(std::min(manual.driveCommand.frontWeaponPower, 1.0), 0.0) * 255.0;
+        ret.autoDrive.backWeaponPower = (unsigned char) std::max(std::min(manual.driveCommand.backWeaponPower, 1.0), 0.0) * 255.0;
     }
 
     // return the response
@@ -528,6 +534,13 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
     }
 }
 
+/**
+ * Draws status indicators for each critical part of the robot. This includes:
+ * 1. Radio connection (only if transmitter working)
+ * 2. Transmitter is connected
+ * 3. Gamepad1 is connected
+ * 4. Gamepad2 is connected
+*/
 void RobotController::DrawStatusIndicators()
 {
     // get the latest can datax
@@ -581,5 +594,45 @@ void RobotController::DrawStatusIndicators()
     }
 
     cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
-    cv::putText(drawingImage, "GP", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+    cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+
+    // check if gamepad2 is connected
+
+    bool gamepad2Connected = gamepad2.IsConnected();
+
+    if (gamepad2Connected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
+    cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
+
+
+
+
+
+
+
+    std::string trackText = "";
+    // tracking status indicator
+    if (odometry.IsTrackingGoodQuality())
+    {
+        color = cv::Scalar(0, 255, 0);
+        trackText = "GOOD TRACK";
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+        trackText = "MID TRACK";
+    }
+
+    cv::putText(drawingImage, trackText, cv::Point2f(WIDTH / 2 - 100, HEIGHT * 0.9), 1, 2, color, 3);
 }

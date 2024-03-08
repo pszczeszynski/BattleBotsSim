@@ -48,6 +48,14 @@ void OdometryData::Extrapolate(double newtime)
     time = newtime;
 }
 
+/**
+ * Returns the age of this data in seconds
+*/
+double OdometryData::GetAge()
+{
+    return ClockWidget::programClock.getElapsedTime() - time;
+}
+
 // ***********************************************
 // ************ Odometry Base ********************
 // ***********************************************

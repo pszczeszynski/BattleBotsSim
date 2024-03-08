@@ -47,6 +47,7 @@ public:
     void Clear(); // Clears all position and user data to invalid;
 
     void Extrapolate(double newtime); // Extrapolates position and anlge into newtime future
+    double GetAge(); // returns the age of this data in seconds
 };
 
 // ***********************

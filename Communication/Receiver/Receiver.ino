@@ -426,6 +426,9 @@ void DriveWithLatestMessage()
 
         // apply the movement from the last drive command
         command.movement = lastMessage.driveCommand.movement;
+        // scale the front and back weapon powers by 255.0 since they are unsigned chars
+        command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPower / 255.0;
+        command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower / 255.0;
 
 #ifdef DEBUG_AUTO
         Serial.println("imu rotation: " + (String)imu.getRotation());
@@ -452,7 +455,7 @@ void DriveWithLatestMessage()
         // drive the robot using the imu
         Drive(command);
         // still drive the weapons with the last drive command
-        DriveWeapons(lastMessage.driveCommand);
+        DriveWeapons(command);
 
         // set status led for autonomous drive
         digitalWrite(STATUS_3_LED_PIN, HIGH);
