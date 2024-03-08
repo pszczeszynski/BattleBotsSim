@@ -50,6 +50,9 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
 #else
     std::cout << "Running in real robot mode" << std::endl;
 #endif
+
+    // memset last can message
+    memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
 }
 
 RobotController &RobotController::GetInstance()
@@ -85,6 +88,7 @@ CANData RobotController::GetCANData()
 }
 
 #define SAVE_VIDEO
+long loopCount = 0;
 
 void RobotController::Run()
 {
@@ -118,26 +122,31 @@ void RobotController::Run()
 
     std::cout << "Starting GUI threads..." << std::endl;
 
-    // Initialize GUI on main thread:    
+    // Initialize GUI on main thread:
     // run the gui in a separate thread
-    std::thread guiThread = std::thread([]() {
-        RobotControllerGUI::GetInstance();
+    std::thread guiThread = std::thread([]()
+                                        {
+            std::cout << "STARTING GUI" << std::endl;
+        
+            RobotControllerGUI::GetInstance();
 
-        while (true)
-        {
-            // update the gui
-            RobotControllerGUI::GetInstance().Update();
-        }
-    });
+            while (true)
+            {
+                // update the gui
+                RobotControllerGUI::GetInstance().Update();
+            } });
 
     ClockWidget loopClock("Total loop time");
     cv::Mat zeroArray;
 
     int videoID = -1;
 
+
     // receive until the peer closes the connection
     while (true)
     {
+        loopCount ++;
+
         loopClock.markEnd();
         loopClock.markStart();
 
@@ -150,7 +159,6 @@ void RobotController::Run()
 
         // receive the latest message
         RobotMessage msg = robotLink.Receive();
-
         // save the specific type information in a last struct
         if (msg.type == RobotMessageType::IMU_DATA)
         {
@@ -466,8 +474,8 @@ DriverStationMessage RobotController::RobotLogic()
     if (ret.type == AUTO_DRIVE)
     {
         ret.autoDrive.movement = manual.driveCommand.movement;
-        ret.autoDrive.frontWeaponPower = (unsigned char) std::max(std::min(manual.driveCommand.frontWeaponPower, 1.0), 0.0) * 255.0;
-        ret.autoDrive.backWeaponPower = (unsigned char) std::max(std::min(manual.driveCommand.backWeaponPower, 1.0), 0.0) * 255.0;
+        ret.autoDrive.frontWeaponPower = manual.driveCommand.frontWeaponPower;
+        ret.autoDrive.backWeaponPower = manual.driveCommand.backWeaponPower;
     }
 
     // return the response
@@ -531,6 +539,9 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
         {
             autoDrive.invertTurn = true;
         }
+
+        autoDrive.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
+        autoDrive.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
     }
 }
 

@@ -53,9 +53,9 @@ struct Point
 };
 
 // defines the radio channel indexes for each teensy
-#define TEENSY_RADIO_1 60
-#define TEENSY_RADIO_2 50
-#define TEENSY_RADIO_3 64
+#define TEENSY_RADIO_1 52
+#define TEENSY_RADIO_2 47
+#define TEENSY_RADIO_3 57
 
 // disable padding
 #pragma pack(push, 1)
@@ -99,6 +99,7 @@ struct CANData
     unsigned char motorVoltage[4];
     unsigned char motorERPM[4];
     unsigned char escFETTemp[4];
+    unsigned char motorTemp[4];
 };
 
 struct RadioData
@@ -141,8 +142,8 @@ struct AutoDrive
     short MIN_TURN_POWER_PERCENT;
     short SCALE_DOWN_MOVEMENT_PERCENT;
     bool invertTurn;
-    unsigned char frontWeaponPower;
-    unsigned char backWeaponPower;
+    short frontWeaponPower;
+    short backWeaponPower;
 };
 
 // driver station -> robot

@@ -24,22 +24,46 @@ void DrawCANDataTable()
 
     ImGui::PopStyleVar(2);
 
-    const char* rowLabels[] = { "L Drive", "R Drive", "F Weapon", "B Weapon" };
+    const char *rowLabels[] = {"L Drive", "R Drive", "F Weapon", "B Weapon"};
 
-    if (ImGui::BeginTable("table1", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
+    if (ImGui::BeginTable("table1", 6, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
     {
         // add column headers
         ImGui::TableSetupColumn("");
         ImGui::TableSetupColumn("Voltage");
         ImGui::TableSetupColumn("Current");
         ImGui::TableSetupColumn("ESC Temperature");
+        ImGui::TableSetupColumn("Motor Temperature");
         ImGui::TableSetupColumn("RPM");
         ImGui::TableHeadersRow();
 
         for (int i = 0; i < 4; i++)
         {
             ImGui::TableNextRow();
-            // Set the row label
+            // Check conditions for changing row color
+            // bool setRed = data.motorTemp[i] == 0 || data.escFETTemp[i] > 80 || data.motorTemp[i] > 90;
+
+            if (data.motorTemp[i] == 0)
+            {
+                // don't set color
+            }
+            else if (data.escFETTemp[i] > 80 || data.motorTemp[i] > 90 || data.motorVoltage[i] <= 57)
+            {
+                // Set row color to red
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 0, 0, 255));
+            }
+            else if (data.escFETTemp[i] > 50 || data.motorTemp[i] > 60)
+            {
+                // Set row color to yellow
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 0, 255));
+            }
+            else
+            {
+                // Set row color to green
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0, 150, 0, 255));
+            }
+
+            // Your existing code to set row data
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%s", rowLabels[i]);
             ImGui::Separator();
@@ -57,6 +81,10 @@ void DrawCANDataTable()
             ImGui::Separator();
 
             ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%d °C", static_cast<int>(data.motorTemp[i]));
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(5);
             ImGui::Text("%d RPM", (int)(static_cast<int>(data.motorERPM[i]) * ((int)ERPM_FIELD_SCALAR) * ERPM_TO_RPM));
             ImGui::Separator();
         }

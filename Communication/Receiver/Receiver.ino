@@ -129,6 +129,7 @@ void Drive(DriveCommand &command)
  */
 void DriveWeapons(DriveCommand &command)
 {
+    // Serial.println("Driving weapons with powers: " + String(command.frontWeaponPower) + ", " + String(command.backWeaponPower));
     // set status led
     digitalWrite(STATUS_2_LED_PIN, HIGH);
 
@@ -177,6 +178,7 @@ RobotMessage Update()
         vesc.GetVolts(ret.canData.motorVoltage);
         vesc.GetRPMs(ret.canData.motorERPM);
         vesc.GetFETTemps(ret.canData.escFETTemp);
+        vesc.GetMotorTemps(ret.canData.motorTemp);
     }
     // send radio data
     else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 2)
@@ -288,6 +290,7 @@ void DriveWithLatestMessage()
                 command.backWeaponPower > 1000 || command.backWeaponPower < -1000 ||
                 command.selfRighterPower > 1.1 || command.selfRighterPower < -1.1)
             {
+                Serial.println("invalid case 1");
                 msg.valid = false;
             }
 
@@ -296,6 +299,7 @@ void DriveWithLatestMessage()
                 isnan(command.frontWeaponPower) || isnan(command.backWeaponPower) ||
                 isnan(command.selfRighterPower))
             {
+                Serial.println("invalid case 2 (NAN)");
                 msg.valid = false;
             }
         }
@@ -313,6 +317,7 @@ void DriveWithLatestMessage()
                 msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT < 0 || msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT > 100)
             {
                 msg.valid = false;
+                Serial.println("invalid case 1 (AUTO DRIVE)");
             }
 
             // check for nan
@@ -322,11 +327,14 @@ void DriveWithLatestMessage()
                 isnan(msg.autoDrive.MIN_TURN_POWER_PERCENT) || isnan(msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT))
             {
                 msg.valid = false;
+                Serial.println("invalid case 2 (AUTO DRIVE)");
             }
         }
         // otherwise, the message is invalid
         else
         {
+            Serial.println("invalid case 3 invalid type");
+
             msg.valid = false;
         }
 
@@ -426,9 +434,8 @@ void DriveWithLatestMessage()
 
         // apply the movement from the last drive command
         command.movement = lastMessage.driveCommand.movement;
-        // scale the front and back weapon powers by 255.0 since they are unsigned chars
-        command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPower / 255.0;
-        command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower / 255.0;
+        command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPower;
+        command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower;
 
 #ifdef DEBUG_AUTO
         Serial.println("imu rotation: " + (String)imu.getRotation());

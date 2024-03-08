@@ -139,6 +139,8 @@ ClockWidget receiveThreadLoopTime("Receive thread loop time");
 #ifndef SIMULATION
 RobotLinkReal::RobotLinkReal()
 {
+    // init last can message
+    memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
     _radioThread = std::thread([this]()
                                {
 
