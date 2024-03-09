@@ -5,9 +5,9 @@
 #include "../../UIWidgets/ClockWidget.h"
 #include "../../CameraReceiver.h"
 #include <nlohmann/json.hpp>
+#include "../../RobotConfig.h"
 
 #define VELOCITY_RESET_FRAMES 100
-#define MIN_CONFIDENCE 0.5
 
 // Function to create shared memory and return a pointer to it
 void *createSharedMemory(std::string name, int size)
@@ -119,7 +119,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
         data.valid = false;
     }
 
-    data.valid = _valid_frames_counter >= 10;
+    data.valid = data.valid && _valid_frames_counter >= 10;
 
     _UpdateData(data, velocity);
 
@@ -143,7 +143,6 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataRobot.robotPosition = data.center; // Set new position
     _currDataRobot.robotVelocity = velocity;
     
-    std::cout << "adding neural data. Is it valid? " << data.valid << std::endl;
     // compute velocity using the last position
 
 
@@ -230,7 +229,8 @@ CVPositionData CVPosition::_GetDataFromPython()
     ret.frameID = id;
     ret.time_millis = time_milliseconds;
     ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
-    ret.valid = conf >= MIN_CONFIDENCE;
+    std::cout << "conf: " << conf << std::endl;
+    ret.valid = conf >= NN_MIN_CONFIDENCE;
 
     return ret;
 }

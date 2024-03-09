@@ -81,6 +81,7 @@ extern float HEU_LEFTSTART_X;
 extern float HEU_LEFTSTART_Y;
 extern float HEU_RIGHTSTART_X;
 extern float HEU_RIGHTSTART_Y;
+extern float NN_MIN_CONFIDENCE;
 
 
 template <typename T>

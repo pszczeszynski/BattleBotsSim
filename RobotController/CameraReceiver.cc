@@ -160,46 +160,46 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         pCam->TriggerMode.SetValue(Spinnaker::TriggerMode_Off);
 
         // Turn off sequencer
-        pCam->SequencerConfigurationMode.SetValue(Spinnaker::SequencerConfigurationMode_Off);
-        pCam->SequencerFeatureEnable.SetValue(false);
+        // pCam->SequencerConfigurationMode.SetValue(Spinnaker::SequencerConfigurationMode_Off);
+        // pCam->SequencerFeatureEnable.SetValue(false);
         // pCam->SequencerMode.SetValue( SequencerModeEnums::SequencerMode_Off);
 
         // ******** Image Settings ***************
         // Reducing image size saves bandwidth for faster refresh rate
         // We need to reset offsets first before changing this
-        pCam->OffsetX.SetValue(0);
-        pCam->OffsetY.SetValue(0);
+        // pCam->OffsetX.SetValue(0);
+        // pCam->OffsetY.SetValue(0);
 
         // Now setting width/height should cause issues
         int my_width = 1440;
         int my_height = 600;
 
-        try
-        {
-            pCam->Width.SetValue(my_width);   // Max 1440 for this camera
-            pCam->Height.SetValue(my_height); // Max 1080 for this camera
-        }
-        catch (Spinnaker::Exception &e)
-        {
-            std::cout << "Error: " << e.what() << std::endl;
-            return -1;
-        }
+        // try
+        // {
+        //     pCam->Width.SetValue(my_width);   // Max 1440 for this camera
+        //     pCam->Height.SetValue(my_height); // Max 1080 for this camera
+        // }
+        // catch (Spinnaker::Exception &e)
+        // {
+        //     std::cout << "Error: " << e.what() << std::endl;
+        //     return -1;
+        // }
 
-        pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
-        pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
+        // pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
+        // pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
 
         // pCam->IspEnable.SetValue(false);                         // Turn off image processing
-        pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
+        // pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
 
         // ******* Output Data Settings *******
 
-        pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_Mono8); // Only some of the formats work, this is one of them and is fast.
+        // pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_Mono8); // Only some of the formats work, this is one of them and is fast.
 
         // Compression may be useful, but not tested for delay
         // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
 
         // Set Acquisition to continouse
-        pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
+        // pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
 
         //
         // Make it always return latest image (This option is not available via the easy access mode)
@@ -328,7 +328,7 @@ bool CameraReceiver::_CaptureFrame()
 
     // apply mask
     cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
-    finalImage = finalImage(mask);
+    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);

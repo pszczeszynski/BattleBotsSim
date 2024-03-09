@@ -101,7 +101,7 @@ void VariantsWidget::Draw()
 
     isRunning = odometry.IsRunning(OdometryAlg::Neural);
 
-    if (ImGui::Button("Rotation Neural Net"))
+    if (ImGui::Button("Position Neural Net"))
     {
         // toggle the rotation network on or off
         ROTATION_NET_ENABLED = !ROTATION_NET_ENABLED;
@@ -121,6 +121,9 @@ void VariantsWidget::Draw()
 
     ImGui::SameLine();
     ImGui::Text(ROTATION_NET_ENABLED ? "ENABLED" : "DISABLED");
+
+    // slider for min confidence
+    ImGui::SliderFloat("Min Confidence", &NN_MIN_CONFIDENCE, 0.0f, 1.0f);
 
     ImGui::Spacing();
 

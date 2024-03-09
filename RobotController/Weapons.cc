@@ -23,13 +23,13 @@ float Weapons::GetBackWeaponTargetPower()
 
 float Weapons::GetFrontWeaponRPM()
 {
-    CANData lastCANData = RobotController::GetInstance().GetCANData();
+    CANData lastCANData = RobotController::GetInstance().GetRobotLink().GetLastCANMessage().canData;
     return lastCANData.motorERPM[2] * ERPM_FIELD_SCALAR * ERPM_TO_RPM;
 }
 
 float Weapons::GetBackWeaponRPM()
 {
-    CANData lastCANData = RobotController::GetInstance().GetCANData();
+    CANData lastCANData = RobotController::GetInstance().GetRobotLink().GetLastCANMessage().canData;
     return lastCANData.motorERPM[3] * ERPM_FIELD_SCALAR * ERPM_TO_RPM;
 }
 

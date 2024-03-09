@@ -14,9 +14,12 @@ void Orbit::StartOrbit()
 {
     _orbitState = OrbitState::LARGE_CIRCLE;
 
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+    opponentData.Extrapolate(ClockWidget::programClock.getElapsedTime() + OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0);
+
     // initialize orbit radius to the distance to the opponent
     _startingOrbitRadius = cv::norm(RobotController::GetInstance().odometry.Robot().robotPosition -
-                                    RobotController::GetInstance().odometry.Opponent().robotPosition);
+                                    opponentData.robotPosition);
 }
 
 void Orbit::StopOrbit()
@@ -38,7 +41,6 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     currentState.position = odoData.robotPosition;
     currentState.angle = odoData.robotAngle;
     currentState.velocity = odoData.robotVelocity;
-    double angleExtrapolate = KILL_ANGLE_EXTRAPOLATE_MS;
     currentState.angularVelocity = odoData.robotAngleVelocity * seconds_angle / seconds_position;
 
     // predict where the robot will be in a couple milliseconds
@@ -257,6 +259,22 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
                                               MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT,
                                               SCALE_DOWN_MOVEMENT_PERCENT_ORBIT,
                                               direction);
+
+    // compute absolute angle
+    double deltaAngle = angle_wrap(atan2(targetPoint.y - exState.position.y, targetPoint.x - exState.position.x) - ourAngle);
+
+    if (circleDirection)
+    {
+        deltaAngle *= -1;
+    }
+
+    if (distToCenter < orbitRadius && deltaAngle > TO_RAD * 40)
+    {
+        // PROHIB TURNING
+        response.autoDrive.MAX_TURN_POWER_PERCENT = 0;
+        response.autoDrive.MIN_TURN_POWER_PERCENT = 0;
+        response.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT = 0;
+    }
 
     // // if on inside of circle and pointed outwards
     // if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
