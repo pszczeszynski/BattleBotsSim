@@ -74,7 +74,10 @@ def run_inference(model, img: np.ndarray):
     if len(img.shape) == 2:
         img = np.stack((img, img, img), axis=2)
     
-    results = model.predict(img, device=0)[0]
+    try:
+        results = model.predict(img, device=0)[0]
+    except:
+        return False, None, None
 
     if not results or len(results) == 0 or len(results.boxes.conf) == 0:
         return False, None, None
