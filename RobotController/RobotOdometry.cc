@@ -131,8 +131,6 @@ void RobotOdometry::FuseAndUpdatePositions()
         camera.GetFrame(trackingMat, last_id);
         // convert to rgb
         cv::cvtColor(trackingMat, trackingMat, cv::COLOR_GRAY2BGR);
-
-        std::cout << "got frame" << std::endl;
     }
 
 
