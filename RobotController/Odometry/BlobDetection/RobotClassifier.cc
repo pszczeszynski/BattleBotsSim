@@ -77,7 +77,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
     CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
 
     // check if the neural network has a new position
-    if (cvPosition.IsRunning() && cvPosition.NewDataValid(lastNeuralID))
+    if (cvPosition.IsRunning() && cvPosition.NewDataValid(lastNeuralID) && cvPosition.GetData().GetAge() < 0.3)
     {
         lastNeuralID = cvPosition.GetData().id;
 

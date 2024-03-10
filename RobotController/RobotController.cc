@@ -87,6 +87,28 @@ CANData RobotController::GetCANData()
     return ret;
 }
 
+void ClickOnHeuristic()
+{
+    if (FieldWidget::GetInstance() == nullptr)
+    {
+        return;
+    }
+
+    if (InputState::GetInstance().IsMouseDown(0) && FieldWidget::GetInstance()->IsMouseOver())
+    {
+        FieldWidget::leftClickPoint = FieldWidget::GetInstance()->GetMousePos();
+        HEU_LEFTSTART_X = FieldWidget::leftClickPoint.x;
+        HEU_LEFTSTART_Y = FieldWidget::leftClickPoint.y;
+    }
+
+    if (InputState::GetInstance().IsMouseDown(1) && FieldWidget::GetInstance()->IsMouseOver())
+    {
+        FieldWidget::rightClickPoint = FieldWidget::GetInstance()->GetMousePos();
+        HEU_RIGHTSTART_X = FieldWidget::rightClickPoint.x;
+        HEU_RIGHTSTART_Y = FieldWidget::rightClickPoint.y;
+    }
+}
+
 #define SAVE_VIDEO
 long loopCount = 0;
 
@@ -192,6 +214,8 @@ void RobotController::Run()
         robotLink.Drive(response);
 
         DrawStatusIndicators();
+
+        ClickOnHeuristic();
 
         // update the mat + allow the user to adjust the crop of the field
         _fieldWidget.AdjustFieldCrop();

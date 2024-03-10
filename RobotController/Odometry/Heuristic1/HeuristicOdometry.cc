@@ -22,6 +22,7 @@
 #include "../../MathUtils.h"
 #include "../../RobotConfig.h"
 #include "HeuristicOdometry.h"
+#include "../../UIWidgets/ImageWidget.h"
 
 // ****************************************
 // CameraDecoder
@@ -188,6 +189,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     markTime("Heal bg: ");
 
+    // static ImageWidget background{"Background", currBackground, false};
     if (show_bg_mat)
     {
         _imshow("background", currBackground);

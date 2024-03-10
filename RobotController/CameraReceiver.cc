@@ -307,6 +307,15 @@ bool CameraReceiver::_InitializeCamera()
     return true;
 }
 
+void CameraReceiver::SetCameraGain(float gain)
+{
+    if (pCam == nullptr)
+    {
+        return;
+    }
+    pCam->Gain.SetValue(gain); // Set gain in dB (between 0 and 47.99)
+}
+
 
 bool CameraReceiver::_CaptureFrame()
 {
@@ -560,15 +569,23 @@ bool CameraReceiverVideo::_CaptureFrame()
     // Apply processing to it
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+    std::cout << "size: " << finalImage.size() << std::endl;
+
+    // convert to gray if it is not
+    if (_rawFrame.channels() == 3)
+    {
+        cv::cvtColor(finalImage, finalImage, cv::COLOR_BGR2GRAY);
+    }
 
     // apply mask
-    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    // cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    // finalImage.setTo(cv::Scalar(0, 0, 0), mask);
 
     std::unique_lock<std::mutex> locker(_frameMutex);
 
     // Copy it over
-    finalImage.copyTo(_frame);
+    _rawFrame.copyTo(_frame);
+    std::cout << "frame size: " << _frame.size() << std::endl;
 
     // increase _frameID
     _frameID++;

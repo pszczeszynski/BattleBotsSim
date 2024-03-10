@@ -8,10 +8,10 @@ float playback_speed = 1.0f;
 bool playback_play = true;
 bool playback_goback = false;
 bool playback_restart = false;
-std::string playback_file = "./Recordings/fight1.avi";
+std::string playback_file = "./Recordings/OrbitronVsDisarray.avi";
 bool playback_file_changed = true;
 
 
-bool EDITING_HEU = false;
-bool EDITING_BLOB = false;
+bool EDITING_HEU = true;
+bool EDITING_BLOB = true;
 

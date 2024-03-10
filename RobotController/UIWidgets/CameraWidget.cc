@@ -4,6 +4,7 @@
 #include "../RobotConfig.h"
 #include "../Globals.h"
 #include "FieldWidget.h"
+#include "../RobotController.h"
 
 bool CameraWidget::LockCamera = true;
 bool CameraWidget::ShowFisheyeImg = false;
@@ -16,6 +17,7 @@ bool CameraWidget::DrawMask = false;
 */
 void CameraWidget::Draw()
 {
+    static float LAST_CAMERA_GAIN = CAMERA_GAIN;
     ImGui::Begin("Camera");
 
     ImGui::Checkbox("Lock Camera", &LockCamera);
@@ -57,6 +59,15 @@ void CameraWidget::Draw()
         if (ImGui::Button("Clear Mask"))
         {
             FieldWidget::GetInstance()->ClearMask();
+        }
+
+        ImGui::SliderFloat("Camera GAIN", &CAMERA_GAIN, 0, 40.0);
+
+        if (abs(LAST_CAMERA_GAIN - CAMERA_GAIN) > 0.001)
+        {
+            ((CameraReceiver*) &ICameraReceiver::GetInstance())->SetCameraGain(CAMERA_GAIN);
+            LAST_CAMERA_GAIN = CAMERA_GAIN;
+            std::cout << "Camera GAIN: " << CAMERA_GAIN << std::endl;
         }
     }
 

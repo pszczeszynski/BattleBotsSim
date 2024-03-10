@@ -20,6 +20,8 @@ public:
     cv::Point2f GetMousePos();
     bool IsMouseOver();
     void UpdateMat(cv::Mat& image);
+    void UpdateMatScaled(cv::Mat& image, double scale);
+
     void AddAdditionalUI(std::function<void()> func);
 
 protected:

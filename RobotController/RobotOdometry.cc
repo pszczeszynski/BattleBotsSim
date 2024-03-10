@@ -125,12 +125,14 @@ void RobotOdometry::FuseAndUpdatePositions()
 {
     // 1. populate the tracking mat (for display purposes)
     static ICameraReceiver &camera = ICameraReceiver::GetInstance();
-    static long last_id = 0;
-    if (camera.NewFrameReady(last_id))
+    if (camera.NewFrameReady(0))
     {
-        last_id = camera.GetFrame(trackingMat, last_id);
+        long last_id = 0;
+        camera.GetFrame(trackingMat, last_id);
         // convert to rgb
         cv::cvtColor(trackingMat, trackingMat, cv::COLOR_GRAY2BGR);
+
+        std::cout << "got frame" << std::endl;
     }
 
 

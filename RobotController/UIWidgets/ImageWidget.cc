@@ -58,6 +58,16 @@ void ImageWidget::UpdateMat(cv::Mat& image)
     _imageMutex.unlock();
 }
 
+void ImageWidget::UpdateMatScaled(cv::Mat& image, double scale)
+{
+    // scale down image
+    cv::Mat scaled;
+    cv::resize(image, scaled, cv::Size(image.size().width * scale, image.size().height * scale));
+    _imageMutex.lock();
+    scaled.copyTo(_image);
+    _imageMutex.unlock();
+}
+
 /**
  * Draws the widget
  */

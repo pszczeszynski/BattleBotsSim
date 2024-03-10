@@ -53,8 +53,8 @@ struct Point
 };
 
 // defines the radio channel indexes for each teensy
-#define TEENSY_RADIO_1 52
-#define TEENSY_RADIO_2 47
+#define TEENSY_RADIO_1 60
+#define TEENSY_RADIO_2 27
 #define TEENSY_RADIO_3 57
 
 // disable padding

@@ -79,6 +79,7 @@ class CameraReceiver : public ICameraReceiver
 public:
     CameraReceiver();
     ~CameraReceiver();
+    void SetCameraGain(float gain);
 
 private:
     virtual bool _InitializeCamera() override;

@@ -754,7 +754,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 309096c89886e5d42ae23499a6f3f572,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 309096c89886e5d42ae23499a6f3f572, type: 3}
@@ -2694,7 +2694,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1501763154005038, guid: 4611b705315b9d2488eac58f8b8a147e, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1513895556740696, guid: 4611b705315b9d2488eac58f8b8a147e, type: 3}
       propertyPath: m_Layer
@@ -4346,7 +4346,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 060dc75e3a4eed146a9f31946613b5bf,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 060dc75e3a4eed146a9f31946613b5bf, type: 3}
@@ -4941,7 +4941,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: d7b147ca58cd75d4fa68e0e8ef3041e0,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d7b147ca58cd75d4fa68e0e8ef3041e0, type: 3}
@@ -10098,7 +10098,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1343574918
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14005,7 +14005,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: a082faa1b75f56040a636f126ab91454,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a082faa1b75f56040a636f126ab91454, type: 3}
@@ -14487,7 +14487,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: df25233cf60c5ff47a26b0636625c799,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: df25233cf60c5ff47a26b0636625c799, type: 3}
@@ -16011,7 +16011,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: d886ba8be46f26f40910d4b6fa5f0409,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d886ba8be46f26f40910d4b6fa5f0409, type: 3}
@@ -16549,7 +16549,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 150
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -24822,7 +24822,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 150
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -25569,7 +25569,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 150
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -29305,7 +29305,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2606342545580437424}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 679a826e189f01e48a92db39ea020901, type: 3}
   m_Name: 
@@ -29315,7 +29315,7 @@ MonoBehaviour:
   wheelBL: {fileID: 152069865405460809}
   wheelBR: {fileID: 3270183403669119036}
   body: {fileID: 1687020059637074120}
-  SPEED: 4000
+  SPEED: 6500
 --- !u!23 &4715050106656163957
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -37205,7 +37205,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 125
+    force: 150
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -39188,7 +39188,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2606342545580437424}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d67d42f060f736a4b9c91e8bf8f93dda, type: 3}
   m_Name: 

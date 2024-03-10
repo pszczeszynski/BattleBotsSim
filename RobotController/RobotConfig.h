@@ -82,6 +82,7 @@ extern float HEU_LEFTSTART_Y;
 extern float HEU_RIGHTSTART_X;
 extern float HEU_RIGHTSTART_Y;
 extern float NN_MIN_CONFIDENCE;
+extern float CAMERA_GAIN;
 
 
 template <typename T>
