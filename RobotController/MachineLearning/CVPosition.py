@@ -35,12 +35,6 @@ def get_mat(name) -> Optional[np.ndarray]:
     # Create a NumPy array backed by the shared memory
     # Note: The total size is calculated by multiplying the dimensions of the shape
     np_array = np.ndarray(SHAPE, dtype=np.uint8, buffer=data)
-    # print(np_array)
-
-
-    # # squash to gray
-    # if np_array.shape[2] == 4:
-    #     np_array = cv2.cvtColor(np_array, cv2.COLOR_RGBA2GRAY)
 
     # return the np array
     return np_array
@@ -62,7 +56,7 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float, frame_id: int, tim
     - time_milliseconds: the time in milliseconds (extracted from the next 4 pixels)
     """
     # Convert the bounding box numpy array to a list and then to JSON string
-    bounding_box_list: List = bounding_box.tolist()[0]
+    bounding_box_list: List = bounding_box.tolist()
 
     print("Bounding box: ", bounding_box_list)
     print("Confidence: ", conf)
@@ -78,32 +72,31 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float, frame_id: int, tim
 
 
 def run_inference(model, img: np.ndarray):
-    black_img = np.zeros(img.shape, dtype=np.uint8)
     shrunk_img = cv2.resize(img, (int(SHAPE[0]*SCALE_RATIO), int(SHAPE[1]*SCALE_RATIO)))
-    black_img[:int(SHAPE[0]*SCALE_RATIO), :int(SHAPE[1]*SCALE_RATIO)] = shrunk_img
-    print("shape: ", black_img.shape)
-    img = black_img
+    img = np.zeros(img.shape, dtype=np.uint8)
+    img[:int(SHAPE[0]*SCALE_RATIO), :int(SHAPE[1]*SCALE_RATIO)] = shrunk_img
     # if gray, stack to 3 channels
     if len(img.shape) == 2:
         img = np.stack((img, img, img), axis=2)
     
     print("image shape: " + str(img.shape))
     
-    results = model.predict(img)
+    try:
+        results = model.predict(img)[0]
+    except Exception as e:
+        print("Error in model.predict: ", e)
+        return False, None, None
 
     if not results or len(results) == 0:
         return False, None, None
     
     max_conf, bounding_box = 0, np.zeros(4)
 
-    
     try:
-        for r in results:
-            if len(r.boxes.conf) == 0:
-                return False, None, None
-            if r.boxes.conf.item() > max_conf:
-                max_conf = r.boxes.conf
-                bounding_box = r.boxes.xywh / SCALE_RATIO
+        for i in range(len(results.boxes.conf)):
+            if results.boxes.conf[i] > max_conf:
+                max_conf = results.boxes.conf[i].item()
+                bounding_box = results.boxes.xywh[i] / SCALE_RATIO
     except Exception as e:
         print("Error in run_inference: ", e)
         return False, None, None
@@ -140,8 +133,9 @@ def main():
         # draw the bounding box
 
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
-        if result and max_conf > 0.0:
-            bb = bounding_box.tolist()[0]
+        if result:
+            bb = bounding_box.tolist()
+            print("bb: ", bb)
             if (len(bb) < 4):
                 print("continuing")
                 continue
@@ -152,10 +146,10 @@ def main():
             # cv2.imshow("Bounding Box", img)
             # cv2.waitKey(1)
 
-            print("bb[0]: " + str(bb[0]))
+            # print("bb[0]: " + str(bb[0]))
 
             print("bounding box: ", bounding_box)
-            send_results_to_rc(bounding_box, max_conf.item(), frame_id, time_milliseconds)
+            send_results_to_rc(bounding_box, max_conf, frame_id, time_milliseconds)
 
 if __name__ == '__main__':
     main()

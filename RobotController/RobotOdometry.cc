@@ -21,7 +21,7 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
 void RobotOdometry::_AdjustAngleWithArrowKeys()
 {
     static Clock updateClock;
-    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 30 * M_PI / 180.0);
+    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 90 * M_PI / 180.0);
     updateClock.markStart();
     if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
     {
@@ -234,6 +234,9 @@ void RobotOdometry::FuseAndUpdatePositions()
 
     _dataRobot = *candidateRobot;
 
+    // draw robot angle with an arrow
+    cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
+    cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
 
 
 

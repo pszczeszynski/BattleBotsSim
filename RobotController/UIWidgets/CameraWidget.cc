@@ -69,6 +69,11 @@ void CameraWidget::Draw()
             LAST_CAMERA_GAIN = CAMERA_GAIN;
             std::cout << "Camera GAIN: " << CAMERA_GAIN << std::endl;
         }
+
+        if (ImGui::Button("Stop Video"))
+        {
+            RobotController::GetInstance().DumpVideo();
+        }
     }
 
     // ImGui::Checkbox("Show Fisheye Correction Img", &ShowFisheyeImg);

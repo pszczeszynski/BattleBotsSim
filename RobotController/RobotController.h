@@ -39,6 +39,8 @@ public:
     XBox gamepad;
     XBox gamepad2;
 
+    void DumpVideo();
+
 private:
     DriverStationMessage RobotLogic();
     DriverStationMessage ManualMode();

@@ -227,6 +227,30 @@ void RobotController::Run()
         _fieldWidget.UpdateMat(drawingImage);
     }
 }
+#ifdef SAVE_VIDEO
+int video_index = 0;
+cv::VideoWriter _videoWriter{"Recordings/output0.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
+bool saving = true;
+std::mutex _videoWriterMutex;
+#endif
+
+void RobotController::DumpVideo()
+{
+    std::unique_lock<std::mutex> locker(_videoWriterMutex);
+
+    saving = false;
+
+    // if we are saving, stop saving
+    _videoWriter.release();
+
+    // increment the video index
+    video_index ++;
+
+    // re-initialize the video writer
+    _videoWriter.open("Recordings/output" + std::to_string(video_index) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT));
+
+    saving = true;
+}
 
 /**
  * Consumes the next frame from the camera and updates the drawing image
@@ -234,9 +258,6 @@ void RobotController::Run()
 */
 int RobotController::UpdateDrawingImage()
 {
-#ifdef SAVE_VIDEO
-    static cv::VideoWriter _videoWriter{"Recordings/output.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
-#endif
     static Clock videoWriteClock;
 
     cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
@@ -263,8 +284,10 @@ int RobotController::UpdateDrawingImage()
     }
     // if save video is enabled, save the frame
 #ifdef SAVE_VIDEO
-    if (videoWriteClock.getElapsedTime() > 1.0 / 60.0)
+    if (videoWriteClock.getElapsedTime() > 1.0 / 60.0 && saving)
     {
+        std::unique_lock<std::mutex> locker(_videoWriterMutex);
+
         _videoWriter.write(drawingImage);
         videoWriteClock.markStart();
     }
