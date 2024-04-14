@@ -338,7 +338,9 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
 
 
     // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
-    double shrinkAmount = (angleDiffAbs - M_PI / 2) / (M_PI / 2);
+    const double START_ANGLE = 65 * TO_RAD;
+    const double END_ANGLE = 170 * TO_RAD;
+    double shrinkAmount = (angleDiffAbs - START_ANGLE) / (END_ANGLE - START_ANGLE);
 
     shrinkAmount = std::max(0.0, shrinkAmount);
     shrinkAmount = std::min(1.0, shrinkAmount);
