@@ -159,6 +159,7 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     return avgAngle;
 }
 
+
 /**
  * \brief
  * Gets the last computed rotation without recomputing it
