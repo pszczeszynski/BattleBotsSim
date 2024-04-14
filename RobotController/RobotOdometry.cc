@@ -648,10 +648,13 @@ void RobotOdometry::DrawAlgorithmData()
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
                     _odometry_Blob.SetPosition(trackingImage.GetMousePos(), false);
+                    // force velocity to 0
+                    _odometry_Blob.SetVelocity(cv::Point2f(0,0), false);
                 }
                 else if (InputState::GetInstance().IsMouseDown(1))
                 {
                     _odometry_Blob.SetPosition(trackingImage.GetMousePos(), true);
+                    _odometry_Blob.SetVelocity(cv::Point2f(0,0), true);
                 }
             }
             if (EDITING_HEU)
@@ -659,10 +662,12 @@ void RobotOdometry::DrawAlgorithmData()
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
                     _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), false);
+                    _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), false);
                 }
                 else if (InputState::GetInstance().IsMouseDown(1))
                 {
                     _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), true);
+                    _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), true);
                 }
             }
         }

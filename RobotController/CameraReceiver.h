@@ -92,6 +92,19 @@ private:
     Spinnaker::SystemPtr _system = nullptr;
 };
 
+class CameraReceiverUSB : public ICameraReceiver
+{
+public:
+    CameraReceiverUSB();
+    ~CameraReceiverUSB();
+
+private:
+    virtual bool _InitializeCamera() override;
+    virtual bool _CaptureFrame() override;
+
+    cv::VideoCapture _cap;
+};
+
 class CameraReceiverVideo : public ICameraReceiver
 {
 public:

@@ -308,7 +308,7 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
 
     if (_startingOrbitRadius < orbitRadius)
     {
-        orbitRadius = _startingOrbitRadius;
+        // orbitRadius = _startingOrbitRadius;
     }
 
     // move the _startingOrbitRadius towards the orbitRadius

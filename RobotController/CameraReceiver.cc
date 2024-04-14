@@ -635,3 +635,90 @@ bool CameraReceiverVideo::_InitializeCamera()
     // return SUCCESS
     return true;
 }
+
+////////////////////////////////////////// USB CAMERA //////////////////////////////////////////
+
+CameraReceiverUSB::CameraReceiverUSB() : ICameraReceiver()
+{
+    _StartCaptureThread();
+}
+
+bool CameraReceiverUSB::_InitializeCamera()
+{
+    // Open the default camera
+    _cap.open(0);
+    // set the frame rate
+    _cap.set(cv::CAP_PROP_FPS, MAX_CAP_FPS);
+
+    // if the video is not open, return false
+    if (!_cap.isOpened())
+    {
+        std::cerr << "ERROR: video not open!" << std::endl;
+        return false;
+    }
+
+    // return SUCCESS
+    return true;
+}
+
+bool CameraReceiverUSB::_CaptureFrame()
+{
+    // if the video is not open, return false
+    if (!_cap.isOpened())
+    {
+        std::cerr << "ERROR: video not open!" << std::endl;
+        return false;
+    }
+
+
+    // read in the frame
+    cv::Mat _rawFrame;
+    _cap.read(_rawFrame);
+
+    // Convert to gray scale
+    if (_rawFrame.channels() == 1)
+    {
+        // Do nothing
+    }
+    else if (_rawFrame.channels() == 3)
+    {
+        cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGR2GRAY);
+    }
+    else if (_rawFrame.channels() == 4)
+    {
+        cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
+    }
+
+    // Apply processing to it
+    cv::Mat finalImage;
+    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+
+    // apply mask
+    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+
+    std::unique_lock<std::mutex> locker(_frameMutex);
+
+    // Copy it over
+    finalImage.copyTo(_frame);
+
+    // increase _frameID
+    _frameID++;
+
+    // Update time
+    _frameTime = Clock::programClock.getElapsedTime();
+
+    locker.unlock();
+
+    // Notify all frame is ready
+    _frameCV.notify_all();
+
+    // return SUCCESS
+    return true;
+}
+
+CameraReceiverUSB::~CameraReceiverUSB()
+{
+    // Release the camera
+    _cap.release();
+}

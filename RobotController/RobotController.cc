@@ -227,6 +227,7 @@ void RobotController::Run()
         _fieldWidget.UpdateMat(drawingImage);
     }
 }
+
 #ifdef SAVE_VIDEO
 int video_index = 0;
 cv::VideoWriter _videoWriter{"Recordings/output0.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
