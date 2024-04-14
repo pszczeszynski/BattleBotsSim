@@ -163,6 +163,18 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     // opponent pos + angle
     OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent();
     cv::Point2f opponentPos = opponentData.robotPosition;
+
+    // add offset for their weapon
+    double opponentRotation = opponentRotationSim;
+    const double WEAPON_OFFSET_FROM_CENTER = 50;
+    cv::Point2f opponentWeaponOffset = cv::Point2f(WEAPON_OFFSET_FROM_CENTER * cos(opponentRotation),
+                                                   WEAPON_OFFSET_FROM_CENTER * sin(opponentRotation));
+    opponentPos += opponentWeaponOffset;
+
+    // draw a circle around the opponent
+    cv::circle(drawingImage, opponentPos, 5, cv::Scalar(0, 0, 255), 2);
+
+
     opponentPositionExtrapolator.SetValue(opponentPos);
     cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
     opponentPosEx = opponentData.robotVelocity * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
@@ -314,6 +326,24 @@ double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
     // move the _startingOrbitRadius towards the orbitRadius
     _startingOrbitRadius += SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S * updateClock.getElapsedTime();
     updateClock.markStart();
+
+
+
+    // now shrink the radius the closer we are to 180 degrees from the opponent's orientation. Start at 90 degrees
+    double angleToOpponent = atan2(opponentPosEx.y - ourPosition.y, opponentPosEx.x - ourPosition.x);
+
+    double opponentAngle = opponentRotationSim + M_PI;
+    double angleDiff = angle_wrap(angleToOpponent - opponentAngle);
+    double angleDiffAbs = abs(angleDiff);
+
+
+    // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
+    double shrinkAmount = (angleDiffAbs - M_PI / 2) / (M_PI / 2);
+
+    shrinkAmount = std::max(0.0, shrinkAmount);
+    shrinkAmount = std::min(1.0, shrinkAmount);
+
+    orbitRadius *= 1.0 - shrinkAmount;
 
 
     return orbitRadius;

@@ -455,6 +455,8 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
         received = serverSocket.receive();
     }
     UnityRobotState message = RobotStateParser::parse(received);
+    // set the global variable
+    opponentRotationSim = angle_wrap(message.opponent_orientation * TO_RAD + M_PI);
 
     // if we have already had a can message in last 1/2 second
     if (lastCanDataClock.getElapsedTime() < 0.5)

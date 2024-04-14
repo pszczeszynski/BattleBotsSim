@@ -30,6 +30,8 @@ extern std::mutex DRAWING_IMAGE_MUTEX;
 
 extern std::string SAVE_FILE_NAME;
 
+extern double opponentRotationSim; // just for hacking around with
+
 // uncomment below to enable timer printing
 // #define ENABLE_TIMERS
 

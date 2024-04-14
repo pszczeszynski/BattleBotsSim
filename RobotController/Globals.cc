@@ -15,3 +15,4 @@ bool playback_file_changed = true;
 bool EDITING_HEU = true;
 bool EDITING_BLOB = true;
 
+double opponentRotationSim = 0; // just for hacking around with
