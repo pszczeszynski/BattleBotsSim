@@ -105,7 +105,7 @@ set(SOURCES
     hid/hid.cc
     Input/InputState.cc
     Strategies/DriveToAngleSimulation.cc
-    Odometry/BruteForceRotation/BruceForceRotation.cc
+    Odometry/BruteForceRotation/BruteForceRotation.cc
 )
 
 # Create the object files
