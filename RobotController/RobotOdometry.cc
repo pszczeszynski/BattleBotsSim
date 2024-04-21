@@ -95,7 +95,7 @@ void RobotOdometry::Update(void)
         {
             _dataOpponent_BruteForceRotation = _odometry_BruteForceRotation.GetData(true);
             newDataArrived =  true;
-            std::cout << _dataOpponent_BruteForceRotation.robotAngle << std::endl;
+            // std::cout << _dataOpponent_BruteForceRotation.robotAngle << std::endl;
         }
     }
 
