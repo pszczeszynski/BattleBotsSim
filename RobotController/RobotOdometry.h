@@ -11,6 +11,7 @@
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/Neural/CVPosition.h"
+#include "Odometry/BruteForceRotation/BruteForceRotation.h"
 #include "UIWidgets/ImageWidget.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
@@ -23,6 +24,7 @@ enum OdometryAlg
     Blob = 0,
     Heuristic,
     IMU,
+    BruteForce,
     Neural
 };
 
@@ -79,6 +81,9 @@ private:
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;
+
+    BruteForceRotation _odometry_BruteForceRotation;
+    OdometryData _dataOpponent_BruteForceRotation;
 
     // Final Data
     std::mutex _updateMutex;    // Mutex for updating core results

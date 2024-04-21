@@ -139,6 +139,9 @@ void RobotController::Run()
     // Do IMU
     odometry.Run(OdometryAlg::IMU);
 
+    // Do BruteForce
+    odometry.Run(OdometryAlg::BruteForce);
+
     // Do Neural
     odometry.Run(OdometryAlg::Neural);
 

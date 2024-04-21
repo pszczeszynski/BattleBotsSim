@@ -14,7 +14,8 @@
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
                                                              _odometry_Blob(&videoSource),
                                                              _odometry_Heuristic(&videoSource),
-                                                             _odometry_Neural(&videoSource)
+                                                             _odometry_Neural(&videoSource),
+                                                             _odometry_BruteForceRotation(&videoSource)
 {
 }
 
@@ -87,6 +88,17 @@ void RobotOdometry::Update(void)
         }
     }
 
+    // Get Brute Force Rotation
+    if(_odometry_BruteForceRotation.IsRunning())
+    {
+        if(_odometry_BruteForceRotation.NewDataValid(_dataOpponent_BruteForceRotation.id, true))
+        {
+            _dataOpponent_BruteForceRotation = _odometry_BruteForceRotation.GetData(true);
+            newDataArrived =  true;
+            std::cout << _dataOpponent_BruteForceRotation.robotAngle << std::endl;
+        }
+    }
+
     // Get Neural
     if (_odometry_Neural.IsRunning())
     {
@@ -116,7 +128,13 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
 
-
+    // If BruteForceRotation is running, then use that angle information
+    if (_odometry_BruteForceRotation.IsRunning() && _dataOpponent_BruteForceRotation.robotAngleValid)
+    {
+        _dataOpponent.robotAngleValid = true;
+        _dataOpponent.robotAngle = _dataOpponent_BruteForceRotation.robotAngle;
+        _dataOpponent.robotAngleValid = _dataOpponent_BruteForceRotation.robotAngle;
+    }
 
     // locker will get unlocked here automatically
 }
@@ -320,6 +338,10 @@ void RobotOdometry::FuseAndUpdatePositions()
 
     // draw a circle for the opponent
     cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
+
+    // draw robot angle with an arrow
+    cv::Point2f oppArrowEnd = _dataOpponent.robotPosition + cv::Point2f(50 * cos(_dataOpponent_BruteForceRotation.robotAngle), 50 * sin(_dataOpponent_BruteForceRotation.robotAngle));
+    cv::arrowedLine(trackingMat, _dataOpponent.robotPosition, oppArrowEnd, color, 2);
 }
 
 /*
@@ -446,6 +468,7 @@ void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot)
     _odometry_Blob.SetAngle(newAngle, opponentRobot);
     _odometry_Heuristic.SetAngle(newAngle, opponentRobot);
     _odometry_IMU.SetAngle(newAngle, opponentRobot);
+    _odometry_BruteForceRotation.SetAngle(newAngle, opponentRobot);
 
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -513,6 +536,9 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
     case OdometryAlg::IMU:
         return _odometry_IMU.Run();
 
+    case OdometryAlg::BruteForce:
+        return _odometry_BruteForceRotation.Run();
+
     case OdometryAlg::Neural:
         return _odometry_Neural.Run();
     default:
@@ -536,6 +562,9 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
     case OdometryAlg::IMU:
         return _odometry_IMU.Stop();
 
+    case OdometryAlg::BruteForce:
+        return _odometry_BruteForceRotation.Stop();
+
     case OdometryAlg::Neural:
         return _odometry_Neural.Stop();
     }
@@ -556,6 +585,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
 
     case OdometryAlg::IMU:
         return _odometry_IMU.IsRunning();
+
+    case OdometryAlg::BruteForce:
+        return _odometry_BruteForceRotation.IsRunning();
 
     case OdometryAlg::Neural:
         return _odometry_Neural.IsRunning();
