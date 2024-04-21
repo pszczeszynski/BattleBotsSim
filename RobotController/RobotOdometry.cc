@@ -327,7 +327,10 @@ void RobotOdometry::FuseAndUpdatePositions()
     cv::putText(trackingMat, "Opponent using " + algorithmNameOpponent, cv::Point(trackingMat.cols / 2 - 75, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
 
 
-    _dataOpponent = *candidateOpponent;   
+    _dataOpponent = *candidateOpponent;
+
+    _odometry_BruteForceRotation.SetPosition(_dataOpponent.robotPosition, true);
+
 
     int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
     // draw on the tracking mat a square
@@ -494,6 +497,8 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos, cv::Point2f newV
 
     _odometry_Heuristic.SetPosition(newPos, opponentRobot);
     _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
+
+    _odometry_BruteForceRotation.SetPosition(newPos, opponentRobot);
 
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
