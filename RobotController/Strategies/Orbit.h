@@ -3,7 +3,7 @@
 #include "../Input/Gamepad.h"
 #include <opencv2/opencv.hpp>
 #include "../Extrapolator.h"
-
+#include "../RobotOdometry.h"
 
 
 class Orbit : public Strategy
@@ -17,7 +17,8 @@ public:
 
 
 private:
-    double _CalculateOrbitRadius(cv::Point2f opponentPosEx,
+    double _CalculateOrbitRadius(cv::Point2f orbitCenter,
+                                 RobotSimState opponentDataEx,
                                  Gamepad &gamepad);
     double _CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f orbitCenter, double orbitRadius);
 
@@ -29,15 +30,6 @@ private:
                                              bool circleDirection);
 
     RobotSimState _ExtrapolateOurPos(double seconds_position, double seconds_angle);
-
-    enum class OrbitState
-    {
-        IDLE = 0,
-        LARGE_CIRCLE,
-        GO_AROUND
-    };
-
-    OrbitState _orbitState = OrbitState::IDLE;
 
     double _startingOrbitRadius = 0;
 };

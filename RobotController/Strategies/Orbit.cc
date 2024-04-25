@@ -12,8 +12,6 @@ Orbit::Orbit()
 
 void Orbit::StartOrbit()
 {
-    _orbitState = OrbitState::LARGE_CIRCLE;
-
     OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
     opponentData.Extrapolate(ClockWidget::programClock.getElapsedTime() + OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0);
 
@@ -24,7 +22,27 @@ void Orbit::StartOrbit()
 
 void Orbit::StopOrbit()
 {
-    _orbitState = OrbitState::IDLE;
+}
+
+
+RobotSimState _ExtrapolateOpponentPos(double seconds_position, double seconds_angle)
+{
+    // get odometry data
+    OdometryData odoData = RobotController::GetInstance().odometry.Opponent();
+
+    // simulates the movement of the robot
+    RobotSimulator robotSimulator;
+
+    RobotSimState currentState;
+    currentState.position = odoData.robotPosition;
+    currentState.angle = odoData.robotAngle;
+    currentState.velocity = odoData.robotVelocity;
+    currentState.angularVelocity = odoData.robotAngleVelocity * seconds_angle / seconds_position;
+
+    // predict where the robot will be in a couple milliseconds
+    RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, 1);
+
+    return exState;
 }
 
 RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_angle)
@@ -32,7 +50,7 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     #define NUM_PREDICTION_ITERS 1
 
     // get odometry data
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
+    OdometryData odoData = RobotController::GetInstance().odometry.Robot();
 
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
@@ -123,13 +141,14 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
 
 /**
  * Projects a point onto a line with a given angle
- * 
+ *
  * @param linePoint The point on the line
  * @param lineAngle The angle of the line
  * @param point The point to project
  * @return The projected point
-*/
-cv::Point2f ProjectPointOntoLineWithAngle(cv::Point2f linePoint, double lineAngle, cv::Point2f point) {
+ */
+cv::Point2f ProjectPointOntoLineWithAngle(cv::Point2f linePoint, double lineAngle, cv::Point2f point)
+{
     // Direction vector of the line
     cv::Point2f lineDir(cos(lineAngle), sin(lineAngle));
 
@@ -144,76 +163,87 @@ cv::Point2f ProjectPointOntoLineWithAngle(cv::Point2f linePoint, double lineAngl
 }
 
 /**
+ * Calculates the center of a robot's weapon given the robot's position and angle
+ * 
+ * @param pos The robot's position
+ * @param angle The robot's angle
+ * @param weapon_offset_from_center The distance from the center of the robot to the weapon
+*/
+cv::Point2f GetWeaponPos(cv::Point2f pos, double angle, double weapon_offset_from_center = 25)
+{
+    cv::Point2f weaponOffset = cv::Point2f(weapon_offset_from_center * cos(angle),
+                                           weapon_offset_from_center * sin(angle));
+    return pos + weaponOffset;
+}
+
+/**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
  * @param message The current state of the robot
  */
 DriverStationMessage Orbit::Execute(Gamepad& gamepad)
 {
-    static Extrapolator<cv::Point2f> opponentPositionExtrapolator{cv::Point2f(0, 0)};
+    // CONSTANTS //
+    const double WEAPON_OFFSET_FROM_CENTER = 15;
 
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
-    // our pos + angle
-    OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
+    ////////////////// GET POSITION DATA //////////////////
+    // 1. get robot datas
+    OdometryData odoData = RobotController::GetInstance().odometry.Robot();
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+    opponentData.robotAngle = Angle(opponentRotationSim); // TODO: don't just hardcode
 
-    cv::Point2f ourPosition = odoData.robotPosition;
-    double ourAngle = odoData.robotAngle;
+    ////////////////// EXTRAPOLATE DATA //////////////////
+    // 2. Extrapolate our position
+    RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
+    // 3. Extrapolate opponent position
+    // extrapolate the opponent more the further away we are from them
+    double opponentPositionExtrapolationTime = OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 *
+                                               norm(opponentData.robotPosition - odoData.robotPosition) / ORBIT_RADIUS;
+    RobotSimState opponentExState = _ExtrapolateOpponentPos(opponentPositionExtrapolationTime, opponentPositionExtrapolationTime);
+    /////////////////////////////////////////////////////////
 
-    // opponent pos + angle
-    OdometryData opponentData =  RobotController::GetInstance().odometry.Opponent();
-    cv::Point2f opponentPos = opponentData.robotPosition;
-
-    // add offset for their weapon
-    double opponentRotation = opponentRotationSim;
-    const double WEAPON_OFFSET_FROM_CENTER = 50;
-    cv::Point2f opponentWeaponOffset = cv::Point2f(WEAPON_OFFSET_FROM_CENTER * cos(opponentRotation),
-                                                   WEAPON_OFFSET_FROM_CENTER * sin(opponentRotation));
-    opponentPos += opponentWeaponOffset;
-
-    // draw a circle around the opponent
-    cv::circle(drawingImage, opponentPos, 5, cv::Scalar(0, 0, 255), 2);
-
-
-    opponentPositionExtrapolator.SetValue(opponentPos);
-    cv::Point2f opponentPosEx = opponentPositionExtrapolator.Extrapolate(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 * norm(opponentPos - ourPosition) / ORBIT_RADIUS);
-    opponentPosEx = opponentData.robotVelocity * OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 + opponentPos;
-
+    
     // the orbit center is the opponent position
-    cv::Point2f orbitCenter = opponentPosEx;
+    cv::Point2f orbitCenter = GetWeaponPos(opponentData.robotPosition, opponentData.robotAngle, WEAPON_OFFSET_FROM_CENTER);
+    // 4. Calculate the orbit radius
+    double orbitRadius = _CalculateOrbitRadius(orbitCenter, opponentExState, gamepad);
+    // calculate the pure pursuit radius given the velocity of the robot
+    double purePursuitRadius = _CalculatePurePursuitRadius(odoData.robotPosition, orbitCenter, orbitRadius);
 
-    double orbitRadius = _CalculateOrbitRadius(orbitCenter, gamepad);
 
+    ////////////////// DRAWING //////////////////
+    // draw a dot at the opponent's weapon
+    cv::circle(drawingImage, orbitCenter, 5, cv::Scalar(0, 0, 255), 2);
+    // draw blue circle around opponent
+    cv::circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 0, 0), 2);
+    // draw orange circle around opponent to show evasion radius
+    cv::circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 165, 0), 1);
+    // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
+    cv::circle(drawingImage, odoData.robotPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
+    // draw arrow at the ex state's angle
+    cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
+    cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
+    /////////////////////////////////////////////
+
+
+    ///////////////////// CALCULATE TARGET POINT /////////////////////
     // get the angle from us to the center
-    cv::Point2f usToCenter = orbitCenter - ourPosition;
+    cv::Point2f usToCenter = orbitCenter - odoData.robotPosition;
     double angleToCenter = atan2(usToCenter.y, usToCenter.x);
     // add pi to get the angle from the center to us
     double angleCenterToUs = angle_wrap(angleToCenter + M_PI);
     // calculate distance to the center of the circle
-    double distToCenter = cv::norm(ourPosition - orbitCenter);
-    // enforce pure pursuit radius to be at least 1
-    double purePursuitRadius = _CalculatePurePursuitRadius(ourPosition, orbitCenter, orbitRadius);
-
-
-    // draw blue circle around opponent
-    cv::circle(drawingImage, opponentPos, orbitRadius, cv::Scalar(255, 0, 0), 2);
-    // draw orange circle around opponent to show evasion radius
-    cv::circle(drawingImage, opponentPosEx, orbitRadius, cv::Scalar(255, 165, 0), 1);
-
-
+    double distToCenter = cv::norm(odoData.robotPosition - orbitCenter);
     // default the target to be radially from the angle from the center to us
     cv::Point2f targetPoint = orbitCenter + cv::Point2f(orbitRadius * cos(angleCenterToUs), orbitRadius * sin(angleCenterToUs));
-
     // next find the intersection of the pure pursuit circle with the circle around the opponent
-    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(ourPosition, purePursuitRadius, orbitCenter, orbitRadius);
+    std::vector<cv::Point2f> circleIntersections = CirclesIntersect(odoData.robotPosition, purePursuitRadius, orbitCenter, orbitRadius);
 
-#ifndef HARDCORE
-    // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
-    cv::circle(drawingImage, ourPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
-#endif
-
-    bool circleDirection = angle_wrap(ourAngle - angleToCenter) < 0;
-
+    // default the circule direction to be the closest
+    bool circleDirection = angle_wrap(odoData.robotAngle - angleToCenter) < 0;
+    // allow the user to force the direction
     if (RobotController::GetInstance().gamepad.GetDpadLeft())
     {
         circleDirection = true;
@@ -244,26 +274,19 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     cv::Point2f targetPointBeforeTangent = targetPoint;
     // enforce that the target point is not more aggressive than the tangent point towards the center of the circle
     targetPoint = _NoMoreAggressiveThanTangent(gamepad,
-                                               ourPosition,
+                                               odoData.robotPosition,
                                                orbitCenter,
                                                orbitRadius,
                                                targetPoint,
                                                circleDirection);
 
-#ifndef HARDCORE
     // Draw the point
     cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
-#endif
 
     bool allowReverse = false;
-    RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
 
     // choose the direction to drive in
     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
-
-    // draw arrow at the ex state's angle
-    cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
-    cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
     DriverStationMessage response = HoldAngle(exState.position, targetPoint,
                                               ORBIT_ANGLE_EXTRAPOLATE_MS,
@@ -273,7 +296,7 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
                                               direction);
 
     // compute absolute angle
-    double deltaAngle = angle_wrap(atan2(targetPoint.y - exState.position.y, targetPoint.x - exState.position.x) - ourAngle);
+    double deltaAngle = angle_wrap(atan2(targetPoint.y - exState.position.y, targetPoint.x - exState.position.x) - odoData.robotAngle);
 
     if (circleDirection)
     {
@@ -289,7 +312,7 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     }
 
     // // if on inside of circle and pointed outwards
-    // if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - ourAngle)) < 45 * TO_RAD)
+    // if (distToCenter < orbitRadius && abs(angle_wrap(angleToCenter + M_PI - odoData.robotAngle)) < 45 * TO_RAD)
     // {
     //     // force 100% move power
     //     response.autoDrive.movement = 1.0;
@@ -303,44 +326,30 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
 // time to grow to the regular orbit radius
 #define SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S 100.0
 
-double Orbit::_CalculateOrbitRadius(cv::Point2f opponentPosEx, Gamepad& gamepad)
+double Orbit::_CalculateOrbitRadius(cv::Point2f orbitCenter, RobotSimState opponentDataEx, Gamepad& gamepad)
 {
-    static Clock updateClock;
     // get odometry data
     OdometryData odoData = RobotController::GetInstance().odometry.Robot();
     // our pos + angle
     cv::Point2f ourPosition = odoData.robotPosition;
 
-    double orbitRadius = ORBIT_RADIUS;
-    double distToOpponent = cv::norm(ourPosition - opponentPosEx);
-
     // scale the radius based on the triggers
+    double orbitRadius = ORBIT_RADIUS;
     orbitRadius *= 1.0 + gamepad.GetRightTrigger();
     orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
 
-    if (_startingOrbitRadius < orbitRadius)
-    {
-        // orbitRadius = _startingOrbitRadius;
-    }
-
-    // move the _startingOrbitRadius towards the orbitRadius
-    _startingOrbitRadius += SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S * updateClock.getElapsedTime();
-    updateClock.markStart();
-
-
 
     // now shrink the radius the closer we are to 180 degrees from the opponent's orientation. Start at 90 degrees
-    double angleToOpponent = atan2(opponentPosEx.y - ourPosition.y, opponentPosEx.x - ourPosition.x);
+    double angleOpponentToUs = atan2(odoData.robotPosition.y - orbitCenter.y, odoData.robotPosition.x - orbitCenter.x);
 
-    double opponentAngle = opponentRotationSim + M_PI;
-    double angleDiff = angle_wrap(angleToOpponent - opponentAngle);
-    double angleDiffAbs = abs(angleDiff);
-
+    // calculate the number of radians to the weapon
+    double angleToWeapon = angle_wrap(angleOpponentToUs - opponentDataEx.angle);
+    double angleToWeaponAbs = abs(angleToWeapon);
 
     // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
     const double START_ANGLE = 65 * TO_RAD;
     const double END_ANGLE = 170 * TO_RAD;
-    double shrinkAmount = (angleDiffAbs - START_ANGLE) / (END_ANGLE - START_ANGLE);
+    double shrinkAmount = (angleToWeaponAbs - START_ANGLE) / (END_ANGLE - START_ANGLE);
 
     shrinkAmount = std::max(0.0, shrinkAmount);
     shrinkAmount = std::min(1.0, shrinkAmount);
