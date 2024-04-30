@@ -19,6 +19,8 @@ cv::Point2f InterpolatePoints(const cv::Point2f& p1, const cv::Point2f& p2, doub
 
 std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Point2f center2, float r2);
 
+std::vector<cv::Point2f> CircleLineSegmentIntersect(cv::Point2f circleCenter, float circleRadius, cv::Point2f lineStart, cv::Point2f lineEnd);
+
 double DoubleThreshToTarget(double error,
                             double threshold1, double threshold2,
                             double minPower, double maxPower);
@@ -113,3 +115,5 @@ private:
 Angle InterpolateAngles(Angle a1, Angle a2, double ratio);
 
 bool SegmentsIntersect(cv::Point2f o1, cv::Point2f p1, cv::Point2f o2, cv::Point2f p2, cv::Point2f &r);
+
+bool getClosestPointOnSegment(cv::Point2f start, cv::Point2f end, cv::Point2f point, cv::Point2f& closestPoint);

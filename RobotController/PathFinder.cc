@@ -174,27 +174,6 @@ bool intersection(cv::Point2f center, double radius, cv::Point2f lineStart, cv::
     return false; // No valid intersection within the line segment
 }
 
-bool getClosestPointOnSegment(cv::Point2f start, cv::Point2f end, cv::Point2f point, cv::Point2f& closestPoint)
-{
-    cv::Point2f segment = end - start;
-    cv::Point2f startToPoint = point - start;
-
-    double segmentLength = cv::norm(segment);
-    double segmentLengthSquared = segmentLength * segmentLength;
-
-    // Project the point onto the segment
-    double t = segment.dot(startToPoint) / segmentLengthSquared;
-
-    // Check if the point is outside the segment
-    if (t < 0 || t > 1)
-    {
-        return false;
-    }
-
-    closestPoint = start + t * segment;
-    return true;
-}
-
 // Pure pursuit algorithm
 cv::Point2f PathFinder::purePursuit(std::vector<cv::Point2f> &path, cv::Point2f robotPos, double lookaheadDistance, cv::Mat &image)
 {

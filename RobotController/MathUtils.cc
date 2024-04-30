@@ -117,6 +117,79 @@ std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Poi
     return intersections;
 }
 
+/**
+ * Finds the intersection of a circle and a line segment. Returns a vector
+ * The vector may have 0, 1, or 2 points
+ * 
+ * @param circleCenter The center of the circle
+ * @param circleRadius The radius of the circle
+ * @param lineStart The start of the line segment
+ * @param lineEnd The end of the line segment
+ * @return A vector of points of intersection
+*/
+std::vector<cv::Point2f> CircleLineSegmentIntersect(cv::Point2f circleCenter, float circleRadius, cv::Point2f lineStart, cv::Point2f lineEnd)
+{
+    std::vector<cv::Point2f> intersections;
+
+    // Shift line segment and circle center so the circle's center is at the origin
+    cv::Point2f start = lineStart - circleCenter;
+    cv::Point2f end = lineEnd - circleCenter;
+
+    // Calculate quadratic coefficients
+    cv::Point2f d = end - start;                 // direction vector of the line segment
+    float dr = d.x * d.x + d.y * d.y;            // dr squared
+    float D = start.x * end.y - end.x * start.y; // determinant
+
+    // Discriminant
+    float discriminant = circleRadius * circleRadius * dr - D * D;
+
+    // Check for no intersection (discriminant < 0)
+    if (discriminant < 0)
+    {
+        return intersections;
+    }
+
+    // Calculate intersection points
+    float sqrtDiscriminant = std::sqrt(discriminant);
+    float signDy = (d.y < 0) ? -1.0f : 1.0f;
+    float x1 = (D * d.y + signDy * d.x * sqrtDiscriminant) / dr;
+    float y1 = (-D * d.x + std::abs(d.y) * sqrtDiscriminant) / dr;
+    float x2 = (D * d.y - signDy * d.x * sqrtDiscriminant) / dr;
+    float y2 = (-D * d.x - std::abs(d.y) * sqrtDiscriminant) / dr;
+
+    // Check if the intersection points are on the line segment
+    auto isBetween = [](const cv::Point2f &start, const cv::Point2f &end, const cv::Point2f &pt)
+    {
+        // Using an epsilon to handle floating-point precision issues
+        float dotProduct = (pt.x - start.x) * (end.x - start.x) + (pt.y - start.y) * (end.y - start.y);
+        float squaredLength = (end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y);
+        return dotProduct >= 0 && dotProduct <= squaredLength;
+    };
+
+    cv::Point2f intersection1(x1, y1);
+    cv::Point2f intersection2(x2, y2);
+
+    if (discriminant == 0)
+    { // One intersection
+        if (isBetween(start, end, intersection1))
+        {
+            intersections.push_back(intersection1 + circleCenter);
+        }
+    }
+    else
+    { // Two intersections
+        if (isBetween(start, end, intersection1))
+        {
+            intersections.push_back(intersection1 + circleCenter);
+        }
+        if (isBetween(start, end, intersection2))
+        {
+            intersections.push_back(intersection2 + circleCenter);
+        }
+    }
+
+    return intersections;
+}
 
 /**
  * Uses the error between a currentPos and targetPos
@@ -196,3 +269,24 @@ bool SegmentsIntersect(cv::Point2f o1, cv::Point2f p1, cv::Point2f o2, cv::Point
     return false; // Intersection does not lie within both segments
 }
 
+
+bool getClosestPointOnSegment(cv::Point2f start, cv::Point2f end, cv::Point2f point, cv::Point2f& closestPoint)
+{
+    cv::Point2f segment = end - start;
+    cv::Point2f startToPoint = point - start;
+
+    double segmentLength = cv::norm(segment);
+    double segmentLengthSquared = segmentLength * segmentLength;
+
+    // Project the point onto the segment
+    double t = segment.dot(startToPoint) / segmentLengthSquared;
+
+    // Check if the point is outside the segment
+    if (t < 0 || t > 1)
+    {
+        return false;
+    }
+
+    closestPoint = start + t * segment;
+    return true;
+}
