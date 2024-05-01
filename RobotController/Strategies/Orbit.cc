@@ -271,7 +271,7 @@ bool CalculateOrbitDirection(double robotAngle, double angleToCenter)
 cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, bool draw)
 {
     // CONSTANTS //
-    const double WEAPON_OFFSET_FROM_CENTER = 15;
+    const double WEAPON_OFFSET_FROM_CENTER = 50;
 
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
@@ -314,7 +314,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     if (draw)
     {
         // draw a dot at the opponent's weapon
-        // cv::circle(drawingImage, opponentWeaponPosEx, 5, cv::Scalar(0, 0, 255), 2);
+        cv::circle(drawingImage, opponentWeaponPosEx, 5, cv::Scalar(0, 0, 255), 2);
         // // draw blue circle around opponent
         // cv::circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 0, 0), 2);
         // // draw light blue circle around opponent to show evasion radius
@@ -389,7 +389,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     if (cv::norm(odoData.robotPosition - opponentData.robotPosition) < purePursuitRadius)
     {
         // if dangerous, go forwards
-        if (dangerLevel > 0.99)
+        if (dangerLevel > 0.1)
         {
             // put text
             if (draw) { cv::putText(drawingImage, "Close + danger -> forwards", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2); }

@@ -9,7 +9,7 @@ using System.Diagnostics;
 public struct RobotControllerMessage
 {
     // our robot
-    public Vector3 robot_velocity;
+    public Vector3 robot_position;
     public double robot_rotation;
     public double robot_rotation_velocity;
 
@@ -104,7 +104,7 @@ public class Robot_BB_Orbitron : RobotInterface3D
         // create a message to send to the robot controller
         RobotControllerMessage rcMessage = new RobotControllerMessage
         {
-            robot_velocity = rb.velocity,
+            robot_position = robot_body.position,
             robot_rotation = robot_rotation * Mathf.Deg2Rad,
             robot_rotation_velocity = robotRotationWithNoise,
             opponent_position = opponent_body.position,

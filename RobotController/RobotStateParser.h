@@ -13,7 +13,7 @@
 struct UnityRobotState
 {
     // velocity of our robot
-    Point robot_velocity;
+    Point robot_position;
     // orientation of our robot
     double robot_orientation;
     // the rotation velocity of our robot in radians per second

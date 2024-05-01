@@ -31,6 +31,8 @@ extern std::mutex DRAWING_IMAGE_MUTEX;
 extern std::string SAVE_FILE_NAME;
 
 extern double opponentRotationSim; // just for hacking around with
+extern cv::Point2f robotPosSim;
+extern cv::Point2f opponentPosSim;
 
 // uncomment below to enable timer printing
 // #define ENABLE_TIMERS

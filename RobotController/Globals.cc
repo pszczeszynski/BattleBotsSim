@@ -15,4 +15,7 @@ bool playback_file_changed = true;
 bool EDITING_HEU = true;
 bool EDITING_BLOB = true;
 
-double opponentRotationSim = 0; // just for hacking around with
+// just for hacking around with
+double opponentRotationSim = 0;
+cv::Point2f robotPosSim = cv::Point2f{};
+cv::Point2f opponentPosSim = cv::Point2f{};

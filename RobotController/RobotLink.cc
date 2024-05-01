@@ -457,6 +457,25 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     UnityRobotState message = RobotStateParser::parse(received);
     // set the global variable
     opponentRotationSim = angle_wrap(message.opponent_orientation * TO_RAD + M_PI);
+    robotPosSim = cv::Point2f((float) message.robot_position.x, (float) message.robot_position.z);
+    opponentPosSim = cv::Point2f{(float) message.opponent_position.x, (float) message.opponent_position.z};
+
+
+    cv::Point2f mins = {-10, -10};
+    cv::Point2f maxs = {10, 10};
+
+    robotPosSim -= mins;
+    robotPosSim.x /= maxs.x - mins.x;
+    robotPosSim.y /= maxs.y - mins.y;
+
+    robotPosSim.x = 1.0 - robotPosSim.x;
+    robotPosSim *= WIDTH;
+
+    opponentPosSim -= mins;
+    opponentPosSim.x /= maxs.x - mins.x;
+    opponentPosSim.y /= maxs.y - mins.y;
+    opponentPosSim.x = 1.0 - opponentPosSim.x;
+    opponentPosSim *= WIDTH;
 
     // if we have already had a can message in last 1/2 second
     if (lastCanDataClock.getElapsedTime() < 0.5)
