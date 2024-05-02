@@ -17,13 +17,13 @@ public:
 
 
 private:
-    double _GetDangerLevel(cv::Point2f robotPos,
-                           cv::Point2f opponentWeaponPos,
+    double _GetDangerLevel(double angleOpponentToPoint,
                            double opponentAngle,
                            bool orbitDirection);
 
-    double _CalculateOrbitRadius(cv::Point2f robotPos,
-                                 cv::Point2f orbitWeaponPos,
+    double _CalculateOrbitRadius(double angleOpponentToPoint,
+                                 cv::Point2f robotPosEx,
+                                 cv::Point2f opponentPosEx,
                                  double opponentAngle,
                                  Gamepad &gamepad,
                                  bool orbitDirection);
@@ -33,6 +33,7 @@ private:
                                        double orbitRadius);
 
     cv::Point2f _CalculatePathPoint(double angle,
+                                    cv::Point2f robotPosEx,
                                     cv::Point2f opponentWeaponPosEx,
                                     cv::Point2f opponentCenterEx,
                                     double opponentAngleEx,
