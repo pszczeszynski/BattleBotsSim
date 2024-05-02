@@ -178,6 +178,59 @@ cv::Point2f GetWeaponPos(cv::Point2f pos, double angle, double weapon_offset_fro
 }
 
 /**
+ * Radially defines the orbit path.
+ *
+ * @param angle The input world angle
+ * @param opponentWeaponPosEx The extrapolated position of the opponent's weapon
+ * @param opponentCenterEx The center of the opponent's robot pos extrapolated
+ * @param opponentAngleEx The angle of the opponent's robot extrapolated
+ * @param circleDirection The direction of the circle
+ *
+ * @return The path point
+ */
+cv::Point2f Orbit::_CalculatePathPoint(double angle,
+                                       cv::Point2f opponentWeaponPosEx,
+                                       cv::Point2f opponentCenterEx,
+                                       double opponentAngleEx,
+                                       bool circleDirection,
+                                       double* outCurrRadius,
+                                       cv::Point2f* outCurrOrbitCenter)
+{
+    // imagine the robot was orbitting in a circle around the opponent's weapon here (we aren't, but just for defining the path)
+    cv::Point2f currRobotPos = opponentWeaponPosEx + cv::Point2f(ORBIT_RADIUS * cos(angle), ORBIT_RADIUS * sin(angle));
+    // calculate the danger level from 0 to 1
+    double dangerLevel = _GetDangerLevel(currRobotPos, opponentWeaponPosEx, opponentAngleEx, circleDirection);
+    // calculate the orbit radius given that danger level
+    double orbitRadius = _CalculateOrbitRadius(currRobotPos,
+                                               opponentWeaponPosEx,
+                                               opponentAngleEx,
+                                               RobotController::GetInstance().gamepad,
+                                               circleDirection);
+
+    // orbit around the opponent center when danger is low (killing)
+    // otherwise orbit around the opponent weapon
+    cv::Point2f currOrbitCenter = InterpolatePoints(opponentCenterEx, opponentWeaponPosEx, dangerLevel);
+
+    // calculate the point on the path
+    cv::Point2f point = currOrbitCenter + orbitRadius * cv::Point2f(cos(angle), sin(angle));
+
+
+    // return the radius and orbit center if requested
+    if (outCurrRadius != nullptr)
+    {
+        *outCurrRadius = orbitRadius;
+    }
+
+    if (outCurrOrbitCenter != nullptr)
+    {
+        *outCurrOrbitCenter = currOrbitCenter;
+    }
+
+    // return the point
+    return point;
+}
+
+/**
  * Calculates the path to orbit given a direction
  * 
  * @param opponentWeaponPosEx The extrapolated position of the opponent's weapon
@@ -202,20 +255,11 @@ std::vector<cv::Point2f> Orbit::_CalculateOrbitPath(cv::Point2f opponentWeaponPo
     {
         double angle = angleToUs + angleOffset * (circleDirection ? 1 : -1);
 
-        cv::Point2f currRobotPos = opponentWeaponPosEx + cv::Point2f(ORBIT_RADIUS * cos(angle), ORBIT_RADIUS * sin(angle));
+        double orbitRadius = 0;
+        // calculate the path point
+        cv::Point2f point = _CalculatePathPoint(angle, opponentWeaponPosEx, opponentCenterEx, opponentAngleEx, circleDirection, &orbitRadius, nullptr);
 
-        double dangerLevel = _GetDangerLevel(currRobotPos, opponentWeaponPosEx, opponentAngleEx, circleDirection);
-        double orbitRadius = _CalculateOrbitRadius(currRobotPos,
-                                                   opponentWeaponPosEx,
-                                                   opponentAngleEx,
-                                                   RobotController::GetInstance().gamepad,
-                                                   circleDirection);
-
-        // orbit around the opponent center when danger is low (killing)
-        // otherwise orbit around the opponent weapon
-        cv::Point2f currOrbitCenter = InterpolatePoints(opponentCenterEx, opponentWeaponPosEx, dangerLevel);
-
-        cv::Point2f point = currOrbitCenter + orbitRadius * cv::Point2f(cos(angle), sin(angle));
+        // push the point to the path
         path.push_back(point);
 
         // exit when the orbit radius hits 0 (we are at the opponent's position)
@@ -270,9 +314,6 @@ bool CalculateOrbitDirection(double robotAngle, double angleToCenter)
 
 cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, bool draw)
 {
-    // CONSTANTS //
-    const double WEAPON_OFFSET_FROM_CENTER = 50;
-
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
 
     ////////////////// GET POSITION DATA //////////////////
@@ -293,7 +334,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     /////////////////////////////////////////////////////////
 
     // the orbit center is the opponent position
-    cv::Point2f opponentWeaponPosEx = GetWeaponPos(opponentExState.position, opponentData.robotAngle, WEAPON_OFFSET_FROM_CENTER);
+    cv::Point2f opponentWeaponPosEx = GetWeaponPos(opponentExState.position, opponentData.robotAngle, OPPONENT_WEAPON_OFFSET);
 
     ///////////////// CALCULATE ORBIT DIRECTION ///////////////
     // get the angle from us to the center
@@ -337,8 +378,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     ///////////////////// CALCULATE TARGET POINT /////////////////////
     // calculate distance to the center of the circle
     double distToCenter = cv::norm(odoData.robotPosition - opponentWeaponPosEx);
-    // default the target to be radially from the angle from the center to us
-    cv::Point2f targetPoint = opponentWeaponPosEx + cv::Point2f(orbitRadius * cos(angleWeaponToUs), orbitRadius * sin(angleWeaponToUs));
+
 
     // get the path of the orbit (to use pure pursuit with)
     std::vector<cv::Point2f> path = _CalculateOrbitPath(opponentWeaponPosEx,
@@ -346,6 +386,15 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
                                                         opponentExState.angle,
                                                         odoData.robotPosition,
                                                         circleDirection, draw);
+    // calculate tangent points
+    cv::Point2f tangent1;
+    cv::Point2f tangent2;
+    PurePursuit::CalculateTangentPoints(path, odoData.robotPosition, opponentWeaponPosEx, tangent1, tangent2);
+    // choose the tangent based on the specified circle direction
+    cv::Point2f tangentToConsider = circleDirection ? tangent1 : tangent2;
+
+    // default the target to be tangent to the path
+    cv::Point2f targetPoint = tangentToConsider;
 
     // // find the closest point on the path
     // double currPathAngle = PurePursuit::GetAngleOfClosestPathSegment(path, odoData.robotPosition);
@@ -353,12 +402,6 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     // next find the intersection of the pure pursuit circle with the circle around the opponent
     std::vector<cv::Point2f> circleIntersections = PurePursuit::followPath(odoData.robotPosition, path, purePursuitRadius);
 
-    // calculate tangent points
-    cv::Point2f tangent1;
-    cv::Point2f tangent2;
-    PurePursuit::CalculateTangentPoints(path, odoData.robotPosition, opponentWeaponPosEx, tangent1, tangent2);
-    // choose the tangent based on the specified circle direction
-    cv::Point2f tangentToConsider = circleDirection ? tangent1 : tangent2;
 
     // if there are 2 intersections
     if (circleIntersections.size() >= 2)
@@ -380,7 +423,6 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
         // choose the further point (between target and targetPoint)
         if (cv::norm(odoData.robotPosition - tangentToConsider) > cv::norm(odoData.robotPosition - targetPoint))
         {
-            if (draw) { cv::putText(drawingImage, "Tangent", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 2); }
             targetPoint = tangentToConsider;
         }
     }
@@ -388,7 +430,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     // if distance to center is less than pure pursuit radius
     if (cv::norm(odoData.robotPosition - opponentData.robotPosition) < purePursuitRadius)
     {
-        // if dangerous, go forwards
+        // if dangerous, go forwards => because otherwise will pure pursuit to center and we will die (high danger)
         if (dangerLevel > 0.1)
         {
             // put text
@@ -407,17 +449,93 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
         }
     }
 
+    double currOrbitRadius = 0;
+    cv::Point2f currOrbitCenter = cv::Point2f(0, 0);
+    cv::Point2f closestPathPoint = _CalculatePathPoint(angleWeaponToUs, opponentWeaponPosEx, opponentExState.position, opponentExState.angle, circleDirection, &currOrbitRadius, &currOrbitCenter);
 
+    // put text for curr orbit radius + 
+    double distToOrbitCenter = cv::norm(odoData.robotPosition - currOrbitCenter);
+
+    // put text for curr target orbit radius + dist to center
+    if (draw)
+    {
+        cv::putText(drawingImage, "Curr target orbit radius: " + std::to_string(currOrbitRadius), cv::Point(10, 300), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+        cv::putText(drawingImage, "Dist to orbit center: " + std::to_string(distToOrbitCenter), cv::Point(10, 350), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    }
+
+    // if we are inside the path
+    if (distToOrbitCenter < currOrbitRadius)
+    {
+        // check if going forwards would make us curve out less
+
+        // calculate angle to target
+        double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
+        double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle);
+
+        // invert if negative
+        if (!circleDirection)
+        {
+            angleDiff *= -1;
+        }
+
+        // if angleDiff is negative, then we are curving outwards => just go forwards instead
+        if (angleDiff < 0)
+        {
+            // put text
+            if (draw) { cv::putText(drawingImage, "Pure pursuit -> forwards", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2); }
+            // cv::Point2f radial = orbitCenter + cv::Point2f(orbitRadius * cos(angleCenterToUs), orbitRadius * sin(angleCenterToUs));
+            // targetPoint = radial;
+
+            cv::Point2f pointAwayFromUs = odoData.robotPosition + cv::Point2f(100 * cos(odoData.robotAngle), 100 * sin(odoData.robotAngle));
+            targetPoint = pointAwayFromUs;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+    /////////////////////////////// SCORING ///////////////////////////////
 
     // add turning score
     double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
     double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle);
-    double angleCost = abs(angleDiff) / (60 * TO_RAD);
+    double angleCost = abs(angleDiff) / (180 * TO_RAD);
     angleCost = std::min(1.0, angleCost);
 
 
+    
+    double angleToButt = angle_wrap(opponentExState.angle + M_PI);
+    // 0 -> 2pi
+    double angleFromUsToButt = angle_wrap(angleToButt - angleWeaponToUs - M_PI) + M_PI;
+
+    // draw an arrow from the opponent to the weapon
+    cv::arrowedLine(drawingImage, opponentExState.position,
+                    opponentExState.position + cv::Point2f(cos(opponentExState.angle + M_PI) * 50,
+                                                           sin(opponentExState.angle + M_PI) * 50),
+                    cv::Scalar(50, 150, 50), 2);
+
+    // draw an arrow from weapon to us
+    cv::arrowedLine(drawingImage, opponentWeaponPosEx,
+                    odoData.robotPosition,
+                    cv::Scalar(0, 100, 255), 2);
+
+    // if we are going the other way, we must invert the angle
+    if (!circleDirection)
+    {
+        angleFromUsToButt = 2 * M_PI - angleFromUsToButt;
+    }
+
+
+
     // now let's score
-    outCost = dangerLevel * 10000 + angleCost * 30;
+    outCost = angleFromUsToButt / (2 * M_PI) + angleCost * 0.45;
 
     // return the target point
     return targetPoint;
@@ -519,8 +637,8 @@ double Orbit::_GetDangerLevel(cv::Point2f robotPos,
     double angleToWeaponAbs = angle_wrap(angleOpponentToUs - opponentAngle) * (orbitDirection ? 1 : -1);
 
     // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
-    const double START_ANGLE = 65 * TO_RAD;
-    const double END_ANGLE = 170 * TO_RAD;
+    const double START_ANGLE = OPPONENT_SPIRAL_START_DEG * TO_RAD;
+    const double END_ANGLE = OPPONENT_SPIRAL_END_DEG * TO_RAD;
     double shrinkAmount = (angleToWeaponAbs - START_ANGLE) / (END_ANGLE - START_ANGLE);
 
     shrinkAmount = std::max(0.0, shrinkAmount);

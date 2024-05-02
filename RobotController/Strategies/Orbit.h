@@ -32,6 +32,14 @@ private:
                                        cv::Point2f orbitCenter,
                                        double orbitRadius);
 
+    cv::Point2f _CalculatePathPoint(double angle,
+                                    cv::Point2f opponentWeaponPosEx,
+                                    cv::Point2f opponentCenterEx,
+                                    double opponentAngleEx,
+                                    bool circleDirection,
+                                    double *outCurrRadius = nullptr,
+                                    cv::Point2f *outCurrOrbitCenter = nullptr);
+
     std::vector<cv::Point2f> _CalculateOrbitPath(cv::Point2f opponentWeaponPosEx,
                                                  cv::Point2f opponentCenterEx,
                                                  double opponentAngleEx,

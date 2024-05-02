@@ -35,6 +35,14 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Go Around Radius", &GO_AROUND_RADIUS, 0, 500);
 
+    // space
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::SliderFloat("Opponent Weapon Offset", &OPPONENT_WEAPON_OFFSET, 0.0, 150.0);
+    ImGui::SliderFloat("Opponent Spiral Start Deg", &OPPONENT_SPIRAL_START_DEG, 0.0, 180.0);
+    ImGui::SliderFloat("Opponent Spiral End Deg", &OPPONENT_SPIRAL_END_DEG, 0.0, 180.0);
+    ImGui::SliderFloat("Opponent Angle Extrap (ms)", &OPPONENT_ANGLE_EXTRAPOLATE_MS, 0.0, 500.0);
 
     EndSetMaxWidthWithMargin();
     ImGui::End();
