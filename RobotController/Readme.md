@@ -7,10 +7,12 @@ cmake
 opencv
 cuda
 flir camera sdk
+visual studio (build tools)
+python with numpy
 
 
 OPENCV INSTALL:
-0. Install cuda + cudann
+0. Install cuda 12.3 + cudnn v8.9 (As of 5/8/2024 opencv 4.9 does not support newer than this)
 
 1. download opencv source 4.9.0
 https://opencv.org/releases/
@@ -39,6 +41,8 @@ Enable cuda
 
 ![Alt text](doc_images/image-4.png)
 
+![Alt text](doc_images/image-cudnn-path.png)
+
 Set extra modules to where you installed opencv_contrib
 
 ![Alt text](doc_images/image-5.png)
@@ -56,6 +60,8 @@ Set install prefix (I put it in C:/opencv/install)
 Remove debug in below (should say only release):
 
 ![Alt text](doc_images/image-8.png)
+
+Init submodules: run 'git submodule update --init' inside git repo
 
 Finally hit generate
 Open command prompt and run:
