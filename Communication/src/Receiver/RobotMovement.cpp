@@ -1,5 +1,6 @@
-#include "RobotMovement.h"
+#include "Receiver/RobotMovement.h"
 #include "Communication.h"
+#include <math.h>
 
 #define M_PI 3.14159265358979323846
 #define TO_RAD (M_PI / 180.0)
@@ -103,7 +104,7 @@ DriveCommand DriveToAngle(double currAngle,
                                     MAX_TURN_POWER_PERCENT / 100.0);
 
     // Slow down when far away from the target angle
-    double drive_scale = max(0.0, 1.0 - abs(ret.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * (SCALE_DOWN_MOVEMENT_PERCENT / 100.0));
+    double drive_scale = std::max(0.0, 1.0 - abs(ret.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * (SCALE_DOWN_MOVEMENT_PERCENT / 100.0));
     ret.turn *= -1;
 
     return ret;

@@ -1,5 +1,5 @@
 #include "core_pins.h"
-#include "Motor.h"
+#include "Receiver/Motor.h"
 #include <cmath>
 
 Motor::Motor(int pwmPin)

@@ -9,10 +9,15 @@
  * The other two pins are arbitrary and can be changed if needed.  Redfine them in the RF24
  * statement.  Default shown here is to use pins 7 & 8
  */
+//#include "Communication.h"
 #include "Communication.h"
+#include "CircularDeque.h"
+#include "GenericReceiver.h"
+#include "Radio.h"
 #include <SPI.h>
 #include <RF24.h>
 #include <cstring> // for std::memcpy
+#include <Arduino.h>
 
 // #define VENDOR_ID               0x16C0
 // #define PRODUCT_ID              0x0480

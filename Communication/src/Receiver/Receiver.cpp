@@ -1,11 +1,13 @@
 /**
  * Receiver.ino
  */
-#include "Vesc.h"
+#include "Receiver/Vesc.h"
 #include "Communication.h"
-#include "Motor.h"
-#include "RobotMovement.h"
+#include "Receiver/Motor.h"
+#include "Receiver/RobotMovement.h"
+#include "Radio.h"
 #include <FastLED.h>
+#include <Arduino.h>
 
 #define VENDOR_ID               0x16C0
 #define PRODUCT_ID              0x0480
@@ -20,8 +22,8 @@
 #define VERBOSE_RADIO
 // #define DEBUG_AUTO
 
-#include "IMU.h"
-#include "Logging.h"
+#include "Receiver/IMU.h"
+#include "Receiver/Logging.h"
 
 #define SERIAL_BAUD 460800
 
