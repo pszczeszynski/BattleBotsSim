@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Clock.h"
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 #include <opencv2/core.hpp>
 
 class SelfRighter

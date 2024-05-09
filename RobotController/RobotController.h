@@ -6,7 +6,7 @@
 #include "RobotOdometry.h"
 #include "RobotLink.h"
 #include "Input/Gamepad.h"
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 #include "Extrapolator.h"
 #include "MatQueue.h"
 #include "SelfRighter.h"

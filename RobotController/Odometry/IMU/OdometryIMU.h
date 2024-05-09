@@ -1,6 +1,6 @@
 #pragma once
 #include "../OdometryBase.h"
-#include "../../../Communication/Communication.h"
+#include "../../../Common/Communication.h"
 
 class RobotController;
 

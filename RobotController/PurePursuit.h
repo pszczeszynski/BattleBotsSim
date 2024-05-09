@@ -6,7 +6,7 @@
 
 #include <vector>
 #include <opencv2/opencv.hpp>
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 #include "RobotOdometry.h"
 
 namespace PurePursuit

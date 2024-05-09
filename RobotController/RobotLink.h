@@ -3,8 +3,8 @@
 #include "RobotStateParser.h"
 #include "windows.h"
 #include "ServerSocket.h"
-#include "../Communication/Communication.h"
-#include "../Communication/GenericReceiver.h"
+#include "../Common/Communication.h"
+#include "../Common/Communication.h"
 #include <fstream>
 #include <functional>
 #include "Clock.h"

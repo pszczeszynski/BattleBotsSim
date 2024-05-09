@@ -1,5 +1,5 @@
 #include <opencv2/opencv.hpp>
-#include "../../Communication/Communication.h"
+#include "../../Common/Communication.h"
 #include "../Extrapolator.h"
 
 namespace RobotMovement

@@ -1,6 +1,6 @@
 #include "RobotLink.h"
 #include "Clock.h"
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 #include "Globals.h"
 #include "MathUtils.h"
 #include "RobotConfig.h"

@@ -1,7 +1,7 @@
 #include "RobotOdometry.h"
 #include "MathUtils.h"
 #include "OpponentProfile.h"
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 #include "RobotController.h"
 #include "imgui.h"
 #include "Input/InputState.h"

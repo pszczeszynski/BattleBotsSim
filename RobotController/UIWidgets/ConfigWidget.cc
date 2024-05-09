@@ -4,7 +4,7 @@
 #include "UIUtilities.h"
 #include "../RobotController.h"
 #include "../Odometry/Heuristic1/HeuristicOdometry.h"
-#include "../../Communication/Communication.h"
+#include "../../Common/Communication.h"
 #include "FieldWidget.h"
 
 ConfigWidget::ConfigWidget()

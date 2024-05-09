@@ -1,4 +1,5 @@
 #include "Communication.h"
+#include <Arduino.h>
 
 double DoubleThreshToTarget(double error,
                             double threshold1, double threshold2,

@@ -2,7 +2,7 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
-#include "../Communication/Communication.h"
+#include "../Common/Communication.h"
 
 /**
  * The state of the robot, should match the C# side.

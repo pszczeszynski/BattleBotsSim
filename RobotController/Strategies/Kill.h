@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Strategy.h"
-#include "../../Communication/Communication.h"
+#include "../../Common/Communication.h"
 #include "../Input/Gamepad.h"
 #include "../UIWidgets/KillWidget.h"
 

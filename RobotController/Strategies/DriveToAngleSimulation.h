@@ -1,5 +1,5 @@
 #pragma once
-#include "../../Communication/Communication.h"
+#include "../../Common/Communication.h"
 
 DriveCommand DriveToAngle(double currAngle,
                           double angularVelocity,
