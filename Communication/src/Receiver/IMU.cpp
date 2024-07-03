@@ -1,18 +1,32 @@
 #include "Receiver/IMU.h"
+#include "Hardware.h"
 
 #include <Arduino.h>
 
+#define CENTER_GYRO_SCALE_FACTOR 1.0
+#define CENTER_GYRO_AXIS gyrY
 
-// SIDE BOARD CONFIG
-// #define SCALE_UP_GYRO_FACTOR 1.02316240643
-// #define GYRO_AXIS gyrX
+#define SIDE_GYRO_SCALE_FACTOR 1.02316240643
+#define SIDE_GYRO_AXIS gyrX
 
-// MAIN BOARD CONFIG
-#define SCALE_UP_GYRO_FACTOR 1.0
-#define GYRO_AXIS gyrY
-
-IMU::IMU()
+IMU::IMU(enum board_placement placement)
 {
+    switch(placement)
+    {
+        case rxCenter:
+            _gyro_scale_factor = CENTER_GYRO_SCALE_FACTOR;
+            _gyro_axis = &ICM_20948::CENTER_GYRO_AXIS;
+            break;
+        case rxLeft:
+        case rxRight:
+            _gyro_scale_factor = SIDE_GYRO_SCALE_FACTOR;
+            _gyro_axis = &ICM_20948::SIDE_GYRO_AXIS;
+            break;
+        case tx:
+        case invalidPlacement:
+        default:
+            Serial.println("Error: running IMU init code on tx board ID");
+    }
     Serial.println("Initializing IMU...");
 
     WIRE_PORT.begin();
@@ -68,11 +82,11 @@ IMU::IMU()
 void IMU::ForceCalibrate()
 {
     delay(30);
-    double sample1 = -myICM.GYRO_AXIS() * TO_RAD;
+    double sample1 = -(myICM.*_gyro_axis)() * TO_RAD;
     delay(30);
-    double sample2 = -myICM.GYRO_AXIS() * TO_RAD;
+    double sample2 = -(myICM.*_gyro_axis)() * TO_RAD;
     delay(30);
-    double sample3 = -myICM.GYRO_AXIS() * TO_RAD;
+    double sample3 = -(myICM.*_gyro_axis)() * TO_RAD;
 
     double average = (sample1 + sample2 + sample3) / 3;
     _calibrationRotVelZ = average;
@@ -90,8 +104,8 @@ void IMU::ForceCalibrate()
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
-    _currRotVelZ = -myICM.GYRO_AXIS() * TO_RAD;
-    _currRotVelZ *= SCALE_UP_GYRO_FACTOR;
+    _currRotVelZ = -(myICM.*_gyro_axis)() * TO_RAD;
+    _currRotVelZ *= _gyro_scale_factor;
 
     double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;

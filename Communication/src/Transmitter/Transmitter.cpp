@@ -10,6 +10,8 @@
  * statement.  Default shown here is to use pins 7 & 8
  */
 //#include "Communication.h"
+#include "Transmitter.h"
+#include "Hardware.h"
 #include "Communication.h"
 #include "CircularDeque.h"
 #include "GenericReceiver.h"
@@ -17,7 +19,6 @@
 #include <SPI.h>
 #include <RF24.h>
 #include <cstring> // for std::memcpy
-#include <Arduino.h>
 
 // #define VENDOR_ID               0x16C0
 // #define PRODUCT_ID              0x0480
@@ -30,20 +31,15 @@
 #define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
 
 
-// status leds
-#define STATUS_1_LED_PIN 3
-#define STATUS_2_LED_PIN 4
-#define STATUS_3_LED_PIN 5
-#define STATUS_4_LED_PIN 6
-
-Radio<DriverStationMessage, RobotMessage>* radio;
+Radio<DriverStationMessage, RobotMessage>* tx_radio;
 const byte address[6] = "00001"; // Define address/pipe to use.
 
 //===============================================================================
 //  Initialization
 //===============================================================================
-void setup()
+void tx_setup()
 {
+    Serial.begin(SERIAL_BAUD);
     Serial.println("Powering on Transmitter!");
     Serial.println("Initializing...");
     // initialize the digital pin as an output.
@@ -51,11 +47,8 @@ void setup()
     pinMode(STATUS_2_LED_PIN, OUTPUT);
     pinMode(STATUS_3_LED_PIN, OUTPUT);
     pinMode(STATUS_4_LED_PIN, OUTPUT);
-
-    Serial.begin(460800);
     
-    Serial.println("Initializing radio...");
-    radio = new Radio<DriverStationMessage, RobotMessage>();
+    tx_radio = new Radio<DriverStationMessage, RobotMessage>();
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
@@ -77,7 +70,7 @@ long int total_packets = 0;
 
 #define SEND_TIMEOUT 1
 #define RECEIVE_TIMEOUT 1
-void loop()
+void tx_loop()
 {
     static unsigned long lastReceiveTime = 0;
     static unsigned long lastTime = 0;
@@ -92,10 +85,10 @@ void loop()
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
 
-        radio->SetChannel(command.radioChannel);
+        tx_radio->SetChannel(command.radioChannel);
 
         // send over radio to receiver
-        radio->Send(command);
+        tx_radio->Send(command);
 
         // blink the LED
         digitalWrite(STATUS_2_LED_PIN, HIGH);
@@ -107,7 +100,7 @@ void loop()
 
     bool hadData = false;
     // read data from rc
-    RobotMessage message = radio->Receive();
+    RobotMessage message = tx_radio->Receive();
 
     if (message.type != RobotMessageType::INVALID)
     {
@@ -133,7 +126,7 @@ void loop()
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
     // {
     //     // Serial.println("ERROR: no messages -> re-init");
-    //     radio->InitRadio();
+    //     tx_radio->InitRadio();
     //     lastReceiveTime = millis();
     // }
 }

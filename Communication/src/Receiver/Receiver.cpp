@@ -1,13 +1,15 @@
 /**
  * Receiver.ino
  */
+#include "Receiver.h"
 #include "Receiver/Vesc.h"
 #include "Communication.h"
 #include "Receiver/Motor.h"
 #include "Receiver/RobotMovement.h"
 #include "Radio.h"
+#include "Hardware.h"
 #include <FastLED.h>
-#include <Arduino.h>
+
 
 #define VENDOR_ID               0x16C0
 #define PRODUCT_ID              0x0480
@@ -16,16 +18,11 @@
 
 #define ENABLE_AUTONOMOUS_DRIVE
 
-// disable for backup teensies
-#define ENABLE_SELF_RIGHTER
-
 #define VERBOSE_RADIO
 // #define DEBUG_AUTO
 
 #include "Receiver/IMU.h"
 #include "Receiver/Logging.h"
-
-#define SERIAL_BAUD 460800
 
 // time to wait for received packets. If too short, likely to miss packets from driver station
 #define RECEIVE_TIMEOUT_MS 0
@@ -45,26 +42,18 @@
 #define FRONT_WEAPON_CAN_ID 2
 #define BACK_WEAPON_CAN_ID 4
 
-// status leds
-#define STATUS_1_LED_PIN 3
-#define STATUS_2_LED_PIN 4
-#define STATUS_3_LED_PIN 5
-#define STATUS_4_LED_PIN 6
 
-// closest to the middle of the teensy
-#define SELF_RIGHTER_MOTOR_PIN 14
 
 #define LED_BRIGHTNESS 255
 #define NUM_LEDS 3
-#define LED_PIN 2
 CRGB leds[NUM_LEDS];
 
 // components
 #ifdef USE_IMU
-IMU imu{};
+IMU *imu = nullptr;
 #endif
 VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
-Radio<RobotMessage, DriverStationMessage> radio{};
+Radio<RobotMessage, DriverStationMessage> rx_radio{};
 Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
 Logger logger{};
 
@@ -78,23 +67,59 @@ AutoDrive lastAutoCommand;
 DriverStationMessage lastMessage;
 int maxReceiveDelayMs = 0;
 
-void setup()
+uint8_t radioChannel = 0;
+
+extern enum board_placement placement;
+
+void determineChannel()
 {
-    Serial.println("Hello, I'm Orbitron :)");
-    // Start serial port to display messages on Serial Monitor Window
+    switch(placement)
+    {
+        case rxLeft:
+            radioChannel = TEENSY_RADIO_1;
+            Serial.println("Firmware select: left receiver");
+            break;
+        case rxCenter:
+            radioChannel = TEENSY_RADIO_2;
+            Serial.println("Firmware select: center receiver");
+            break;
+        case rxRight:
+            radioChannel = TEENSY_RADIO_3;
+            Serial.println("Firmware select: right receiver");
+            break;
+        case tx:
+        case invalidPlacement:
+        default:
+            // shouldn't happen 
+            Serial.println("Error: running rx radio setup with tx board ID");
+            break;
+    }
+}
+
+void rx_setup()
+{
     Serial.begin(SERIAL_BAUD);
+    Serial.println("Hello, I'm Orbitron :)");
+
+    
+    determineChannel();
+    rx_radio.SetChannel(radioChannel);
+
+    // Start serial port to display messages on Serial Monitor Window
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
-#ifdef ENABLE_SELF_RIGHTER
-    selfRightMotor.init();
-#endif
+    if(placement == rxCenter)
+    {
+        selfRightMotor.init();
+    }
 
     if (!logger.init())
     {
         Serial.println("WARNING: logger failed to initialize");
     }
 
-    imu.ForceCalibrate();
+    imu = new IMU(placement);
+    imu->ForceCalibrate();
 
     pinMode(STATUS_1_LED_PIN, OUTPUT);
     pinMode(STATUS_2_LED_PIN, OUTPUT);
@@ -146,10 +171,11 @@ void DriveWeapons(DriveCommand &command)
  */
 void DriveSelfRighter(DriveCommand &command)
 {
-#ifdef ENABLE_SELF_RIGHTER
-    selfRightMotor.SetPower(command.selfRighterPower);
-    logger.updateSelfRighterData(command.selfRighterPower);
-#endif
+    if(placement == rxCenter)
+    {
+        selfRightMotor.SetPower(command.selfRighterPower);
+        logger.updateSelfRighterData(command.selfRighterPower);
+    }
 }
 
 /**
@@ -166,7 +192,7 @@ RobotMessage Update()
 
 #ifdef USE_IMU
     // call update for imu
-    imu.Update();
+    imu->Update();
 #endif
 
     vesc.Update();
@@ -219,14 +245,14 @@ RobotMessage Update()
 
 #ifdef USE_IMU
         // get accelerometer data and set accelsdf
-        Point accel = imu.getAccel();
+        Point accel = imu->getAccel();
         ret.imuData.accelX = accel.x;
         ret.imuData.accelY = accel.y;
 
         // get gyro data and set gyro
-        ret.imuData.rotation = imu.getRotation();
+        ret.imuData.rotation = imu->getRotation();
         // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu.getRotationVelocity();
+        ret.imuData.rotationVelocity = imu->getRotationVelocity();
         logger.updateIMUData(ret.imuData.rotation, ret.imuData.rotationVelocity, ret.imuData.accelX, ret.imuData.accelY);
 #else
         ret.imuData.accelX = 0;
@@ -249,7 +275,7 @@ void WaitForRadioData()
     unsigned long waitReceiveStartTimeMS = millis();
 
     // while the radio isn't available
-    while (!radio.Available())
+    while (!rx_radio.Available())
     {
         // if too much time has passed
         if (millis() - waitReceiveStartTimeMS >= RECEIVE_TIMEOUT_MS)
@@ -260,7 +286,7 @@ void WaitForRadioData()
 
 #ifdef USE_IMU
         // call update for imu while waiting
-        imu.Update();
+        imu->Update();
 #endif
     }
 }
@@ -278,10 +304,10 @@ void DriveWithLatestMessage()
     static bool noPacketWatchdogTrigger = false;
 
     // if there is a message available
-    if (radio.Available())
+    if (rx_radio.Available())
     {
         // receive latest driver station message
-        DriverStationMessage msg = radio.Receive();
+        DriverStationMessage msg = rx_radio.Receive();
 
         // if the message is a drive command
         if (msg.type == DRIVE_COMMAND)
@@ -416,7 +442,7 @@ void DriveWithLatestMessage()
         {
             lastReinitRadioTime = millis();
             Serial.println("Reinit radio");
-            radio.InitRadio();
+            rx_radio.InitRadio(radioChannel);
         }
 
         // set all status leds off since the watchdog has triggered
@@ -427,8 +453,8 @@ void DriveWithLatestMessage()
     else if (lastMessage.type == AUTO_DRIVE)
     {
         // drive to the target angle
-        DriveCommand command = DriveToAngle(imu.getRotation(),
-                                            imu.getRotationVelocity(),
+        DriveCommand command = DriveToAngle(imu->getRotation(),
+                                            imu->getRotationVelocity(),
                                             lastAutoCommand.targetAngle,
                                             lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
                                             lastAutoCommand.TURN_THRESH_1_DEG,
@@ -443,8 +469,8 @@ void DriveWithLatestMessage()
         command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower;
 
 #ifdef DEBUG_AUTO
-        Serial.println("imu rotation: " + (String)imu.getRotation());
-        Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
+        Serial.println("imu rotation: " + (String)imu->getRotation());
+        Serial.println("imu rotation velocity: " + (String)imu->getRotationVelocity());
         Serial.println("target angle: " + (String)lastAutoCommand.targetAngle);
         Serial.println("Auto drive command translated to: " + (String)command.movement + " " + (String)command.turn);
 
@@ -570,7 +596,7 @@ void DriveLEDs(RobotMessage &message)
     FastLED.show();
 }
 
-void loop()
+void rx_loop()
 {
     // wait for a message to be available
     WaitForRadioData();
@@ -584,7 +610,7 @@ void loop()
     DriveLEDs(message);
 
     // send the message
-    SendOutput result = radio.Send(message);
+    SendOutput result = rx_radio.Send(message);
     logger.updateRadioData((int)result, 0, 0, 0);
 
     if (result != SEND_SUCCESS)

@@ -26,7 +26,8 @@ class Radio
 {
 public:
     Radio();
-    void InitRadio();
+    Radio(uint8_t channel);
+    void InitRadio(uint8_t channel);
 
     SendOutput Send(SendType& message);
     ReceiveType Receive();
@@ -42,11 +43,17 @@ private:
 template <typename SendType, typename ReceiveType>
 Radio<SendType, ReceiveType>::Radio()
 {
-    InitRadio();
+    InitRadio(TEENSY_RADIO_1);
 }
 
 template <typename SendType, typename ReceiveType>
-void Radio<SendType, ReceiveType>::InitRadio()
+Radio<SendType, ReceiveType>::Radio(uint8_t channel)
+{
+    InitRadio(channel);
+}
+
+template <typename SendType, typename ReceiveType>
+void Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
 {
     Serial.println("Initializing radio...");
     const byte address[6] = "00001";
@@ -58,8 +65,8 @@ void Radio<SendType, ReceiveType>::InitRadio()
     radio.startListening();
     radio.setAutoAck(false);
     radio.setDataRate(RF24_1MBPS);
-    Serial.println("Setting channel to " + (String) CHANNEL);
-    radio.setChannel(CHANNEL);
+    Serial.println("Setting channel to " + (String) channel);
+    radio.setChannel(channel);
     Serial.println("Success!");
 }
 
@@ -90,7 +97,7 @@ SendOutput Radio<SendType, ReceiveType>::Send(SendType &message)
             Serial.println("Radio fifo failed to clear");
 #endif
             // reinit
-            InitRadio();
+            InitRadio(_channel);
             ret = FIFO_FAIL;
             break;
         }
@@ -103,7 +110,7 @@ SendOutput Radio<SendType, ReceiveType>::Send(SendType &message)
         Serial.println("Radio hardware failure detected");
 #endif
         // reinit
-        InitRadio();
+        InitRadio(_channel);
         // reset failure flag
         radio.failureDetected = false;
         ret = HW_FAULT;

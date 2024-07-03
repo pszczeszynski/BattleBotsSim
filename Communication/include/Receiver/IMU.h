@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "ICM_20948.h"
 #include "Communication.h"
+#include "Hardware.h"
 
 #define WIRE_PORT Wire // Your desired Wire port. 
 
@@ -14,7 +15,7 @@
 class IMU
 {
 public:
-    IMU();
+    IMU(enum board_placement placement);
     void Update();
     void ForceCalibrate();
     bool dataReady();
@@ -47,4 +48,10 @@ private:
     unsigned long _lastAccelerateTimeMS = 0;
 
     double _prevTimeMS = 0;
+
+    enum board_placement _placement = invalidPlacement;
+
+    double _gyro_scale_factor = 0;
+    float (ICM_20948::*_gyro_axis)(void) = nullptr;
+
 };
