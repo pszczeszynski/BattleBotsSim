@@ -60,6 +60,13 @@ RobotMessage IRobotLink::Receive()
             _lastRadioMessageMutex.unlock();
             hadValidMessage = true;
         }
+        else if (msg.type == RobotMessageType::BOARD_TELEMETRY_DATA)
+        {
+            _lastBoardTelemetryMessageMutex.lock();
+            _lastBoardTelemetryMessage = msg;
+            _lastBoardTelemetryMessageMutex.unlock();
+            hadValidMessage = true;
+        }
     }
 
     // if didn't get a single valid message
@@ -117,6 +124,15 @@ RobotMessage IRobotLink::GetLastRadioMessage()
     _lastRadioMessageMutex.lock();
     ret = _lastRadioMessage;
     _lastRadioMessageMutex.unlock();
+    return ret;
+}
+
+RobotMessage IRobotLink::GetLastBoardTelemetryMessage()
+{
+    RobotMessage ret;
+    _lastBoardTelemetryMessageMutex.lock();
+    ret = _lastBoardTelemetryMessage;
+    _lastBoardTelemetryMessageMutex.unlock();
     return ret;
 }
 

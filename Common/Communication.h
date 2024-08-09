@@ -69,6 +69,7 @@ enum RobotMessageType : char
     IMU_DATA,
     CAN_DATA,
     RADIO_DATA,
+    BOARD_TELEMETRY_DATA,
     CHANNEL_SWITCH
 };
 
@@ -115,6 +116,15 @@ struct RadioData
     short invalidPackets;
 };
 
+struct BoardTelemetryData
+{
+    float voltage_batt;
+    float voltage_5v;
+    float current_5v;
+    float voltage_3v3;
+    float temperature;
+};
+
 // TODO: implement ping measurement system
 
 // Union that combines RobotMessage and TelemetryMessage
@@ -127,6 +137,7 @@ struct RobotMessage
         IMUData imuData;
         CANData canData;
         RadioData radioData;
+        BoardTelemetryData boardTelemetryData;
     };
 
     bool valid;

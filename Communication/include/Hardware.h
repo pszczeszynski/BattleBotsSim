@@ -23,6 +23,11 @@ enum board_placement
 #define STATUS_3_LED_PIN 5
 #define STATUS_4_LED_PIN 6
 
+#define VSNS_5V_PIN A6 //digital pin 20
+#define ISNS_5V_PIN A2 //digital pin 16
+#define VSNS_3V3_PIN A1 //digital pin 15
+#define VSNS_BATT_PIN A3 //digital pin 17
+
 
 ///////////////////////////RX SPECIFIC PINOUTS///////////////////////////
 

@@ -8,6 +8,7 @@
 #include "Receiver/RobotMovement.h"
 #include "Radio.h"
 #include "Hardware.h"
+#include "PowerMonitor.h"
 #include <FastLED.h>
 
 
@@ -56,6 +57,8 @@ VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPO
 Radio<RobotMessage, DriverStationMessage> rx_radio{};
 Motor selfRightMotor{SELF_RIGHTER_MOTOR_PIN};
 Logger logger{};
+
+PowerMonitor rx_power_monitor;
 
 // variables
 
@@ -212,7 +215,7 @@ RobotMessage Update()
         vesc.GetMotorTemps(ret.canData.motorTemp);
     }
     // send radio data
-    else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 2)
+    else if (updateCount == TELEMETRY_UPDATE_FREQUENCY / 3)
     {
         // send radio info
         ret.type = RADIO_DATA;
@@ -237,6 +240,17 @@ RobotMessage Update()
             maxReceiveDelayMs = 0;
             lastRadioStatsRefreshTime = millis();
         }
+    }
+    else if (updateCount == (2*TELEMETRY_UPDATE_FREQUENCY) / 3)
+    {
+        rx_power_monitor.readSensors();
+        // send radio info
+        ret.type = BOARD_TELEMETRY_DATA;
+
+        ret.boardTelemetryData.current_5v = rx_power_monitor.get5vCurrent();
+        ret.boardTelemetryData.voltage_3v3 = rx_power_monitor.get3v3Voltage();
+        ret.boardTelemetryData.voltage_5v = rx_power_monitor.get5vVoltage();
+        ret.boardTelemetryData.voltage_batt = rx_power_monitor.getBattVoltage();
     }
     // else send imu data
     else

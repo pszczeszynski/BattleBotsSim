@@ -24,6 +24,7 @@ public:
     RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
     RobotMessage GetLastRadioMessage();
+    RobotMessage GetLastBoardTelemetryMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
     bool IsTransmitterConnected();
 
@@ -37,6 +38,8 @@ protected:
     std::mutex _lastCANMessageMutex;
     RobotMessage _lastRadioMessage;
     std::mutex _lastRadioMessageMutex;
+    RobotMessage _lastBoardTelemetryMessage;
+    std::mutex _lastBoardTelemetryMessageMutex;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
