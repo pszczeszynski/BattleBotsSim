@@ -5,7 +5,8 @@ To Set Up the Teensys with all their communication and IMU Shenanigans, there ar
 2. Open the Communication folder in vscode (the folder this README is in) 
 
 3. Open the platformio menu on the left side (the alien icon) and project tasks should appear
-    - The `Unified` target will automatically determine whether tx/rx/position depending on ID pins. IE it can be flashed to all boards.
+    - The `All` target will automatically look for and flash all connected teensys with the unified firmware target
+    - The `Unified` target will automatically determine whether tx/rx/position depending on ID pins. IE it can be flashed to all boards. This target will scan and flash the first connected board
     - To force a board to act as a specific board regardless of ID pins the Transmitter/Receiver targets may be used.=
 
 4. To use the debug serial interface, download tycommander [here](https://github.com/Koromix/tytools).
