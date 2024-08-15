@@ -27,6 +27,7 @@ public:
     RobotMessage GetLastBoardTelemetryMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
     bool IsTransmitterConnected();
+    bool IsSecondaryTransmitterConnected();
 
 protected:
     // implemented by the subclass
@@ -44,6 +45,7 @@ protected:
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
     bool _transmitterConnected = false;
+    bool _secondaryTransmitterConnected = false;
 };
 
 /**
@@ -76,7 +78,12 @@ public:
 private:
     int ChooseBestChannel(DriverStationMessage& command);
 
+    void TryConnection(void);
+    void RadioThreadFunction(void);
+
     std::thread _radioThread;
+    int _primary_radio_index;
+    int _secondary_radio_index;
 
     std::deque<RobotMessage> _unconsumedMessages;
     std::mutex _unconsumedMessagesMutex;

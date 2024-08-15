@@ -12,6 +12,9 @@
  * driver station and the robot.
 */
 
+// if the driver station attemps to ping radios before connecting
+//#define PINGPONG
+
 struct Point
 {
     double x = 0.0;
@@ -70,7 +73,8 @@ enum RobotMessageType : char
     CAN_DATA,
     RADIO_DATA,
     BOARD_TELEMETRY_DATA,
-    CHANNEL_SWITCH
+    CHANNEL_SWITCH,
+    LOCAL_PING_RESPONSE,
 };
 
 struct IMUData
@@ -128,6 +132,7 @@ struct BoardTelemetryData
 // TODO: implement ping measurement system
 
 // Union that combines RobotMessage and TelemetryMessage
+// for messages type "LOCAL_PING_RESPONSE" the union is ignored
 struct RobotMessage
 {
     RobotMessageType type;
@@ -173,9 +178,11 @@ enum DriverStationMessageType : char
 {
     INVALID_DS = 0,
     DRIVE_COMMAND,
-    AUTO_DRIVE
+    AUTO_DRIVE,
+    LOCAL_PING_REQUEST,
 };
 
+// For LOCAL_PING_REQUEST messages the union is ignored
 struct DriverStationMessage
 {
     DriverStationMessageType type;

@@ -141,6 +141,12 @@ bool IRobotLink::IsTransmitterConnected()
     return _transmitterConnected;
 }
 
+bool IRobotLink::IsSecondaryTransmitterConnected()
+{
+    return _secondaryTransmitterConnected;
+}
+
+
 #define TRANSMITTER_COM_PORT TEXT("COM8")
 
 #define COM_READ_TIMEOUT_MS 100
@@ -153,122 +159,258 @@ int messageCount = 0;
 ClockWidget receiveThreadLoopTime("Receive thread loop time");
 
 #ifndef SIMULATION
+
+#define RADIO_DEVICES 5
+
+// will wait for up to 5ms before quitting if only one device found
+#define PRIMARY_TIMEOUT 0.05
+// tries to connect to devices and determine which ones are TX devices
+void RobotLinkReal::TryConnection(void)
+{
+    _transmitterConnected = false;
+    _secondaryTransmitterConnected = false;
+    DriverStationMessage ping_request;
+    ping_request.type = LOCAL_PING_REQUEST;
+    ping_request.valid = true;
+    _primary_radio_index = -1;
+    _secondary_radio_index = -1;
+    char pingbuf[HID_BUFFER_SIZE] = {0};
+    char recvbuf[HID_BUFFER_SIZE] = {0};
+    memcpy(pingbuf, &ping_request, sizeof(DriverStationMessage));
+
+    Clock c_retryTime;
+
+    while(true)
+    {
+        // try to open devices
+        int devices_opened = rawhid_open(RADIO_DEVICES, 0x16C0, 0x0486, 0xFFAB, 0x0200);
+        c_retryTime.markStart();
+        if (devices_opened >= 1)
+        {
+
+#ifdef PINGPONG
+            for(int i = 0; i < devices_opened; i++) {
+                rawhid_send(i, pingbuf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
+            }
+            while(c_retryTime.getElapsedTime() < PRIMARY_TIMEOUT)
+            {
+                for(int i = 0; i < devices_opened; i++) {
+                    int num = rawhid_recv(i, recvbuf, HID_BUFFER_SIZE, 2);
+                    if (num >= sizeof(RobotMessage))
+                    {
+                        // reinterpret the buffer as a RobotMessage
+                        RobotMessage msg = *reinterpret_cast<RobotMessage *>(recvbuf);
+                        if (msg.type == LOCAL_PING_RESPONSE) 
+                        {
+                            if (!_transmitterConnected)
+                            {
+                                _transmitterConnected = true;
+                                _primary_radio_index = i;
+                            }
+                            else if (!_secondaryTransmitterConnected) 
+                            {
+                                _secondaryTransmitterConnected = true;
+                                _secondary_radio_index = i;
+                                return;
+                            }
+                        }
+                    }
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            if (_transmitterConnected) {
+                return;
+            }
+#else
+            if (devices_opened == 1) {
+                _transmitterConnected = true;
+                _primary_radio_index = 0;
+            }
+            else
+            {
+                _transmitterConnected = true;
+                _primary_radio_index = 0;
+
+                _secondaryTransmitterConnected = true;
+                _secondary_radio_index = 1;
+            }
+            return;
+#endif
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
+    }
+}
+
+#ifdef PINGPONG
+// attempt to find a secondary radio every 5 seconds if only primary radio is connected
+#define SECONDARY_RETRY 5
+#else
+#define SECONDARY_RETRY 0.5
+#endif
+
+void RobotLinkReal::RadioThreadFunction(void)
+{
+    Clock c_rawhid; // Clock for not spamming rawhid error
+
+    Clock c_secondaryRetry;
+    
+
+    
+    while (true)
+    {
+        _lastRadioMessageMutex.lock();
+        // set to 0's
+        memset(&_lastRadioMessage, 0, sizeof(RobotMessage));
+        _lastRadioMessage.radioData.averageDelayMS = -1;
+        _lastRadioMessageMutex.unlock();
+
+        int num;
+        char buf[HID_BUFFER_SIZE];
+        
+        c_secondaryRetry.markStart();
+        TryConnection();
+
+        // keep reading until error or device goes offline
+        while (true)
+        {
+            // retry every N seconds if only one radio connected
+            if(!_secondaryTransmitterConnected && (!c_secondaryRetry.isRunning() || (c_secondaryRetry.getElapsedTime() > SECONDARY_RETRY)))
+            {
+                printf("Connection attempt: only have 1 radio\n");
+                break;
+            }
+            receiveThreadLoopTime.markEnd();
+            receiveThreadLoopTime.markStart();
+
+            // check if any Raw HID packet has arrived from primary
+            num = rawhid_recv(_primary_radio_index, buf, HID_BUFFER_SIZE, 1);
+
+            if (num < 0)
+            {
+                printf("\nerror reading, device went offline\n");
+                rawhid_close(_primary_radio_index);
+                receiveThreadLoopTime.markEnd();
+                if (_secondaryTransmitterConnected) {
+                    _primary_radio_index = _secondary_radio_index;
+                    _secondary_radio_index = -1;
+                    _secondaryTransmitterConnected = false;
+                    std::cerr << "Connection attempt: radio failover to secondary" << std::endl;
+                } else {
+                    break;
+                }
+            }
+            // if there is enough data for a RobotMessage
+            if (num >= sizeof(RobotMessage))
+            {
+                // reinterpret the buffer as a RobotMessage
+                RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+
+                if (msg.type != RobotMessageType::INVALID)
+                {
+                    // copy over data
+                    _unconsumedMessagesMutex.lock();
+                    _unconsumedMessages.push_back(msg);
+                    _unconsumedMessagesMutex.unlock();
+                }
+                else
+                {
+                    std::cerr << "ERROR: invalid message type" << std::endl;
+                }
+            }
+
+            if (_secondaryTransmitterConnected) {
+                // check if any Raw HID packet has arrived from secondary
+                num = rawhid_recv(_secondary_radio_index, buf, HID_BUFFER_SIZE, 1);
+
+                if (num < 0)
+                {
+                    printf("\nerror reading, device went offline\n");
+                    rawhid_close(_primary_radio_index);
+                    _secondary_radio_index = -1;
+                    _secondaryTransmitterConnected = false;
+                    receiveThreadLoopTime.markEnd();
+                    break;
+                }
+
+                // if there is enough data for a RobotMessage
+                if (num >= sizeof(RobotMessage))
+                {
+                    // reinterpret the buffer as a RobotMessage
+                    RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+
+                    if (msg.type != RobotMessageType::INVALID)
+                    {
+                        //_unconsumedMessagesMutex.lock();
+                        //_unconsumedMessages.push_back(msg);
+                        //_unconsumedMessagesMutex.unlock();
+                    }
+                    else
+                    {
+                        std::cerr << "ERROR: invalid message type" << std::endl;
+                    }
+                }
+            }
+            
+
+
+            // if the main thread wants to send a message
+            // try lock
+            int status = 0;
+            int status2 = 0;
+
+            _sendMessageMutex.lock();
+            if (_requestSend)
+            {
+                static ClockWidget sendTime("Send time");
+                static GraphWidget statusCode("Radio status code", -5, 100, "");
+                sendTime.markStart();
+
+                // copy over the message to send
+                memcpy(buf, &_messageToSend, sizeof(DriverStationMessage));
+
+                // send the message
+                status = rawhid_send(_primary_radio_index, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
+
+                if (_secondaryTransmitterConnected) {
+                    status2 = rawhid_send(_secondary_radio_index, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
+                    statusCode.AddData(status2);
+                }
+
+                statusCode.AddData(status);
+                sendTime.markEnd();
+                // reset requestSend
+                _requestSend = false;
+            }
+
+            _sendMessageMutex.unlock();
+
+            if (status < 0)
+            {
+                std::cerr << "Error sending message" << std::endl;
+                rawhid_close(_primary_radio_index);
+
+                if (_secondaryTransmitterConnected) {
+                    _primary_radio_index = _secondary_radio_index;
+                    _secondary_radio_index = -1;
+                    _secondaryTransmitterConnected = false;
+                } else {
+                    break;
+                }
+            }
+
+            if (status2 < 0) {
+                _secondary_radio_index = -1;
+                _secondaryTransmitterConnected = false;
+            }
+        }
+    }
+}
+
 RobotLinkReal::RobotLinkReal()
 {
     // init last can message
     memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
-    _radioThread = std::thread([this]()
-                               {
-
-            Clock c_rawhid; // Clock for not spamming rawhid error
-            
-            while (true)
-            {
-                _transmitterConnected = false;
-                _lastRadioMessageMutex.lock();
-                // set to 0's
-                memset(&_lastRadioMessage, 0, sizeof(RobotMessage));
-                _lastRadioMessage.radioData.averageDelayMS = -1;
-                _lastRadioMessageMutex.unlock();
-
-                int i, devices_opened, num;
-                char c;
-                char buf[HID_BUFFER_SIZE];
-
-                // C-based example is 16C0:0480:FFAB:0200
-                devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
-                // opened sucessfully
-
-                // while not opened
-                while (devices_opened <= 0)
-                {
-                    // Arduino-based example is 16C0:0486:FFAB:0200
-                    devices_opened = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
-                    if (devices_opened <= 0)
-                    {
-                        // Report error but don't spam it
-                        if( !c_rawhid.isRunning() || (c_rawhid.getElapsedTime() > 1.0))
-                        {
-                            c_rawhid.markStart();
-                            std::cerr << "no rawhid device found" << std::endl;
-                        }
-                        
-                        std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
-                    }
-                }
-
-                printf("found rawhid device with handle %d\n", devices_opened);
-                _transmitterConnected = true;
-
-                // keep reading until error or device goes offline
-                while (true)
-                {
-                    receiveThreadLoopTime.markStart();
-
-                    // check if any Raw HID packet has arrived
-                    num = rawhid_recv(0, buf, HID_BUFFER_SIZE, RECEIVE_TIMEOUT_MS);
-
-                    if (num < 0)
-                    {
-                        printf("\nerror reading, device went offline\n");
-                        rawhid_close(0);
-                        receiveThreadLoopTime.markEnd();
-                        break;
-                    }
-
-                    // if there is enough data for a RobotMessage
-                    if (num >= sizeof(RobotMessage))
-                    {
-                        // reinterpret the buffer as a RobotMessage
-                        RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
-
-                        if (msg.type != RobotMessageType::INVALID)
-                        {
-                            // copy over data
-                            _unconsumedMessagesMutex.lock();
-                            _unconsumedMessages.push_back(msg);
-                            _unconsumedMessagesMutex.unlock();
-                        }
-                        else
-                        {
-                            std::cerr << "ERROR: invalid message type" << std::endl;
-                        }
-                    }
-
-
-                    // if the main thread wants to send a message
-                    // try lock
-                    int status = 0;
-
-                    _sendMessageMutex.lock();
-                    if (_requestSend)
-                    {
-                        static ClockWidget sendTime("Send time");
-                        static GraphWidget statusCode("Radio status code", -5, 100, "");
-                        sendTime.markStart();
-
-                        // copy over the message to send
-                        memcpy(buf, &_messageToSend, sizeof(DriverStationMessage));
-
-                        // send the message
-                        status = rawhid_send(0, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
-
-                        statusCode.AddData(status);
-                        sendTime.markEnd();
-                        // reset requestSend
-                        _requestSend = false;
-                    }
-    
-                    _sendMessageMutex.unlock();
-
-                    if (status < 0)
-                    {
-                        std::cerr << "Error sending message" << std::endl;
-                        rawhid_close(0);
-                        break;
-                    }
-                } 
-            } });
+    _radioThread = std::thread(&RobotLinkReal::RadioThreadFunction, this);
 }
 
 /**

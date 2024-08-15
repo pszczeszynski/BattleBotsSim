@@ -33,6 +33,7 @@
 
 Radio<DriverStationMessage, RobotMessage>* tx_radio;
 const byte address[6] = "00001"; // Define address/pipe to use.
+char ping_response_buffer[64];
 
 //===============================================================================
 //  Initialization
@@ -52,6 +53,13 @@ void tx_setup()
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
+
+    // set up a hardcoded response to ping requests
+    RobotMessage ping_response;
+    ping_response.type = LOCAL_PING_RESPONSE;
+    ping_response.valid = true;
+    memset(ping_response_buffer, 0, sizeof(ping_response_buffer));
+    std::memcpy(ping_response_buffer, &ping_response, sizeof(RobotMessage));
 
     digitalWrite(STATUS_1_LED_PIN, HIGH);
 
@@ -79,19 +87,28 @@ void tx_loop()
     int n;
     n = RawHID.recv(buffer, RECEIVE_TIMEOUT);
 
+    // if the message is a tx ping, send a response back
+    // forward to the robot otherwise
     if (n > sizeof(DriverStationMessage))
     {
         DriverStationMessage command;
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
 
-        tx_radio->SetChannel(command.radioChannel);
+        if(command.type == LOCAL_PING_REQUEST)
+        {
+            n = RawHID.send(ping_response_buffer, SEND_TIMEOUT);
+        }
+        else
+        {
+            tx_radio->SetChannel(command.radioChannel);
 
-        // send over radio to receiver
-        tx_radio->Send(command);
+            // send over radio to receiver
+            tx_radio->Send(command);
 
-        // blink the LED
-        digitalWrite(STATUS_2_LED_PIN, HIGH);
+            // blink the LED
+            digitalWrite(STATUS_2_LED_PIN, HIGH);
+        }
     }
     else
     {
