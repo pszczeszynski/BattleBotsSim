@@ -136,6 +136,7 @@ struct BoardTelemetryData
 struct RobotMessage
 {
     RobotMessageType type;
+    uint32_t timestamp;
 
     union
     {
@@ -187,6 +188,7 @@ struct DriverStationMessage
 {
     DriverStationMessageType type;
     unsigned char radioChannel;
+    uint32_t timestamp;
 
     union
     {

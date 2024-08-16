@@ -82,6 +82,7 @@ private:
     void RadioThreadFunction(void);
 
     std::thread _radioThread;
+    Clock _radioThreadTimer;
     int _primary_radio_index;
     int _secondary_radio_index;
 

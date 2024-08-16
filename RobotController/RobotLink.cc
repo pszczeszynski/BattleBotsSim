@@ -253,6 +253,8 @@ void RobotLinkReal::RadioThreadFunction(void)
     Clock c_rawhid; // Clock for not spamming rawhid error
 
     Clock c_secondaryRetry;
+
+    _radioThreadTimer.markStart();
     
 
     
@@ -273,6 +275,14 @@ void RobotLinkReal::RadioThreadFunction(void)
         // keep reading until error or device goes offline
         while (true)
         {
+            bool debugprint = false;
+            float recvtime = 0;
+            float sendtime = 0;
+            if(!c_rawhid.isRunning() || c_rawhid.getElapsedTime() > 1.0f)
+            {
+                c_rawhid.markStart();
+                debugprint = true;
+            }
             // retry every N seconds if only one radio connected
             if(!_secondaryTransmitterConnected && (!c_secondaryRetry.isRunning() || (c_secondaryRetry.getElapsedTime() > SECONDARY_RETRY)))
             {
@@ -283,7 +293,17 @@ void RobotLinkReal::RadioThreadFunction(void)
             receiveThreadLoopTime.markStart();
 
             // check if any Raw HID packet has arrived from primary
-            num = rawhid_recv(_primary_radio_index, buf, HID_BUFFER_SIZE, 1);
+            num = rawhid_recv(_primary_radio_index, buf, HID_BUFFER_SIZE, 0);
+
+            if (receiveThreadLoopTime.getElapsedTime() > recvtime)
+            {
+                recvtime = receiveThreadLoopTime.getElapsedTime();
+            }
+            if (debugprint)
+            {
+                printf("early radio thread recv time: %f\n", recvtime);
+                recvtime = 0;
+            }
 
             if (num < 0)
             {
@@ -317,8 +337,7 @@ void RobotLinkReal::RadioThreadFunction(void)
                     std::cerr << "ERROR: invalid message type" << std::endl;
                 }
             }
-
-            if (_secondaryTransmitterConnected) {
+            else if (_secondaryTransmitterConnected) {
                 // check if any Raw HID packet has arrived from secondary
                 num = rawhid_recv(_secondary_radio_index, buf, HID_BUFFER_SIZE, 1);
 
@@ -340,9 +359,9 @@ void RobotLinkReal::RadioThreadFunction(void)
 
                     if (msg.type != RobotMessageType::INVALID)
                     {
-                        //_unconsumedMessagesMutex.lock();
-                        //_unconsumedMessages.push_back(msg);
-                        //_unconsumedMessagesMutex.unlock();
+                        _unconsumedMessagesMutex.lock();
+                        _unconsumedMessages.push_back(msg);
+                        _unconsumedMessagesMutex.unlock();
                     }
                     else
                     {
@@ -350,8 +369,6 @@ void RobotLinkReal::RadioThreadFunction(void)
                     }
                 }
             }
-            
-
 
             // if the main thread wants to send a message
             // try lock
@@ -363,6 +380,7 @@ void RobotLinkReal::RadioThreadFunction(void)
             {
                 static ClockWidget sendTime("Send time");
                 static GraphWidget statusCode("Radio status code", -5, 100, "");
+                _messageToSend.timestamp = (uint32_t)(_radioThreadTimer.getElapsedTime()*1000);
                 sendTime.markStart();
 
                 // copy over the message to send
@@ -372,8 +390,11 @@ void RobotLinkReal::RadioThreadFunction(void)
                 status = rawhid_send(_primary_radio_index, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
 
                 if (_secondaryTransmitterConnected) {
+                    _messageToSend.radioChannel = SECONDARY_RADIO_CHANNEL;
+                    memcpy(buf, &_messageToSend, sizeof(DriverStationMessage));
                     status2 = rawhid_send(_secondary_radio_index, buf, HID_BUFFER_SIZE, SEND_TIMEOUT_MS);
                     statusCode.AddData(status2);
+                    _messageToSend.radioChannel = RADIO_CHANNEL;
                 }
 
                 statusCode.AddData(status);
