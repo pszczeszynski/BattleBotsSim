@@ -1,6 +1,7 @@
 #pragma once
 #include <RF24.h>
 #include "Communication.h"
+#include "Hardware.h"
 
 // BELOW MUST CHANGE FOR EACH RECEIVER TEENSY
 #define CHANNEL TEENSY_RADIO_1
@@ -36,7 +37,7 @@ public:
     bool Available();
 
 private:
-    RF24 radio{7, 9};
+    RF24 radio{RADIO_CE_PIN, RADIO_CS_PIN};
     unsigned char _channel = CHANNEL;
 };
 
@@ -64,7 +65,7 @@ void Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
     Serial.println(POWER_STATUS_MSG);
     radio.startListening();
     radio.setAutoAck(false);
-    radio.setDataRate(RF24_1MBPS);
+    radio.setDataRate(RF24_250KBPS);
     Serial.println("Setting channel to " + (String) channel);
     radio.setChannel(channel);
     Serial.println("Success!");

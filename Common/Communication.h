@@ -3,6 +3,8 @@
 #ifndef COMMUNICATION_H
 #define COMMUNICATION_H
 
+#include <stdint.h>
+
 //#include <Arduino.h>
 
 /**

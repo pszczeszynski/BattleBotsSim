@@ -28,6 +28,9 @@ enum board_placement
 #define VSNS_3V3_PIN A1 //digital pin 15
 #define VSNS_BATT_PIN A3 //digital pin 17
 
+#define RADIO_CE_PIN 7
+#define RADIO_CS_PIN 9
+
 
 ///////////////////////////RX SPECIFIC PINOUTS///////////////////////////
 
@@ -36,5 +39,13 @@ enum board_placement
 
 #define LED_PIN 2
 
-///////////////////////////TX SPECIFIC PINOUTS///////////////////////////
+/////////////////////TX SPECIFIC RAWHID DEFINITIONS//////////////////////
+#define VENDOR_ID               0x16C0
+#define PRODUCT_ID              0x0480
+#define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
+#define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
 
+#define RAWHID_TX_SIZE          64      // transmit packet size
+#define RAWHID_TX_INTERVAL      1       // max # of ms between transmit packets
+#define RAWHID_RX_SIZE          64      // receive packet size
+#define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
