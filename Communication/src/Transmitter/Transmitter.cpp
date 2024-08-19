@@ -20,7 +20,7 @@
 #include <RF24.h>
 #include <cstring> // for std::memcpy
 
-Radio<DriverStationMessage, RobotMessage>* tx_radio;
+Radio<DriverStationMessage, RobotMessage> tx_radio{};
 const byte address[6] = "00001"; // Define address/pipe to use.
 char ping_response_buffer[64];
 
@@ -38,7 +38,6 @@ void tx_setup()
     pinMode(STATUS_3_LED_PIN, OUTPUT);
     pinMode(STATUS_4_LED_PIN, OUTPUT);
     
-    tx_radio = new Radio<DriverStationMessage, RobotMessage>();
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
@@ -90,10 +89,10 @@ void tx_loop()
         }
         else
         {
-            tx_radio->SetChannel(command.radioChannel);
+            tx_radio.SetChannel(command.radioChannel);
 
             // send over radio to receiver
-            tx_radio->Send(command);
+            SendOutput status = tx_radio.Send(command);
 
             // blink the LED
             digitalWrite(STATUS_2_LED_PIN, HIGH);
@@ -106,7 +105,7 @@ void tx_loop()
 
     bool hadData = false;
     // read data from rc
-    RobotMessage message = tx_radio->Receive();
+    RobotMessage message = tx_radio.Receive();
 
     if (message.type != RobotMessageType::INVALID)
     {
