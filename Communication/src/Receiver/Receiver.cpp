@@ -45,7 +45,7 @@ CRGB leds[NUM_LEDS];
 
 // components
 #ifdef USE_IMU
-IMU *imu = nullptr;
+IMU imu;
 #endif
 VESC vesc{LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
 Radio<RobotMessage, DriverStationMessage> rx_radio{};
@@ -115,8 +115,8 @@ void rx_setup()
         Serial.println("WARNING: logger failed to initialize");
     }
 
-    imu = new IMU(placement);
-    imu->ForceCalibrate();
+    imu.Initialize(placement);
+    imu.ForceCalibrate();
 
     pinMode(STATUS_1_LED_PIN, OUTPUT);
     pinMode(STATUS_2_LED_PIN, OUTPUT);
@@ -189,7 +189,7 @@ RobotMessage Update()
 
 #ifdef USE_IMU
     // call update for imu
-    imu->Update();
+    imu.Update();
 #endif
 
     vesc.Update();
@@ -253,14 +253,14 @@ RobotMessage Update()
 
 #ifdef USE_IMU
         // get accelerometer data and set accelsdf
-        Point accel = imu->getAccel();
+        Point accel = imu.getAccel();
         ret.imuData.accelX = accel.x;
         ret.imuData.accelY = accel.y;
 
         // get gyro data and set gyro
-        ret.imuData.rotation = imu->getRotation();
+        ret.imuData.rotation = imu.getRotation();
         // calculate rotation velocity
-        ret.imuData.rotationVelocity = imu->getRotationVelocity();
+        ret.imuData.rotationVelocity = imu.getRotationVelocity();
         logger.updateIMUData(ret.imuData.rotation, ret.imuData.rotationVelocity, ret.imuData.accelX, ret.imuData.accelY);
 #else
         ret.imuData.accelX = 0;
@@ -294,7 +294,7 @@ void WaitForRadioData()
 
 #ifdef USE_IMU
         // call update for imu while waiting
-        imu->Update();
+        imu.Update();
 #endif
     }
 }
@@ -461,8 +461,8 @@ void DriveWithLatestMessage()
     else if (lastMessage.type == AUTO_DRIVE)
     {
         // drive to the target angle
-        DriveCommand command = DriveToAngle(imu->getRotation(),
-                                            imu->getRotationVelocity(),
+        DriveCommand command = DriveToAngle(imu.getRotation(),
+                                            imu.getRotationVelocity(),
                                             lastAutoCommand.targetAngle,
                                             lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
                                             lastAutoCommand.TURN_THRESH_1_DEG,
@@ -477,8 +477,8 @@ void DriveWithLatestMessage()
         command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower;
 
 #ifdef DEBUG_AUTO
-        Serial.println("imu rotation: " + (String)imu->getRotation());
-        Serial.println("imu rotation velocity: " + (String)imu->getRotationVelocity());
+        Serial.println("imu rotation: " + (String)imu.getRotation());
+        Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
         Serial.println("target angle: " + (String)lastAutoCommand.targetAngle);
         Serial.println("Auto drive command translated to: " + (String)command.movement + " " + (String)command.turn);
 

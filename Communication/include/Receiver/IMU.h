@@ -15,7 +15,8 @@
 class IMU
 {
 public:
-    IMU(enum board_placement placement);
+    IMU();
+    void Initialize(enum board_placement placement);
     void Update();
     void ForceCalibrate();
     bool dataReady();

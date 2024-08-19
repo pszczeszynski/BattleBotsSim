@@ -9,7 +9,11 @@
 #define SIDE_GYRO_SCALE_FACTOR 1.02316240643
 #define SIDE_GYRO_AXIS gyrX
 
-IMU::IMU(enum board_placement placement)
+IMU::IMU()
+{
+}
+
+void IMU::Initialize(enum board_placement placement)
 {
     switch(placement)
     {
