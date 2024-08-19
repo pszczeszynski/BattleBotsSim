@@ -14,6 +14,7 @@
 #include "hid/hid.h"
 #include <chrono>
 #include <deque>
+#include <atomic>
 
 // interface
 class IRobotLink
@@ -80,11 +81,17 @@ private:
 
     void TryConnection(void);
     void RadioThreadFunction(void);
+    void RadioThreadSendFunction(RawHID *dev, bool *newMessage);
+    void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue);
+
+    std::atomic<bool> _radio_reinit;
+    RawHID _radios[2];
 
     std::thread _radioThread;
     Clock _radioThreadTimer;
     int _primary_radio_index;
     int _secondary_radio_index;
+
 
     std::deque<RobotMessage> _unconsumedMessages;
     std::mutex _unconsumedMessagesMutex;

@@ -156,7 +156,8 @@ char lastChar = '\0';
 int messageCount = 0;
 
 
-ClockWidget receiveThreadLoopTime("Receive thread loop time");
+ClockWidget receiveThreadLoopTime("Radio Send Interval Time");
+ClockWidget receiveIntervalTime("Packet Receive Interval Time");
 
 #ifndef SIMULATION
 
@@ -248,9 +249,129 @@ void RobotLinkReal::TryConnection(void)
 #define SECONDARY_RETRY 0.5
 #endif
 
+void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage)
+{
+    int num;
+    char buf[HID_BUFFER_SIZE];
+
+    static GraphWidget statusCode("Radio status code", -5, 100, "");
+    
+    while(true)
+    {
+        if(!_radio_reinit)
+        {
+            if(!dev->IsSendPending() && *newMessage)
+            {
+                memcpy(buf, &_messageToSend, sizeof(DriverStationMessage));
+                if (!dev->SendAsync(buf, HID_BUFFER_SIZE)) _radio_reinit = true;
+                *newMessage = false;
+                receiveThreadLoopTime.markEnd();
+                receiveThreadLoopTime.markStart();
+            }
+            else if (dev->IsSendPending())
+            {
+                num = dev->CheckSendAsync();
+                if (num < 0)
+                {
+                    _radio_reinit = true;
+                }
+                if (num != 0)
+                {
+                    statusCode.AddData(num);
+                }
+            }
+        }
+        //std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+}
+
+void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue)
+{
+    int num;
+    char buf[HID_BUFFER_SIZE];
+
+    Clock recvTimeout;
+    
+    while (true)
+    {
+        // only run if radios are properly working
+        if(!_radio_reinit)
+        {
+            if(!dev->IsRecvPending())
+            {
+                if (!dev->RecvAsync(HID_BUFFER_SIZE)) _radio_reinit = true;
+                recvTimeout.markStart();
+            }
+            else
+            {
+                num = dev->CheckRecvAsync(HID_BUFFER_SIZE, buf);
+                if (num < 0) _radio_reinit = true;
+                if (num >= sizeof(RobotMessage))
+                {
+                    printf("received packet\n");
+                    receiveIntervalTime.markEnd();
+                    receiveIntervalTime.markStart();
+                    // reinterpret the buffer as a RobotMessage
+                    RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+
+                    if (msg.type != RobotMessageType::INVALID)
+                    {
+                        // copy over data
+                        messageMutex->lock();
+                        messageQueue->push_back(msg);
+                        messageMutex->unlock();
+                    }
+                    else
+                    {
+                        std::cerr << "ERROR: invalid message type" << std::endl;
+                    }
+                }
+                else if (recvTimeout.getElapsedTime() > 1)
+                {
+                    dev->ResetRecv();
+                    recvTimeout.markStart();
+                    printf("reset timeout\n");
+                }
+            }
+        }
+        //std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+}
+
 void RobotLinkReal::RadioThreadFunction(void)
 {
-    Clock c_rawhid; // Clock for not spamming rawhid error
+    int devices_opened = 0;
+
+    _transmitterConnected = false;
+    _secondaryTransmitterConnected = false;
+    _radio_reinit = false;
+
+    std::thread primayRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[0], &_requestSend);
+    std::thread primary_radio_recv_thread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[0], &_unconsumedMessagesMutex, &_unconsumedMessages);
+    while (true)
+    {
+        while(devices_opened < 1)
+        {
+            devices_opened = RawHID_Open(_radios, 2, 0x16C0, 0x0486, 0xFFAB, 0x0200);
+            std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));
+        }
+        _transmitterConnected = true;
+        _secondaryTransmitterConnected = (bool)(devices_opened > 1);
+        _radio_reinit = false;
+        printf("Radio Reinit\n");
+        while (!_radio_reinit)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        //printf("Radio Reinit needed\n");
+        _radios[0].Close();
+        _radios[1].Close();
+        _transmitterConnected = false;
+        _secondaryTransmitterConnected = false;
+        devices_opened = 0;
+    }
+    
+    /*Clock c_rawhid; // Clock for not spamming rawhid error
 
     Clock c_secondaryRetry;
 
@@ -424,7 +545,7 @@ void RobotLinkReal::RadioThreadFunction(void)
                 _secondaryTransmitterConnected = false;
             }
         }
-    }
+    }*/
 }
 
 RobotLinkReal::RobotLinkReal()
@@ -498,6 +619,7 @@ int RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
 void RobotLinkReal::Drive(DriverStationMessage &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
+    static ClockWidget interSendTime("Inter Send Time");
 
     // set the radio channel
     RADIO_CHANNEL = ChooseBestChannel(command);
@@ -544,6 +666,8 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         _sendMessageMutex.unlock();
 
         _sendClock.markStart();
+        interSendTime.markEnd();
+        interSendTime.markStart();
     }
     catch (std::exception &e)
     {
