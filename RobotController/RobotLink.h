@@ -81,7 +81,7 @@ private:
 
     void TryConnection(void);
     void RadioThreadFunction(void);
-    void RadioThreadSendFunction(RawHID *dev, bool *newMessage);
+    void RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex);
     void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue);
 
     std::atomic<bool> _radio_reinit;
@@ -98,8 +98,11 @@ private:
 
     // these fields are mutex protected
     std::mutex _sendMessageMutex;
+    std::mutex _secondarySendMessageMutex;
     DriverStationMessage _messageToSend;
+    DriverStationMessage _secondaryMessageToSend;
     bool _requestSend;
+    bool _secondaryRequestSend;
 
 
     std::mutex _comPortMutex;
