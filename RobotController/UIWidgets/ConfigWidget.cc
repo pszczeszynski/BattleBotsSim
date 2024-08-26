@@ -188,6 +188,7 @@ void ConfigWidget::Draw()
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);    
     // radio channel
     ImGui::InputInt("Radio Channel", &RADIO_CHANNEL);
+    ImGui::InputInt("Secondary Radio Channel", &SECONDARY_RADIO_CHANNEL);
     
     if (!AUTO_SWITCH_CHANNEL)
     {

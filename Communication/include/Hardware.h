@@ -29,6 +29,7 @@ enum board_placement
 #define VSNS_BATT_PIN A3 //digital pin 17
 
 #define RADIO_CE_PIN 7
+#define RADIO_IRQ_PIN 8
 #define RADIO_CS_PIN 9
 
 

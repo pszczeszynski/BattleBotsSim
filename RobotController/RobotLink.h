@@ -15,6 +15,7 @@
 #include <chrono>
 #include <deque>
 #include <atomic>
+#include <set>
 
 // interface
 class IRobotLink
@@ -92,6 +93,8 @@ private:
     int _primary_radio_index;
     int _secondary_radio_index;
 
+    std::chrono::time_point<std::chrono::high_resolution_clock> _startTime;
+
 
     std::deque<RobotMessage> _unconsumedMessages;
     std::mutex _unconsumedMessagesMutex;
@@ -104,6 +107,9 @@ private:
     bool _requestSend;
     bool _secondaryRequestSend;
 
+    std::set<uint32_t> _outstandingPackets;
+    uint32_t _outstandingPacketCouner = 0;
+    std::mutex _outstandingPacketMutex;
 
     std::mutex _comPortMutex;
 

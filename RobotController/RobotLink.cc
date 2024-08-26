@@ -22,7 +22,7 @@
  */
 RobotMessage IRobotLink::Receive()
 {
-    static GraphWidget radioPacketLoss("Radio Packet Loss", 0, 50, "ms");
+    static GraphWidget recvIntervalTime("Received Packet Interval Time", 0, 50, "ms");
 
     // get all new messages
     std::vector<RobotMessage> newMessages = _ReceiveImpl();
@@ -81,7 +81,7 @@ RobotMessage IRobotLink::Receive()
     for (RobotMessage &msg : newMessages)
     {
         // display delay
-        radioPacketLoss.AddData(_receiveClock.getElapsedTime() * 1000);
+        recvIntervalTime.AddData(_receiveClock.getElapsedTime() * 1000);
         // restart the last receive clock
         _receiveClock.markStart();
     }
@@ -250,6 +250,8 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
     int num;
     char buf[HID_BUFFER_SIZE];
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     //static GraphWidget statusCode("Radio status code", -5, 100, "");
     
     while(true)
@@ -260,7 +262,6 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
             {
                 if (messageMutex->try_lock())
                 {
-                    message->timestamp = std::chrono::high_resolution_clock::now();
                     memcpy(buf, message, sizeof(DriverStationMessage));
                     messageMutex->unlock();
                     if (!dev->SendAsync(buf, HID_BUFFER_SIZE)) _radio_reinit = true;
@@ -273,10 +274,6 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
                 if (num < 0)
                 {
                     _radio_reinit = true;
-                }
-                if (num != 0)
-                {
-                    statusCode.AddData(num);
                 }
             }
         }
@@ -314,9 +311,16 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
                     if (msg.type != RobotMessageType::INVALID)
                     {
                         // copy over data
-                        messageMutex->lock();
-                        messageQueue->push_back(msg);
-                        messageMutex->unlock();
+                        
+                        _outstandingPacketMutex.lock();
+                        if(_outstandingPackets.find(msg.timestamp) != _outstandingPackets.end())
+                        {
+                            _outstandingPackets.erase(msg.timestamp);
+                            messageMutex->lock();
+                            messageQueue->push_back(msg);
+                            messageMutex->unlock();
+                        }
+                        _outstandingPacketMutex.unlock();
                     }
                     else
                     {
@@ -390,6 +394,7 @@ RobotLinkReal::RobotLinkReal()
 {
     // init last can message
     memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
+    _startTime = std::chrono::high_resolution_clock::now();
     _radioThread = std::thread(&RobotLinkReal::RadioThreadFunction, this);
 }
 
@@ -458,6 +463,8 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
     static ClockWidget interSendTime("Inter Send Time");
+    static GraphWidget _radioPacketLoss("Radio Packet Loss", 0, 20, "", 100);
+    static Clock packetLossUpdateRate;
 
     // set the radio channel
     RADIO_CHANNEL = ChooseBestChannel(command);
@@ -489,6 +496,9 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
 
     clockWidget.markStart();
 
+    auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+    command.timestamp = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+
     // set valid to true
     command.valid = true;
 
@@ -507,7 +517,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         _secondarySendMessageMutex.lock();
         // set message to send
         _secondaryMessageToSend = command;
-        _secondaryMessageToSend.radioChannel = TEENSY_RADIO_1;
+        _secondaryMessageToSend.radioChannel = SECONDARY_RADIO_CHANNEL;
         // set requestSend to true
         _secondaryRequestSend = true;
         // release sending mutex
@@ -516,10 +526,23 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         _sendClock.markStart();
         interSendTime.markEnd();
         interSendTime.markStart();
+
+        _outstandingPacketMutex.lock();
+        _outstandingPackets.insert(command.timestamp);
+        _outstandingPacketMutex.unlock();
     }
     catch (std::exception &e)
     {
         std::cerr << "Error sending message: " << e.what() << std::endl;
+    }
+
+    if(!packetLossUpdateRate.isRunning() || packetLossUpdateRate.getElapsedTime() > 0.1)
+    {
+        _outstandingPacketMutex.lock();
+        _radioPacketLoss.AddData(_outstandingPackets.size() - _outstandingPacketCouner);
+        _outstandingPacketCouner = _outstandingPackets.size();
+        _outstandingPacketMutex.unlock();
+        packetLossUpdateRate.markStart();
     }
 
     clockWidget.markEnd();

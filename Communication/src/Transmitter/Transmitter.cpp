@@ -16,6 +16,7 @@
 #include "CircularDeque.h"
 #include "GenericReceiver.h"
 #include "Radio.h"
+#include "Utils.h"
 #include <SPI.h>
 #include <RF24.h>
 #include <cstring> // for std::memcpy
@@ -65,7 +66,7 @@ long int total_packets = 0;
 #define NO_MESSAGE_REINIT_TIME 70
 
 #define SEND_TIMEOUT 1
-#define RECEIVE_TIMEOUT 1
+#define RECEIVE_TIMEOUT 0
 void tx_loop()
 {
     static unsigned long lastReceiveTime = 0;
@@ -127,7 +128,7 @@ void tx_loop()
     {
         digitalWrite(STATUS_3_LED_PIN, LOW);
     }
-
+    
     // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
     // {
     //     // Serial.println("ERROR: no messages -> re-init");

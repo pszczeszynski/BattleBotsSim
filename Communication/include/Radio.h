@@ -28,7 +28,7 @@ class Radio
 public:
     Radio();
     Radio(uint8_t channel);
-    void InitRadio(uint8_t channel);
+    bool InitRadio(uint8_t channel);
 
     SendOutput Send(SendType& message);
     ReceiveType Receive();
@@ -54,21 +54,19 @@ Radio<SendType, ReceiveType>::Radio(uint8_t channel)
 }
 
 template <typename SendType, typename ReceiveType>
-void Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
+bool Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
 {
-    Serial.println("Initializing radio...");
     const byte address[6] = "00001";
-    radio.begin();
+    if (!radio.begin()) return false;
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
     radio.setPALevel(POWER);
     Serial.println(POWER_STATUS_MSG);
     radio.startListening();
     radio.setAutoAck(false);
-    radio.setDataRate(RF24_250KBPS);
-    Serial.println("Setting channel to " + (String) channel);
+    if (!radio.setDataRate(RF24_2MBPS)) return false;
     radio.setChannel(channel);
-    Serial.println("Success!");
+    return true;
 }
 
 #define SEND_FIFO_TIMEOUT_MS 1
