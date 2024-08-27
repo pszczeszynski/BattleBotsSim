@@ -84,7 +84,7 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     if (ImGui::Button("Set LB"))
     {
-        leftStart = FieldWidget::leftClickPoint;
+        leftStart = TrackingWidget::leftClickPoint;
     }
 
     ImGui::SameLine();
@@ -92,7 +92,7 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     if (ImGui::Button("Set RB"))
     {
-        rightStart = FieldWidget::rightClickPoint;
+        rightStart = TrackingWidget::rightClickPoint;
     }
 
     ImGui::Text("BACKGROUND:  ");

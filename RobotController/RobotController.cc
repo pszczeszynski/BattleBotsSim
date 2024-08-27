@@ -11,7 +11,6 @@
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
 #include "Strategies/RobotMovement.h"
-#include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/KillWidget.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
@@ -89,23 +88,24 @@ CANData RobotController::GetCANData()
 
 void ClickOnHeuristic()
 {
-    if (FieldWidget::GetInstance() == nullptr)
+    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+    if (trackingWidget == nullptr)
     {
         return;
     }
 
-    if (InputState::GetInstance().IsMouseDown(0) && FieldWidget::GetInstance()->IsMouseOver())
+    if (InputState::GetInstance().IsMouseDown(0) && trackingWidget->IsMouseOver())
     {
-        FieldWidget::leftClickPoint = FieldWidget::GetInstance()->GetMousePos();
-        HEU_LEFTSTART_X = FieldWidget::leftClickPoint.x;
-        HEU_LEFTSTART_Y = FieldWidget::leftClickPoint.y;
+        TrackingWidget::leftClickPoint = trackingWidget->GetMousePos();
+        HEU_LEFTSTART_X = TrackingWidget::leftClickPoint.x;
+        HEU_LEFTSTART_Y = TrackingWidget::leftClickPoint.y;
     }
 
-    if (InputState::GetInstance().IsMouseDown(1) && FieldWidget::GetInstance()->IsMouseOver())
+    if (InputState::GetInstance().IsMouseDown(1) && trackingWidget->IsMouseOver())
     {
-        FieldWidget::rightClickPoint = FieldWidget::GetInstance()->GetMousePos();
-        HEU_RIGHTSTART_X = FieldWidget::rightClickPoint.x;
-        HEU_RIGHTSTART_Y = FieldWidget::rightClickPoint.y;
+        TrackingWidget::rightClickPoint = trackingWidget->GetMousePos();
+        HEU_RIGHTSTART_X = TrackingWidget::rightClickPoint.x;
+        HEU_RIGHTSTART_Y = TrackingWidget::rightClickPoint.y;
     }
 }
 
@@ -114,7 +114,7 @@ long loopCount = 0;
 
 void RobotController::Run()
 {
-    static FieldWidget _fieldWidget;
+    std::cout << "Starting robot controller..." << std::endl;
     TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
@@ -201,7 +201,6 @@ void RobotController::Run()
 
         // Update all our odometry data
         odometry.Update();
-        odometry.DrawAlgorithmData();
 
 
         // run our robot controller loop
@@ -217,12 +216,7 @@ void RobotController::Run()
 
         ClickOnHeuristic();
 
-        // update the mat + allow the user to adjust the crop of the field
-        _fieldWidget.AdjustFieldCrop();
-
-        // Allow the user to mask out areas of the image.
-        // They will be set to black when you get a frame from a camera
-        _fieldWidget.MaskOutRegions();
+        _trackingWidget.Update();
 
         _fieldWidget.UpdateMat(drawingImage);
     }

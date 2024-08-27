@@ -14,7 +14,8 @@
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
 #include "Weapons.h"
-
+#include "UIWidgets/FieldWidget.h"
+#include "UIWidgets/TrackingWidget.h"
 
 class RobotController
 {
@@ -88,4 +89,10 @@ private:
     Orbit orbitMode;
     Kill killMode;
 
+
+
+
+    /////// WIDGETS ///////
+    FieldWidget _fieldWidget;
+    TrackingWidget _trackingWidget;
 };

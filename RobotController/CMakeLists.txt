@@ -54,6 +54,7 @@ set(SOURCES
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
     UIWidgets/FieldWidget.cc
+    UIWidgets/TrackingWidget.cc
     UIWidgets/RobotTelemetryWidget.cc
     libs/IMGUI/imgui.cpp
     libs/IMGUI/imgui_draw.cpp

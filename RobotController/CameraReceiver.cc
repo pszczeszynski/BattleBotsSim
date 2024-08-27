@@ -12,6 +12,7 @@
 #include "Input/InputState.h"
 #include "VisionPreprocessor.h"
 #include "UIWidgets/FieldWidget.h"
+#include "UIWidgets/TrackingWidget.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -59,6 +60,7 @@ void ICameraReceiver::_StartCaptureThread()
         {
             captureTimer.markEnd();
             captureTimer.markStart();
+
             _CaptureFrame();  
         } });
 }
@@ -335,9 +337,13 @@ bool CameraReceiver::_CaptureFrame()
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(bayerImage, finalImage);
 
-    // apply mask
-    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+    if (trackingWidget != nullptr)
+    {
+        // apply mask
+        cv::Mat& mask = trackingWidget->GetMask();
+        finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    }
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
@@ -446,9 +452,13 @@ bool CameraReceiverSim::_CaptureFrame()
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(captured, finalImage);
 
-    // apply mask
-    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+    if (trackingWidget != nullptr)
+    {
+        // apply mask
+        cv::Mat& mask = trackingWidget->GetMask();
+        finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    }
 
     // lock the mutex
     std::unique_lock<std::mutex> locker(_frameMutex);
@@ -578,7 +588,7 @@ bool CameraReceiverVideo::_CaptureFrame()
     }
 
     // apply mask
-    // cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
+    // cv::Mat& mask = TrackingWidget::GetInstance()->GetMask();
     // finalImage.setTo(cv::Scalar(0, 0, 0), mask);
 
     std::unique_lock<std::mutex> locker(_frameMutex);
@@ -693,9 +703,14 @@ bool CameraReceiverUSB::_CaptureFrame()
     cv::Mat finalImage;
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
 
+
     // apply mask
-    cv::Mat& mask = FieldWidget::GetInstance()->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+    if (trackingWidget != nullptr)
+    {
+        cv::Mat& mask = trackingWidget->GetMask();
+        finalImage.setTo(cv::Scalar(0, 0, 0), mask);
+    }
 
     std::unique_lock<std::mutex> locker(_frameMutex);
 

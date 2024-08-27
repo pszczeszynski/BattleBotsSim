@@ -51,14 +51,16 @@ public:
 
     void SwitchRobots(); // Switches who's who
 
-    void DrawAlgorithmData();
-
     // used for calibration
     void UpdateForceSetAngle(double newAngle, bool opponentRobot );
     void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );
 
+    void ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool opponent);
+    void ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool opponent);
+
     HeuristicOdometry& GetHeuristicOdometry();
     CVPosition& GetNeuralOdometry();
+    BlobDetection& GetBlobOdometry();
     void _AdjustAngleWithArrowKeys();
 
 private:
@@ -94,7 +96,4 @@ private:
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
-
-    cv::Mat trackingMat{WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
-    ImageWidget trackingImage{"Tracking", trackingMat, false};
 };

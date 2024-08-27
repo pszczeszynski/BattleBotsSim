@@ -169,16 +169,17 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     // Get unique access (already locked from calling function)
     //  std::unique_lock<std::mutex> locker(_updateMutex);
 
-    // MotionBlob* robot = robotBlobData.GetRobotBlob();
-    // MotionBlob* opponent = robotBlobData.GetOpponentBlob();
+    MotionBlob* robot = robotBlobData.GetRobotBlob();
+    MotionBlob* opponent = robotBlobData.GetOpponentBlob();
 
 
-    MotionBlob robot;
-    MotionBlob opponent;
-    robot.center = robotPosSim;
-    opponent.center = opponentPosSim;
+    // for hardcoding sim:
+    // MotionBlob robot;
+    // MotionBlob opponent;
+    // robot.center = robotPosSim;
+    // opponent.center = opponentPosSim;
 
-    if (true)
+    if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot))
     {
         // Make a copy of currData for velocity calls
         _prevDataRobot = _currDataRobot;
@@ -189,10 +190,10 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         // Clear curr data
         _currDataRobot.Clear();
         _currDataRobot.isUs = true; // Make sure this is set
-        // _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
+        _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
 
         // Update our robot position/velocity/angle
-        SetData(&robot, _currDataRobot, _prevDataRobot);
+        SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
     }
     else
     {
@@ -201,7 +202,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         _currDataRobot.userDataDouble["invalidCount"]++;
     }
 
-    if (true)
+    if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent))
     {
         // Make a copy of currData for velocity calls
         _prevDataOpponent = _currDataOpponent;
@@ -212,10 +213,10 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         // Clear curr data
         _currDataOpponent.Clear();
         _currDataOpponent.isUs = false; // Make sure this is set
-        // _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
+        _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
 
         // Update opponent position/velocity info
-        SetData(&opponent, _currDataOpponent, _prevDataOpponent);
+        SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
     }
     else
     {

@@ -123,21 +123,6 @@ void RobotOdometry::Update(void)
 
 void RobotOdometry::FuseAndUpdatePositions()
 {
-    // 1. populate the tracking mat (for display purposes)
-    static ICameraReceiver &camera = ICameraReceiver::GetInstance();
-    if (camera.NewFrameReady(0))
-    {
-        long last_id = 0;
-        camera.GetFrame(trackingMat, last_id);
-        // convert to rgb
-        cv::cvtColor(trackingMat, trackingMat, cv::COLOR_GRAY2BGR);
-    }
-
-
-
-
-
-
     OdometryData* candidateRobot = &_dataRobot_Heuristic;
 
     bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid;
@@ -229,23 +214,22 @@ void RobotOdometry::FuseAndUpdatePositions()
         algorithmName = "Neural";
     }
 
-    // put text at top center of the image
-    cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+
+    cv::Mat trackingMat;
+    if (trackingWidget)
+    {
+        trackingMat = TrackingWidget::GetInstance()->GetTrackingMat();
+
+        // put text at top center of the image
+        cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+
+        // draw robot angle with an arrow
+        cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
+        cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
+    }
 
     _dataRobot = *candidateRobot;
-
-    // draw robot angle with an arrow
-    cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
-    cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
-
-
-
-
-
-
-
-
-
 
 
 
@@ -305,21 +289,24 @@ void RobotOdometry::FuseAndUpdatePositions()
         algorithmNameOpponent = "Heuristic";
     }
 
-    // put text at top center of the image
-    cv::putText(trackingMat, "Opponent using " + algorithmNameOpponent, cv::Point(trackingMat.cols / 2 - 75, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
 
 
     _dataOpponent = *candidateOpponent;   
 
-    int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
-    // draw on the tracking mat a square
-    cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size), _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255), 2);
+    if (!trackingMat.empty())
+    {
+        // put text at top center of the image
+        cv::putText(trackingMat, "Opponent using " + algorithmNameOpponent, cv::Point(trackingMat.cols / 2 - 75, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+        int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
+        // draw on the tracking mat a square
+        cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size), _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255), 2);
 
 
-    size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
+        size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
 
-    // draw a circle for the opponent
-    cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
+        // draw a circle for the opponent
+        cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
+    }
 }
 
 /*
@@ -577,115 +564,64 @@ CVPosition &RobotOdometry::GetNeuralOdometry()
     return _odometry_Neural;
 }
 
-void DrawX(cv::Mat& mat, cv::Point2f pos, cv::Scalar color, int size)
+BlobDetection &RobotOdometry::GetBlobOdometry()
 {
-    cv::line(mat, pos + cv::Point2f(-size, -size), pos + cv::Point2f(size, size), color, 2);
-    cv::line(mat, pos + cv::Point2f(-size, size), pos + cv::Point2f(size, -size), color, 2);
+    return _odometry_Blob;
 }
 
-void RobotOdometry::DrawAlgorithmData()
+
+
+/**
+ * @brief Forces the position of a tracking algorithm to be a certain value
+ * 
+ * @param alg - the algorithm to set the position of
+ * @param pos - the position to set it to
+ * @param opponent - whether to set the opponent or not
+ */
+void RobotOdometry::ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool opponent)
 {
-    // blob is blue
-    cv::Scalar blobColor = cv::Scalar(255, 0, 0);
-
-    // neural is purple
-    cv::Scalar neuralColor = cv::Scalar(255, 0, 255);
-
-    // heursitic is yellow - orange
-    cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
-
-    // go through every odometry algorithm and draw the tracking results
-    if (IsRunning(OdometryAlg::Blob))
+    if (alg == OdometryAlg::Blob)
     {
-        OdometryData robot = _odometry_Blob.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-        DrawX(trackingMat, robot.robotPosition, blobColor, 20);
-
-        OdometryData opponent = _odometry_Blob.GetData(true);
-        opponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        cv::circle(trackingMat, opponent.robotPosition, 20, blobColor, 2);
+        _odometry_Blob.SetPosition(pos, opponent);
     }
-
-    if (IsRunning(OdometryAlg::Heuristic))
+    else if (alg == OdometryAlg::Heuristic)
     {
-        OdometryData robot = _odometry_Heuristic.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-
-        if (robot.robotPosValid)
-        {
-            DrawX(trackingMat, robot.robotPosition, heuristicColor, 20);
-        }
-
-        OdometryData opponent = _odometry_Heuristic.GetData(true);
-        opponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        if (opponent.robotPosValid)
-        {
-            cv::circle(trackingMat, opponent.robotPosition, 20, heuristicColor, 2);
-        }
+        _odometry_Heuristic.SetPosition(pos, opponent);
     }
-
-    if (IsRunning(OdometryAlg::Neural))
+    else if (alg == OdometryAlg::IMU)
     {
-        OdometryData robot = _odometry_Neural.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-        if (robot.robotPosValid)
-        {
-            DrawX(trackingMat, robot.robotPosition, neuralColor, 30);
-        }
+        _odometry_IMU.SetPosition(pos, opponent);
     }
-
-
-    // check if mouse is over the image
-    if (trackingImage.IsMouseOver())
+    else if (alg == OdometryAlg::Neural)
     {
-        // if pressing not pressing shift
-        if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
-        {
-            if (EDITING_BLOB)
-            {
-                if (InputState::GetInstance().IsMouseDown(0))
-                {
-                    _odometry_Blob.SetPosition(trackingImage.GetMousePos(), false);
-                    // force velocity to 0
-                    _odometry_Blob.SetVelocity(cv::Point2f(0,0), false);
-                }
-                else if (InputState::GetInstance().IsMouseDown(1))
-                {
-                    _odometry_Blob.SetPosition(trackingImage.GetMousePos(), true);
-                    _odometry_Blob.SetVelocity(cv::Point2f(0,0), true);
-                }
-            }
-            if (EDITING_HEU)
-            {
-                if (InputState::GetInstance().IsMouseDown(0))
-                {
-                    _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), false);
-                    _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), false);
-                }
-                else if (InputState::GetInstance().IsMouseDown(1))
-                {
-                    _odometry_Heuristic.SetPosition(trackingImage.GetMousePos(), true);
-                    _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), true);
-                }
-            }
-        }
-        // else pressing shift
-        else
-        {
-            // if the user presses the left mouse button with shift
-            if (InputState::GetInstance().IsMouseDown(0))
-            {
-                // set the robot angle
-                cv::Point2f robotPos = Robot().robotPosition;
-                cv::Point2f currMousePos = trackingImage.GetMousePos();
-                double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-                UpdateForceSetAngle(newAngle, false);
-            }
-        }
+        _odometry_Neural.SetPosition(pos, opponent);
     }
+}
 
 
-    trackingImage.UpdateMat(trackingMat);
+/**
+ * @brief Forces the velocity of a tracking algorithm to be a certain value
+ * 
+ * @param alg - the algorithm to set the velocity of
+ * @param vel - the velocity to set it to
+ * @param opponent - whether to set the opponent or not
+ */
+void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool opponent)
+{
+    if (alg == OdometryAlg::Blob)
+    {
+        _odometry_Blob.SetVelocity(vel, opponent);
+    }
+    else if (alg == OdometryAlg::Heuristic)
+    {
+        _odometry_Heuristic.SetVelocity(vel, opponent);
+    }
+    else if (alg == OdometryAlg::IMU)
+    {
+        _odometry_IMU.SetVelocity(vel, opponent);
+    }
+    else if (alg == OdometryAlg::Neural)
+    {
+        _odometry_Neural.SetVelocity(vel, opponent);
+    }
 }

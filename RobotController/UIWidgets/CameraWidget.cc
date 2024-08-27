@@ -58,7 +58,7 @@ void CameraWidget::Draw()
         ImGui::Checkbox("Draw Mask?", &DrawMask);
         if (ImGui::Button("Clear Mask"))
         {
-            FieldWidget::GetInstance()->ClearMask();
+            TrackingWidget::GetInstance()->ClearMask();
         }
 
         ImGui::SliderFloat("Camera GAIN", &CAMERA_GAIN, 0, 40.0);

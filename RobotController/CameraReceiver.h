@@ -16,14 +16,6 @@
 #include "SpinGenApi/SpinnakerGenApi.h"
 
 
-#include "Spinnaker.h"
-#include "SpinGenApi/SpinnakerGenApi.h"
-
-
-#include "Spinnaker.h"
-#include "SpinGenApi/SpinnakerGenApi.h"
-
-
 class ICameraReceiver
 {
 public:
