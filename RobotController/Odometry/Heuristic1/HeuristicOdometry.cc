@@ -23,6 +23,7 @@
 #include "../../RobotConfig.h"
 #include "HeuristicOdometry.h"
 #include "../../UIWidgets/ImageWidget.h"
+#include "../../RobotController.h"
 
 // ****************************************
 // CameraDecoder
@@ -61,6 +62,11 @@ void HeuristicOdometry::UpdateSettings()
 
 void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos)
 {
+    // check if running, start us if not
+    if (!IsRunning())
+    {
+        RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
+    }
 
     // First reinitialize background
     reinit_bg = true;
