@@ -594,7 +594,7 @@ bool CameraReceiverVideo::_CaptureFrame()
     std::unique_lock<std::mutex> locker(_frameMutex);
 
     // Copy it over
-    _rawFrame.copyTo(_frame);
+    finalImage.copyTo(_frame);
     std::cout << "frame size: " << _frame.size() << std::endl;
 
     // increase _frameID
