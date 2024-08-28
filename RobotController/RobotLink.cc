@@ -283,6 +283,7 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
 
 void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue)
 {
+    static GraphWidget packetRoundTrip("Packet Round-trip Time", 0, 5, "ms", 1000);
     int num;
     char buf[HID_BUFFER_SIZE];
 
@@ -319,6 +320,9 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
                             messageMutex->lock();
                             messageQueue->push_back(msg);
                             messageMutex->unlock();
+                            auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+                            packetRoundTrip.AddData(float(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() - msg.timestamp)/1000);
+
                         }
                         _outstandingPacketMutex.unlock();
                     }
