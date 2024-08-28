@@ -14,9 +14,8 @@ float _fet_temps[4];
 float _motor_temps[4];
 float _currents[4];
 
-VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
+VESC::VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
 {
-    Serial.println("Initializing VESCs...");
     _ids[l_drive] = l_drive_id;
     _ids[r_drive] = r_drive_id;
     _ids[f_weapon] = f_weapon_id;
@@ -33,12 +32,7 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
         _currents[i] = 0;
     }
 
-    Can0.begin();
-    Can0.setBaudRate(500000);
-    Can0.setMaxMB(16);
-    Can0.enableFIFO();
-    Can0.enableFIFOInterrupt();
-    Can0.onReceive(OnMessage);
+    _can = can;
 
     Serial.println("Success!");
 }
@@ -59,7 +53,7 @@ VESC::VESC(int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
  * @brief OnMessage is called when a CAN message is received
  * @param msg the CAN message to process
 */
-static void VESC::OnMessage(const CAN_message_t &msg)
+void VESC::OnMessage(const CAN_message_t &msg)
 {
     uint32_t msg_id = (msg.id & MSG_ID_MASK) >> 8;
     int vesc_id = msg.id & VESC_ID_MASK;
@@ -186,7 +180,7 @@ void VESC::_SetMotorPower(float power, int motorIndex)
         message.buf[3 - i] = ((dutyCycle >> (8 * i)) & 0xff);
     }
 
-    Can0.write(message);
+    _can->write(message);
 }
 
 void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
@@ -211,7 +205,7 @@ void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
         message.buf[3 - i] = ((targetCurrent_mA >> (8 * i)) & 0xff);
     }
 
-    Can0.write(message);
+    _can->write(message);
 }
 
 
@@ -225,11 +219,6 @@ void VESC::DriveWeapons(float frontCurrent_amps, float backPower_amps)
 {
     _SetMotorCurrent(frontCurrent_amps, f_weapon);
     _SetMotorCurrent(backPower_amps, b_weapon);
-}
-
-void VESC::Update()
-{
-    Can0.events();
 }
 
 unsigned char FloatToUnsignedChar(float f)

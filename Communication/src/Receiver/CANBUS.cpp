@@ -8,12 +8,6 @@ CANBUS::CANBUS()
     Can0.enableFIFO();
     Can0.enableFIFOInterrupt();
     Can0.onReceive(OnMessage);
-    _initialized = true;
-}
-
-void CANBUS::Initialize()
-{
-    _initialized = true;
 }
 
 extern enum board_placement placement;
@@ -60,10 +54,7 @@ void CANBUS::OnMessage(const CAN_message_t &msg)
 
 void CANBUS::Update()
 {
-    if(_initialized)
-    {
-        Can0.events();
-    }
+    Can0.events();
 }
 
 uint8_t CANBUS::GetCanID(enum board_placement placement)
@@ -92,4 +83,13 @@ void CANBUS::SetVESCHandler(MessageHandler_t vesc_handler)
 void CANBUS::SetTeensyHandler(MessageHandler_t teensy_handler)
 {
     _teensy_handler = teensy_handler;
+}
+
+void CANBUS::SendTeensy(CANMessage *msg)
+{
+    CAN_message_t message;
+    message.id = CANBUS::GetCanID(placement);
+    message.len = sizeof(CANMessage);
+    memcpy(message.buf, msg, sizeof(CANMessage));
+    Can0.write(message);
 }

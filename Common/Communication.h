@@ -71,6 +71,14 @@ enum CANMessageType : char
 {
     CAN_INVALID = 0,
     ANGLE_SYNC,
+    PING_REQUEST,
+    PING_RESPONSE
+};
+
+struct CANPingData
+{
+    uint8_t ping_id;
+    uint32_t timestamp;
 };
 
 struct CANMessage
@@ -79,7 +87,7 @@ struct CANMessage
     union
     {
         float angle;
-        uint32_t timestamp;
+        CANPingData ping;
     };
 };
 

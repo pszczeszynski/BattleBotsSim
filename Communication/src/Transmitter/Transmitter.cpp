@@ -69,7 +69,6 @@ long int total_packets = 0;
 #define RECEIVE_TIMEOUT 0
 void tx_loop()
 {
-    static unsigned long lastReceiveTime = 0;
     static unsigned long lastTime = 0;
     static int curr_packet_id = 0;
 
@@ -110,7 +109,6 @@ void tx_loop()
 
     if (message.type != RobotMessageType::INVALID)
     {
-        lastReceiveTime = millis();
         total_packets ++;
 
         char sendBuffer[64];
@@ -128,11 +126,4 @@ void tx_loop()
     {
         digitalWrite(STATUS_3_LED_PIN, LOW);
     }
-    
-    // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
-    // {
-    //     // Serial.println("ERROR: no messages -> re-init");
-    //     tx_radio->InitRadio();
-    //     lastReceiveTime = millis();
-    // }
 }

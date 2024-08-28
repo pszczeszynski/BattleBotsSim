@@ -7,7 +7,7 @@
 #include "Communication.h"
 
 #define SD_CARD 10
-#define LOG_TIME 1/25 //value in hz
+#define LOG_TIME 40 //ms: the old value here was "1/25" and was hz
 #define ESC_COUNT 4
 #define AXIS_COUNT 3
 #define LOG_PARAM_COUNT 40
