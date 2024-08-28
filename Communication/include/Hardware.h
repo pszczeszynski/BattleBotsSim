@@ -50,3 +50,21 @@ enum board_placement
 #define RAWHID_TX_INTERVAL      1       // max # of ms between transmit packets
 #define RAWHID_RX_SIZE          64      // receive packet size
 #define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
+
+
+
+///////////////////////////RX SPECIFIC HARDWARE//////////////////////////
+
+// extended CAN IDs for everything (29 bits)
+// Lower 8 bits used for hardware ID, upper 21 bits for message ID
+
+// vesc can bus ids
+#define LEFT_MOTOR_CAN_ID 3
+#define RIGHT_MOTOR_CAN_ID 1
+#define FRONT_WEAPON_CAN_ID 2
+#define BACK_WEAPON_CAN_ID 4
+
+// teensy can bus ids - derived from 0x
+#define LEFT_TEENSY_ID rxLeft|0xf0
+#define CENTER_TEENSY_ID rxCenter|0xf0
+#define RIGHT_TEENSY_ID rxRight|0xf0

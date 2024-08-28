@@ -67,6 +67,22 @@ struct Point
 // disable padding
 #pragma pack(push, 1)
 
+enum CANMessageType : char
+{
+    CAN_INVALID = 0,
+    ANGLE_SYNC,
+};
+
+struct CANMessage
+{
+    CANMessageType type;
+    union
+    {
+        float angle;
+        uint32_t timestamp;
+    };
+};
+
 // robot -> driver station
 enum RobotMessageType : char
 {

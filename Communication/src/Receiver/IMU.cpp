@@ -9,6 +9,9 @@
 #define SIDE_GYRO_SCALE_FACTOR 1.02316240643
 #define SIDE_GYRO_AXIS gyrX
 
+#define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
+#define PI 3.14159
+
 IMU::IMU()
 {
 }
@@ -228,7 +231,7 @@ void IMU::Update()
     }
 
     // get the data from the IMU
-    myICM.getAGMT();
+    myICM.getAGMT_fast();
 
     // 1. update the gyro
     _updateGyro(deltaTimeMS);
@@ -423,5 +426,29 @@ void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
     else
     {
         Serial.print(val, decimals);
+    }
+}
+
+void IMU::MergeExternalInput(float rotation)
+{
+    if (millis() < BOOT_GYRO_MERGE_MS)
+    {
+        _rotation = rotation;
+    }
+    else
+    {
+        double difference = rotation - _rotation;
+
+        //fix wrap-around issues before merging
+        while(difference > 2*PI)
+        {
+            difference -= 2*PI;
+        }
+        while(difference < -2*PI)
+        {
+            difference += 2*PI;
+        }
+
+        _rotation += EXTERNAL_GYRO_MERGE_WEIGHT*difference;
     }
 }

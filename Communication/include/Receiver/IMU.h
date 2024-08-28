@@ -9,6 +9,10 @@
 
 #define TO_RAD 0.01745329251
 
+// on boot, avoid sending sync messages for this long
+// if a sync message receive within this interval, use it at 100% weight
+#define BOOT_GYRO_MERGE_MS 1000
+
 /**
  * Class for talking to the IMU
 */
@@ -18,6 +22,7 @@ public:
     IMU();
     void Initialize(enum board_placement placement);
     void Update();
+    void MergeExternalInput(float rotation);
     void ForceCalibrate();
     bool dataReady();
     Point getAccel();
