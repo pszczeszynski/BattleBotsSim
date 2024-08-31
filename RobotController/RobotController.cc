@@ -353,24 +353,6 @@ Gamepad& RobotController::GetGamepad2()
     return gamepad2;
 }
 
-/**
- * Allows the spacebar to control switching the robot positions should the trackers swap
-*/
-void SpaceSwitchesRobots()
-{
-    static bool spacePressedLast = false;
-    bool spacePressed = InputState::GetInstance().IsKeyDown(ImGuiKey_Space);
-
-    // if the space bar was just pressed down
-    if (spacePressed && !spacePressedLast)
-    {
-        RobotController::GetInstance().odometry.SwitchRobots();
-    }
-
-    // save the last variable for next time
-    spacePressedLast = spacePressed;
-}
-
 int Sign(double val)
 {
     return (0 < val) - (val < 0);
