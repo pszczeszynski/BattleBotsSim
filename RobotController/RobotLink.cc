@@ -245,7 +245,7 @@ void RobotLinkReal::TryConnection(void)
 #define SECONDARY_RETRY 0.5
 #endif
 
-void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex)
+void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex, bool delay)
 {
     int num;
     char buf[HID_BUFFER_SIZE];
@@ -264,6 +264,7 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
                 {
                     memcpy(buf, message, sizeof(DriverStationMessage));
                     messageMutex->unlock();
+                    if (delay) std::this_thread::sleep_for(std::chrono::microseconds(100));
                     if (!dev->SendAsync(buf, HID_BUFFER_SIZE)) _radio_reinit = true;
                     *newMessage = false;
                 }
@@ -353,10 +354,10 @@ void RobotLinkReal::RadioThreadFunction(void)
 
     Clock secondaryRetryTimer;
 
-    std::thread primayRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[0], &_requestSend, &_messageToSend, &_sendMessageMutex);
+    std::thread primayRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[0], &_requestSend, &_messageToSend, &_sendMessageMutex, false);
     std::thread primaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[0], &_unconsumedMessagesMutex, &_unconsumedMessages);
 
-    std::thread secondaryRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[1], &_secondaryRequestSend, &_secondaryMessageToSend, &_secondarySendMessageMutex);
+    std::thread secondaryRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[1], &_secondaryRequestSend, &_secondaryMessageToSend, &_secondarySendMessageMutex, true);
     std::thread secondaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[1], &_unconsumedMessagesMutex, &_unconsumedMessages);
     while (true)
     {

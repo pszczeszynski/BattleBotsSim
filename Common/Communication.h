@@ -60,9 +60,9 @@ struct Point
 };
 
 // defines the radio channel indexes for each teensy
-#define TEENSY_RADIO_1 30
+#define TEENSY_RADIO_1 120
 #define TEENSY_RADIO_2 65
-#define TEENSY_RADIO_3 100
+#define TEENSY_RADIO_3 105
 
 // disable padding
 #pragma pack(push, 1)
@@ -72,7 +72,8 @@ enum CANMessageType : char
     CAN_INVALID = 0,
     ANGLE_SYNC,
     PING_REQUEST,
-    PING_RESPONSE
+    PING_RESPONSE,
+    COMMAND_PACKET_ID
 };
 
 struct CANPingData
@@ -88,6 +89,7 @@ struct CANMessage
     {
         float angle;
         CANPingData ping;
+        uint32_t packetID;
     };
 };
 

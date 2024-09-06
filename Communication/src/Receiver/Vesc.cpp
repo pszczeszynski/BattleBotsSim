@@ -82,7 +82,7 @@ void VESC::OnMessage(const CAN_message_t &msg)
         return;
     }
 
-  Serial.print("Message ID: ");
+  /*Serial.print("Message ID: ");
   Serial.print(msg_id, HEX);
   Serial.print(", VESC ID: ");
   Serial.println(vesc_id);
@@ -93,7 +93,7 @@ void VESC::OnMessage(const CAN_message_t &msg)
       Serial.print(msg.buf[i], HEX);
       Serial.print(" ");
   }
-  Serial.println();
+  Serial.println();*/
 
     if (msg_id == MSG_ID_INPUT_VOLTAGE)
     {

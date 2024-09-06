@@ -82,7 +82,7 @@ private:
 
     void TryConnection(void);
     void RadioThreadFunction(void);
-    void RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex);
+    void RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex, bool delay);
     void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue);
 
     std::atomic<bool> _radio_reinit;

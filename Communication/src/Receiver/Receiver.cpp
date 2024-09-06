@@ -17,9 +17,14 @@
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
+#define ARBITRATION_TIMEOUT_MS 500
+
 // these interrupts are ordered by priority highest -> lowest
 #define WATCHDOG_PRIORITY 0x70
 #define WATCHDOG_INTERVAL 10000 // 10000us = 100hz
+
+#define CAN_EVENTS_PRIORITY 0x71
+#define CAN_EVENTS_INTERVAL 100 // 10kHz
 
 // radio interrupt should be 0x80 priority
 // Place watchdog above radio and everything else below
@@ -34,21 +39,22 @@
 
 #define POWER_STATS_TELEMETRY_INTERVAL 50 // every 50 packets -> updates at 4hz
 #define RADIO_STATS_TELEMETRY_INITERVAL 20 // every 20 packets -> 10hz
-#define CAN_DATA_TELEMETRY_INTERVAL 10 // every 10 packets -> 20 hz
+#define CAN_DATA_TELEMETRY_INTERVAL 10 // every 10 packets -> 20 
 
 // RECEIVER SPECIFIC GLOBAL VARIABLES
 extern enum board_placement placement;
 uint8_t radioChannel = 0;
 uint32_t lastReinitRadioTime = 0;
-uint32_t lastReceiveTime = 0;
+volatile uint32_t lastReceiveTime = 0;
 CRGB leds[NUM_LEDS];
-bool noPacketWatchdogTrigger = false;
-int validMessageCount = 0;
-int invalidMessageCount = 0;
+volatile bool noPacketWatchdogTrigger = false;
+volatile int validMessageCount = 0;
+volatile int invalidMessageCount = 0;
 DriveCommand lastDriveCommand;
 AutoDrive lastAutoCommand;
 DriverStationMessage lastMessage;
 int maxReceiveIntervalMs = 0;
+volatile uint32_t lastPacketID = 0;
 
 // RECEIVER COMPONENTS
 IMU imu;
@@ -108,10 +114,22 @@ void ServicePacketWatchdog()
     }
 }
 
+IntervalTimer CANEventsTimer;
+void ServiceCANEvents()
+{
+    can.Update();
+}
+
 void HandlePacket()
 {
     if (!rxRadio.Available()) return;
     DriverStationMessage msg = rxRadio.Receive();
+
+    RobotMessage return_msg = GenerateTelemetryPacket();
+    DriveLEDs(return_msg);
+    return_msg.timestamp = msg.timestamp;
+    SendOutput result = rxRadio.Send(return_msg);
+    logger.updateRadioData((int)result, 0, 0, 0);
 
     if(ErrorCheckMessage(msg))
     {
@@ -124,12 +142,6 @@ void HandlePacket()
     {
         invalidMessageCount++;
     }
-
-    RobotMessage return_msg = GenerateTelemetryPacket();
-    DriveLEDs(return_msg);
-    return_msg.timestamp = msg.timestamp;
-    SendOutput result = rxRadio.Send(return_msg);
-    logger.updateRadioData((int)result, 0, 0, 0);
 
     noPacketWatchdogTrigger = false;
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
@@ -275,6 +287,9 @@ void OnTeensyMessage(const CAN_message_t &msg)
             Serial.println("received response");
             DownsampledPrintf("Received ping response from %x, time taken: %d\n", message.ping.ping_id, micros() - message.ping.timestamp);
             break;
+        case COMMAND_PACKET_ID:
+            lastPacketID = message.packetID;
+            lastReceiveTime = millis();
         default:
             break;
     }
@@ -303,6 +318,12 @@ void rx_setup()
     angleSyncTimer.priority(ANGLE_SYNC_PRIORITY);
     angleSyncTimer.begin(ServiceAngleSync, ANGLE_SYNC_INTERVAL);
 
+    CANEventsTimer.priority(CAN_EVENTS_PRIORITY);
+    CANEventsTimer.begin(ServiceCANEvents, CAN_EVENTS_INTERVAL);
+
+    packetWatchdogTimer.priority(WATCHDOG_PRIORITY);
+    packetWatchdogTimer.begin(ServicePacketWatchdog, WATCHDOG_INTERVAL);
+
     DetermineChannel();
     delay(100);
     rxRadio.InitRadio(radioChannel);
@@ -328,8 +349,6 @@ void rx_setup()
 // CONTINUOUSLY CALLED ON RECEIVER
 void rx_loop()
 {
-    can.Update();
-
     if(millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
         if (millis() - lastReinitRadioTime > 2000)

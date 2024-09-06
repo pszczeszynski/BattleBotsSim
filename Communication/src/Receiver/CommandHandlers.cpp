@@ -7,6 +7,7 @@
 #include "Receiver/RobotMovement.h"
 #include "Receiver/IMU.h"
 #include "Receiver/Logging.h"
+#include "Receiver/CANBUS.h"
 
 extern CRGB leds[NUM_LEDS];
 extern uint32_t lastReceiveTime;
@@ -16,6 +17,8 @@ extern AutoDrive lastAutoCommand;
 extern DriverStationMessage lastMessage;
 extern IMU imu;
 extern Logger logger;
+extern uint32_t lastPacketID;
+extern CANBUS can;
 
 
 void Drive(DriveCommand &command)
@@ -66,69 +69,79 @@ void DriveWithMessage(DriverStationMessage &msg)
     }
     lastMessage = msg;
 
-    if (lastMessage.type == AUTO_DRIVE)
+    // only send the drive command if its the newest one seen sent across the bus
+    if (msg.timestamp > lastPacketID)
     {
-        // drive to the target angle
-        DriveCommand command = DriveToAngle(imu.getRotation(),
-                                            imu.getRotationVelocity(),
-                                            lastAutoCommand.targetAngle,
-                                            lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
-                                            lastAutoCommand.TURN_THRESH_1_DEG,
-                                            lastAutoCommand.TURN_THRESH_2_DEG,
-                                            lastAutoCommand.MAX_TURN_POWER_PERCENT,
-                                            lastAutoCommand.MIN_TURN_POWER_PERCENT,
-                                            lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+        //send the packet ID over the bus to notify other boards, then send commands
+        CANMessage packetIdMessage;
+        packetIdMessage.type = COMMAND_PACKET_ID;
+        packetIdMessage.packetID = msg.timestamp;
+        can.SendTeensy(&packetIdMessage);
+        lastPacketID = msg.timestamp;
+        if (lastMessage.type == AUTO_DRIVE)
+        {
+            // drive to the target angle
+            DriveCommand command = DriveToAngle(imu.getRotation(),
+                                                imu.getRotationVelocity(),
+                                                lastAutoCommand.targetAngle,
+                                                lastAutoCommand.ANGLE_EXTRAPOLATE_MS,
+                                                lastAutoCommand.TURN_THRESH_1_DEG,
+                                                lastAutoCommand.TURN_THRESH_2_DEG,
+                                                lastAutoCommand.MAX_TURN_POWER_PERCENT,
+                                                lastAutoCommand.MIN_TURN_POWER_PERCENT,
+                                                lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
 
-        // apply the movement from the last drive command
-        command.movement = lastMessage.driveCommand.movement;
-        command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPower;
-        command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower;
+            // apply the movement from the last drive command
+            command.movement = lastMessage.driveCommand.movement;
+            command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPower;
+            command.backWeaponPower = (float) lastAutoCommand.frontWeaponPower;
 
 #ifdef DEBUG_AUTO
-        Serial.println("imu rotation: " + (String)imu.getRotation());
-        Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
-        Serial.println("target angle: " + (String)lastAutoCommand.targetAngle);
-        Serial.println("Auto drive command translated to: " + (String)command.movement + " " + (String)command.turn);
+            Serial.println("imu rotation: " + (String)imu.getRotation());
+            Serial.println("imu rotation velocity: " + (String)imu.getRotationVelocity());
+            Serial.println("target angle: " + (String)lastAutoCommand.targetAngle);
+            Serial.println("Auto drive command translated to: " + (String)command.movement + " " + (String)command.turn);
 
-        // print coefficients
-        Serial.println("ANGLE_EXTRAPOLATE_MS: " + (String)lastAutoCommand.ANGLE_EXTRAPOLATE_MS);
-        Serial.println("TURN_THRESH_1_DEG: " + (String)lastAutoCommand.TURN_THRESH_1_DEG);
-        Serial.println("TURN_THRESH_2_DEG: " + (String)lastAutoCommand.TURN_THRESH_2_DEG);
-        Serial.println("MAX_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MAX_TURN_POWER_PERCENT);
-        Serial.println("MIN_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MIN_TURN_POWER_PERCENT);
-        Serial.println("SCALE_DOWN_MOVEMENT_PERCENT: " + (String)lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
-        
+            // print coefficients
+            Serial.println("ANGLE_EXTRAPOLATE_MS: " + (String)lastAutoCommand.ANGLE_EXTRAPOLATE_MS);
+            Serial.println("TURN_THRESH_1_DEG: " + (String)lastAutoCommand.TURN_THRESH_1_DEG);
+            Serial.println("TURN_THRESH_2_DEG: " + (String)lastAutoCommand.TURN_THRESH_2_DEG);
+            Serial.println("MAX_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MAX_TURN_POWER_PERCENT);
+            Serial.println("MIN_TURN_POWER_PERCENT: " + (String)lastAutoCommand.MIN_TURN_POWER_PERCENT);
+            Serial.println("SCALE_DOWN_MOVEMENT_PERCENT: " + (String)lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+            
 #endif
-        // invert the turn if we need to
-        if (lastAutoCommand.invertTurn)
-        {
-            command.turn *= -1;
-        }
+            // invert the turn if we need to
+            if (lastAutoCommand.invertTurn)
+            {
+                command.turn *= -1;
+            }
 
 #ifdef ENABLE_AUTONOMOUS_DRIVE
-        // drive the robot using the imu
-        Drive(command);
-        // still drive the weapons with the last drive command
-        DriveWeapons(command);
+            // drive the robot using the imu
+            Drive(command);
+            // still drive the weapons with the last drive command
+            DriveWeapons(command);
 
-        // set status led for autonomous drive
-        digitalWrite(STATUS_3_LED_PIN, HIGH);
+            // set status led for autonomous drive
+            digitalWrite(STATUS_3_LED_PIN, HIGH);
 #endif
-    }
-    else if (lastMessage.type == DRIVE_COMMAND)
-    {
-        // add to the logger
-        logger.updateRadioCommandData(lastDriveCommand.movement,
-                                      lastDriveCommand.turn,
-                                      lastDriveCommand.frontWeaponPower,
-                                      lastDriveCommand.backWeaponPower);
+        }
+        else if (lastMessage.type == DRIVE_COMMAND)
+        {
+            // add to the logger
+            logger.updateRadioCommandData(lastDriveCommand.movement,
+                                        lastDriveCommand.turn,
+                                        lastDriveCommand.frontWeaponPower,
+                                        lastDriveCommand.backWeaponPower);
 #ifdef DEBUG_AUTO
-        Serial.println("Manual drive command translated to: " + (String)lastDriveCommand.movement + " " + (String)lastDriveCommand.turn);
+            Serial.println("Manual drive command translated to: " + (String)lastDriveCommand.movement + " " + (String)lastDriveCommand.turn);
 #endif
-        // drive the robot, weapons, self righter
-        Drive(lastDriveCommand);
-        DriveWeapons(lastDriveCommand);
-        DriveSelfRighter(lastDriveCommand);
+            // drive the robot, weapons, self righter
+            Drive(lastDriveCommand);
+            DriveWeapons(lastDriveCommand);
+            DriveSelfRighter(lastDriveCommand);
+        }
     }
 }
 
