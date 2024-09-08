@@ -1,3 +1,6 @@
 [submodule "RobotController/libs/json"]
 	url = https://github.com/nlohmann/json.git
 	path = RobotController/libs/json
+[submodule "Communication/third_party/SparkFun_ICM-20948_ArduinoLibrary"]
+	path = Communication/third_party/SparkFun_ICM-20948_ArduinoLibrary
+	url = https://github.com/thesacredmoocow/SparkFun_ICM-20948_ArduinoLibrary.git

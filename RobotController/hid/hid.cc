@@ -64,7 +64,234 @@ static void hid_close(hid_t *hid);
 void print_win32_err(void);
 
 
+int RawHID_Open(RawHID *hid_list, int max, int vid, int pid, int usage_page, int usage)
+{
+	GUID guid;
+	HDEVINFO info;
+	DWORD index=0, reqd_size;
+	SP_DEVICE_INTERFACE_DATA iface;
+	SP_DEVICE_INTERFACE_DETAIL_DATA *details;
+	HIDD_ATTRIBUTES attrib;
+	PHIDP_PREPARSED_DATA hid_data;
+	HIDP_CAPS capabilities;
+	HANDLE h;
+	BOOL ret;
+	hid_t *hid;
+	int count=0;
 
+	if (max < 1) return 0;
+
+	HidD_GetHidGuid(&guid);
+	info = SetupDiGetClassDevs(&guid, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+	if (info == INVALID_HANDLE_VALUE) return 0;
+	for (index=0; 1 ;index++) {
+		iface.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+		ret = SetupDiEnumDeviceInterfaces(info, NULL, &guid, index, &iface);
+		if (!ret) return count;
+		SetupDiGetInterfaceDeviceDetail(info, &iface, NULL, 0, &reqd_size, NULL);
+		details = (SP_DEVICE_INTERFACE_DETAIL_DATA *)malloc(reqd_size);
+		if (details == NULL) continue;
+
+		memset(details, 0, reqd_size);
+		details->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
+		ret = SetupDiGetDeviceInterfaceDetail(info, &iface, details,
+			reqd_size, NULL, NULL);
+		if (!ret) {
+			free(details);
+			continue;
+		}
+		h = CreateFile(details->DevicePath, GENERIC_READ|GENERIC_WRITE,
+			FILE_SHARE_READ|FILE_SHARE_WRITE, NULL,
+			OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+		free(details);
+		if (h == INVALID_HANDLE_VALUE) continue;
+		attrib.Size = sizeof(HIDD_ATTRIBUTES);
+		ret = HidD_GetAttributes(h, &attrib);
+		//printf("vid: %4x\n", attrib.VendorID);
+		if (!ret || (vid > 0 && attrib.VendorID != vid) ||
+		  (pid > 0 && attrib.ProductID != pid) ||
+		  !HidD_GetPreparsedData(h, &hid_data)) {
+			CloseHandle(h);
+			continue;
+		}
+		if (!HidP_GetCaps(hid_data, &capabilities) ||
+		  (usage_page > 0 && capabilities.UsagePage != usage_page) ||
+		  (usage > 0 && capabilities.Usage != usage)) {
+			HidD_FreePreparsedData(hid_data);
+			CloseHandle(h);
+			continue;
+		}
+		HidD_FreePreparsedData(hid_data);
+		if (hid_list[count].IsOpen())
+		{
+			hid_list[count].Close();
+		}
+		hid_list[count].Initialize(h);
+		count++;
+		if (count >= max) return count;
+	}
+	return count;
+}
+
+RawHID::RawHID()
+{
+	_rx_event = CreateEvent(NULL, TRUE, TRUE, NULL);
+	_tx_event = CreateEvent(NULL, TRUE, TRUE, NULL);
+
+	_tx_in_progress = false;
+	_rx_in_progress = false;
+}
+
+void RawHID::Initialize(HANDLE handle)
+{
+	_handle = handle;
+	_open = true;
+}
+
+bool RawHID::IsOpen()
+{
+	return _open;
+}
+
+void RawHID::Close()
+{
+	if(_open)
+	{
+		CloseHandle(_handle);
+		_handle = NULL;
+		_open = false;
+	}
+}
+
+//  SendAsync - start an asyncrhonous send operation
+//    Inputs:
+//	buf = buffer containing packet to send
+//	len = number of bytes to transmit
+//    Output:
+//	returns true on successful start, false on error
+//
+bool RawHID::SendAsync(void *buf, int len)
+{
+	DWORD n, r;
+
+	// Sanity check inputs
+	if (!_open) return false;
+	if (_tx_in_progress) return false;
+	if (sizeof(_tx_buf) < len + 1) return false;
+	_tx_in_progress = true;
+
+	ResetEvent(&_tx_event);
+	memset(&_tx_ov, 0, sizeof(_tx_ov));
+	_tx_ov.hEvent = _tx_event;
+	_tx_buf[0] = 0;
+	memcpy(_tx_buf + 1, buf, len);
+
+	// WriteFile returns true on success and false on pending or error
+	if (!WriteFile(_handle, _tx_buf, len + 1, NULL, &_tx_ov)) {
+		if (GetLastError() != ERROR_IO_PENDING)
+		{
+			_tx_in_progress = false;
+			return false;
+		}
+	}
+	return true;
+}
+
+//  CheckSendAsync - check status of send operation
+//  MUST BE CALLED AFTER OPERATION SUCCEEDS TO ALLOW NEXT SEND OPERATION
+//    Output:
+//	number of bytes received, 0 for pending, or -1 on error
+//
+int RawHID::CheckSendAsync()
+{
+	DWORD bytes_written;
+	DWORD ret = WaitForSingleObject(_tx_event, 0);
+	if (ret == WAIT_TIMEOUT) return 0;
+	if (ret == WAIT_OBJECT_0)
+	{
+		_tx_in_progress = false;
+		if (!GetOverlappedResult(_handle, &_tx_ov, &bytes_written, FALSE)) return -1;
+		if (bytes_written <= 0) return -1;
+		return bytes_written - 1;
+	}
+	else
+	{
+		_tx_in_progress = false;
+		return -1;
+	}
+}
+
+bool RawHID::IsSendPending()
+{
+	return _tx_in_progress;
+}
+
+//  RecvAsync - start an asynchronous receive operation
+//    Inputs:
+//	len = number of bytes to receive
+//    Output:
+//	returns true on successful start, false on error
+//
+bool RawHID::RecvAsync(int len)
+{
+	if (!_open) return false;
+	if (_rx_in_progress) return false;
+	if (sizeof(_rx_buf) < len + 1) return false;
+	_rx_in_progress = true;
+	
+	ResetEvent(&_rx_event);
+	memset(&_rx_ov, 0, sizeof(_rx_ov));
+	_rx_ov.hEvent = _rx_event;
+
+	if (!ReadFile(_handle, _rx_buf, len + 1, NULL, &_rx_ov)) {
+		if (GetLastError() != ERROR_IO_PENDING)
+		{
+			_rx_in_progress = false;
+			return false;
+		}
+	}
+	return true;
+}
+
+int RawHID::CheckRecvAsync(int len, void *buf)
+{
+	DWORD bytes_read;
+	DWORD ret = WaitForSingleObject(_rx_event, 0);
+
+	if (ret == WAIT_TIMEOUT) return 0;
+	if (ret == WAIT_OBJECT_0)
+	{
+		_rx_in_progress = false;
+		if (!GetOverlappedResult(_handle, &_rx_ov, &bytes_read, FALSE)) return -1;
+		if (bytes_read <= 0) return -1;
+
+		bytes_read--;
+		if (bytes_read > len) bytes_read = len;
+		memcpy(buf, _rx_buf + 1, bytes_read);
+		return bytes_read;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+bool RawHID::IsRecvPending()
+{
+	return _rx_in_progress;
+}
+
+bool RawHID::ResetRecv()
+{
+	// don't cancel IO if there is a transmit in progress
+	if (_rx_in_progress && !_tx_in_progress)
+	{
+		CancelIo(_handle);
+		_rx_in_progress = false;
+		return true;
+	}
+	return false;
+}
 
 //  rawhid_recv - receive a packet
 //    Inputs:

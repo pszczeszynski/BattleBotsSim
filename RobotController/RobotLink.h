@@ -14,6 +14,8 @@
 #include "hid/hid.h"
 #include <chrono>
 #include <deque>
+#include <atomic>
+#include <set>
 
 // interface
 class IRobotLink
@@ -24,8 +26,10 @@ public:
     RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
     RobotMessage GetLastRadioMessage();
+    RobotMessage GetLastBoardTelemetryMessage();
     const std::deque<RobotMessage>& GetMessageHistory();
     bool IsTransmitterConnected();
+    bool IsSecondaryTransmitterConnected();
 
 protected:
     // implemented by the subclass
@@ -37,10 +41,13 @@ protected:
     std::mutex _lastCANMessageMutex;
     RobotMessage _lastRadioMessage;
     std::mutex _lastRadioMessageMutex;
+    RobotMessage _lastBoardTelemetryMessage;
+    std::mutex _lastBoardTelemetryMessageMutex;
 
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
     bool _transmitterConnected = false;
+    bool _secondaryTransmitterConnected = false;
 };
 
 /**
@@ -73,16 +80,36 @@ public:
 private:
     int ChooseBestChannel(DriverStationMessage& command);
 
+    void TryConnection(void);
+    void RadioThreadFunction(void);
+    void RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex, bool delay);
+    void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue);
+
+    std::atomic<bool> _radio_reinit;
+    RawHID _radios[2];
+
     std::thread _radioThread;
+    Clock _radioThreadTimer;
+    int _primary_radio_index;
+    int _secondary_radio_index;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> _startTime;
+
 
     std::deque<RobotMessage> _unconsumedMessages;
     std::mutex _unconsumedMessagesMutex;
 
     // these fields are mutex protected
     std::mutex _sendMessageMutex;
+    std::mutex _secondarySendMessageMutex;
     DriverStationMessage _messageToSend;
+    DriverStationMessage _secondaryMessageToSend;
     bool _requestSend;
+    bool _secondaryRequestSend;
 
+    std::set<uint32_t> _outstandingPackets;
+    uint32_t _outstandingPacketCouner = 0;
+    std::mutex _outstandingPacketMutex;
 
     std::mutex _comPortMutex;
 

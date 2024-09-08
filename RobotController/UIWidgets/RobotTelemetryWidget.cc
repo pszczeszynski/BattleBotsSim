@@ -178,6 +178,67 @@ void DrawRadioData()
     }
 }
 
+void DrawBoardTelemetryData()
+{
+    // get latest message
+    BoardTelemetryData data = RobotController::GetInstance().GetRobotLink().GetLastBoardTelemetryMessage().boardTelemetryData;
+
+    // Increase the font size
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10)); // Increase spacing for bigger text
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 10)); // Increase padding for bigger text
+
+    ImGui::Spacing();
+    CenterText("Power Telemetry");
+
+    ImGui::PopStyleVar(2);
+
+    const char* powerRowLabels[] = { "Tx/Rx", "VBat", "5V volt", "5V amp", "3v3 Volt", "Temp"};
+    if (ImGui::BeginTable("table3", 3, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
+    {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Text("%s", powerRowLabels[0]);
+        ImGui::Separator();
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%s", "Tx");
+        ImGui::Separator();
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("%s", "Rx");
+        ImGui::Separator();
+
+        for (int i = 1; i < 6; i++)
+        {
+            ImGui::TableNextRow();
+            // Set the row label
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", powerRowLabels[i]);
+            ImGui::Separator();
+
+            ImGui::TableSetColumnIndex(2);
+            switch (i)
+            {
+            case 1:
+                ImGui::Text("%f V", data.voltage_batt);
+                break;
+            case 2:
+                ImGui::Text("%f V", data.voltage_5v);
+                break;
+            case 3:
+                ImGui::Text("%f A", data.current_5v);
+                break;
+            case 4:
+                ImGui::Text("%f V", data.voltage_3v3);
+                break;
+            case 5:
+                ImGui::Text("%f C", data.temperature);
+                break;
+            }
+            ImGui::Separator();
+        }
+        ImGui::EndTable();
+    }
+}
+
 
 void RobotTelemetryWidget::Draw()
 {
@@ -211,6 +272,7 @@ void RobotTelemetryWidget::Draw()
     ImGui::Spacing();
 
     DrawRadioData();
+    DrawBoardTelemetryData();
 
     ImGui::End();
 }

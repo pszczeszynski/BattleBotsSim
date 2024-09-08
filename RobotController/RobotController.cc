@@ -687,6 +687,21 @@ void RobotController::DrawStatusIndicators()
     cv::circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
     cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
+    // check if secondary robotlink transmission is working
+    bool secondaryTransmitterConnected = robotLink.IsSecondaryTransmitterConnected();
+
+    if (secondaryTransmitterConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
+    cv::putText(drawingImage, "TX2", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
 
     // check the gamepad is connected
 
@@ -701,8 +716,8 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
-    cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
+    cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
 
@@ -719,8 +734,8 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
-    cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
+    cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
 
