@@ -11,12 +11,16 @@ class HumanPosition : public OdometryBase
 public:
     HumanPosition();
     cv::Point2f GetPosition();
+    float GetAngle();
 private:
     ServerSocket _socket;
     std::thread _socketThread;
 
     cv2::Point2f _lastPos;
-    cv2::Mutex _lastPosMutex;
+    std::mutex _lastPosMutex;
 
-    cv2:Point2f _GetDataFromSocket();
+    float _lastAngle;
+    std::mutex _lastAngleMutex;
+
+    std::vector<int> _GetDataFromSocket();
 }

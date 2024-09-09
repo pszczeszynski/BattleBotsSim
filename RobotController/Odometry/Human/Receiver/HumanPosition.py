@@ -1,3 +1,4 @@
+from enum import Enum
 import socket
 import cv2
 import numpy as np
@@ -6,11 +7,17 @@ import numpy as np
 HOST = '127.0.0.1'
 PORT = 11117
 
+class mode(Enum):
+    POSITION = 0
+    ROTATION = 1
+
+current_mode = mode.POSITION
+
 # Callback on mouse click
 def mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         print(f"Mouse clicked at (x={x}, y={y})")
-        pos_data = x.to_bytes(4, byteorder='big') + y.to_bytes(4, byteorder='big')
+        pos_data = current_mode.value.to_bytes(4, byteorder='big') + x.to_bytes(4, byteorder='big') + y.to_bytes(4, byteorder='big')
         client_socket.sendall(pos_data)
 
 # Connect to the server
@@ -21,6 +28,8 @@ print("Connected to the server.")
 # Set up the window and callback
 cv2.namedWindow("Streaming Image", cv2.WINDOW_NORMAL)
 cv2.setMouseCallback("Streaming Image", mouse_callback)
+# add button to change mode
+cv2.createButton("Change Mode", lambda: mode.ROTATION if current_mode == mode.POSITION else mode.POSITION)
 
 try:
     while True:

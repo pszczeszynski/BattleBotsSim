@@ -18,7 +18,8 @@ try:
     counter = 0
     while True:
         # Open the image file
-        with open(f'../../../MachineLearning/TrainingData/TrainingInputs/image_{counter}.jpg', 'rb') as file:
+        # with open(f'../../../MachineLearning/TrainingData/TrainingInputs/image_{counter}.jpg', 'rb') as file:
+        with open(f'image_1.jpg', 'rb') as file:
             image_data = file.read()
 
         # Send the image data size
@@ -27,9 +28,11 @@ try:
         # Send the image data to the client
         client_socket.sendall(image_data)
 
-        data_received = client_socket.recv(8)  # 8 bytes for two 4-byte integers
+        data_received = client_socket.recv(12)  # 8 bytes for two 4-byte integers
+        current_mode = int.from_bytes(data_received[:4], byteorder='big')
         x = int.from_bytes(data_received[:4], byteorder='big')
         y = int.from_bytes(data_received[4:], byteorder='big')
+        print(f"Current mode: {current_mode}")
         if x > 0 and y > 0:
             print(f'Position x: {x}, Position y: {y}')
 

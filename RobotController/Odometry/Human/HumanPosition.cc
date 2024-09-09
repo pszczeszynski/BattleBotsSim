@@ -25,13 +25,23 @@ HumanPosition::HumanPosition() : _socket("11117")
             // send the image back
             _socket.reply_to_last_sender(image_string);
 
-            cv::Point2f newPos = GetPosition()
+            std::vector<int> data = _GetDataFromSocket();
 
-            if (newPos != NULL)
+            if (data && data.size() == 3)
             {
-                _lastPosMutex.lock();
-                _lastPos = newPos;
-                _lastPosMutex.unlock();
+                if (data[0] == 1)
+                {
+                    _lastAngleMutex.lock();
+                    _lastAngle = tan(data[2]/data[1]);
+                    _lastAngleMutex.unlock();
+                }
+                else
+                {
+                    cv::Point2f newPos(data[1], data[2]);
+                    _lastPosMutex.lock();
+                    _lastPos = newPos;
+                    _lastPosMutex.unlock();
+                }
             }
         }
     });
@@ -46,20 +56,31 @@ cv::Point2f HumanPosition::GetPosition()
     return pos;
 }
 
+float HumanPosition::GetAngle()
+{
+    _lastAngleMutex.lock();
+    float angle = _lastAngle;
+    _lastAngleMutex.unlock();
+
+    return angle;
+}
+
 cv::Point2f HumanPosition::_GetDataFromSocket()
 {
-    // Receive 8 bytes from the socket
-    std::string data = _socket.receive(8);
+    std::vector<int> data;
 
-    // int x is the first 4 bytes
-    int x = *(int*)data.c_str();
+    // Receive 12 bytes from the socket
+    std::string data = _socket.receive(12);
 
-    // int y is the next 4 bytes
-    int y = *(int*)(data.c_str() + 4);
+    int mode = *(int*)data.c_str();
+    int x = *(int*)(data.c_str() + 4);
+    int y = *(int*)(data.c_str() + 8);
 
     if (x != 0 && y != 0)
     {
-        return cv::Point2f(x, y);
+        data.push_back(mode);
+        data.push_back(x);
+        data.push_back(y);
     }
     return NULL;
 }
