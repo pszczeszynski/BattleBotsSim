@@ -264,7 +264,14 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
                 {
                     memcpy(buf, message, sizeof(DriverStationMessage));
                     messageMutex->unlock();
-                    if (delay) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    //if (delay) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    if (delay) {
+                        auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+                        uint32_t start = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+                        while (std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() - start < 300) {
+                            elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+                        }
+                    }
                     if (!dev->SendAsync(buf, HID_BUFFER_SIZE)) _radio_reinit = true;
                     *newMessage = false;
                 }

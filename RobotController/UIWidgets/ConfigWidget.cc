@@ -189,28 +189,184 @@ void ConfigWidget::Draw()
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);    
     // radio channel
     ImGui::InputInt("Radio Channel", &RADIO_CHANNEL);
-    ImGui::InputInt("Secondary Radio Channel", &SECONDARY_RADIO_CHANNEL);
-    
+
+    /*static bool disabled = false;
+    ImGui::Checkbox("Disable", &disabled);
+    if (disabled)
+    {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    }
+    [...]
+    if (disabled)
+    {
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
+    }*/
+
     if (!AUTO_SWITCH_CHANNEL)
     {
-        // button to set radio channel to 4
-        if (ImGui::Button("Teensy #1"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx1"))
         {
             RADIO_CHANNEL = TEENSY_RADIO_1;
         }
 
-        ImGui::SameLine();
-
-        if (ImGui::Button("Teensy #2"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
         {
-            RADIO_CHANNEL = TEENSY_RADIO_2;
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopStyleColor();
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Teensy #3"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx2"))
+        {
+            RADIO_CHANNEL = TEENSY_RADIO_2;
+        }
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx3"))
         {
             RADIO_CHANNEL = TEENSY_RADIO_3;
+        }
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::InputInt("Secondary Radio Channel", &SECONDARY_RADIO_CHANNEL);
+    
+    if (!AUTO_SWITCH_CHANNEL)
+    {
+        if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx1"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_1;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx2"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_2;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx3"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_3;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopStyleColor();
         }
     }
 

@@ -62,7 +62,11 @@ unsigned int packetCount = 0;
 //===============================================================================
 //  Main
 //===============================================================================
-long int total_packets = 0;
+long int receivedPackets = 0;
+long int sentPackets = 0;
+long int lastReceivedPackets = 0;
+long int lastSentPackets = 0;
+uint32_t lastDebugTime = 0;
 #define NO_MESSAGE_REINIT_TIME 70
 
 #define SEND_TIMEOUT 1
@@ -96,6 +100,7 @@ void tx_loop()
 
             // blink the LED
             digitalWrite(STATUS_2_LED_PIN, HIGH);
+            sentPackets++;
         }
     }
     else
@@ -109,7 +114,7 @@ void tx_loop()
 
     if (message.type != RobotMessageType::INVALID)
     {
-        total_packets ++;
+        receivedPackets ++;
 
         char sendBuffer[64];
         memset(sendBuffer, 0, sizeof(sendBuffer));
@@ -125,5 +130,15 @@ void tx_loop()
     else
     {
         digitalWrite(STATUS_3_LED_PIN, LOW);
+    }
+
+    if (millis() - lastDebugTime > 1000) {
+        Serial.print("Sent: ");
+        Serial.print(sentPackets - lastSentPackets);
+        Serial.print(", Received: ");
+        Serial.println(receivedPackets - lastReceivedPackets);
+        lastReceivedPackets = receivedPackets;
+        lastSentPackets = sentPackets;
+        lastDebugTime = millis();
     }
 }
