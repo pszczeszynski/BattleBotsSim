@@ -73,13 +73,20 @@ enum CANMessageType : char
     ANGLE_SYNC,
     PING_REQUEST,
     PING_RESPONSE,
-    COMMAND_PACKET_ID
+    COMMAND_PACKET_ID,
+    CHANNEL_CHANGE
 };
 
 struct CANPingData
 {
-    uint8_t ping_id;
+    uint8_t pingID;
     uint32_t timestamp;
+};
+
+struct CANChannelChange
+{
+    uint8_t targetTeensyID;
+    uint8_t newChannel;
 };
 
 struct CANMessage
@@ -90,6 +97,7 @@ struct CANMessage
         float angle;
         CANPingData ping;
         uint32_t packetID;
+        CANChannelChange channel;
     };
 };
 

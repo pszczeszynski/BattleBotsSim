@@ -55,6 +55,7 @@ AutoDrive lastAutoCommand;
 DriverStationMessage lastMessage;
 int maxReceiveIntervalMs = 0;
 volatile uint32_t lastPacketID = 0;
+volatile bool receivedPacketSinceBoot = false;
 
 // RECEIVER COMPONENTS
 IMU imu;
@@ -145,6 +146,7 @@ void HandlePacket()
 
     noPacketWatchdogTrigger = false;
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
+    receivedPacketSinceBoot = true;
 }
 
 // RECEIVER HELPER FUNCTIONS
@@ -276,20 +278,25 @@ void OnTeensyMessage(const CAN_message_t &msg)
             imu.MergeExternalInput(message.angle);
             break;
         case PING_REQUEST:
-            if (message.ping.ping_id == CANBUS::GetCanID(placement)) {
+            if (message.ping.pingID == CANBUS::GetCanID(placement)) {
                 message.type = PING_RESPONSE;
                 can.SendTeensy(&message);
             }
-            Serial.print(message.ping.ping_id);
+            Serial.print(message.ping.pingID);
             Serial.println("received ping");
             break;
         case PING_RESPONSE:
             Serial.println("received response");
-            DownsampledPrintf("Received ping response from %x, time taken: %d\n", message.ping.ping_id, micros() - message.ping.timestamp);
+            DownsampledPrintf("Received ping response from %x, time taken: %d\n", message.ping.pingID, micros() - message.ping.timestamp);
             break;
         case COMMAND_PACKET_ID:
             lastPacketID = message.packetID;
             lastReceiveTime = millis();
+        case CHANNEL_CHANGE:
+            if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
+                radioChannel = message.channel.newChannel;
+                rxRadio.SetChannel(radioChannel);
+            }
         default:
             break;
     }
@@ -351,12 +358,13 @@ void rx_loop()
 {
     if(millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
-        if (millis() - lastReinitRadioTime > 2000)
+        if (!receivedPacketSinceBoot && millis() - lastReinitRadioTime > 500)
         {
             lastReinitRadioTime = millis();
             Serial.println("Reinit radio");
             rxRadio.InitRadio(radioChannel);
         }
+        digitalWriteFast(STATUS_1_LED_PIN, LOW);
     }
 
     float fetTemps[4];
