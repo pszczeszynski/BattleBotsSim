@@ -1,6 +1,9 @@
+#include <math.h>
 #include "HumanPosition.h"
+#include "../../CameraReceiver.h"
+#include "../../RobotConfig.h"
 
-HumanPosition::HumanPosition() : _socket("11117")
+HumanPosition::HumanPosition(ICameraReceiver *videoSource) : _socket("11117"), OdometryBase(videoSource)
 {
     _socketThread = std::thread([this]() {
         ICameraReceiver& camera = ICameraReceiver::GetInstance();
@@ -29,40 +32,41 @@ HumanPosition::HumanPosition() : _socket("11117")
 
             if (data && data.size() == 3)
             {
-                if (data[0] == 1)
-                {
-                    _lastAngleMutex.lock();
-                    _lastAngle = tan(data[2]/data[1]);
-                    _lastAngleMutex.unlock();
-                }
-                else
+                if (data[0] == 0)
                 {
                     cv::Point2f newPos(data[1], data[2]);
-                    _lastPosMutex.lock();
-                    _lastPos = newPos;
-                    _lastPosMutex.unlock();
+                    _updateMutex.lock();
+                    _currDataRobot.robotPosValid = true;
+                    _currDataRobot.robotPosition = newPos;
+                    _updateMutex.unlock();
+                }
+                else if (data[0] == 1)
+                {
+                    cv::Point2f newPos(data[1], data[2]);
+                    _updateMutex.lock();
+                    _currDataOpponent.robotPosValid = true;
+                    _currDataOpponent.robotPosition = newPos;
+                    _updateMutex.unlock();
+                }
+                else if (data[0] == 2)
+                {
+                    float angle = tan(abs(data[1] - 360) / abs(data[2] - 360));
+                    if (data[1] < 360 and data[2] < 360) {
+                        angle = M_PI - angle;
+                    }
+                    if (data[1] < 360 and data[2] > 360) {
+                        angle = M_PI + angle;
+                    }
+                    if (data[1] > 360 and data[2] > 360) {
+                        angle = 2 * M_PI - angle;
+                    }
+                    _updateMutex.lock();
+                    _currDataOpponent.robotAngleValid = true;
+                    _currDataOpponent.robotAngle = Angle(angle);
                 }
             }
         }
     });
-}
-
-cv::Point2f HumanPosition::GetPosition()
-{
-    _lastPosMutex.lock();
-    cv::Point2f pos = _lastPos;
-    _lastPosMutex.unlock();
-
-    return pos;
-}
-
-float HumanPosition::GetAngle()
-{
-    _lastAngleMutex.lock();
-    float angle = _lastAngle;
-    _lastAngleMutex.unlock();
-
-    return angle;
 }
 
 cv::Point2f HumanPosition::_GetDataFromSocket()

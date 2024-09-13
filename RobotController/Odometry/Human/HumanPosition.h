@@ -16,11 +16,5 @@ private:
     ServerSocket _socket;
     std::thread _socketThread;
 
-    cv2::Point2f _lastPos;
-    std::mutex _lastPosMutex;
-
-    float _lastAngle;
-    std::mutex _lastAngleMutex;
-
     std::vector<int> _GetDataFromSocket();
 }

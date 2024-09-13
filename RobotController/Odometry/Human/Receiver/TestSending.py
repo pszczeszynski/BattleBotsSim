@@ -18,8 +18,8 @@ try:
     counter = 0
     while True:
         # Open the image file
-        # with open(f'../../../MachineLearning/TrainingData/TrainingInputs/image_{counter}.jpg', 'rb') as file:
-        with open(f'image_1.jpg', 'rb') as file:
+        with open(f'../../../MachineLearning/TrainingData/TrainingInputs/image_{counter}.jpg', 'rb') as file:
+        # with open(f'image_1.jpg', 'rb') as file:
             image_data = file.read()
 
         # Send the image data size
@@ -37,6 +37,7 @@ try:
             print(f'Position x: {x}, Position y: {y}')
 
         counter += 1
+        counter %= 40
 
 except KeyboardInterrupt:
     # Close the server socket
