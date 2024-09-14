@@ -20510,7 +20510,7 @@ PrefabInstance:
         type: 3}
       propertyPath: opponent_body
       value: 
-      objectReference: {fileID: 2603191056881342714}
+      objectReference: {fileID: 1687020059637074120}
     - target: {fileID: 2383935319050252890, guid: 029c7abe5ad2c114188fd34ab80ace48,
         type: 3}
       propertyPath: m_Mesh
