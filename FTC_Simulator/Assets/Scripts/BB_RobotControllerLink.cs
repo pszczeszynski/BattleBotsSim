@@ -67,4 +67,5 @@ public struct RobotControllerDriveCommand
     public double turn_amount;
     public double front_weapon_power;
     public double back_weapon_power;
+    public bool reset;
 }

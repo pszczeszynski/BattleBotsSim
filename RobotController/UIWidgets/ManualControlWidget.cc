@@ -1,6 +1,8 @@
 #include "ManualControlWidget.h"
 #include "imgui.h"
 #include "../RobotConfig.h"
+#include "../RobotLink.h"
+#include "../RobotController.h"
 
 ManualControlWidget::ManualControlWidget()
 {
@@ -76,6 +78,21 @@ void ManualControlWidget::Draw()
     // sliders for the weapon speeds
     ImGui::SliderFloat("Bar Speed", &MAX_FRONT_WEAPON_SPEED, 0, 300.0);
     ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 300.0);
+
+
+#ifdef SIMULATION
+    // line for simulation stuff
+    ImGui::Separator();
+    ImGui::Text("Simulation");
+    // button to reset
+    if (ImGui::Button("Reset Simulation"))
+    {
+        IRobotLink& simLink = RobotController::GetInstance().GetRobotLink();
+        RobotLinkSim& sim = dynamic_cast<RobotLinkSim&>(simLink);
+        sim.ResetSimulation();
+    }
+#endif
+
 
     ImGui::End();
 }

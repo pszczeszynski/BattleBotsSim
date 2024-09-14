@@ -38,6 +38,7 @@ struct UnityDriveCommand
     double turn_amount;
     double front_weapon_power;
     double back_weapon_power;
+    bool reset;
 };
 
 class RobotStateParser

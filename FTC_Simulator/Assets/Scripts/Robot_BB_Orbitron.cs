@@ -52,6 +52,10 @@ public class Robot_BB_Orbitron : RobotInterface3D
         robot_body.GetComponent<Rigidbody>().AddForce(Vector3.down * downForce);
     }
 
+    private List<Vector3> _ourInitialPositions = new List<Vector3> { };
+    private List<Quaternion> _ourInitialRotations = new List<Quaternion> { };
+    private List<Vector3> _opponentInitialPositions = new List<Vector3> { };
+    private List<Quaternion> _opponentInitialRotations = new List<Quaternion> { };
 
     public void Awake()
     {
@@ -64,6 +68,20 @@ public class Robot_BB_Orbitron : RobotInterface3D
 
 
         stopwatch.Start();
+
+        // go one level up, find all children and save the initial positions and rotations
+        foreach (Transform child in robot_body.parent)
+        {
+            _ourInitialPositions.Add(child.position);
+            _ourInitialRotations.Add(child.rotation);
+        }
+
+        foreach (Transform child in opponent_body.parent)
+        {
+            _opponentInitialPositions.Add(child.position);
+            _opponentInitialRotations.Add(child.rotation);
+        }
+
     }
 
 
@@ -151,6 +169,40 @@ public class Robot_BB_Orbitron : RobotInterface3D
 
         // receive latest control input from the robot controller
         RobotControllerDriveCommand? input = _robotControllerLink.Receive();
+
+        if (input.HasValue && input.Value.reset)
+        {
+            // move all our components back to the initial position
+            for (int i = 0; i < robot_body.parent.childCount; i++)
+            {
+                Transform child = robot_body.parent.GetChild(i);
+                child.position = _ourInitialPositions[i];
+                child.rotation = _ourInitialRotations[i];
+
+                // set the velocity to 0 only if it's a rigidbody
+                Rigidbody rb = child.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.velocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+            }
+
+            for (int i = 0; i < opponent_body.parent.childCount; i++)
+            {
+                Transform child = opponent_body.parent.GetChild(i);
+                child.position = _opponentInitialPositions[i];
+                child.rotation = _opponentInitialRotations[i];
+
+                // set the velocity to 0 only if it's a rigidbody
+                Rigidbody rb = child.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.velocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+            }
+        }
  
          // movement with arrow keys + joystick
         float movement_amount = (Input.GetKey(KeyCode.UpArrow) ? 1.0f : 0) - (Input.GetKey(KeyCode.DownArrow) ? 1.0f : 0);

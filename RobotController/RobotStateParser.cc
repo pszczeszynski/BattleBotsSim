@@ -25,6 +25,7 @@ std::string RobotStateParser::serialize(UnityDriveCommand message)
     j["turn_amount"] = message.turn_amount;
     j["front_weapon_power"] = message.front_weapon_power;
     j["back_weapon_power"] = message.back_weapon_power;
+    j["reset"] = message.reset;
 
     return j.dump();
 }

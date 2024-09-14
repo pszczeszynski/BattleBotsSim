@@ -614,7 +614,11 @@ void RobotLinkSim::Drive(DriverStationMessage &msg)
         command.movement = lastAutoCommand.movement;
     }
 
-    UnityDriveCommand message = {command.movement, command.turn, (double)command.frontWeaponPower, (double)command.backWeaponPower};
+    UnityDriveCommand message = {command.movement,
+                                 command.turn,
+                                 (double)command.frontWeaponPower,
+                                 (double)command.backWeaponPower,
+                                 false};
     serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }
 
@@ -673,4 +677,10 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
 
     // return the message
     return {ret};
+}
+
+void RobotLinkSim::ResetSimulation()
+{
+    UnityDriveCommand message = {0, 0, 0, 0, true};
+    serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
 }

@@ -60,6 +60,7 @@ public:
     virtual void Drive(DriverStationMessage& command) override;
     virtual std::vector<RobotMessage> _ReceiveImpl() override;
 
+    void ResetSimulation();
 private:
     // socket stuff
     void setup();
