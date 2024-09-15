@@ -5,6 +5,10 @@
 #include "../Globals.h"
 #include "FieldWidget.h"
 #include "../RobotController.h"
+#include "ConfigWidget.h"
+#include "imgui.h"
+
+#define ADD_IMVEC2(a, b) ImVec2((a).x + (b).x, (a).y + (b).y)
 
 bool CameraWidget::LockCamera = true;
 bool CameraWidget::ShowFisheyeImg = false;
@@ -74,6 +78,145 @@ void CameraWidget::Draw()
         {
             RobotController::GetInstance().DumpVideo();
         }
+
+        ImGui::NewLine();
+
+        // Image to set reference brightness. This should be just like the normal background image 
+        // and can be the same file
+        static char refBackroundChars[128] = {0};
+        int stringlength = std::strlen(refBackroundChars);
+        if( stringlength < 1 )
+        {
+            std::strcpy(refBackroundChars, IMAGE_REF_INTENSITY.c_str());
+        }
+
+        ImGui::Text("Ref Brightness img:");  
+        ImGui::SameLine();
+        ImGui::InputText("##refbright", refBackroundChars, IM_ARRAYSIZE(refBackroundChars));
+
+        static char startBackgroundChar[128] = {0};
+        stringlength = std::strlen(startBackgroundChar);
+        if( stringlength < 1 )
+        {
+            std::strcpy(startBackgroundChar, IMAGE_START_BACKGROUND.c_str());
+        }
+
+        // Get all the points in
+
+        ImGui::Text("Specify areas to compare. Size=");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(80);
+        ImGui::InputInt("##ptsize", &IMAGE_INTENSITY_SQR_size);
+        ImGui::InputInt(":p1x   ", &IMAGE_INTENSITY_SQR_1_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":p1y   ", &IMAGE_INTENSITY_SQR_1_y);
+        ImGui::InputInt(":p2x   ", &IMAGE_INTENSITY_SQR_2_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":p2y", &IMAGE_INTENSITY_SQR_2_y);
+        ImGui::InputInt(":p3x   ", &IMAGE_INTENSITY_SQR_3_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":p3y   ", &IMAGE_INTENSITY_SQR_3_y);
+        ImGui::InputInt(":p4x   ", &IMAGE_INTENSITY_SQR_4_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":p4y", &IMAGE_INTENSITY_SQR_4_y);
+
+        static bool showAvgSqaures = false;
+        static bool resetOverlay = true;
+        ImGui::Checkbox("Show All Defined Sqaures", &showAvgSqaures);
+                    
+        cv::Mat& overlay = HeuristicOdometry::backgroundOverlay;    
+ 
+
+        ImGui::PopItemWidth();        
+
+        ImGui::Text("Start Background img:");  
+        ImGui::SameLine();
+        ImGui::InputText("##startbgnd", startBackgroundChar, IM_ARRAYSIZE(startBackgroundChar));
+        ImGui::PushItemWidth(80);
+        ImGui::InputFloat("Avg Time Constant (Set < 0 to disable)", &IMAGE_INTENSITY_TIME_CONSTANT);
+        
+        if (ImGui::Button("Commit Image Settings"))
+        {
+            IMAGE_REF_INTENSITY.assign(refBackroundChars);
+            IMAGE_START_BACKGROUND.assign(startBackgroundChar);
+
+            //RobotController::GetInstance().SetRefBrightness(refBackroundChars);
+        }
+
+        
+
+        // Heuristic settings
+        ImGui::NewLine();
+        ImGui::Text("Heuristic Settings:");
+        ImGui::Text("Starting Box Left Side");
+
+        ImGui::PushItemWidth(80);
+        ImGui::InputInt(":LBOX TLx   ", &STARTING_LEFT_TL_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":LBOX TLy   ", &STARTING_LEFT_TL_y);
+        ImGui::InputInt(":LBOX BRx  ", &STARTING_LEFT_BR_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":LBOX BRy", &STARTING_LEFT_BR_y);
+
+        ImGui::InputInt(":RBOX TLx   ", &STARTING_RIGHT_TL_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":RBOX TLy   ", &STARTING_RIGHT_TL_y);
+        ImGui::InputInt(":RBOX BRx  ", &STARTING_RIGHT_BR_x);
+        ImGui::SameLine();
+        ImGui::InputInt(":RBOX BRy", &STARTING_RIGHT_BR_y);
+
+        // DISPLAY ANY relevant boxes
+
+        if(showAvgSqaures && HeuristicOdometry::bgOverlaySize.width > 0 && HeuristicOdometry::bgOverlaySize.height > 0)
+        {            
+            if( overlay.empty() || overlay.size() != HeuristicOdometry::bgOverlaySize)
+            {
+                overlay = cv::Mat::zeros(HeuristicOdometry::bgOverlaySize, CV_8UC3);
+            }
+            else{
+                overlay.setTo(cv::Scalar(0));
+            }
+            
+            cv::Scalar lineColor = cv::Scalar(255,0,255);
+            cv::Size recsize(IMAGE_INTENSITY_SQR_size,IMAGE_INTENSITY_SQR_size);
+
+            cv::Point p1 = cv::Point(IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y);
+            cv::Point p2 = cv::Point(IMAGE_INTENSITY_SQR_2_x, IMAGE_INTENSITY_SQR_2_y);
+            cv::Point p3 = cv::Point(IMAGE_INTENSITY_SQR_3_x, IMAGE_INTENSITY_SQR_3_y);
+            cv::Point p4 = cv::Point(IMAGE_INTENSITY_SQR_4_x, IMAGE_INTENSITY_SQR_4_y);
+
+            rectangle(overlay, cv::Rect(p1,recsize ), lineColor, 1,8);
+            rectangle(overlay, cv::Rect(p2,recsize ), lineColor, 1,8);
+            rectangle(overlay, cv::Rect(p3,recsize ), lineColor, 1,8);
+            rectangle(overlay, cv::Rect(p4,recsize ), lineColor, 1,8);
+
+            rectangle(overlay, cv::Rect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y, STARTING_LEFT_BR_x - STARTING_LEFT_TL_x, STARTING_LEFT_BR_y - STARTING_LEFT_TL_y), lineColor, 3, 8);
+            rectangle(overlay, cv::Rect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x, STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y), lineColor, 3, 8);
+
+            resetOverlay = true;
+
+        }
+        else if( resetOverlay)
+        {
+            overlay = cv::Mat::zeros(cv::Size(1,1), CV_8UC3);
+            resetOverlay = false;
+        }
+
+        //
+        //ImGui::Text(" Left=(%g,%g)", ConfigWidget::leftStart.x, ConfigWidget::leftStart.y);
+        //ImGui::SameLine();
+        //ImGui::Text("       Right=(%g,%g)", ConfigWidget::rightStart.x, ConfigWidget::rightStart.y);
+
+        //    if (ImGui::Button("Set Left (L-Click)"))
+        //    {
+        //        ConfigWidget::leftStart = FieldWidget::leftClickPoint;
+        //    }
+        //    ImGui::SameLine();
+        //    if (ImGui::Button("Set Right (R-Click)"))
+        //    {
+        //        ConfigWidget::rightStart = FieldWidget::rightClickPoint;
+        //    }   
+    
     }
 
     // ImGui::Checkbox("Show Fisheye Correction Img", &ShowFisheyeImg);

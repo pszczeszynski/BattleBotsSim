@@ -128,7 +128,16 @@ void RobotOdometry::FuseAndUpdatePositions()
     if (camera.NewFrameReady(0))
     {
         long last_id = 0;
-        camera.GetFrame(trackingMat, last_id);
+        long returnid = camera.GetFrame(trackingMat, last_id);
+
+        // If invalid frame exit
+        if( (returnid < 0) || trackingMat.empty() )
+        {
+            return;
+        }
+
+
+
         // convert to rgb
         cv::cvtColor(trackingMat, trackingMat, cv::COLOR_GRAY2BGR);
     }
@@ -594,6 +603,11 @@ void RobotOdometry::DrawAlgorithmData()
     // heursitic is yellow - orange
     cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
 
+    if( trackingMat.empty())
+    {
+        return;
+    }
+    
     // go through every odometry algorithm and draw the tracking results
     if (IsRunning(OdometryAlg::Blob))
     {
