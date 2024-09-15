@@ -46,7 +46,7 @@ void TrackingWidget::_GrabFrame()
         long returnid = camera.GetFrame(_trackingMat, last_id);
 
         // If invalid frame exit
-        if( (returnid < 0) || trackingMat.empty() )
+        if( (returnid < 0) || _trackingMat.empty() )
         {
             return;
         }
