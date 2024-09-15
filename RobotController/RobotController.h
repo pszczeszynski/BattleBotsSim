@@ -33,6 +33,11 @@ public:
     Gamepad& GetGamepad();
     Gamepad& GetGamepad2();
 
+    void StartForceOrbit();
+    void StopForceOrbit();
+    void StartForceKill();
+    void StopForceKill();
+
     Clock visionClock;
     RobotOdometry odometry;
 
@@ -85,6 +90,8 @@ private:
 
     bool _orbiting = false;
     bool _killing = false;
+    bool _guiOrbit = false;
+    bool _guiKill = false;
 
     Orbit orbitMode;
     Kill killMode;

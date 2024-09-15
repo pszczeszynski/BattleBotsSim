@@ -80,6 +80,76 @@ void ManualControlWidget::Draw()
     ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 300.0);
 
 
+
+
+
+
+
+
+
+
+    // Add boolean flags for each button's toggle state
+    static bool isOrbiting = false;
+    static bool isKilling = false;
+
+    // Get the robot controller instance
+    RobotController& robotController = RobotController::GetInstance();
+    // Define colors
+    ImVec4 orbitColor = isOrbiting ? ImVec4(0.5f, 0.0f, 0.5f, 1.0f) : ImVec4(0.75f, 0.0f, 0.75f, 1.0f); // Purple
+    ImVec4 killColor = isKilling ? ImVec4(1.0f, 0.5f, 0.0f, 1.0f) : ImVec4(1.0f, 0.65f, 0.0f, 1.0f); // Orange
+
+    // Button for orbit
+    ImGui::PushStyleColor(ImGuiCol_Button, orbitColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.0f, 0.6f, 1.0f)); // Slightly lighter purple when hovered
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.0f, 0.4f, 1.0f)); // Slightly darker purple when active
+    if (ImGui::Button("Orbit", ImVec2(ImGui::GetWindowWidth(), 20)))
+    {
+        // Toggle the orbiting state
+        isOrbiting = !isOrbiting;
+
+        // Call Start or Stop functions based on the new state
+        if (isOrbiting)
+        {
+            robotController.StartForceOrbit();
+            robotController.StopForceKill();
+            isKilling = false;
+        }
+        else
+        {
+            robotController.StopForceOrbit();
+        }
+    }
+    ImGui::PopStyleColor(3);
+
+    // Button for kill
+    ImGui::PushStyleColor(ImGuiCol_Button, killColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.6f, 0.0f, 1.0f)); // Slightly lighter orange when hovered
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.4f, 0.0f, 1.0f)); // Slightly darker orange when active
+    if (ImGui::Button("Kill", ImVec2(ImGui::GetWindowWidth(), 20)))
+    {
+        // Toggle the killing state
+        isKilling = !isKilling;
+
+        // Call Start or Stop functions based on the new state
+        if (isKilling)
+        {
+            robotController.StartForceKill();
+            robotController.StopForceOrbit();
+            isOrbiting = false;
+        }
+        else
+        {
+            robotController.StopForceKill();
+        }
+    }
+    ImGui::PopStyleColor(3);
+
+
+
+
+
+
+
 #ifdef SIMULATION
     // line for simulation stuff
     ImGui::Separator();

@@ -488,6 +488,26 @@ DriverStationMessage RobotController::ManualMode()
     return ret;
 }
 
+void RobotController::StartForceOrbit()
+{
+    _guiOrbit = true;
+}
+
+void RobotController::StopForceOrbit()
+{
+    _guiOrbit = false;
+}
+
+void RobotController::StartForceKill()
+{
+    _guiKill = true;
+}
+
+void RobotController::StopForceKill()
+{
+    _guiKill = false;
+}
+
 /**
  * RobotLogic
  * The main logic for the robot
@@ -512,12 +532,12 @@ DriverStationMessage RobotController::RobotLogic()
     DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
-    if (gamepad.GetLeftStickY() > 0.7)
+    if (gamepad.GetLeftStickY() > 0.7 || _guiOrbit)
     {
         _orbiting = true;
         _killing = false; 
     }
-    else if (gamepad.GetLeftStickY() < -0.7)
+    else if (gamepad.GetLeftStickY() < -0.7 || _guiKill)
     {
         _killing = true;
         _orbiting = false;
