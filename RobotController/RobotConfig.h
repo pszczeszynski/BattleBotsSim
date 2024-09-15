@@ -88,6 +88,22 @@ extern float HEU_RIGHTSTART_X;
 extern float HEU_RIGHTSTART_Y;
 extern float NN_MIN_CONFIDENCE;
 extern float CAMERA_GAIN;
+extern std::string IMAGE_REF_INTENSITY;
+extern std::string IMAGE_START_BACKGROUND;
+extern float IMAGE_INTENSITY_TIME_CONSTANT;
+extern int IMAGE_INTENSITY_SQR_size;
+extern int IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y;
+extern int IMAGE_INTENSITY_SQR_2_x, IMAGE_INTENSITY_SQR_2_y;
+extern int IMAGE_INTENSITY_SQR_3_x, IMAGE_INTENSITY_SQR_3_y;
+extern int IMAGE_INTENSITY_SQR_4_x, IMAGE_INTENSITY_SQR_4_y;
+extern int STARTING_LEFT_TL_x;
+extern int STARTING_LEFT_TL_y;
+extern int STARTING_LEFT_BR_x;
+extern int STARTING_LEFT_BR_y;
+extern int STARTING_RIGHT_TL_x;
+extern int STARTING_RIGHT_TL_y;
+extern int STARTING_RIGHT_BR_x;
+extern int STARTING_RIGHT_BR_y;
 
 
 template <typename T>

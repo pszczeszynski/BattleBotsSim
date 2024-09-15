@@ -31,6 +31,7 @@
 
 HeuristicOdometry::HeuristicOdometry(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
+
 }
 
 // Statemachine definitions
@@ -43,7 +44,10 @@ enum CAMDECODER_SM
 
 CAMDECODER_SM camStateMachine = CMSM_LOADBACK;
 
-double lastTime = 0;
+double timeTrackForBGSave = 0;
+cv::Size HeuristicOdometry::bgOverlaySize = cv::Size(0,0);
+cv::Mat HeuristicOdometry::backgroundOverlay = cv::Mat::zeros(0,0, CV_8UC3);
+
 
 void HeuristicOdometry::UpdateSettings()
 {
@@ -69,8 +73,8 @@ void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos
     }
 
     // First reinitialize background
-    reinit_bg = true;
-    while (reinit_bg)
+    match_start_bg_init = true;
+    while (match_start_bg_init)
     {
         Sleep(1);
     }
@@ -111,8 +115,15 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         cv::cvtColor(currFrame, newFrame, cv::COLOR_BGRA2GRAY);
     }
 
+    // Correct Brightness (assumes shake doesn't significantly affect it on average)
+    correctBrightness(newFrame);
+
     // Find the proper x_offset and y_offset for a shaky image using background
-    removeShake(newFrame);
+    calcShakeRemoval(newFrame);
+
+    markTime("Brightness and shake: ");
+
+ _imshow("corrected", newFrame);
 
     // Crop the image (not required if anti-shake not used)
     cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
@@ -140,6 +151,12 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         ReinitBackground();
     }
 
+    if( match_start_bg_init)
+    {
+        match_start_bg_init = false;
+        MatchStartBackgroundInit(croppedFrame);
+    }
+
     if (save_to_video_match_debug || save_to_video_output) // Remeber that we are saving video
     {
         save_video_enabled = true;
@@ -151,10 +168,10 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
 
     // Save background to file
-    if (save_background_to_files && (currTime - lastTime > 1.0))
+    if (save_background_to_files && (currTime - timeTrackForBGSave > 1.0))
     {
         DumpBackground("background_" + std::to_string((int)currTime), dumpBackgroundsPath);
-        lastTime = currTime;
+        timeTrackForBGSave = currTime;
     }
 
     // ##############################
@@ -198,11 +215,33 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // static ImageWidget background{"Background", currBackground, false};
     if (show_bg_mat)
     {
-        _imshow("background", currBackground);
+        bgOverlaySize = currBackground.size();
+
+        // See if there needs to be a merged image
+        if(  !backgroundOverlay.empty() && (backgroundOverlay.size() == currBackground.size() ))
+        {
+            try{
+                cv::Mat resultimage = backgroundOverlay.clone();
+                cv::Mat convertedBackground;
+                cv::cvtColor( currBackground, convertedBackground,  cv::COLOR_GRAY2BGR);
+                cv::addWeighted(convertedBackground,1, resultimage, 1, 0, resultimage);
+                _imshow("background", resultimage); 
+            }
+            catch(...)
+            {
+                _imshow("background", currBackground); 
+            }
+        }
+        else
+        {
+            _imshow("background", currBackground); 
+        }
+
     }
     else
     {
         _imunshow("background");
+        bgOverlaySize = cv::Size(0,0);
     };
 
     DrawAllBBoxes(currFrameColor);
@@ -628,7 +667,16 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame)
 
     // First load the regular Background. This should be an 8-bit image ideally
     // This should also be cropped already
-    regularBackground = cv::imread(loadBackgroundsPath + "/regularBackground.jpg", cv::IMREAD_GRAYSCALE);
+    regularBackground = cv::imread(IMAGE_START_BACKGROUND, cv::IMREAD_GRAYSCALE);
+
+    // Also load the reference intesnity image
+    refBackground = cv::imread(IMAGE_REF_INTENSITY, cv::IMREAD_GRAYSCALE);
+
+    // Reset the reference background average intensity calculations
+    for( int i =0; i < 4; i++)
+    {
+        refIntensities[i] = -1.0;
+    }
 
     // If unable to load, use current frame to set the background
     // or if background doesn't meet our dimension requirements
@@ -646,6 +694,12 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame)
     if (regularBackground.depth() != CV_8U)
     {
         regularBackground.convertTo(regularBackground, CV_8U);
+    }
+
+    // Also correct reference background
+    if (!refBackground.empty() && refBackground.depth() != CV_8U)
+    {
+        refBackground.convertTo(refBackground, CV_8U);
     }
 
     // Save this background as current background
@@ -1098,7 +1152,117 @@ void HeuristicOdometry::ReinitBackground()
     currBackground.convertTo(currBackground_16bit, CV_16U, 256);
 }
 
-void HeuristicOdometry::removeShake(cv::Mat &image)
+void HeuristicOdometry::MatchStartBackgroundInit(cv::Mat &currFrame)
+{
+    // Make currframe the background
+    currFrame.copyTo(currBackground);
+
+    // Copy over the defined squares from our regular background
+    cv::Rect leftrect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y, (STARTING_LEFT_BR_x - STARTING_LEFT_TL_x), (STARTING_LEFT_BR_y - STARTING_LEFT_TL_y));
+    cv::Rect rightrect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, (STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x), (STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y));
+
+
+    // Copy over the defined squares from our regular background
+    regularBackground(leftrect).copyTo(currBackground(leftrect));
+    regularBackground(rightrect).copyTo(currBackground(rightrect));
+
+}
+
+
+double lastTimeForBrightness = 0;
+float brightnessCorrection = 1.0f;
+
+
+void HeuristicOdometry::correctBrightness(cv::Mat &image)
+{
+    // If disabled, dont do anything
+    if( (IMAGE_INTENSITY_TIME_CONSTANT < 0) ||
+        // If reference background isn't loaded then quit or background sane size
+        refBackground.empty() ||  currBackground.empty() || currBackground.cols < IMAGE_INTENSITY_SQR_size || image.cols < IMAGE_INTENSITY_SQR_size
+     )
+    {
+        refIntensities[0] = 0;
+        refIntensities[1] = 0;
+        refIntensities[2] = 0;
+        refIntensities[3] = 0;
+        brightnessCorrection = 1.0f;
+        return;
+    }
+
+
+    // If we haven't calculated our reference background intensities yet, then do that now
+    if(refIntensities[0] <= 0 )
+    {
+        // refBackground assumed to be black and white (1 channel)
+        refIntensities[0] = cv::mean(refBackground(cv::Rect(IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y, IMAGE_INTENSITY_SQR_size, IMAGE_INTENSITY_SQR_size)))[0];
+        refIntensities[1] = cv::mean(refBackground(cv::Rect(IMAGE_INTENSITY_SQR_2_x, IMAGE_INTENSITY_SQR_2_y, IMAGE_INTENSITY_SQR_size, IMAGE_INTENSITY_SQR_size)))[0];
+        refIntensities[2] = cv::mean(refBackground(cv::Rect(IMAGE_INTENSITY_SQR_3_x, IMAGE_INTENSITY_SQR_3_y, IMAGE_INTENSITY_SQR_size, IMAGE_INTENSITY_SQR_size)))[0];
+        refIntensities[3] = cv::mean(refBackground(cv::Rect(IMAGE_INTENSITY_SQR_4_x, IMAGE_INTENSITY_SQR_4_y, IMAGE_INTENSITY_SQR_size, IMAGE_INTENSITY_SQR_size)))[0];
+    }
+
+    // Get the time constant scaler 
+    double deltaTime = currTime - lastTimeForBrightness;
+
+    // Dont do anything for invalid time
+    if( deltaTime <=0 )
+    {
+        return;
+    }
+
+    lastTimeForBrightness = currTime;
+
+    float scaler = 1.0;
+    if( deltaTime < IMAGE_INTENSITY_TIME_CONSTANT && deltaTime>0)
+    {
+        scaler = 1.0 - deltaTime/IMAGE_INTENSITY_TIME_CONSTANT;
+    }
+
+    // Get the current correction factors for current frame
+    double corrections[4] = {1.0, 1.0, 1.0, 1.0};
+    corrections[0] = getBrightnessCorrection(image, IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y, IMAGE_INTENSITY_SQR_size, refIntensities[0]);
+    corrections[1] = getBrightnessCorrection(image, IMAGE_INTENSITY_SQR_2_x, IMAGE_INTENSITY_SQR_2_y, IMAGE_INTENSITY_SQR_size, refIntensities[1]);
+    corrections[2] = getBrightnessCorrection(image, IMAGE_INTENSITY_SQR_3_x, IMAGE_INTENSITY_SQR_3_y, IMAGE_INTENSITY_SQR_size, refIntensities[2]);
+    corrections[3] = getBrightnessCorrection(image, IMAGE_INTENSITY_SQR_4_x, IMAGE_INTENSITY_SQR_4_y, IMAGE_INTENSITY_SQR_size, refIntensities[3]);
+
+    // Sort it
+    std::sort(corrections, corrections+4);
+
+    // Get the average correction factor
+    double newcorrection = (corrections[1] + corrections[2]) / 2.0;
+
+    // Limit newcorrection
+    newcorrection = (newcorrection < 0.05) ? 0.2 : newcorrection;
+    newcorrection = (newcorrection > 20.0) ? 5.0 : newcorrection;
+    
+    // Calculate the time averaged brightness correction
+    brightnessCorrection = brightnessCorrection * scaler + (1.0 - scaler)*newcorrection;
+
+    // Now adjust the new image
+    image.convertTo(image,  CV_16U, brightnessCorrection, 0); // Multiply by factor, no offset
+
+    // Ensure pixel values are within [0, 255]
+    cv::threshold(image, image, 255, 255, cv::THRESH_TRUNC); // Cap at 255
+
+    // Set it back to 8 bit
+    image.convertTo(image, CV_8U);
+}
+
+double HeuristicOdometry::getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean)
+{
+    cv::Scalar srcMean = cv::mean(src(cv::Rect(x, y, size, size)));
+
+    double srcBrightness = srcMean[0]; // Since it's grayscale, we use the first channel
+
+    // Deal with special cases
+    if( srcBrightness == 0 || refMean == 0) 
+    {
+        return 1.0;
+    }
+
+    return refMean / srcBrightness;
+}
+
+void HeuristicOdometry::calcShakeRemoval(cv::Mat &image)
 {
     // If not enabled
     if (!enable_camera_antishake)

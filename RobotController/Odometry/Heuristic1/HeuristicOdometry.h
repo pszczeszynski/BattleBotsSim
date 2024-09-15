@@ -6,6 +6,7 @@
 #include "../OdometryBase.h"
 #include "RobotTracker.h"
 #include <unordered_set>
+#include "imgui.h"
 
 // ***********************
 // Camera Decoder Class
@@ -39,6 +40,7 @@ public:
     bool load_background = true;           // Loads a new background from file
     bool reinit_bg = false;                // Re-initializes curr background from previous loaded one
     bool set_currFrame_to_bg = false;        // Makes curr frame into background
+    bool match_start_bg_init = false;       // Initialize the background using current frame with defined boxes from saved background
     std::string dumpBackgroundsPath = "backgrounds/dump";
     std::string loadBackgroundsPath = "backgrounds"; // Please to look for preloaded backgrounds
     std::string outputVideoFile = "Recordings/Heuristic_dataDump.mp4";
@@ -48,6 +50,8 @@ public:
     bool show_fg_mat = false;
     bool show_track_mat = false;
     bool show_stats = false;
+    static cv::Mat backgroundOverlay; // Any overlay we want to apply over the background
+    static cv::Size bgOverlaySize;
 
 private:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override; // Run every time a new frame is available
@@ -69,6 +73,8 @@ private:
     // **** Background info
     cv::Mat currBackground;       // The current background to subtract from image (cropped)
     cv::Mat currBackground_16bit; // The same background but 16-bit for averaging
+    cv::Mat refBackground;        // The reference background to compare intensities to
+    double refIntensities[4] = {-1.0, -1.0, -1.0, -1.0};
 
     // ***** Color capable currFraem for annotating stuff
     cv::Mat currFrameColor;
@@ -111,7 +117,10 @@ private:
     int deleteForNoTrackingCount = -1;    // Number of frames to delete a tracked object that hasn't locked on
 
     // *********  Functions
-    void removeShake(cv::Mat &image);
+    void calcShakeRemoval(cv::Mat &image);
+    void correctBrightness(cv::Mat &image);
+    double getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean);
+    double correctionValues[4] = {0, 0, 0, 0};
     void healBackground(cv::Mat &currFrame);
     void ReinitBackground();
     bool SaveBackground(void); // Saves the current background to the default file
@@ -123,6 +132,7 @@ private:
     RobotTracker *AddTrackedItem(cv::Rect bbox);
     void _allRobotTrackersClear(); // clears and deletes all robot trackers
     void DrawAllBBoxes(cv::Mat &mat, int thickness = 1, cv::Scalar scaler = cv::Scalar(255, 0, 0));
+    void MatchStartBackgroundInit(cv::Mat &currFrame); // Initializes the match background using the current frame and the defined boxes from the saved background
 
     std::mutex _mutexTrackData;
     std::condition_variable_any conditionVarTrackRobots;
