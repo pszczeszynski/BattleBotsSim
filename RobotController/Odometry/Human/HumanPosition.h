@@ -5,16 +5,22 @@
 #include "../../CameraReceiver.h"
 #include <opencv2/opencv.hpp>
 
+enum class DataType
+{
+    ROBOT_POSITION,
+    OPPONENT_POSITION,
+    OPPONENT_ANGLE
+};
 
 class HumanPosition : public OdometryBase
 {
 public:
-    HumanPosition();
-    cv::Point2f GetPosition();
-    float GetAngle();
+    HumanPosition(ICameraReceiver *videoSource);
+
+protected:
+    void _ProcessNewFrame(cv::Mat currFrame, double frameTime);
 private:
     ServerSocket _socket;
-    std::thread _socketThread;
-
     std::vector<int> _GetDataFromSocket();
-}
+    void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle);
+};

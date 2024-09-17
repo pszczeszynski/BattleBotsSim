@@ -9,6 +9,7 @@
 #include "Odometry/OdometryBase.h"
 #include "Odometry/BlobDetection/BlobDetection.h"
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
+#include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/Neural/CVPosition.h"
 #include "UIWidgets/ImageWidget.h"
@@ -23,7 +24,8 @@ enum OdometryAlg
     Blob = 0,
     Heuristic,
     IMU,
-    Neural
+    Neural,
+    Human
 };
 
 
@@ -78,6 +80,9 @@ private:
 
     CVPosition _odometry_Neural;
     OdometryData _dataRobot_Neural;
+
+    HumanPosition _odometry_Human;
+    OdometryData _dataRobot_Human;
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;

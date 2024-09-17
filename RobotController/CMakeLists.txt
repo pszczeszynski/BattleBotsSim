@@ -74,6 +74,7 @@ set(SOURCES
     RobotStateParser.cc
     Odometry/OdometryBase.cc
     Odometry/BlobDetection/BlobDetection.cc
+    Odometry/Human/HumanPosition.cc
     Odometry/BlobDetection/RobotClassifier.cc
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
