@@ -525,10 +525,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
     double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle);
     double angleCost = abs(angleDiff) / (180 * TO_RAD);
-    angleCost = std::min(1.0, angleCost);
 
 
-    
     double angleToButt = angle_wrap(opponentExState.angle + M_PI);
     // 0 -> 2pi
     double angleFromUsToButt = angle_wrap(angleToButt - angleWeaponToUs - M_PI) + M_PI;
@@ -551,10 +549,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     }
 
 
-    double angleWeight = 1.0;
-
     // now let's score
-    outCost = angleFromUsToButt / (2 * M_PI) + angleCost * angleWeight;
+    outCost = angleFromUsToButt / (2 * M_PI) + angleCost * ORBIT_PRESERVE_CURR_ANGLE_WEIGHT;
 
     // return the target point
     return targetPoint;

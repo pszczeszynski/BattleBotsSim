@@ -50,6 +50,7 @@ void ConfigWidget::Draw()
     ImGui::SliderFloat("Opponent Spiral Start Deg", &OPPONENT_SPIRAL_START_DEG, 0.0, 180.0);
     ImGui::SliderFloat("Opponent Spiral End Deg", &OPPONENT_SPIRAL_END_DEG, 0.0, 180.0);
     ImGui::SliderFloat("Opponent Angle Extrap (ms)", &OPPONENT_ANGLE_EXTRAPOLATE_MS, 0.0, 500.0);
+    ImGui::SliderFloat("Preserve momentum factor", &ORBIT_PRESERVE_CURR_ANGLE_WEIGHT, 0.0, 5.0);
 
     EndSetMaxWidthWithMargin();
     ImGui::End();
