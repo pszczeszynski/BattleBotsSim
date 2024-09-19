@@ -123,7 +123,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     markTime("Brightness and shake: ");
 
- _imshow("corrected", newFrame);
+//  _imshow("corrected", newFrame);
 
     // Crop the image (not required if anti-shake not used)
     cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
