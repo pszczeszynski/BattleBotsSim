@@ -1,22 +1,27 @@
+// ServerSocket.cpp
 #include "ServerSocket.h"
 #include <string>
+#include <iostream>
 
 /**
  * Constructor
  * @param port The port to listen on
- * @return A ServerSocket object
-*/
+ */
 ServerSocket::ServerSocket(std::string port)
     : port(port), listenSocket(INVALID_SOCKET)
 {
     setup_receiving_socket();
 }
 
+ServerSocket::~ServerSocket()
+{
+    closesocket(listenSocket);
+    WSACleanup();
+}
+
 /**
  * Setup the socket to receive messages
- * This is only internal and is called by the constructor.
- * @return 0 on success, otherwise 1
-*/
+ */
 int ServerSocket::setup_receiving_socket()
 {
     WSADATA wsaData;
@@ -36,7 +41,7 @@ int ServerSocket::setup_receiving_socket()
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 
     // Create a SOCKET for listening
-    listenSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    listenSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (listenSocket == INVALID_SOCKET)
     {
         std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
@@ -59,8 +64,8 @@ int ServerSocket::setup_receiving_socket()
 /**
  * Receive a message from the socket
  * @return The message received, otherwise an empty string
-*/
-std::string ServerSocket::receive()
+ */
+std::string ServerSocket::receive(int* outError)
 {
     last_sender_addr_len = sizeof(last_sender_addr);
     std::string ret = "";
@@ -72,7 +77,7 @@ std::string ServerSocket::receive()
     // Read all available messages and only keep the last one
     while (true)
     {
-        int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0, &last_sender_addr, &last_sender_addr_len);
+        int numBytesReceived = recvfrom(listenSocket, recvbuf, recvbuflen, 0, (SOCKADDR *)&last_sender_addr, &last_sender_addr_len);
 
         if (numBytesReceived == SOCKET_ERROR)
         {
@@ -86,11 +91,23 @@ std::string ServerSocket::receive()
             else
             {
                 // Error occurred
-                return "";
+                std::cerr << "recvfrom failed with error: " << err << std::endl;
+                if (outError != nullptr)
+                {
+                    *outError = err;
+                    return "";
+                }
+
+                break;
+
             }
         }
-
-        ret.assign(recvbuf, numBytesReceived);
+        else if (numBytesReceived > 0)
+        {
+            ret.assign(recvbuf, numBytesReceived);
+            // Update last_sender_addr and last_sender_addr_len
+            // This is already handled by recvfrom parameters
+        }
     }
 
     // Set the socket back to blocking mode
@@ -104,8 +121,7 @@ std::string ServerSocket::receive()
  * Replies to the last sender
  *
  * @param data The string to send
- * @return void
-*/
+ */
 void ServerSocket::reply_to_last_sender(std::string data)
 {
     int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (SOCKADDR *)&last_sender_addr, last_sender_addr_len);

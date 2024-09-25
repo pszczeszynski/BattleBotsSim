@@ -27,7 +27,8 @@ private:
     int setup_receiving_socket();
 
 public:
-    std::string receive();
+    std::string receive(int* outError = nullptr);
     void reply_to_last_sender(std::string data);
     ServerSocket(std::string port);
+    ~ServerSocket();
 };

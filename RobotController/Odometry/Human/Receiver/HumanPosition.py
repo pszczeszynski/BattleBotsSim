@@ -11,58 +11,95 @@ POSITION = 0
 OPPONENT_POSITION = 1
 OPPONENT_ROTATION = 2
 
-X_WIDTH = 1280
-Y_HEIGHT = 720
-SIDE_LENGTH = 720
+WINDOW_IMAGE_SIZE = 720
+RAW_IMAGE_SIZE = 360
 
 MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 
+
+class LastClickData:
+    def __init__(self, position_clicked: tuple[int, int]=None, data_type:int=POSITION):
+        self.position_clicked: tuple[int, int] = position_clicked
+        self.data_type: int = data_type
+
+last_click = LastClickData((0, 0), POSITION)
+
+# Function to draw an 'X' at a given position
+def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
+    x, y = center
+    x, y = int(x), int(y)
+    cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
+    cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
+
 # Callback on mouse click
 def mouse_callback(event, x, y, flags, param):
-    x = x - (X_WIDTH - SIDE_LENGTH) // 2
-    y = y - (Y_HEIGHT - SIDE_LENGTH) // 2
-    if x < 0 or x > SIDE_LENGTH or y < 0 or y > SIDE_LENGTH:
+    global last_click
+    # x = x - (X_WIDTH - SIDE_LENGTH) // 2
+    # y = y - (Y_HEIGHT - SIDE_LENGTH) // 2
+    # if x < 0 or x > SIDE_LENGTH or y < 0 or y > SIDE_LENGTH:
+    if x < 0 or x > WINDOW_IMAGE_SIZE or y < 0 or y > WINDOW_IMAGE_SIZE:
         return
+
+
+    pos_data = None
     if event == cv2.EVENT_LBUTTONDOWN:
-        print(f"Mouse clicked at (x={x}, y={y}), Mode = {POSITION}")
-        pos_data = POSITION.to_bytes(4, byteorder='big') + x.to_bytes(4, byteorder='big') + y.to_bytes(4, byteorder='big')
-        client_socket.sendto(pos_data, (HOST, PORT))
+        last_click.position_clicked = (x, y)
+        last_click.data_type = POSITION
+        pos_data = POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
     if event == cv2.EVENT_RBUTTONDOWN:
-        print(f"Mouse clicked at (x={x}, y={y}), Mode = {OPPONENT_POSITION}")
-        pos_data = OPPONENT_POSITION.to_bytes(4, byteorder='big') + x.to_bytes(4, byteorder='big') + y.to_bytes(4, byteorder='big')
-        client_socket.sendto(pos_data, (HOST, PORT))
+        last_click.position_clicked = (x, y)
+        last_click.data_type = OPPONENT_POSITION
+        pos_data = OPPONENT_POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
     if event == cv2.EVENT_MBUTTONDOWN:
-        print(f"Mouse clicked at (x={x}, y={y}), Mode = {OPPONENT_ROTATION}")
-        pos_data = OPPONENT_ROTATION.to_bytes(4, byteorder='big') + x.to_bytes(4, byteorder='big') + y.to_bytes(4, byteorder='big')
-        client_socket.sendto(pos_data, (HOST, PORT))
+        last_click.position_clicked = (x, y)
+        last_click.data_type = OPPONENT_ROTATION
+
+
+    if pos_data is not None:
+        for i in range(3):
+            print(f"Sending data: {pos_data}")
+            client_socket.sendto(pos_data, (HOST, PORT))
 
 # Create a UDP socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# client_socket.setblocking(False)
+
 print("UDP socket created.")
 
 # Set up the window and callback
 cv2.namedWindow("Streaming Image", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("Streaming Image", WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE)
 cv2.setMouseCallback("Streaming Image", mouse_callback)
+
+def send_data_to_robot_controller():
+    """
+    Send the last click data to the robot controller.
+    """
+    data = last_click.data_type.to_bytes(4, byteorder='little') + \
+            last_click.position_clicked[0].to_bytes(4, byteorder='little') + \
+                last_click.position_clicked[1].to_bytes(4, byteorder='little')
+    client_socket.sendto(data, (HOST, PORT))
+
 
 # Send a test message
 client_socket.sendto(b'Hello', (HOST, PORT))
+print("Test message sent.")
 try:
     while True:
-        print("Waiting for image data...")
         # Receive data from the server
-        data, server_address = client_socket.recvfrom(MAX_BUFFER_SIZE)
-        if not data:
-            print("Error: No data received")
-            break
-        print("Received data length:", len(data))
+        try:
+            data, server_address = client_socket.recvfrom(MAX_BUFFER_SIZE)
+        except Exception as e:
+            print("Error receiving data: " + str(e))
+            send_data_to_robot_controller()
+            continue
 
-        # The first 4 bytes are the size of the image data
         if len(data) < 4:
             print("Error: Incomplete size data received")
+            send_data_to_robot_controller()
             continue
         size_data = data[:4]
         size = int.from_bytes(size_data, byteorder='big')
-        print("Size: ", size)
         image_data = data[4:]
 
         if len(image_data) < size:
@@ -74,16 +111,41 @@ try:
         # Decode the numpy array to an image
         received_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-        # Send dummy data back to the server
-        dummy_data = 0
-        data_to_send = dummy_data.to_bytes(4, byteorder='big') + dummy_data.to_bytes(4, byteorder='big')
-        client_socket.sendto(data_to_send, server_address)
+        # Make a copy of the image to draw on
+        display_image = received_image.copy()
 
-        # Display the received image
-        cv2.imshow("Streaming Image", received_image)
+    
+        # Draw 'X' at position_click
+        if last_click.data_type == POSITION:
+            draw_x(display_image, last_click.position_clicked, color=(0, 0, 255), size=20, thickness=2)
+
+        # Draw circle at opponent_position_click
+        elif last_click.data_type == OPPONENT_POSITION is not None:
+            x, y = int(last_click.position_clicked[0]), int(last_click.position_clicked[1])
+            cv2.circle(display_image, (x, y), radius=20, color=(255, 0, 0), thickness=2)
+
+        # Draw arrow from center to opponent_rotation_click
+        elif last_click.data_type == OPPONENT_ROTATION:
+            center = (RAW_IMAGE_SIZE // 2, RAW_IMAGE_SIZE // 2)
+            x, y = int(last_click.position_clicked[0]), int(last_click.position_clicked[1])
+            cv2.arrowedLine(display_image, center, (x, y), color=(0, 255, 0), thickness=2)
+    
+        else:
+            print("Error: Invalid data type")
+
+        send_data_to_robot_controller()
+
+        # # Send dummy data back to the server
+        # dummy_data = 0
+        # data_to_send = dummy_data.to_bytes(4, byteorder='little') + dummy_data.to_bytes(4, byteorder='big')
+        # client_socket.sendto(data_to_send, server_address)
+
+        # Display the received image with drawings
+        cv2.imshow("Streaming Image", display_image)
         cv2.waitKey(1)
 
-except KeyboardInterrupt: 
+
+except KeyboardInterrupt:
     # Close the socket
     client_socket.close()
     # Close OpenCV window

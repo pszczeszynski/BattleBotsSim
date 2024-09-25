@@ -4,31 +4,30 @@ import socket
 HOST = '127.0.0.1'
 PORT = 11117 
 
-# Create a socket object
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Create a socket object (UDP socket)
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_socket.bind((HOST, PORT))
-server_socket.listen(1)
-print("Server is listening...")
-
-# Accept a connection
-client_socket, addr = server_socket.accept()
-print(f"Connection from {addr} established.")
+print("UDP Server is ready to receive messages...")
 
 try:
     counter = 0
     while True:
         # Open the image file
         with open(f'../../../MachineLearning/TrainingData/TrainingInputs/image_{counter}.jpg', 'rb') as file:
-        # with open(f'image_1.jpg', 'rb') as file:
             image_data = file.read()
 
-        # Send the image data size
-        client_socket.send(len(image_data).to_bytes(4, byteorder='big'))
+        # Receive the client's address and initial message
+        data, client_addr = server_socket.recvfrom(1024)  # Receiving initial request from client
 
-        # Send the image data to the client
-        client_socket.sendall(image_data)
+        # Send the image data size to the client
+        server_socket.sendto(len(image_data).to_bytes(4, byteorder='big'), client_addr)
 
-        data_received = client_socket.recv(12)  # 8 bytes for two 4-byte integers
+        # Send the image data to the client in chunks
+        for i in range(0, len(image_data), 1024):
+            server_socket.sendto(image_data[i:i+1024], client_addr)
+
+        # Receive the client's response
+        data_received, client_addr = server_socket.recvfrom(12)  # 12 bytes for two 4-byte integers
         current_mode = int.from_bytes(data_received[:4], byteorder='big')
         x = int.from_bytes(data_received[:4], byteorder='big')
         y = int.from_bytes(data_received[4:], byteorder='big')
@@ -41,5 +40,4 @@ try:
 
 except KeyboardInterrupt:
     # Close the server socket
-    client_socket.close()
     server_socket.close()

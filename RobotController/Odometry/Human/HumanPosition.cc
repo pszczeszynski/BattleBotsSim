@@ -4,18 +4,25 @@
 #include "../../RobotConfig.h"
 #include <iostream>
 
-HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoSource), _socket("11118")
+HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
+    _socket = new ServerSocket("11118");
 }
 
 std::vector<int> HumanPosition::_GetDataFromSocket()
 {
     std::vector<int> data = {};
 
-    std::cout << "receiving" << std::endl;
+    int error = 0;
     // Receive 12 bytes from the socket
-    std::string data_str = _socket.receive();
-    std::cout << "recieved data" << data_str << std::endl;
+    std::string data_str = _socket->receive(&error);
+
+    if (error != 0)
+    {
+        // call dtor
+        delete _socket;
+        _socket = new ServerSocket("11118");
+    }
 
     int mode = *(int*)data_str.c_str();
     int x = *(int*)(data_str.c_str() + 4);
@@ -33,7 +40,6 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
 
 void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
-    std::cout << "in _ProcessNewFrame" << std::endl;
     // convert mat to std::string
     // Encode the image
     std::vector<uchar> buf;
@@ -59,15 +65,17 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     memcpy(&message[4], image_string.data(), image_string.size());
 
     // send the image back
-    _socket.reply_to_last_sender(message);
+    _socket->reply_to_last_sender(message);
 
     std::vector<int> data = _GetDataFromSocket();
 
     if (data.size() == 3)
     {
+        cv::Point2f newPos(data[1], data[2]);
+        std::cout << "x: " << newPos.x << "y: " << newPos.y << std::endl;
+
         if (data[0] == (int) DataType::ROBOT_POSITION)
         {
-            cv::Point2f newPos(data[1], data[2]);
             _UpdateData(true, frameTime, &newPos, nullptr);
         }
         else if (data[0] == (int) DataType::OPPONENT_POSITION)
