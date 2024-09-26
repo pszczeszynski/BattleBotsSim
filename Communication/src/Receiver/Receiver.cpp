@@ -292,11 +292,11 @@ void OnTeensyMessage(const CAN_message_t &msg)
         case COMMAND_PACKET_ID:
             lastPacketID = message.packetID;
             lastReceiveTime = millis();
-        case CHANNEL_CHANGE:
+        /*case CHANNEL_CHANGE:
             if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
                 radioChannel = message.channel.newChannel;
                 rxRadio.SetChannel(radioChannel);
-            }
+            }*/
         default:
             break;
     }

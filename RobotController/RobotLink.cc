@@ -16,6 +16,8 @@
 #define SEND_TIMEOUT_MS 1 // after this time, give up sending and go back to receiving
 #define RECEIVE_TIMEOUT_MS 100 //Was 5 but doubly defined to 100 later in code, assuming 100 is the intended duration
 
+#define PACKET_LOSS_SWITCH_TIMEOUT_MS 100
+
 /**
  * Doesn't do anything except call the timer markStart
  * Must be called for any robotlink
@@ -289,7 +291,7 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage, Drive
     }
 }
 
-void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue)
+void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue, RobotMessage *radioStats, Clock *lastReceivedTimer, std::mutex *radioStatsMutex)
 {
     static GraphWidget packetRoundTrip("Packet Round-trip Time", 0, 5, "ms", 1000);
     int num;
@@ -313,7 +315,6 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
                 if (num < 0) _radio_reinit = true;
                 if (num >= sizeof(RobotMessage))
                 {
-                    printf("received packet\n");
                     // reinterpret the buffer as a RobotMessage
                     RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
 
@@ -333,6 +334,14 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
 
                         }
                         _outstandingPacketMutex.unlock();
+
+                        radioStatsMutex->lock();
+                        lastReceivedTimer->markStart();
+                        if (msg.type == RobotMessageType::RADIO_DATA)
+                        {
+                            *radioStats = msg;
+                        }
+                        radioStatsMutex->unlock();
                     }
                     else
                     {
@@ -362,10 +371,10 @@ void RobotLinkReal::RadioThreadFunction(void)
     Clock secondaryRetryTimer;
 
     std::thread primayRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[0], &_requestSend, &_messageToSend, &_sendMessageMutex, false);
-    std::thread primaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[0], &_unconsumedMessagesMutex, &_unconsumedMessages);
+    std::thread primaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[0], &_unconsumedMessagesMutex, &_unconsumedMessages, &_primaryRadioStats, &_primaryReceivedTimer, &_primaryRadioStatsMutex);
 
     std::thread secondaryRadioSendThread(&RobotLinkReal::RadioThreadSendFunction, this, &_radios[1], &_secondaryRequestSend, &_secondaryMessageToSend, &_secondarySendMessageMutex, true);
-    std::thread secondaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[1], &_unconsumedMessagesMutex, &_unconsumedMessages);
+    std::thread secondaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[1], &_unconsumedMessagesMutex, &_unconsumedMessages, &_secondaryRadioStats, &_secondaryReceivedTimer, &_secondaryRadioStatsMutex);
     while (true)
     {
         while(devices_opened < 1)
@@ -411,64 +420,121 @@ RobotLinkReal::RobotLinkReal()
 }
 
 /**
- * Chooses the best of 3 channels to send on
- * Monitors for dropouts and switches channels if necessary
+ * single link behaviour: rotate 1->2->3 if channel unstable
+ * double link behaviour: switch worse link to unused receiver teensy
  */
-int RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
+void RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
 {
-    if (!_transmitterConnected)
-    {
-        return RADIO_CHANNEL;
-    }
+    static bool switchedPrimary = false;
+    static bool switchedSecondary = false;
 
     // draw WARNING if switched
     if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
     {
         cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
-        cv::putText(drawingImage, "Switched to Radio " + std::to_string(RADIO_CHANNEL),
-                    cv::Point(WIDTH / 2 - 200, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
-    }
 
-    // return to teensy_channel_1 if self righter is activated since only the center board can control it
-    if (msg.type == DriverStationMessageType::DRIVE_COMMAND && abs(msg.driveCommand.selfRighterPower) > 0)
-    {
-        RADIO_CHANNEL = TEENSY_RADIO_1;
-        _lastRadioSwitchClock.markStart();
-    }
-
-    // return the current channel if auto switch not enabled or if we have switched too recently
-    if (!AUTO_SWITCH_CHANNEL || _lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
-    {
-        return RADIO_CHANNEL;
-    }
-
-    // get the latest radio data
-    RadioData data = GetLastRadioMessage().radioData;
-
-    // check if the average delay is too high
-    if (data.averageDelayMS > MAX_AVERAGE_DELAY_MS ||
-        _receiveClock.getElapsedTime() * 1000 > MAX_AVERAGE_DELAY_MS)
-    {
-        // restart the cooldown clock
-        _lastRadioSwitchClock.markStart();
-
-        // switch to the next channel
-        if (RADIO_CHANNEL == TEENSY_RADIO_1)
-        {
-            return TEENSY_RADIO_2;
+        if (switchedPrimary) {
+            cv::putText(drawingImage, "Switched Primary to " + std::to_string(RADIO_CHANNEL),
+                        cv::Point(WIDTH / 2 - 200, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
         }
-        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        else if (switchedSecondary) {
+            cv::putText(drawingImage, "Switched Secondary to " + std::to_string(SECONDARY_RADIO_CHANNEL),
+                        cv::Point(WIDTH / 2 - 200, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+        }
+    }
+
+    if (!AUTO_SWITCH_CHANNEL) return; // don't do anything if not active
+    if (!_transmitterConnected) return; // don't do anything if no TXs connected to drive station
+    if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS) return; // don't switch if recently switched
+
+    int nextChannel = -1; //the free channel to switch to
+    if (_transmitterConnected && _secondaryTransmitterConnected) 
+    {
+        // get whichever one isn't being used
+        nextChannel = TEENSY_RADIO_1 + TEENSY_RADIO_2 + TEENSY_RADIO_3 - RADIO_CHANNEL - SECONDARY_RADIO_CHANNEL;
+    } 
+    else 
+    {
+        switch(RADIO_CHANNEL)
         {
-            return TEENSY_RADIO_3;
+            case TEENSY_RADIO_1:
+                nextChannel = TEENSY_RADIO_2;
+                break;
+            case TEENSY_RADIO_2:
+                nextChannel = TEENSY_RADIO_3;
+                break;
+            case TEENSY_RADIO_3:
+                nextChannel = TEENSY_RADIO_1;
+                break;
+            default:
+                nextChannel = TEENSY_RADIO_1;
+                break;
+        }
+    }
+
+    _primaryRadioStatsMutex.lock();
+    float primaryAvgDelay = _primaryRadioStats.radioData.averageDelayMS;
+    _primaryRadioStatsMutex.unlock();
+
+    _secondaryRadioStatsMutex.lock();
+    float secondaryAvgDelay = _secondaryRadioStats.radioData.averageDelayMS;
+    _secondaryRadioStatsMutex.unlock();
+
+    printf("%f %f\n", _primaryReceivedTimer.getElapsedTime(), _secondaryReceivedTimer.getElapsedTime());
+
+    // Switching priority (can only switch one link at a time to maintain comms):
+    // Primary radio loses comms: switch primary
+    // Secondary radio loses comms: switch secondary
+    // both radios dropping packets: switch radio with worse avg inter-packet time
+    // Single radio dropping packets: switch that radio
+    if (_primaryReceivedTimer.getElapsedTime()*1000 > PACKET_LOSS_SWITCH_TIMEOUT_MS)
+    {
+        switchedPrimary = true;
+        switchedSecondary = false;
+        _lastRadioSwitchClock.markStart();
+        RADIO_CHANNEL = nextChannel;
+    }
+    else if (_secondaryReceivedTimer.getElapsedTime()*1000 > PACKET_LOSS_SWITCH_TIMEOUT_MS)
+    {
+        switchedPrimary = false;
+        switchedSecondary = true;
+        _lastRadioSwitchClock.markStart();
+        SECONDARY_RADIO_CHANNEL = nextChannel;
+    }
+    else if (true)
+    {
+        return;
+    }
+    else if (primaryAvgDelay > MAX_AVERAGE_DELAY_MS && secondaryAvgDelay > MAX_AVERAGE_DELAY_MS)
+    {
+        _lastRadioSwitchClock.markStart();
+        if (primaryAvgDelay > secondaryAvgDelay)
+        {
+            switchedPrimary = true;
+            switchedSecondary = false;
+            RADIO_CHANNEL = nextChannel;
         }
         else
         {
-            return TEENSY_RADIO_1;
+            switchedPrimary = false;
+            switchedSecondary = true;
+            SECONDARY_RADIO_CHANNEL = nextChannel;
         }
     }
-
-    // keep the current channel
-    return RADIO_CHANNEL;
+    else if (primaryAvgDelay > MAX_AVERAGE_DELAY_MS)
+    {
+        switchedPrimary = true;
+        switchedSecondary = false;
+        _lastRadioSwitchClock.markStart();
+        RADIO_CHANNEL = nextChannel;
+    }
+    else if (secondaryAvgDelay > MAX_AVERAGE_DELAY_MS)
+    {
+        switchedPrimary = false;
+        switchedSecondary = true;
+        _lastRadioSwitchClock.markStart();
+        SECONDARY_RADIO_CHANNEL = nextChannel;
+    }
 }
 
 void RobotLinkReal::Drive(DriverStationMessage &command)
@@ -479,7 +545,8 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
     static Clock packetLossUpdateRate;
 
     // set the radio channel
-    RADIO_CHANNEL = ChooseBestChannel(command);
+    //RADIO_CHANNEL = ChooseBestChannel(command);
+    ChooseBestChannel(command);
     command.radioChannel = RADIO_CHANNEL;
 
     // if we have sent a packet too recently, return
