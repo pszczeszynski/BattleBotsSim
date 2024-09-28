@@ -330,7 +330,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     // 1. get robot datas
     OdometryData odoData = RobotController::GetInstance().odometry.Robot();
     OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
-    opponentData.robotAngle = Angle(opponentRotationSim); // TODO: don't just hardcode
+    // opponentData.robotAngle = Angle(opponentRotationSim); // TODO: don't just hardcode
 
     ////////////////// EXTRAPOLATE DATA //////////////////
     // 2. Extrapolate our position
@@ -340,7 +340,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     double opponentPositionExtrapolationTime = OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0 *
                                                norm(opponentData.robotPosition - odoData.robotPosition) / ORBIT_RADIUS;
     RobotSimState opponentExState = _ExtrapolateOpponentPos(opponentPositionExtrapolationTime, opponentPositionExtrapolationTime);
-    opponentExState.angle = Angle(opponentRotationSim); // TODO: don't just hardcode
+    // opponentExState.angle = Angle(opponentRotationSim); // TODO: don't just hardcode
     /////////////////////////////////////////////////////////
 
     // the orbit center is the opponent position

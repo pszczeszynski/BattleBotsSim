@@ -273,14 +273,15 @@ void TrackingWidget::_DrawAlgorithmData()
             DrawX(_trackingMat, robot.robotPosition, heuristicColor, 20);
         }
 
-        if (robot.robotAngleValid)
-        {
-            cv::Point2f arrowEnd = robot.robotPosition + cv::Point2f(50 * cos(robot.robotAngle), 50 * sin(robot.robotAngle));
-            cv::arrowedLine(_trackingMat, robot.robotPosition, arrowEnd, heuristicColor, 2);
-        }
 
         OdometryData opponent = _odometry_Heuristic.GetData(true);
         opponent.Extrapolate(Clock::programClock.getElapsedTime());
+
+        if (opponent.robotAngleValid)
+        {
+            cv::Point2f arrowEnd = opponent.robotPosition + cv::Point2f(50 * cos(opponent.robotAngle), 50 * sin(opponent.robotAngle));
+            cv::arrowedLine(_trackingMat, opponent.robotPosition, arrowEnd, heuristicColor, 2);
+        }
 
         if (opponent.robotPosValid)
         {

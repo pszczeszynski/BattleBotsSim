@@ -22,8 +22,18 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
 void RobotOdometry::_AdjustAngleWithArrowKeys()
 {
     static Clock updateClock;
-    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 90 * M_PI / 180.0);
+
+    float speed = 1.0;
+    // if shift is held, multiply by 2
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
+    {
+        speed = 2.0;
+    }
+
+    Angle angleUserAdjust = Angle(updateClock.getElapsedTime() * 90 * M_PI / 180.0 * speed);
     updateClock.markStart();
+
+
     if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
     {
         UpdateForceSetAngle(_dataRobot.robotAngle - angleUserAdjust, false);
@@ -31,6 +41,16 @@ void RobotOdometry::_AdjustAngleWithArrowKeys()
     else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow))
     {
         UpdateForceSetAngle(_dataRobot.robotAngle + angleUserAdjust, false);
+    }
+
+    // opponent with up and 1 and 3
+    if (InputState::GetInstance().IsKeyDown(ImGuiKey_1))
+    {
+        UpdateForceSetAngle(_dataOpponent.robotAngle - angleUserAdjust, true);
+    }
+    else if (InputState::GetInstance().IsKeyDown(ImGuiKey_3))
+    {
+        UpdateForceSetAngle(_dataOpponent.robotAngle + angleUserAdjust, true);
     }
 }
 
@@ -95,6 +115,23 @@ void RobotOdometry::Update(void)
         if (_odometry_Neural.NewDataValid(_dataRobot_Neural.id, false))
         {
             _dataRobot_Neural = _odometry_Neural.GetData(false);
+            newDataArrived = true;
+        }
+    }
+
+    if (_odometry_Human.IsRunning())
+    {
+        // Update our data
+        if (_odometry_Human.NewDataValid(_dataRobot_Human.id, false))
+        {
+            _dataRobot_Human = _odometry_Human.GetData(false);
+            _dataRobot_Human_is_new = true;
+            newDataArrived = true;
+        }
+        else if (_odometry_Human.NewDataValid(_dataOpponent_Human.id, true))
+        {
+            _dataOpponent_Human = _odometry_Human.GetData(true);
+            _dataOpponent_Human_is_new = true;
             newDataArrived = true;
         }
     }
@@ -292,7 +329,44 @@ void RobotOdometry::FuseAndUpdatePositions()
 
 
 
-    _dataOpponent = *candidateOpponent;   
+
+
+
+
+    ////////////////// OPPONENT ANGLE //////////////////
+
+
+    OdometryData candidateOpponentDeref = *candidateOpponent;
+    // copy over the old angle for the opponent
+    candidateOpponentDeref.robotAngle = _dataOpponent.robotAngle;
+    candidateOpponentDeref.robotAngleVelocity = _dataOpponent.robotAngleVelocity;
+
+    ///// human + heuristic rotation for opponent
+    if (_odometry_Human.IsRunning())
+    {
+        // if opponent changed
+        if (_dataOpponent_Human_is_new && _dataOpponent_Human.robotAngleValid)
+        {
+            candidateOpponentDeref.robotAngle = _dataOpponent_Human.robotAngle;
+            _dataOpponent_Human_is_new = false;
+        }
+    }
+
+    if (_odometry_Heuristic.IsRunning())
+    {
+        // if angle valid
+        if (_dataOpponent_Heuristic.robotAngleValid)
+        {
+            // increment the angle by the delta angle
+            Angle deltaAngle = _dataOpponent_Heuristic.robotAngle - _dataOpponent_Heuristic_prev.robotAngle;
+            _dataOpponent_Heuristic_prev = _dataOpponent_Heuristic;
+            candidateOpponentDeref.robotAngle = candidateOpponentDeref.robotAngle + deltaAngle;
+        }
+    }
+
+
+
+    _dataOpponent = candidateOpponentDeref;   
 
     if (!trackingMat.empty())
     {

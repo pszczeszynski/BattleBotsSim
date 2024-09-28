@@ -77,12 +77,16 @@ private:
     HeuristicOdometry _odometry_Heuristic;
     OdometryData _dataRobot_Heuristic;
     OdometryData _dataOpponent_Heuristic;
+    OdometryData _dataOpponent_Heuristic_prev;
 
     CVPosition _odometry_Neural;
     OdometryData _dataRobot_Neural;
 
     HumanPosition _odometry_Human;
     OdometryData _dataRobot_Human;
+    bool _dataRobot_Human_is_new = false;
+    OdometryData _dataOpponent_Human;
+    bool _dataOpponent_Human_is_new = false;
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;

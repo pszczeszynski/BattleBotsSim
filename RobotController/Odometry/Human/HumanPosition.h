@@ -20,6 +20,8 @@ public:
 protected:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime);
 private:
+    cv::Point2f _lastReceivedPos;
+    DataType _lastReceivedType;
     ServerSocket* _socket;
     std::vector<int> _GetDataFromSocket();
     void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle);

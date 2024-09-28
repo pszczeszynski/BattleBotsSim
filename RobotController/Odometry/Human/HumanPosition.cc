@@ -72,23 +72,34 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     if (data.size() == 3)
     {
         cv::Point2f newPos(data[1], data[2]);
-        std::cout << "x: " << newPos.x << "y: " << newPos.y << std::endl;
+        DataType type = (DataType)data[0];
 
-        if (data[0] == (int) DataType::ROBOT_POSITION)
+        if (newPos == _lastReceivedPos && type == _lastReceivedType)
+        {
+            return;
+        }
+
+        std::cout << "Received data: " << data[0] << " " << data[1] << " " << data[2] << std::endl;
+
+        if (type == DataType::ROBOT_POSITION)
         {
             _UpdateData(true, frameTime, &newPos, nullptr);
         }
-        else if (data[0] == (int) DataType::OPPONENT_POSITION)
+        else if (type == DataType::OPPONENT_POSITION)
         {
             cv::Point2f newPos(data[1], data[2]);
             _UpdateData(false, frameTime, &newPos, nullptr);
         }
-        else if (data[0] == (int) DataType::OPPONENT_ANGLE)
+        else if (type == DataType::OPPONENT_ANGLE)
         {
-            const double MIDDLE = WIDTH / 2;
-            Angle angle = Angle(atan2(data[1] - MIDDLE, data[2] - MIDDLE));
+            double MIDDLE = WIDTH / 2;
+            MIDDLE /= 2; // since image is scaled down by 2
+            Angle angle = Angle(atan2(data[2] - MIDDLE, data[1] - MIDDLE));
             _UpdateData(false, frameTime, nullptr, &angle);
         }
+
+        _lastReceivedPos = newPos;
+        _lastReceivedType = (DataType)data[0];
     }
 }
 
@@ -106,10 +117,19 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
             _currDataRobot.robotPosValid = true;
             _currDataRobot.robotPosition = *pos;
         }
-        else if (angle != nullptr)
+        else
+        {
+            _currDataRobot.robotPosValid = false;
+        }
+
+        if (angle != nullptr)
         {
             _currDataRobot.robotAngleValid = true;
             _currDataRobot.robotAngle = *angle;
+        }
+        else
+        {
+            _currDataRobot.robotAngleValid = false;
         }
     }
     else
@@ -122,10 +142,19 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
             _currDataOpponent.robotPosValid = true;
             _currDataOpponent.robotPosition = *pos;
         }
-        else if (angle != nullptr)
+        else
+        {
+            _currDataOpponent.robotPosValid = false;
+        }
+        
+        if (angle != nullptr)
         {
             _currDataOpponent.robotAngleValid = true;
             _currDataOpponent.robotAngle = *angle;
+        }
+        else
+        {
+            _currDataOpponent.robotAngleValid = false;
         }
     }
 
