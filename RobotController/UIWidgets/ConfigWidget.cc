@@ -7,8 +7,15 @@
 #include "../../Common/Communication.h"
 #include "FieldWidget.h"
 
+// Define my statics
+cv::Point2f ConfigWidget::leftStart = cv::Point2f(0, 0);
+cv::Point2f ConfigWidget::rightStart = cv::Point2f(0, 0);
+
 ConfigWidget::ConfigWidget()
 {
+    // Initialize is here in case the globals have changed
+    //leftStart = cv::Point2f(HEU_LEFTSTART_X, HEU_LEFTSTART_Y);
+    //rightStart = cv::Point2f(HEU_RIGHTSTART_X, HEU_RIGHTSTART_Y);
 }
 
 
@@ -43,6 +50,7 @@ void ConfigWidget::Draw()
     ImGui::SliderFloat("Opponent Spiral Start Deg", &OPPONENT_SPIRAL_START_DEG, 0.0, 180.0);
     ImGui::SliderFloat("Opponent Spiral End Deg", &OPPONENT_SPIRAL_END_DEG, 0.0, 180.0);
     ImGui::SliderFloat("Opponent Angle Extrap (ms)", &OPPONENT_ANGLE_EXTRAPOLATE_MS, 0.0, 500.0);
+    ImGui::SliderFloat("Preserve momentum factor", &ORBIT_PRESERVE_CURR_ANGLE_WEIGHT, 0.0, 5.0);
 
     EndSetMaxWidthWithMargin();
     ImGui::End();
@@ -67,33 +75,26 @@ void ConfigWidget::Draw()
     // Background Management
     HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-    if (ImGui::Button("Auto Lock Us Left"))
+    // Set leftstart and rightstart to middle of background starting boxes
+    leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
+    rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    if (ImGui::Button("Auto Lock Us Left", ImVec2(200, 50)))
     {
         heuristic.MatchStart(leftStart, rightStart);
     }
+    ImGui::PopStyleColor();
+
     ImGui::SameLine();
     ImGui::Text("     ");
     ImGui::SameLine();
-    if (ImGui::Button("Auto Lock Us Right"))
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    if (ImGui::Button("Auto Lock Us Right", ImVec2(200, 50)))
     {
         heuristic.MatchStart(rightStart, leftStart);
     }
-    ImGui::SameLine();
-    ImGui::Text(" Left=(%g,%g)", leftStart.x, leftStart.y);
-
-    ImGui::SameLine();
-    if (ImGui::Button("Set LB"))
-    {
-        leftStart = TrackingWidget::leftClickPoint;
-    }
-
-    ImGui::SameLine();
-    ImGui::Text("   Right=(%g,%g)", rightStart.x, rightStart.y);
-    ImGui::SameLine();
-    if (ImGui::Button("Set RB"))
-    {
-        rightStart = TrackingWidget::rightClickPoint;
-    }
+    ImGui::PopStyleColor();
 
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
@@ -188,27 +189,184 @@ void ConfigWidget::Draw()
     ImGui::InputInt("Min Inter Send Time (ms)", &MIN_INTER_SEND_TIME_MS);    
     // radio channel
     ImGui::InputInt("Radio Channel", &RADIO_CHANNEL);
-    
+
+    /*static bool disabled = false;
+    ImGui::Checkbox("Disable", &disabled);
+    if (disabled)
+    {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    }
+    [...]
+    if (disabled)
+    {
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
+    }*/
+
     if (!AUTO_SWITCH_CHANNEL)
     {
-        // button to set radio channel to 4
-        if (ImGui::Button("Teensy #1"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx1"))
         {
             RADIO_CHANNEL = TEENSY_RADIO_1;
         }
 
-        ImGui::SameLine();
-
-        if (ImGui::Button("Teensy #2"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
         {
-            RADIO_CHANNEL = TEENSY_RADIO_2;
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopStyleColor();
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Teensy #3"))
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx2"))
+        {
+            RADIO_CHANNEL = TEENSY_RADIO_2;
+        }
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx3"))
         {
             RADIO_CHANNEL = TEENSY_RADIO_3;
+        }
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::InputInt("Secondary Radio Channel", &SECONDARY_RADIO_CHANNEL);
+    
+    if (!AUTO_SWITCH_CHANNEL)
+    {
+        if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx1"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_1;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx2"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_2;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx3"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_3;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopStyleColor();
         }
     }
 

@@ -29,6 +29,7 @@ extern int KILL_ANGLE_EXTRAPOLATE_MS;
 extern int POSITION_EXTRAPOLATE_MS;
 extern int OPPONENT_POSITION_EXTRAPOLATE_MS;
 extern int ORBIT_RADIUS;
+extern float ORBIT_PRESERVE_CURR_ANGLE_WEIGHT;
 extern int PURE_PURSUIT_RADIUS;
 extern float ORBIT_RADIUS_MOVAVG_SPEED;
 extern int MASTER_MOVE_SCALE_PERCENT;
@@ -64,6 +65,7 @@ extern int HEU_FOREGROUND_BUFFER;
 extern int HEU_POSITION_TO_CENTER_SPEED;
 extern int HEU_VELOCITY_AVERAGING;
 extern int RADIO_CHANNEL;
+extern int SECONDARY_RADIO_CHANNEL;
 extern bool AUTO_SWITCH_CHANNEL;
 extern int MAX_AVERAGE_DELAY_MS;
 extern int SWITCH_COOLDOWN_MS;
@@ -87,6 +89,22 @@ extern float HEU_RIGHTSTART_X;
 extern float HEU_RIGHTSTART_Y;
 extern float NN_MIN_CONFIDENCE;
 extern float CAMERA_GAIN;
+extern std::string IMAGE_REF_INTENSITY;
+extern std::string IMAGE_START_BACKGROUND;
+extern float IMAGE_INTENSITY_TIME_CONSTANT;
+extern int IMAGE_INTENSITY_SQR_size;
+extern int IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y;
+extern int IMAGE_INTENSITY_SQR_2_x, IMAGE_INTENSITY_SQR_2_y;
+extern int IMAGE_INTENSITY_SQR_3_x, IMAGE_INTENSITY_SQR_3_y;
+extern int IMAGE_INTENSITY_SQR_4_x, IMAGE_INTENSITY_SQR_4_y;
+extern int STARTING_LEFT_TL_x;
+extern int STARTING_LEFT_TL_y;
+extern int STARTING_LEFT_BR_x;
+extern int STARTING_LEFT_BR_y;
+extern int STARTING_RIGHT_TL_x;
+extern int STARTING_RIGHT_TL_y;
+extern int STARTING_RIGHT_BR_x;
+extern int STARTING_RIGHT_BR_y;
 
 
 template <typename T>

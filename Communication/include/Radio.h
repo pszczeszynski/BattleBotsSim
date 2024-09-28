@@ -1,10 +1,11 @@
 #pragma once
 #include <RF24.h>
 #include "Communication.h"
+#include "Hardware.h"
 
 // BELOW MUST CHANGE FOR EACH RECEIVER TEENSY
 #define CHANNEL TEENSY_RADIO_1
-#define POWER RF24_PA_HIGH
+#define POWER RF24_PA_MAX
 #define POWER_STATUS_MSG "Setting power to HIGH"
 #define VERBOSE_RADIO
 
@@ -27,7 +28,7 @@ class Radio
 public:
     Radio();
     Radio(uint8_t channel);
-    void InitRadio(uint8_t channel);
+    bool InitRadio(uint8_t channel);
 
     SendOutput Send(SendType& message);
     ReceiveType Receive();
@@ -36,7 +37,7 @@ public:
     bool Available();
 
 private:
-    RF24 radio{7, 9};
+    RF24 radio{RADIO_CE_PIN, RADIO_CS_PIN};
     unsigned char _channel = CHANNEL;
 };
 
@@ -53,21 +54,19 @@ Radio<SendType, ReceiveType>::Radio(uint8_t channel)
 }
 
 template <typename SendType, typename ReceiveType>
-void Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
+bool Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
 {
-    Serial.println("Initializing radio...");
     const byte address[6] = "00001";
-    radio.begin();
+    if (!radio.begin()) return false;
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
     radio.setPALevel(POWER);
     Serial.println(POWER_STATUS_MSG);
     radio.startListening();
     radio.setAutoAck(false);
-    radio.setDataRate(RF24_1MBPS);
-    Serial.println("Setting channel to " + (String) channel);
+    if (!radio.setDataRate(RF24_2MBPS)) return false;
     radio.setChannel(channel);
-    Serial.println("Success!");
+    return true;
 }
 
 #define SEND_FIFO_TIMEOUT_MS 1

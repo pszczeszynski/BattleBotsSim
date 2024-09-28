@@ -61,7 +61,8 @@
         "xlocbuf": "cpp",
         "xlocmes": "cpp",
         "xlocmon": "cpp",
-        "xloctime": "cpp"
+        "xloctime": "cpp",
+        "*.tpp": "cpp"
     },
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#920320",

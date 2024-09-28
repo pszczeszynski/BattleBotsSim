@@ -16,23 +16,14 @@
 #include "CircularDeque.h"
 #include "GenericReceiver.h"
 #include "Radio.h"
+#include "Utils.h"
 #include <SPI.h>
 #include <RF24.h>
 #include <cstring> // for std::memcpy
 
-// #define VENDOR_ID               0x16C0
-// #define PRODUCT_ID              0x0480
-// #define RAWHID_USAGE_PAGE       0xFFAC  // recommended: 0xFF00 to 0xFFFF
-// #define RAWHID_USAGE            0x0300  // recommended: 0x0100 to 0xFFFF
-
-#define RAWHID_TX_SIZE          64      // transmit packet size
-#define RAWHID_TX_INTERVAL      1       // max # of ms between transmit packets
-#define RAWHID_RX_SIZE          64      // receive packet size
-#define RAWHID_RX_INTERVAL      1       // max # of ms between receive packets
-
-
-Radio<DriverStationMessage, RobotMessage>* tx_radio;
+Radio<DriverStationMessage, RobotMessage> tx_radio{};
 const byte address[6] = "00001"; // Define address/pipe to use.
+char ping_response_buffer[64];
 
 //===============================================================================
 //  Initialization
@@ -48,10 +39,16 @@ void tx_setup()
     pinMode(STATUS_3_LED_PIN, OUTPUT);
     pinMode(STATUS_4_LED_PIN, OUTPUT);
     
-    tx_radio = new Radio<DriverStationMessage, RobotMessage>();
     Serial.println("Success!");
 
     Serial.println("Finished initializing");
+
+    // set up a hardcoded response to ping requests
+    RobotMessage ping_response;
+    ping_response.type = LOCAL_PING_RESPONSE;
+    ping_response.valid = true;
+    memset(ping_response_buffer, 0, sizeof(ping_response_buffer));
+    std::memcpy(ping_response_buffer, &ping_response, sizeof(RobotMessage));
 
     digitalWrite(STATUS_1_LED_PIN, HIGH);
 
@@ -65,33 +62,46 @@ unsigned int packetCount = 0;
 //===============================================================================
 //  Main
 //===============================================================================
-long int total_packets = 0;
+long int receivedPackets = 0;
+long int sentPackets = 0;
+long int lastReceivedPackets = 0;
+long int lastSentPackets = 0;
+uint32_t lastDebugTime = 0;
 #define NO_MESSAGE_REINIT_TIME 70
 
 #define SEND_TIMEOUT 1
-#define RECEIVE_TIMEOUT 1
+#define RECEIVE_TIMEOUT 0
 void tx_loop()
 {
-    static unsigned long lastReceiveTime = 0;
     static unsigned long lastTime = 0;
     static int curr_packet_id = 0;
 
     int n;
     n = RawHID.recv(buffer, RECEIVE_TIMEOUT);
 
+    // if the message is a tx ping, send a response back
+    // forward to the robot otherwise
     if (n > sizeof(DriverStationMessage))
     {
         DriverStationMessage command;
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
 
-        tx_radio->SetChannel(command.radioChannel);
+        if(command.type == LOCAL_PING_REQUEST)
+        {
+            n = RawHID.send(ping_response_buffer, SEND_TIMEOUT);
+        }
+        else
+        {
+            tx_radio.SetChannel(command.radioChannel);
 
-        // send over radio to receiver
-        tx_radio->Send(command);
+            // send over radio to receiver
+            SendOutput status = tx_radio.Send(command);
 
-        // blink the LED
-        digitalWrite(STATUS_2_LED_PIN, HIGH);
+            // blink the LED
+            digitalWrite(STATUS_2_LED_PIN, HIGH);
+            sentPackets++;
+        }
     }
     else
     {
@@ -100,12 +110,11 @@ void tx_loop()
 
     bool hadData = false;
     // read data from rc
-    RobotMessage message = tx_radio->Receive();
+    RobotMessage message = tx_radio.Receive();
 
     if (message.type != RobotMessageType::INVALID)
     {
-        lastReceiveTime = millis();
-        total_packets ++;
+        receivedPackets ++;
 
         char sendBuffer[64];
         memset(sendBuffer, 0, sizeof(sendBuffer));
@@ -123,10 +132,13 @@ void tx_loop()
         digitalWrite(STATUS_3_LED_PIN, LOW);
     }
 
-    // if (millis() - lastReceiveTime > NO_MESSAGE_REINIT_TIME)
-    // {
-    //     // Serial.println("ERROR: no messages -> re-init");
-    //     tx_radio->InitRadio();
-    //     lastReceiveTime = millis();
-    // }
+    if (millis() - lastDebugTime > 1000) {
+        Serial.print("Sent: ");
+        Serial.print(sentPackets - lastSentPackets);
+        Serial.print(", Received: ");
+        Serial.println(receivedPackets - lastReceivedPackets);
+        lastReceivedPackets = receivedPackets;
+        lastSentPackets = sentPackets;
+        lastDebugTime = millis();
+    }
 }

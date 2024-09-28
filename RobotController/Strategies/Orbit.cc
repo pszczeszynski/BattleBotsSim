@@ -525,10 +525,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
     double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle);
     double angleCost = abs(angleDiff) / (180 * TO_RAD);
-    angleCost = std::min(1.0, angleCost);
 
 
-    
     double angleToButt = angle_wrap(opponentExState.angle + M_PI);
     // 0 -> 2pi
     double angleFromUsToButt = angle_wrap(angleToButt - angleWeaponToUs - M_PI) + M_PI;
@@ -551,10 +549,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     }
 
 
-    double angleWeight = 1.0;
-
     // now let's score
-    outCost = angleFromUsToButt / (2 * M_PI) + angleCost * angleWeight;
+    outCost = angleFromUsToButt / (2 * M_PI) + angleCost * ORBIT_PRESERVE_CURR_ANGLE_WEIGHT;
 
     // return the target point
     return targetPoint;
@@ -668,6 +664,16 @@ double Orbit::_GetDangerLevel(double angleOpponentToPoint,
 // time to grow to the regular orbit radius
 #define SPEED_TO_GROW_ORBIT_RADIUS_PX_P_S 100.0
 
+/**
+ * Calculates the current radius given:
+ * 
+ * 1. angleOpponentToPoint => the input angle to our radial function. Angle originates from the opponent
+ * 2. robotPosEx => where our robot
+ * 3. opponentWeaponPosEx => where the opponent's weapon is
+ * 4. opponentAngle => the angle the opponent is facing their weapon
+ * 5. gamepad => the gamepad
+ * 6. orbitDirection => the direction of the orbit
+ */
 double Orbit::_CalculateOrbitRadius(double angleOpponentToPoint,
                                     cv::Point2f robotPosEx,
                                     cv::Point2f opponentWeaponPosEx,
@@ -687,14 +693,17 @@ double Orbit::_CalculateOrbitRadius(double angleOpponentToPoint,
     // multiply the radius by the danger level
     orbitRadius *= dangerLevel;
 
-
+    // 
     double angleOpponentToRobot = atan2(robotPosEx.y - opponentWeaponPosEx.y, robotPosEx.x - opponentWeaponPosEx.x);
     double deltaAngle = abs(angle_wrap(angleOpponentToPoint - angleOpponentToRobot));
     double robotsRadius = cv::norm(robotPosEx - opponentWeaponPosEx); // calculate the distance to the center of the opponent
 
-    // calculate how much distance their is from the robot to the outside of the path
+    // calculate how much distance there is from the robot to the outside of the path
     double distanceToOutSideOfPath = orbitRadius - robotsRadius;
 
+    // If we are inside the path, we should slowly grow the path from us out to
+    // the our target radius. the more inside the path we are, the more angle it
+    // will take to transition
     const double ANGLE_TRANSITION_PERIOD = (distanceToOutSideOfPath / ORBIT_RADIUS) * 180 * TO_RAD;
 
     if (deltaAngle < ANGLE_TRANSITION_PERIOD)

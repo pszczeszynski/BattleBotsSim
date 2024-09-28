@@ -163,9 +163,9 @@ void RobotOdometry::FuseAndUpdatePositions()
 {
     OdometryData* candidateRobot = &_dataRobot_Heuristic;
 
+    // 1 compute if each algorithm is valid
     bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid;
     bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
-
     // check if the neural net is far away from the candidate, override to neural net if yes
     double currTimeSeconds = Clock::programClock.getElapsedTime();
     double ageOfNeural = currTimeSeconds - _dataRobot_Neural.time;

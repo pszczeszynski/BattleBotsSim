@@ -357,24 +357,6 @@ Gamepad& RobotController::GetGamepad2()
     return gamepad2;
 }
 
-/**
- * Allows the spacebar to control switching the robot positions should the trackers swap
-*/
-void SpaceSwitchesRobots()
-{
-    static bool spacePressedLast = false;
-    bool spacePressed = InputState::GetInstance().IsKeyDown(ImGuiKey_Space);
-
-    // if the space bar was just pressed down
-    if (spacePressed && !spacePressedLast)
-    {
-        RobotController::GetInstance().odometry.SwitchRobots();
-    }
-
-    // save the last variable for next time
-    spacePressedLast = spacePressed;
-}
-
 int Sign(double val)
 {
     return (0 < val) - (val < 0);
@@ -510,6 +492,26 @@ DriverStationMessage RobotController::ManualMode()
     return ret;
 }
 
+void RobotController::StartForceOrbit()
+{
+    _guiOrbit = true;
+}
+
+void RobotController::StopForceOrbit()
+{
+    _guiOrbit = false;
+}
+
+void RobotController::StartForceKill()
+{
+    _guiKill = true;
+}
+
+void RobotController::StopForceKill()
+{
+    _guiKill = false;
+}
+
 /**
  * RobotLogic
  * The main logic for the robot
@@ -534,12 +536,12 @@ DriverStationMessage RobotController::RobotLogic()
     DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
-    if (gamepad.GetLeftStickY() > 0.7)
+    if (gamepad.GetLeftStickY() > 0.7 || _guiOrbit)
     {
         _orbiting = true;
         _killing = false; 
     }
-    else if (gamepad.GetLeftStickY() < -0.7)
+    else if (gamepad.GetLeftStickY() < -0.7 || _guiKill)
     {
         _killing = true;
         _orbiting = false;
@@ -709,6 +711,21 @@ void RobotController::DrawStatusIndicators()
     cv::circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
     cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
+    // check if secondary robotlink transmission is working
+    bool secondaryTransmitterConnected = robotLink.IsSecondaryTransmitterConnected();
+
+    if (secondaryTransmitterConnected)
+    {
+        color = cv::Scalar(0, 255, 0);
+    }
+    else
+    {
+        color = cv::Scalar(0, 0, 255);
+    }
+
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
+    cv::putText(drawingImage, "TX2", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+
 
     // check the gamepad is connected
 
@@ -723,8 +740,8 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
-    cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
+    cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
 
@@ -741,8 +758,8 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
-    cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
+    cv::circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
+    cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
 

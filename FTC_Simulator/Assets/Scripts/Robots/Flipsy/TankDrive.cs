@@ -33,11 +33,27 @@ public class TankDrive : MonoBehaviour
         right_wheel_torque /= reduce_amount;
         left_wheel_torque /= reduce_amount;
 
-        // apply torques
-        ApplyWheelTorque(wheelTL, left_wheel_torque);
-        ApplyWheelTorque(wheelTR, right_wheel_torque);
-        ApplyWheelTorque(wheelBL, left_wheel_torque);
-        ApplyWheelTorque(wheelBR, right_wheel_torque);
+        // if wheelTL is null, return
+        if (wheelTL != null)
+        { 
+            // apply torques
+            ApplyWheelTorque(wheelTL, left_wheel_torque);
+        }
+
+        if (wheelTR != null)
+        {
+            ApplyWheelTorque(wheelTR, right_wheel_torque);
+        }
+
+        if (wheelBL != null)
+        {
+            ApplyWheelTorque(wheelBL, left_wheel_torque);
+        }
+
+        if (wheelBR != null)
+        {
+            ApplyWheelTorque(wheelBR, right_wheel_torque);
+        }
     }
 
     void ApplyWheelTorque(HingeJoint wheel, float torque)

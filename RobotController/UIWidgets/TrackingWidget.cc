@@ -43,7 +43,14 @@ void TrackingWidget::_GrabFrame()
     if (camera.NewFrameReady(0))
     {
         long last_id = 0;
-        camera.GetFrame(_trackingMat, last_id);
+        long returnid = camera.GetFrame(_trackingMat, last_id);
+
+        // If invalid frame exit
+        if( (returnid < 0) || _trackingMat.empty() )
+        {
+            return;
+        }
+
         // convert to rgb
         cv::cvtColor(_trackingMat, _trackingMat, cv::COLOR_GRAY2BGR);
     }
@@ -235,6 +242,10 @@ void DrawX(cv::Mat& mat, cv::Point2f pos, cv::Scalar color, int size)
 
 void TrackingWidget::_DrawAlgorithmData()
 {
+    if (_trackingMat.empty())
+    {
+        return;
+    }
     // blob is blue
     cv::Scalar blobColor = cv::Scalar(255, 0, 0);
 

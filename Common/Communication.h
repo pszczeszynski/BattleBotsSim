@@ -3,6 +3,8 @@
 #ifndef COMMUNICATION_H
 #define COMMUNICATION_H
 
+#include <stdint.h>
+
 //#include <Arduino.h>
 
 /**
@@ -11,6 +13,9 @@
  * This file contains the structs that are used for communication between the
  * driver station and the robot.
 */
+
+// if the driver station attemps to ping radios before connecting
+//#define PINGPONG
 
 struct Point
 {
@@ -55,12 +60,46 @@ struct Point
 };
 
 // defines the radio channel indexes for each teensy
-#define TEENSY_RADIO_1 60
-#define TEENSY_RADIO_2 27
-#define TEENSY_RADIO_3 57
+#define TEENSY_RADIO_1 120
+#define TEENSY_RADIO_2 65
+#define TEENSY_RADIO_3 105
 
 // disable padding
 #pragma pack(push, 1)
+
+enum CANMessageType : char
+{
+    CAN_INVALID = 0,
+    ANGLE_SYNC,
+    PING_REQUEST,
+    PING_RESPONSE,
+    COMMAND_PACKET_ID,
+    CHANNEL_CHANGE
+};
+
+struct CANPingData
+{
+    uint8_t pingID;
+    uint32_t timestamp;
+};
+
+struct CANChannelChange
+{
+    uint8_t targetTeensyID;
+    uint8_t newChannel;
+};
+
+struct CANMessage
+{
+    CANMessageType type;
+    union
+    {
+        float angle;
+        CANPingData ping;
+        uint32_t packetID;
+        CANChannelChange channel;
+    };
+};
 
 // robot -> driver station
 enum RobotMessageType : char
@@ -69,7 +108,9 @@ enum RobotMessageType : char
     IMU_DATA,
     CAN_DATA,
     RADIO_DATA,
-    CHANNEL_SWITCH
+    BOARD_TELEMETRY_DATA,
+    CHANNEL_SWITCH,
+    LOCAL_PING_RESPONSE,
 };
 
 struct IMUData
@@ -115,18 +156,30 @@ struct RadioData
     short invalidPackets;
 };
 
+struct BoardTelemetryData
+{
+    float voltage_batt;
+    float voltage_5v;
+    float current_5v;
+    float voltage_3v3;
+    float temperature;
+};
+
 // TODO: implement ping measurement system
 
 // Union that combines RobotMessage and TelemetryMessage
+// for messages type "LOCAL_PING_RESPONSE" the union is ignored
 struct RobotMessage
 {
     RobotMessageType type;
+    uint32_t timestamp;
 
     union
     {
         IMUData imuData;
         CANData canData;
         RadioData radioData;
+        BoardTelemetryData boardTelemetryData;
     };
 
     bool valid;
@@ -162,13 +215,16 @@ enum DriverStationMessageType : char
 {
     INVALID_DS = 0,
     DRIVE_COMMAND,
-    AUTO_DRIVE
+    AUTO_DRIVE,
+    LOCAL_PING_REQUEST,
 };
 
+// For LOCAL_PING_REQUEST messages the union is ignored
 struct DriverStationMessage
 {
     DriverStationMessageType type;
     unsigned char radioChannel;
+    uint32_t timestamp;
 
     union
     {
