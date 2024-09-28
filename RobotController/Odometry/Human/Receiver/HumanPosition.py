@@ -98,22 +98,43 @@ try:
             print("Error: Incomplete size data received")
             send_data_to_robot_controller()
             continue
-        size_data = data[:4]
-        size = int.from_bytes(size_data, byteorder='big')
-        image_data = data[4:]
 
-        if len(image_data) < size:
+        currMessagePos = 0
+        robotPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        robotPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        opponentPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        opponentPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        opponentAngleDeg = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        imageSize = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        currMessagePos += 4
+        image_data = data[currMessagePos:]
+
+        if len(image_data) < imageSize:
             print("Error: Incomplete image data received")
             continue
 
         # Convert the received data to a numpy array
-        image_array = np.frombuffer(image_data[:size], dtype=np.uint8)
+        image_array = np.frombuffer(image_data[:imageSize], dtype=np.uint8)
+
         # Decode the numpy array to an image
         received_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
         # Make a copy of the image to draw on
         display_image = received_image.copy()
 
+        # draw the robot position
+        cv2.circle(display_image, (int(robotPosX / 2), int(robotPosY / 2)), radius=20, color=(0, 255, 0), thickness=2)
+        # draw the opponent position
+        cv2.circle(display_image, (int(opponentPosX / 2), int(opponentPosY / 2)), radius=20, color=(255, 0, 0), thickness=2)
+        opponentRotRad = np.radians(opponentAngleDeg)
+        x = int(opponentPosX / 2 + 50 * np.cos(opponentRotRad))
+        y = int(opponentPosY / 2 + 50 * np.sin(opponentRotRad))
+        cv2.arrowedLine(display_image, (int(opponentPosX / 2), int(opponentPosY / 2)), (x, y), color=(0, 255, 0), thickness=2)
     
         # Draw 'X' at position_click
         if last_click.data_type == POSITION:

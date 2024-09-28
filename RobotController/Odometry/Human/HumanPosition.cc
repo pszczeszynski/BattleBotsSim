@@ -2,6 +2,8 @@
 #include "HumanPosition.h"
 #include "../../CameraReceiver.h"
 #include "../../RobotConfig.h"
+#include "../../RobotOdometry.h"
+#include "../../RobotController.h"
 #include <iostream>
 
 HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoSource)
@@ -50,19 +52,40 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::imencode(".jpg", scaled, buf);
     std::string image_string(buf.begin(), buf.end());
 
-    // Get the image size
-    uint32_t image_size = image_string.size();
-    uint32_t net_image_size = htonl(image_size); // Convert to big-endian (network byte order)
+
+    // calculate the size of the message
+    int messageSize = 6 * sizeof(uint32_t) + image_string.size();
+    int messagePos = 0;
 
     // Create a message buffer to hold the size and the image data
     std::string message;
-    message.resize(4 + image_string.size());
+    message.resize(messageSize);
 
-    // Copy the size into the message buffer
-    memcpy(&message[0], &net_image_size, 4);
+    cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
+    uint32_t robotPosX = htonl(robotPos.x);
+    uint32_t robotPosY = htonl(robotPos.y);
+    cv::Point2f opponentPos = RobotController::GetInstance().odometry.Opponent().robotPosition;
+    uint32_t opponentPosX = htonl(opponentPos.x);
+    uint32_t opponentPosY = htonl(opponentPos.y);
+    double opponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+    uint32_t opponentAngleDeg = htonl((uint32_t)(opponentAngle * 180 / M_PI));
+    uint32_t image_size = htonl(image_string.size()); // Convert to big-endian (network byte order)
 
+    // Copy the robot position into the message buffer
+    memcpy(&message[messagePos], &robotPosX, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
+    memcpy(&message[messagePos], &robotPosY, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
+    memcpy(&message[messagePos], &opponentPosX, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
+    memcpy(&message[messagePos], &opponentPosY, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
+    memcpy(&message[messagePos], &opponentAngleDeg, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
+    memcpy(&message[messagePos], &image_size, sizeof(uint32_t));
+    messagePos += sizeof(uint32_t);
     // Copy the image data into the message buffer
-    memcpy(&message[4], image_string.data(), image_string.size());
+    memcpy(&message[messagePos], image_string.data(), image_string.size());
 
     // send the image back
     _socket->reply_to_last_sender(message);
@@ -71,10 +94,10 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     if (data.size() == 3)
     {
-        cv::Point2f newPos(data[1], data[2]);
+        cv::Point2f clickPosition(data[1], data[2]);
         DataType type = (DataType)data[0];
 
-        if (newPos == _lastReceivedPos && type == _lastReceivedType)
+        if (clickPosition == _lastReceivedPos && type == _lastReceivedType)
         {
             return;
         }
@@ -83,7 +106,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         if (type == DataType::ROBOT_POSITION)
         {
-            _UpdateData(true, frameTime, &newPos, nullptr);
+            _UpdateData(true, frameTime, &clickPosition, nullptr);
         }
         else if (type == DataType::OPPONENT_POSITION)
         {
@@ -98,7 +121,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             _UpdateData(false, frameTime, nullptr, &angle);
         }
 
-        _lastReceivedPos = newPos;
+        _lastReceivedPos = clickPosition;
         _lastReceivedType = (DataType)data[0];
     }
 }
