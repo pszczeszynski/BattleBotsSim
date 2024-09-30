@@ -68,6 +68,11 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     uint32_t opponentPosX = htonl(opponentPos.x);
     uint32_t opponentPosY = htonl(opponentPos.y);
     double opponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+    // enforce 0 to 360
+    while (opponentAngle < 0)
+    {
+        opponentAngle += 2 * M_PI;
+    }
     uint32_t opponentAngleDeg = htonl((uint32_t)(opponentAngle * 180 / M_PI));
     uint32_t image_size = htonl(image_string.size()); // Convert to big-endian (network byte order)
 
@@ -97,7 +102,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         cv::Point2f clickPosition(data[1], data[2]);
         DataType type = (DataType)data[0];
 
-        if (clickPosition == _lastReceivedPos && type == _lastReceivedType)
+        if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
         {
             return;
         }
@@ -120,13 +125,27 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             Angle angle = Angle(atan2(data[2] - MIDDLE, data[1] - MIDDLE));
             _UpdateData(false, frameTime, nullptr, &angle);
         }
+        else if (type == DataType::OPPONENT_ANGLE_VEL)
+        {
+            double MIDDLE = WIDTH / 2;
+            MIDDLE /= 2; // since image is scaled down by 2
+
+            double angle_vel = (data[1] - MIDDLE) / MIDDLE;
+            // square
+            angle_vel *= abs(angle_vel);
+            const double MAX_ADJUST_SPEED = 2 * M_PI;
+            angle_vel *= MAX_ADJUST_SPEED;
+
+            _UpdateData(false, frameTime, nullptr, nullptr, &angle_vel);
+
+        }
 
         _lastReceivedPos = clickPosition;
         _lastReceivedType = (DataType)data[0];
     }
 }
 
-void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle* angle)
+void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle* angle, double* angle_vel)
 {
     _updateMutex.lock();
 
@@ -154,6 +173,7 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
         {
             _currDataRobot.robotAngleValid = false;
         }
+
     }
     else
     {
@@ -178,6 +198,24 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
         else
         {
             _currDataOpponent.robotAngleValid = false;
+        }
+
+        if (angle_vel != nullptr)
+        {
+            _currDataOpponent.robotAngleVelocity = *angle_vel;
+            // increment angle
+            double currOpponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+
+            // read delta time
+            double currTime = Clock::programClock.getElapsedTime();
+            double elapsedTime = currTime - _lastAngleVelUpdateTimeSec;
+            _lastAngleVelUpdateTimeSec = currTime;
+
+            if (elapsedTime < 0.07)
+            {
+                _currDataOpponent.robotAngle = Angle(currOpponentAngle + *angle_vel * elapsedTime);
+                _currDataOpponent.robotAngleValid = true;
+            }
         }
     }
 

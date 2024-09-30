@@ -9,7 +9,8 @@ enum class DataType
 {
     ROBOT_POSITION,
     OPPONENT_POSITION,
-    OPPONENT_ANGLE
+    OPPONENT_ANGLE,
+    OPPONENT_ANGLE_VEL
 };
 
 class HumanPosition : public OdometryBase
@@ -24,5 +25,7 @@ private:
     DataType _lastReceivedType;
     ServerSocket* _socket;
     std::vector<int> _GetDataFromSocket();
-    void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle);
+    void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle, double* angle_vel = nullptr);
+
+    double _lastAngleVelUpdateTimeSec = 0;
 };

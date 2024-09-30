@@ -10,19 +10,20 @@ PORT = 11118
 POSITION = 0
 OPPONENT_POSITION = 1
 OPPONENT_ROTATION = 2
+OPPONENT_ROTATION_VEL = 3
 
 WINDOW_IMAGE_SIZE = 720
 RAW_IMAGE_SIZE = 360
 
 MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 
+MAX_RELATIVE_ADJUST_SPEED = 3.1415 * 2 # rad/s
 
 class LastClickData:
     def __init__(self, position_clicked: tuple[int, int]=None, data_type:int=POSITION):
         self.position_clicked: tuple[int, int] = position_clicked
         self.data_type: int = data_type
 
-last_click = LastClickData((0, 0), POSITION)
 
 # Function to draw an 'X' at a given position
 def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
@@ -31,9 +32,20 @@ def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
     cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
     cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
 
+robotPosX = 0
+robotPosY = 0
+opponentPosX = 0
+opponentPosY = 0
+opponentAngleDeg = 0
+
+last_click = LastClickData((0, 0), POSITION)
+left_click_down = False
+
+
 # Callback on mouse click
 def mouse_callback(event, x, y, flags, param):
     global last_click
+    global left_click_down
     # x = x - (X_WIDTH - SIDE_LENGTH) // 2
     # y = y - (Y_HEIGHT - SIDE_LENGTH) // 2
     # if x < 0 or x > SIDE_LENGTH or y < 0 or y > SIDE_LENGTH:
@@ -44,15 +56,29 @@ def mouse_callback(event, x, y, flags, param):
     pos_data = None
     if event == cv2.EVENT_LBUTTONDOWN:
         last_click.position_clicked = (x, y)
+        last_click.data_type = OPPONENT_ROTATION_VEL
+        left_click_down = True
+    if event == cv2.EVENT_RBUTTONDOWN:
+        last_click.position_clicked = (x, y)
         last_click.data_type = POSITION
         pos_data = POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
-    if event == cv2.EVENT_RBUTTONDOWN:
+    if event == cv2.EVENT_MBUTTONDOWN:
         last_click.position_clicked = (x, y)
         last_click.data_type = OPPONENT_POSITION
         pos_data = OPPONENT_POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
-    if event == cv2.EVENT_MBUTTONDOWN:
-        last_click.position_clicked = (x, y)
-        last_click.data_type = OPPONENT_ROTATION
+    
+
+    # if you released
+    if event == cv2.EVENT_LBUTTONUP:
+        left_click_down = False
+        if last_click.data_type == OPPONENT_ROTATION_VEL:
+            last_click.position_clicked = (0, 0) # reset the relative speed to 0
+
+    # mouse moved => relatively adjust the angle at a set speed
+    if event == cv2.EVENT_MOUSEMOVE:
+        if left_click_down:
+            last_click.position_clicked = (x, y)
+            last_click.data_type = OPPONENT_ROTATION_VEL
 
 
     if pos_data is not None:
@@ -71,10 +97,12 @@ cv2.namedWindow("Streaming Image", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Streaming Image", WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE)
 cv2.setMouseCallback("Streaming Image", mouse_callback)
 
+
 def send_data_to_robot_controller():
     """
     Send the last click data to the robot controller.
     """
+
     data = last_click.data_type.to_bytes(4, byteorder='little') + \
             last_click.position_clicked[0].to_bytes(4, byteorder='little') + \
                 last_click.position_clicked[1].to_bytes(4, byteorder='little')
@@ -135,6 +163,15 @@ try:
         x = int(opponentPosX / 2 + 50 * np.cos(opponentRotRad))
         y = int(opponentPosY / 2 + 50 * np.sin(opponentRotRad))
         cv2.arrowedLine(display_image, (int(opponentPosX / 2), int(opponentPosY / 2)), (x, y), color=(0, 255, 0), thickness=2)
+
+
+        if last_click.data_type == OPPONENT_ROTATION_VEL:
+            # draw rect at the top at the same pos as the mouse relative speed
+            x = last_click.position_clicked[0]
+            y = 0
+            cv2.rectangle(display_image, (x - 10, y), (x + 10, y + 20), color=(0, 0, 255), thickness=-1)
+
+
     
         # Draw 'X' at position_click
         if last_click.data_type == POSITION:
