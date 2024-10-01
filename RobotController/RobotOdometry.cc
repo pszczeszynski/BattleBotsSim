@@ -311,6 +311,7 @@ void RobotOdometry::FuseAndUpdatePositions()
     }
 
 
+
     std::string algorithmNameOpponent = "None";
     cv::Scalar colorOpponent = cv::Scalar(0, 255, 0);
 
@@ -330,10 +331,7 @@ void RobotOdometry::FuseAndUpdatePositions()
 
 
 
-
-
-
-    ////////////////// OPPONENT ANGLE //////////////////
+    ////////////////// OPPONENT ANGLE + POS override //////////////////
 
 
     OdometryData candidateOpponentDeref = *candidateOpponent;
@@ -360,7 +358,7 @@ void RobotOdometry::FuseAndUpdatePositions()
             // increment the angle by the delta angle
             Angle deltaAngle = _dataOpponent_Heuristic.robotAngle - _dataOpponent_Heuristic_prev.robotAngle;
             _dataOpponent_Heuristic_prev = _dataOpponent_Heuristic;
-            candidateOpponentDeref.robotAngle = candidateOpponentDeref.robotAngle + deltaAngle;
+            //candidateOpponentDeref.robotAngle = candidateOpponentDeref.robotAngle + deltaAngle;
         }
     }
 
