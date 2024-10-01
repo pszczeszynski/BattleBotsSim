@@ -62,11 +62,11 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     message.resize(messageSize);
 
     cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
-    uint32_t robotPosX = htonl(robotPos.x);
-    uint32_t robotPosY = htonl(robotPos.y);
+    uint32_t robotPosX = htonl(robotPos.x / 2);
+    uint32_t robotPosY = htonl(robotPos.y / 2);
     cv::Point2f opponentPos = RobotController::GetInstance().odometry.Opponent().robotPosition;
-    uint32_t opponentPosX = htonl(opponentPos.x);
-    uint32_t opponentPosY = htonl(opponentPos.y);
+    uint32_t opponentPosX = htonl(opponentPos.x / 2);
+    uint32_t opponentPosY = htonl(opponentPos.y / 2);
     double opponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
     // enforce 0 to 360
     while (opponentAngle < 0)
@@ -100,6 +100,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     if (data.size() == 3)
     {
         cv::Point2f clickPosition(data[1], data[2]);
+        clickPosition *= 2; // since image is scaled down by 2
         DataType type = (DataType)data[0];
 
         if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
@@ -115,29 +116,28 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         }
         else if (type == DataType::OPPONENT_POSITION)
         {
-            cv::Point2f newPos(data[1], data[2]);
-            _UpdateData(false, frameTime, &newPos, nullptr);
+            // call set position on blob + heuristic
+            RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, true);
+            RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, true);
+            // _UpdateData(false, frameTime, &clickPosition, nullptr);
         }
         else if (type == DataType::OPPONENT_ANGLE)
         {
             double MIDDLE = WIDTH / 2;
-            MIDDLE /= 2; // since image is scaled down by 2
-            Angle angle = Angle(atan2(data[2] - MIDDLE, data[1] - MIDDLE));
+            Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
             _UpdateData(false, frameTime, nullptr, &angle);
         }
         else if (type == DataType::OPPONENT_ANGLE_VEL)
         {
             double MIDDLE = WIDTH / 2;
-            MIDDLE /= 2; // since image is scaled down by 2
 
-            double angle_vel = (data[1] - MIDDLE) / MIDDLE;
+            double angle_vel = (clickPosition.x - MIDDLE) / MIDDLE;
             // square
             angle_vel *= abs(angle_vel);
             const double MAX_ADJUST_SPEED = 2 * M_PI;
             angle_vel *= MAX_ADJUST_SPEED;
 
             _UpdateData(false, frameTime, nullptr, nullptr, &angle_vel);
-
         }
 
         _lastReceivedPos = clickPosition;
