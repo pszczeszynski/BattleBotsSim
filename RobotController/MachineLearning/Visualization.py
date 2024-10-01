@@ -17,9 +17,14 @@ def network_output_to_angle(output: np.ndarray) -> np.ndarray:
     x_components, y_components = output[:, 0], output[:, 1]
     x_components = (x_components * 2) - 1
     y_components = (y_components * 2) - 1
+
+    # fix coordinate system
+    x_components = -x_components
+    x_components, y_components = y_components, x_components
+
     # get the angle in radians
     # and multiply by 0.5 since we multiplied all the labels by 2 to map to 0-360
-    angles = np.arctan2(y_components, x_components) * 0.5
+    angles = np.arctan2(y_components, x_components) * 1.0
     return angles
 
 
@@ -46,6 +51,9 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
         true_labels.extend(labels)
 
     images = np.array(images)
+    # add channels if necessary
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=-1)
 
     # Create a blank canvas for the grid
     canvas = np.zeros((IMG_SIZE[0] * grid_dims[0],

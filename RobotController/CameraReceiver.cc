@@ -578,7 +578,12 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     // Apply processing to it
     cv::Mat finalImage;
+// #define PREPROCESS
+#ifdef PREPROCESS
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+#else
+    finalImage = _rawFrame;
+#endif
     std::cout << "size: " << finalImage.size() << std::endl;
 
     // convert to gray if it is not
