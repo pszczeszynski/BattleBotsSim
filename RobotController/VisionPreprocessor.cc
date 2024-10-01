@@ -1,8 +1,14 @@
 #include "VisionPreprocessor.h"
 #include "RobotConfig.h"
+
+#ifndef MACHINE_LEARNING
 #include "UIWidgets/CameraWidget.h"
+#endif
 #include "MathUtils.h"
+
+#ifndef MACHINE_LEARNING
 #include "UIWidgets/ClockWidget.h"
+#endif
 
 const int CLOSE = 20;
 
@@ -71,8 +77,9 @@ void VisionPreprocessor::ComputeTransformationMatrix()
 
 void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
 {
-
+#ifndef MACHINE_LEARNING
     preprocessClock.markStart();
+#endif
 
     // If frame is invalid, dont do it
     if( frame.empty() ) { return; }
@@ -117,6 +124,7 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     // Apply the perspective transformation
     warpPerspective(outputImage, dst, _transformationMatrix, cv::Size(WIDTH, HEIGHT), cv::INTER_NEAREST);
 
+#ifndef MACHINE_LEARNING
     // Apply poor-mans fisheye correction
     if( FISHEYE_ENABLE)
     {
@@ -147,9 +155,11 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
 
 
     preprocessClock.markEnd();
-    
+#endif
+
 }
 
+#ifndef MACHINE_LEARNING
 void VisionPreprocessor::_StabalizeImage(cv::Mat &frame, cv::Mat &dst)
 {
     cv::Rect roi = cv::Rect(WIDTH * 0.1, HEIGHT * 0.1, WIDTH / 4, HEIGHT / 4);
@@ -299,6 +309,7 @@ cv::Point2f VisionPreprocessor::GetPMFisheyeStartPoint(cv::Point2f& point)
 
 }
 
+
 // Poor-Mans Fish-eye 
 // Ok so this Poor-Mans fish-eye removal takes > 20ms single-threaded, but it can be threaded as opposed to a single remap call
 void VisionPreprocessor::DoPMFishEye(cv::Mat& inImage, cv::Mat& outImage)
@@ -354,6 +365,7 @@ void VisionPreprocessor::PMFishEyeCoreThread(size_t i, cv::Mat& inImage, cv::Mat
         _mutexDrawImage.unlock();
 }
 
+#endif
 std::vector<cv::Point> VisionPreprocessor::convertPoints(const std::vector<cv::Point2f>& points2f)
 {
     std::vector<cv::Point> points;

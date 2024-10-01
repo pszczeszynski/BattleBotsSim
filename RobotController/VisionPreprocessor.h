@@ -8,8 +8,11 @@
 
 #include "Globals.h"
 #include "ThreadPool.h"
-#include "UIWidgets/ClockWidget.h"
+#define MACHINE_LEARNING
 
+#ifndef MACHINE_LEARNING
+#include "UIWidgets/ClockWidget.h"
+#endif
 class VisionPreprocessor
 {
 public:
@@ -50,9 +53,9 @@ private:
     cv::Point2f _dstPoints[4];
     cv::Mat _prevFrame;
     cv::Mat _transformationMatrix;
-
+#ifndef MACHINE_LEARNING
     ClockWidget preprocessClock{"Image Preprocess"};
-
+#endif
 
 
 };

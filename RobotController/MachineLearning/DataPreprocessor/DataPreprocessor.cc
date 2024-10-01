@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <algorithm>
 #include <opencv2/opencv.hpp>
+#define MACHINE_LEARNING
+
 #include "../../VisionPreprocessor.h"  // Assuming you have this header file
 #include "../../RobotConfig.h"
 #include <fstream>
