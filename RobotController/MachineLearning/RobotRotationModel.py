@@ -16,7 +16,7 @@ MODEL_NAME = "rotationDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
 IMG_SIZE = (128, 128)
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 7
 REDUCE_LR_PATIENCE = 3
@@ -37,14 +37,16 @@ for j in json_files:
     # Take the rotation mod 180 since the robot is symmetrical, then multiply by
     # 2 so that the range is 0-360. Multiplying by 2 is necessary so that the
     # sin and cos components don't have any discontinuities.
-    label = (data["rotation"] % 180) * 2 * (np.pi / 180.0)
+    label = data["rotation"] * (np.pi / 180.0)
     # get cos and sin components
     label = np.array([(np.cos(label) + 1) / 2.0, (np.sin(label) + 1) / 2.0])
     # add to labels_data
     labels_data.append(label)
 
+
 # convert to numpy array
 labels_data = np.array(labels_data)
+print("labels_data shape: ", labels_data.shape)
 
 print("Found {} images and {} json files.".format(
     len(img_files), len(json_files)))
@@ -69,9 +71,9 @@ val_gen = custom_data_gen(img_files, labels_data,
 
 # Calculate steps per epoch and validation steps
 steps_per_epoch = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.9) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsProjected", "image_*.jpg"))) * 0.9) // BATCH_SIZE
 val_steps = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.1) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsProjected", "image_*.jpg"))) * 0.1) // BATCH_SIZE
 
 # Model Architecture
 model = Sequential([
@@ -116,7 +118,7 @@ def train_model():
         # Train the model
         model.fit(
             train_gen,
-            epochs=50,
+            epochs=15,
             steps_per_epoch=steps_per_epoch,
             validation_data=val_gen,
             validation_steps=val_steps,

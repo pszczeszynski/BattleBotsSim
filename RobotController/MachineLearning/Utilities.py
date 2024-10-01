@@ -169,10 +169,15 @@ def custom_data_gen(img_files: List[str],
 
                 # augment the image (including normalizing)
                 augmented_img = prepare_and_augment_image(
-                    img_array, augmentations)
+                    img_array, augmentations)[0]
+
+                # remove channel dimension if it exists
+                if augmented_img.shape[-1] == 1:
+                    augmented_img = augmented_img[:, :, 0]
 
                 # append to imgs
                 imgs.append(augmented_img)
 
             labels = labels_data[i:i+batch_size]
+
             yield np.array(imgs), labels
