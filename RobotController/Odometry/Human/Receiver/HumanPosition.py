@@ -14,6 +14,7 @@ OPPONENT_ROTATION_VEL = 3
 
 WINDOW_IMAGE_SIZE = 720
 RAW_IMAGE_SIZE = 360
+IMG_SCALE_DOWN_FACTOR = int(720/ RAW_IMAGE_SIZE)
 
 MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 
@@ -54,18 +55,25 @@ def mouse_callback(event, x, y, flags, param):
 
 
     pos_data = None
-    if event == cv2.EVENT_LBUTTONDOWN:
+    if event == cv2.EVENT_MBUTTONDOWN: # middle click sets relative speed
         last_click.position_clicked = (x, y)
         last_click.data_type = OPPONENT_ROTATION_VEL
         left_click_down = True
-    if event == cv2.EVENT_RBUTTONDOWN:
+    if event == cv2.EVENT_RBUTTONDOWN: # right click sets rotation
         last_click.position_clicked = (x, y)
-        last_click.data_type = POSITION
+        last_click.data_type = OPPONENT_ROTATION
         pos_data = POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
-    if event == cv2.EVENT_MBUTTONDOWN:
-        last_click.position_clicked = (x, y)
+    if event == cv2.EVENT_LBUTTONDOWN:  # left click sets pos
+        print("opponent pos: ", opponentPosX, opponentPosY)
+        print("x, y: ", x, y)
+        adjusted_x = x + opponentPosX - int(RAW_IMAGE_SIZE / 2)
+        adjusted_y = y + opponentPosY - int(RAW_IMAGE_SIZE / 2)
+        last_click.position_clicked = (adjusted_x, adjusted_y)
+        print("resulting pos: ", last_click.position_clicked)
         last_click.data_type = OPPONENT_POSITION
-        pos_data = OPPONENT_POSITION.to_bytes(4, byteorder='little') + x.to_bytes(4, byteorder='little') + y.to_bytes(4, byteorder='little')
+        pos_data = OPPONENT_POSITION.to_bytes(4, byteorder='little') + \
+                int(adjusted_x).to_bytes(4, byteorder='little', signed=True) + \
+                int(adjusted_y).to_bytes(4, byteorder='little', signed=True)
     
 
     # if you released
@@ -155,14 +163,69 @@ try:
         # Make a copy of the image to draw on
         display_image = received_image.copy()
 
+        def crop_image_around_robot(image, robot_pos, crop_size):
+            x = robot_pos[0] - crop_size // 2
+            y = robot_pos[1] - crop_size // 2
+
+            x1 = x
+            y1 = y
+            x2 = x + crop_size
+            y2 = y + crop_size
+
+            height, width = image.shape[:2]
+
+            # Calculate necessary padding
+            pad_left = max(0, -x1)
+            pad_right = max(0, x2 - width)
+            pad_top = max(0, -y1)
+            pad_bottom = max(0, y2 - height)
+
+            # Pad the image with black pixels if needed
+            if len(image.shape) == 2:
+                # Grayscale image
+                image_padded = np.pad(
+                    image,
+                    ((pad_top, pad_bottom), (pad_left, pad_right)),
+                    mode='constant',
+                    constant_values=0
+                )
+            else:
+                # Color image
+                image_padded = np.pad(
+                    image,
+                    ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
+                    mode='constant',
+                    constant_values=0
+                )
+
+            # Adjust coordinates due to padding
+            x1_new = x1 + pad_left
+            y1_new = y1 + pad_top
+
+            # Crop the image
+            cropped_image = image_padded[y1_new:y1_new + crop_size, x1_new:x1_new + crop_size]
+
+            return cropped_image
+        
+        display_image = crop_image_around_robot(display_image, (opponentPosX, opponentPosY), RAW_IMAGE_SIZE)
+        relRobotPosX = robotPosX - opponentPosX
+        screenRobotPosX = relRobotPosX + RAW_IMAGE_SIZE // 2
+        relRobotPosY = robotPosY - opponentPosY
+        screenRobotPosY = relRobotPosY + RAW_IMAGE_SIZE // 2
+
+        relOpponentPosX = 0
+        screenOpponentPosX = relOpponentPosX + RAW_IMAGE_SIZE // 2
+        relOpponentPosY = 0
+        screenOpponentPosY = relOpponentPosY + RAW_IMAGE_SIZE // 2
+
         # draw the robot position
-        cv2.circle(display_image, (int(robotPosX / 2), int(robotPosY / 2)), radius=20, color=(0, 255, 0), thickness=2)
+        cv2.circle(display_image, (screenRobotPosX, screenRobotPosY), radius=20, color=(0, 255, 0), thickness=2)
         # draw the opponent position
-        cv2.circle(display_image, (int(opponentPosX / 2), int(opponentPosY / 2)), radius=20, color=(255, 0, 0), thickness=2)
+        cv2.circle(display_image, (screenOpponentPosX, screenOpponentPosY), radius=20, color=(255, 0, 0), thickness=2)
         opponentRotRad = np.radians(opponentAngleDeg)
-        x = int(opponentPosX / 2 + 50 * np.cos(opponentRotRad))
-        y = int(opponentPosY / 2 + 50 * np.sin(opponentRotRad))
-        cv2.arrowedLine(display_image, (int(opponentPosX / 2), int(opponentPosY / 2)), (x, y), color=(0, 255, 0), thickness=2)
+        x = int(screenOpponentPosX + 50 * np.cos(opponentRotRad))
+        y = int(screenOpponentPosY + 50 * np.sin(opponentRotRad))
+        cv2.arrowedLine(display_image, (screenOpponentPosX, screenOpponentPosY), (x, y), color=(0, 255, 0), thickness=2)
 
 
         if last_click.data_type == OPPONENT_ROTATION_VEL:
