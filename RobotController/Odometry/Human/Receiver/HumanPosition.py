@@ -3,7 +3,7 @@ import socket
 import cv2
 import numpy as np
 
-# Server configuration
+# Server configuration - change before running
 HOST = 'localhost'
 PORT = 11118
 

@@ -8,36 +8,41 @@
 
 HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
-    _socket = new ServerSocket("11118");
+    for (std::string port: {"11117", "11118", "11119"})
+    {
+        _sockets.push_back({new ServerSocket(port), port, {}});
+    }
 }
 
-std::vector<int> HumanPosition::_GetDataFromSocket()
+void HumanPosition::_GetDataFromSocket()
 {
-    std::vector<int> data = {};
-
-    int error = 0;
-    // Receive 12 bytes from the socket
-    std::string data_str = _socket->receive(&error);
-
-    if (error != 0)
+    for (socket_data_t socket_data : _sockets)
     {
-        // call dtor
-        delete _socket;
-        _socket = new ServerSocket("11118");
+        int error = 0;
+        socket_data._data.clear();
+
+        // Try to eceive 12 bytes from the socket
+        std::string data_str = server_socket->receive(&error);
+        if (data_str.size() == 12)
+        {
+            int mode = *(int*)data_str.c_str();
+            int x = *(int*)(data_str.c_str() + 4);
+            int y = *(int*)(data_str.c_str() + 8);
+
+            if (x != 0 && y != 0)
+            {
+                socket_data._data.push_back(mode);
+                socket_data._data.push_back(x);
+                socket_data._data.push_back(y);
+            }
+        }
+        if (error != 0)
+        {
+            delete socket_data._socket;
+            socket_data._socket = new ServerSocket(socket_data._port);
+        }
+
     }
-
-    int mode = *(int*)data_str.c_str();
-    int x = *(int*)(data_str.c_str() + 4);
-    int y = *(int*)(data_str.c_str() + 8);
-
-    if (x != 0 && y != 0)
-    {
-        data.push_back(mode);
-        data.push_back(x);
-        data.push_back(y);
-    }
-
-    return data;
 }
 
 void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
@@ -95,53 +100,56 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // send the image back
     _socket->reply_to_last_sender(message);
 
-    std::vector<int> data = _GetDataFromSocket();
+    _GetDataFromSocket();
 
-    if (data.size() == 3)
+    for (socket_data_t socket_data: _sockets)
     {
-        cv::Point2f clickPosition(data[1], data[2]);
-        clickPosition *= 2; // since image is scaled down by 2
-        DataType type = (DataType)data[0];
-
-        if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
+        if (socket_data._data.size() == 3)
         {
-            return;
-        }
+            cv::Point2f clickPosition(socket_data._data[1], socket_data._data[2]);
+            clickPosition *= 2; // since image is scaled down by 2
+            DataType type = (DataType)socket_data._data[0];
 
-        std::cout << "Received data: " << data[0] << " " << data[1] << " " << data[2] << std::endl;
+            if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
+            {
+                return;
+            }
 
-        if (type == DataType::ROBOT_POSITION)
-        {
-            _UpdateData(true, frameTime, &clickPosition, nullptr);
-        }
-        else if (type == DataType::OPPONENT_POSITION)
-        {
-            // call set position on blob + heuristic
-            RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, true);
-            RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, true);
-            // _UpdateData(false, frameTime, &clickPosition, nullptr);
-        }
-        else if (type == DataType::OPPONENT_ANGLE)
-        {
-            double MIDDLE = WIDTH / 2;
-            Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
-            _UpdateData(false, frameTime, nullptr, &angle);
-        }
-        else if (type == DataType::OPPONENT_ANGLE_VEL)
-        {
-            double MIDDLE = WIDTH / 2;
+            std::cout << "Received data: " << socket_data._data[0] << " " << socket_data._data[1] << " " << socket_data._data[2] << std::endl;
 
-            double angle_vel = (clickPosition.x - MIDDLE) / MIDDLE;
-            // square
-            angle_vel *= abs(angle_vel);
-            const double MAX_ADJUST_SPEED = 2 * M_PI;
-            angle_vel *= MAX_ADJUST_SPEED;
+            if (type == DataType::ROBOT_POSITION)
+            {
+                _UpdateData(true, frameTime, &clickPosition, nullptr);
+            }
+            else if (type == DataType::OPPONENT_POSITION)
+            {
+                // call set position on blob + heuristic
+                RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, true);
+                RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, true);
+                // _UpdateData(false, frameTime, &clickPosition, nullptr);
+            }
+            else if (type == DataType::OPPONENT_ANGLE)
+            {
+                double MIDDLE = WIDTH / 2;
+                Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
+                _UpdateData(false, frameTime, nullptr, &angle);
+            }
+            else if (type == DataType::OPPONENT_ANGLE_VEL)
+            {
+                double MIDDLE = WIDTH / 2;
 
-            _UpdateData(false, frameTime, nullptr, nullptr, &angle_vel);
+                double angle_vel = (clickPosition.x - MIDDLE) / MIDDLE;
+                // square
+                angle_vel *= abs(angle_vel);
+                const double MAX_ADJUST_SPEED = 2 * M_PI;
+                angle_vel *= MAX_ADJUST_SPEED;
+
+                _UpdateData(false, frameTime, nullptr, nullptr, &angle_vel);
+            }
+
+            _lastReceivedPos = clickPosition;
+            _lastReceivedType = (DataType)data[0];
         }
-
-        _lastReceivedPos = clickPosition;
-        _lastReceivedType = (DataType)data[0];
     }
 }
 

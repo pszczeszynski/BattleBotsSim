@@ -13,6 +13,12 @@ enum class DataType
     OPPONENT_ANGLE_VEL
 };
 
+typedef struct SocketData {
+    ServerSocket* _socket;
+    std::string _port;
+    std::vector<int> _data;
+} socket_data_t;
+
 class HumanPosition : public OdometryBase
 {
 public:
@@ -23,7 +29,8 @@ protected:
 private:
     cv::Point2f _lastReceivedPos;
     DataType _lastReceivedType;
-    ServerSocket* _socket;
+
+    std::vector<socket_data_t> _sockets;
     std::vector<int> _GetDataFromSocket();
     void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle, double* angle_vel = nullptr);
 
