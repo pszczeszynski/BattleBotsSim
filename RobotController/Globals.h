@@ -17,6 +17,7 @@ extern float playback_speed;
 extern bool playback_play;
 extern bool playback_goback;
 extern bool playback_restart;
+extern bool playback_pause;
 extern std::string playback_file;
 extern bool playback_file_changed;
 

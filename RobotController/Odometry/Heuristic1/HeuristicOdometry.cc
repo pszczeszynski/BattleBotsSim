@@ -57,7 +57,9 @@ void HeuristicOdometry::UpdateSettings()
     fg_threshold_ratio = HEU_FOREGROUND_RATIO / 100.0f;
     fg_bbox_minsize = HEU_FOREGROUND_MINSIZE;
     fg_mask_blur_size = cv::Size(HEU_FOREGROUND_BLURSIZE, HEU_FOREGROUND_BLURSIZE);
+    preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE, HEU_BACKGROUND_BLURSIZE);
     fg_contour_bbox_growth = HEU_FOREGROUND_BUFFER;
+    blurCount = HEU_BLUR_COUNT;
     RobotTracker::moveTowardsCenter = (float)HEU_POSITION_TO_CENTER_SPEED / 100.0f;
     RobotTracker::robotVelocitySmoothing = ((float)HEU_VELOCITY_AVERAGING) / 100.0f;
     RobotTracker::useMultithreading = HEU_ROBOT_PROCESSORS > 1;
@@ -84,6 +86,7 @@ void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos
     SetPosition(robotPos, false);
     SetPosition(opponentPos, true);
 }
+
 
 // Called in CameraDecoder thread to process the new frame
 void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
@@ -151,10 +154,19 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         ReinitBackground();
     }
 
+    bool matchstart_was_run = false;
+
     if( match_start_bg_init)
     {
-        match_start_bg_init = false;
+        // First override all variables that matchstatbackground algorithm uses different
+        // OVerride fg_threshold, blurr size nad blur count
+        fg_threshold = HEU_FOREGROUND_THRESHOLD_INIT;
+        blurCount = HEU_BLUR_COUNT_INIT;
+        preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
+  
         MatchStartBackgroundInit(croppedFrame);
+        
+        matchstart_was_run = true;
     }
 
     if (save_to_video_match_debug || save_to_video_output) // Remeber that we are saving video
@@ -246,7 +258,24 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     DrawAllBBoxes(currFrameColor);
 
-    
+      if( matchstart_was_run)
+    {        
+
+
+        if( HEU_HEAL_BG_INIT)
+        {
+            recreateBackgroundOnMatchStart(croppedFrame);
+        }
+     
+        cv::Mat cleanedup = foreground.clone();
+
+        DumpCurrFrameInfo(cleanedup, foreground, "cleanup_fg");
+     
+        // Return settings back to normal
+        UpdateSettings();
+        match_start_bg_init = false;
+    }
+
     // End of access to core tracking lists
     // ###################################
 
@@ -309,6 +338,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         clock_outer.markStart();
     }
+
 
     // This updates images
     cv::pollKey();
@@ -379,6 +409,92 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     locktracking.unlock();
 
     // Now update the data
+    std::unique_lock<std::mutex> locker(_updateMutex);
+
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+
+    odoData.robotPosition = newPos;
+    odoData.robotPosValid = true;
+}
+
+void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
+{
+    // Here we assume newPos is inside the current tracked box. 
+    // If we have no tracker, use setPosition
+    if( opponentRobot && opponentRobotTracker == nullptr)
+    {
+        SetPosition(newPos, opponentRobot);
+        return;
+    }
+    else if( !opponentRobot && ourRobotTracker == nullptr)
+    {
+        SetPosition(newPos, opponentRobot);
+        return;
+    }
+
+    RobotTracker *&firstbot = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+    RobotTracker *&secondbot = (opponentRobot) ? ourRobotTracker : opponentRobotTracker;
+    
+    // Next we have have the following scenario:
+    // 1) newPos is inside our robot and our tracker is not combined
+    // 2) newPos is insside our robot and it is a combined tracker
+    //  -> Do the same thing, just set the position
+    // 3) New position is inside opponent robot and our robot is not combined
+    //   ->Swap positions and set position on our new swapped foreground
+    // 4) Position is outside all of us
+    //   -> Locate robots and force position
+
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+
+    int scenario = 0;
+
+    // Case 1/2
+    if(firstbot->IsPointInside( newPos) && !firstbot->IsTrackerCombined())
+    {
+        scenario = 1;
+    }
+    else if(firstbot->IsPointInside( newPos) && firstbot->IsTrackerCombined())
+    {
+        scenario = 2;
+    }
+    else if( secondbot != nullptr && secondbot->IsPointInside( newPos) )
+    {
+        scenario = 3;
+    }
+    else
+    {
+        scenario = 4;
+    }
+
+    switch( scenario)
+    {
+        case 1:
+        case 2:
+                firstbot->position = newPos;                
+                break;
+        case 3:
+                secondbot->position = newPos;  
+                // Will need to swap robots later            
+                break;
+        case 4:
+                LocateRobots(newPos, opponentRobot);
+                if( firstbot != nullptr)
+                {
+                    firstbot->position = newPos;  
+                }
+                break;
+    }
+
+    locktracking.unlock();
+
+
+    // If this was a case 3, swap robots
+    if( scenario == 3)
+    {
+        SwitchRobots();
+    }
+
+    // Force the position
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
@@ -631,6 +747,11 @@ void HeuristicOdometry::_deleteTracker(RobotTracker *staleTracker)
 // Adds the foreground around the bbox specified to the tracked list
 RobotTracker *HeuristicOdometry::AddTrackedItem(cv::Rect bbox)
 {
+    if( bbox.x > 720 || bbox.y > 720)
+    {
+        printf("Invalid bbox passed to AddTrackedItem\n");
+    }
+
     RobotTracker *newItem = new RobotTracker(bbox);
     _allRobotTrackers.push_back(newItem);
 
@@ -929,18 +1050,34 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame)
     // ************************************
     // FOREGROUND and BBOX EXTRACTION
 
-    // Extract foreground
+    // First get mask for foreground extraction
+    cv::Mat currBackgroundBlurred;
+    cv::Mat croppedFrameBlurred;
+
+    currBackgroundBlurred = currBackground.clone();
+    croppedFrameBlurred = croppedFrame.clone();
+
+    // blur
+    for( int i = 0; i < blurCount; i++)
+    {
+        cv::blur(currBackgroundBlurred, currBackgroundBlurred, preMaskBlurSize);
+        cv::blur(croppedFrameBlurred, croppedFrameBlurred, preMaskBlurSize);
+    }
 
     // First get the absolute difference (leaving >0 values where there is a difference)
-    cv::absdiff(croppedFrame, currBackground, foreground);
+    cv::Mat foregroundBlurred;
+    cv::absdiff(croppedFrameBlurred, currBackgroundBlurred, foregroundBlurred);
 
+//cv::imshow("Frame Blurred", croppedFrameBlurred);
+//cv::imshow("BG Blurred", currBackgroundBlurred);
+//cv::imshow("Blurred Diff", foregroundBlurred);
     // First get the mask that includes regions at least the minimum pixels away
-    cv::threshold(foreground, fg_mask, fg_threshold, 255, cv::THRESH_BINARY);
+    cv::threshold(foregroundBlurred, fg_mask, fg_threshold, 255, cv::THRESH_BINARY);
 
-    cv::Mat diffThreshold = fg_threshold_ratio * currBackground;
-    cv::Mat fg_maskRatio = foreground > diffThreshold;
+    cv::Mat diffThreshold = fg_threshold_ratio * currBackgroundBlurred;
+    cv::Mat fg_maskRatio = foregroundBlurred > diffThreshold;
     cv::bitwise_and(fg_maskRatio, fg_mask, fg_mask);
-
+//cv::imshow("Blurred Mask", fg_mask);
     // Next we want to look at pixels that changed at least a  certain percentage
 
     // Find contours in the mask
@@ -1088,7 +1225,7 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame)
 // to remove invalid areas that are tracked. We will thus implement a very slow decay for tracked
 // areas, and a much faster decay for untracked areas, relying on the fact that a robot should move
 // relativelly quickly.
-void HeuristicOdometry::healBackground(cv::Mat &currFrame)
+void HeuristicOdometry::healBackground(cv::Mat &currFrame )
 {
     // quit if we are not enabled
     if (!enable_background_healing)
@@ -1107,11 +1244,14 @@ void HeuristicOdometry::healBackground(cv::Mat &currFrame)
     cv::Mat currFrame_16bit;
     currFrame.convertTo(currFrame_16bit, CV_16U, 256);
 
+    int myAveragingCount = averagingCount;
+    int myTrackedAvgCount = trackedAvgCount; 
+
     // Fast untracked averaging
-    cv::Mat newBackground_16bit = currBackground_16bit * ((averagingCount - 1.0) / averagingCount) + currFrame_16bit * 1.0 / averagingCount;
+    cv::Mat newBackground_16bit = currBackground_16bit * ((myAveragingCount - 1.0) / myAveragingCount) + currFrame_16bit * 1.0 / myAveragingCount;
 
     // Slow tracked averaging
-    cv::Mat newBackground_16bit_slow = currBackground_16bit * ((trackedAvgCount - 1.0) / trackedAvgCount) + currFrame_16bit * 1.0 / trackedAvgCount;
+    cv::Mat newBackground_16bit_slow = currBackground_16bit * ((myTrackedAvgCount - 1.0) / myTrackedAvgCount) + currFrame_16bit * 1.0 / myTrackedAvgCount;
 
     // Robot locks get the slowest averaging
     // cv::Mat newBackground_16bit_ultraslow = currBackground_16bit*((robotAvgCount-1.0)/robotAvgCount) + currFrame_16bit*1.0/robotAvgCount;
@@ -1127,10 +1267,11 @@ void HeuristicOdometry::healBackground(cv::Mat &currFrame)
             newBackground_16bit_slow(fixedBBox).copyTo(newBackground_16bit(fixedBBox));
         }
     }
-
+    
     // Copy over the Robot areas
     for (auto trackedItem : _allRobotTrackers)
     {
+
         cv::Rect fixedBBox = FixBBox(trackedItem->bbox, newBackground_16bit_slow);
 
         if (fixedBBox.area() > 0)
@@ -1144,6 +1285,28 @@ void HeuristicOdometry::healBackground(cv::Mat &currFrame)
 
     // Downscale image
     currBackground_16bit.convertTo(currBackground, CV_8U, 1.0 / 256);
+}
+
+
+void HeuristicOdometry::recreateBackgroundOnMatchStart(cv::Mat& currFrame)
+{
+    // First get the foreground mask from all tracked items
+    cv::Mat tracked_fg_mask = cv::Mat::zeros(currFrame.size(), currFrame.type());
+
+    for (auto currbbox : all_bboxes)
+    {                
+        fg_mask(currbbox).copyTo(tracked_fg_mask(currbbox));
+    }
+
+    // Next copy over entire currFrame to new background image
+    cv::Mat newBackground = currFrame.clone();
+
+    // Next overwrite tracked_fg_mask items from currBackground to newBackground
+    currBackground.copyTo(newBackground, tracked_fg_mask);
+
+    // Finaly make 16bit version
+    currBackground = newBackground;
+    currBackground.convertTo(currBackground_16bit, CV_16U, 256);
 }
 
 void HeuristicOdometry::ReinitBackground()
@@ -1161,11 +1324,120 @@ void HeuristicOdometry::MatchStartBackgroundInit(cv::Mat &currFrame)
     cv::Rect leftrect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y, (STARTING_LEFT_BR_x - STARTING_LEFT_TL_x), (STARTING_LEFT_BR_y - STARTING_LEFT_TL_y));
     cv::Rect rightrect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, (STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x), (STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y));
 
+    float leftAdjust = FindOptimalBrightness(leftrect, currFrame);
+    float rightAdjust = FindOptimalBrightness(rightrect, currFrame);
 
-    // Copy over the defined squares from our regular background
-    regularBackground(leftrect).copyTo(currBackground(leftrect));
-    regularBackground(rightrect).copyTo(currBackground(rightrect));
+    // Adjust the brightness
+    cv::Mat leftsquare = regularBackground(leftrect).clone() * leftAdjust * HEU_BRIGHTNESS_CORR;
+    cv::Mat rightsquare = regularBackground(rightrect).clone() * rightAdjust* HEU_BRIGHTNESS_CORR;
 
+    // Copy over the squares    
+    leftsquare.copyTo(currBackground(leftrect));
+    rightsquare.copyTo(currBackground(rightrect));
+
+    currBackground.convertTo(currBackground_16bit, CV_16U, 256);
+}
+
+float HeuristicOdometry::GetForegroundSize(cv::Mat& inBackground, cv::Mat& inForeground)
+{
+       // First get mask for foreground extraction
+    cv::Mat currBackgroundBlurred;
+    cv::Mat croppedFrameBlurred;
+
+    currBackgroundBlurred = inBackground.clone();
+    croppedFrameBlurred = inForeground.clone();
+
+    // blur
+    for( int i = 0; i < blurCount; i++)
+    {
+        cv::blur(currBackgroundBlurred, currBackgroundBlurred, preMaskBlurSize);
+        cv::blur(croppedFrameBlurred, croppedFrameBlurred, preMaskBlurSize);
+    }
+
+    // Get the absolute difference (leaving >0 values where there is a difference)
+    cv::Mat foregroundBlurred;
+    cv::absdiff(croppedFrameBlurred, currBackgroundBlurred, foregroundBlurred);
+
+    cv::Mat myFgMask;
+   // First get the mask that includes regions at least the minimum pixels away
+    cv::threshold(foregroundBlurred, myFgMask, fg_threshold, 255, cv::THRESH_BINARY);
+
+    cv::Mat diffThreshold = fg_threshold_ratio * currBackgroundBlurred;
+    cv::Mat fg_maskRatio = foregroundBlurred > diffThreshold;
+    cv::bitwise_and(fg_maskRatio, myFgMask, myFgMask);
+
+    // return the average value
+    return cv::mean(myFgMask)[0];
+}
+
+float HeuristicOdometry::FindOptimalBrightness(cv::Rect& myRect, cv::Mat& currFrame)
+{
+    float error = GetForegroundSize(regularBackground(myRect), currFrame(myRect));
+    float brightnessAdjust = 1.0f;
+    float brightnessscaler = 1.1f;
+    bool increasing = true;
+
+    float optimalBrigthness = 1.0f;
+
+    // Find the global minima for brightness adjustment
+    for( float brightnessAdjust = 0.3f; brightnessAdjust < 3.0f; brightnessAdjust *= 1.1f)
+    {
+        cv::Mat adjustedBG = regularBackground(myRect).clone();
+        adjustedBG *= brightnessAdjust;
+        float newerror = GetForegroundSize(adjustedBG, currFrame(myRect));
+
+        if( newerror < error)
+        {
+            error = newerror;
+            optimalBrigthness = brightnessAdjust;
+        }
+    }
+
+    brightnessAdjust = optimalBrigthness;
+    brightnessscaler = 1.03f;
+    // Now fine tune global minima
+    for(int i =0; i < 30; i++)
+    {
+        if( increasing)
+        {
+            brightnessAdjust = brightnessAdjust * brightnessscaler;
+        }
+        else
+        {
+            brightnessAdjust = brightnessAdjust / brightnessscaler;
+        }
+
+        // Get the Error
+        cv::Mat adjustedBG = regularBackground(myRect).clone();
+        adjustedBG *= brightnessAdjust;
+        float newerror = GetForegroundSize(adjustedBG, currFrame(myRect));
+
+        // Cap brightness adjust
+        if( brightnessAdjust > 3.0f)
+        {
+            brightnessAdjust = 2.0f;
+            increasing = false;
+            continue;
+        }
+        
+        if( brightnessAdjust < 0.3f)
+        {
+            brightnessAdjust = 0.3f;
+            increasing = true;
+            continue;
+        }
+
+        if( newerror > error)
+        {
+            increasing = !increasing;
+            brightnessscaler = 1.0f + ((brightnessscaler-1.0f) / 5.0f);
+            continue;
+        }
+
+        error = newerror;   
+    }  
+
+    return brightnessAdjust;
 }
 
 
@@ -1249,6 +1521,11 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image)
 
 double HeuristicOdometry::getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean)
 {
+    if( x<0) { x= 0;}
+    if( y<0) { y= 0;}   
+    if( x+size >= src.cols) { x = src.cols - size - 1;}
+    if( y+size >= src.rows) { y = src.rows - size - 1;}
+
     cv::Scalar srcMean = cv::mean(src(cv::Rect(x, y, size, size)));
 
     double srcBrightness = srcMean[0]; // Since it's grayscale, we use the first channel

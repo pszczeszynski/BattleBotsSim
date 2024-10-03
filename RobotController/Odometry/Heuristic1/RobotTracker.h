@@ -60,6 +60,22 @@ public:
     Vector2(float x = 0, float y = 0) : x(x), y(y) {}
     cv::Point Point(float scale = 1.0);
     cv::Point2f Point2f();
+
+       // Assignment operator for cv::Point2f
+    Vector2& operator=(const cv::Point2f& point) {
+        this->x = point.x;
+        this->y = point.y;
+        return *this;
+    }
+
+    // Optional: Copy assignment operator to prevent self-assignment issues
+    Vector2& operator=(const Vector2& other) {
+        if (this != &other) { // prevent self-assignment
+            x = other.x;
+            y = other.y;
+        }
+        return *this;
+    }
 };
 
 // myRect class
@@ -158,6 +174,9 @@ public:
 
     cv::Point GetCenter(void);
     void SetRotation(double angleRad);
+    bool IsPointInside(cv::Point2i point);
+    bool IsTrackerCombined(void);
+
 
     cv::Rect predictedBBox;
     myRect *bestBBox;

@@ -6,6 +6,7 @@ std::mutex DRAWING_IMAGE_MUTEX;
 
 float playback_speed = 1.0f;
 bool playback_play = true;
+bool playback_pause = false;
 bool playback_goback = false;
 bool playback_restart = false;
 std::string playback_file = "./Recordings/OrbitronVsDisarray.avi";

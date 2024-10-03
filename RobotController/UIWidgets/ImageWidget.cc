@@ -81,7 +81,6 @@ void ImageWidget::Draw()
         return;
     }
 
-    _imageMutex.unlock();
 
     // Start the main window without any specific flags
     ImGui::Begin(_name.c_str());
@@ -90,7 +89,6 @@ void ImageWidget::Draw()
     ImGuiWindowFlags flags = _moveable ? 0 : ImGuiWindowFlags_NoMove;
     ImGui::BeginChild("Content", ImVec2(0, 0), false, flags);
 
-    _imageMutex.lock();
     // Convert mat to texture
     ImTextureID texture = MatToTexture(_image);
     // Draw texture

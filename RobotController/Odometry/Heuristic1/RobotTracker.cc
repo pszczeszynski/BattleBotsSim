@@ -319,6 +319,21 @@ cv::Point RobotTracker::GetCenter(void)
     return cv::Point((int)position.x, (int)position.y);
 }
 
+bool RobotTracker::IsPointInside(cv::Point2i point)
+{
+    return bbox.contains(point);
+}
+
+bool RobotTracker::IsTrackerCombined(void)
+{
+    if( (bestBBox != nullptr) && (bestBBox->numOfOwners > 1) )
+    {
+        return true;
+    }
+
+    return false;
+}
+
 // Returns the expected location of the bounding box
 cv::Rect RobotTracker::GetExtrapolatedBBOX(double curr_time)
 {

@@ -17,6 +17,7 @@ public:
 
     void processNewFrame(cv::Mat &newFrame);
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point
+    void ForcePosition(cv::Point2f newPos, bool opponentRobot) override;
     void SwitchRobots(void) override;                                  // Switches who's who
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
     void SetAngle(double newAngle, bool opponentRobot) override;
@@ -102,6 +103,8 @@ private:
     double fg_threshold_ratio = 0.1f; // Minimum ratio difference of pixels
 
     int fg_bbox_minsize = 30;                      // minimum size of a bounding box we want to consider
+    int blurCount = 1;                             // Number of times to blur the image
+    cv::Size preMaskBlurSize = cv::Size(15, 15);   // Blurring size
     cv::Size fg_mask_blur_size = cv::Size(15, 15); // Blurring size
     int fg_post_blur_threshold = 90;
     int fg_contour_downsize = 2;     // Reduction of resolution when looking at contours
@@ -122,6 +125,7 @@ private:
     double getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean);
     double correctionValues[4] = {0, 0, 0, 0};
     void healBackground(cv::Mat &currFrame);
+    void recreateBackgroundOnMatchStart(cv::Mat& currFrame); // Regenerates background based on the current frame minus tracked fg
     void ReinitBackground();
     bool SaveBackground(void); // Saves the current background to the default file
 
@@ -133,6 +137,8 @@ private:
     void _allRobotTrackersClear(); // clears and deletes all robot trackers
     void DrawAllBBoxes(cv::Mat &mat, int thickness = 1, cv::Scalar scaler = cv::Scalar(255, 0, 0));
     void MatchStartBackgroundInit(cv::Mat &currFrame); // Initializes the match background using the current frame and the defined boxes from the saved background
+    float GetForegroundSize(cv::Mat& inBackground, cv::Mat& inForeground); // Returns the average value of the fg mask
+    float FindOptimalBrightness(cv::Rect& myRect, cv::Mat& currFrame);
 
     std::mutex _mutexTrackData;
     std::condition_variable_any conditionVarTrackRobots;
