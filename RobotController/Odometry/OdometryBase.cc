@@ -191,6 +191,8 @@ void OdometryBase::SwitchRobots(void)
     _currDataOpponent.isUs = false;
 }
 
+// Set postion recommends newPos to be the center of the robot. The algorithm is free to adjust
+// as required (e.g. find closest tracking rectangle and use its center)
 void OdometryBase::SetPosition(cv::Point2f newPos, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -200,6 +202,13 @@ void OdometryBase::SetPosition(cv::Point2f newPos, bool opponentRobot)
     odoData.robotPosition = newPos;
     odoData.robotPosValid = true;
 }
+
+// Force position forces the center of robot to be newpos regardlesss of any other considerations
+void OdometryBase::ForcePosition(cv::Point2f newPos, bool opponentRobot)
+{
+    SetPosition(newPos, opponentRobot);
+}
+
 
 void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 {

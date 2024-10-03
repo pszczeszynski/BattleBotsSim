@@ -42,10 +42,26 @@ void PlaybackWidget::Draw()
         }
 
         ImGui::SameLine();
+
+        bool popStyle = false;
+        if (playback_pause)
+        {
+            // Change the button color to green when isHighlighted is true
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+            popStyle = true;
+        }
+
         if (ImGui::Button("Pause"))
         {
-            playback_play = !playback_play;
+            playback_pause = !playback_pause;
         }
+        
+        if (popStyle)
+        {
+            ImGui::PopStyleColor(); 
+            popStyle = false;
+        }
+
 
         ImGui::SameLine();
         if (ImGui::Button("Restart"))
@@ -55,7 +71,7 @@ void PlaybackWidget::Draw()
 
         ImGui::SameLine();
 
-        bool popStyle = false;
+
 
         if (playback_goback)
         {
@@ -64,7 +80,7 @@ void PlaybackWidget::Draw()
             popStyle = true;
         }
 
-        if (ImGui::Button("GoBack"))
+        if (ImGui::Button("Reverse"))
         {
             playback_goback = !playback_goback;
         }
@@ -72,6 +88,7 @@ void PlaybackWidget::Draw()
         if (popStyle)
         {
             ImGui::PopStyleColor(); 
+            popStyle = false;
         }
 
         ImGui::SameLine();

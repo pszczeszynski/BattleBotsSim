@@ -536,10 +536,15 @@ bool CameraReceiverVideo::_CaptureFrame()
     _prevFrameTimer.markStart(deltaTimeLeft);
 
     // read the next frame
-    if (playback_goback || playback_restart)
+    if (playback_goback || playback_restart || playback_pause)
     {
-        // Decrement video frmae
-        _videoFrame -= 100;
+        // Go backwards
+        if(playback_goback && !playback_pause)
+        {
+            _videoFrame -= 1;
+        }
+        // Otherwise we didn't increment it so its stays on the same image
+
 
         if (playback_restart)
         {
@@ -554,13 +559,13 @@ bool CameraReceiverVideo::_CaptureFrame()
 
         // Move to the previous frame
         _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
-        playback_goback = false;
     }
     else
-    {
-        _videoFrame++;
+    { 
+            _videoFrame++;
     }
 
+   
     // read in the frame
     cv::Mat _rawFrame;
     _cap.read(_rawFrame);

@@ -75,7 +75,7 @@ void TrackingWidget::_AdjustFieldCrop()
     cv::Mat &drawingImage = _trackingMat;
 
     // draw the corners
-    if (enableCrop)
+    if (enableCrop && !drawingImage.empty())
     {
         for (int i = 0; i < 4; i++)
         {
@@ -335,12 +335,27 @@ void TrackingWidget::_DrawAlgorithmData()
             {
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
-                    _odometry_Heuristic.SetPosition(GetMousePos(), false);
+                    if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftCtrl))
+                    {
+                        _odometry_Heuristic.ForcePosition(GetMousePos(), false);
+                    }
+                    else
+                    {
+                        _odometry_Heuristic.SetPosition(GetMousePos(), false);
+                    }
+
                     _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), false);
                 }
                 else if (InputState::GetInstance().IsMouseDown(1))
                 {
-                    _odometry_Heuristic.SetPosition(GetMousePos(), true);
+                    if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightCtrl))
+                    {
+                        _odometry_Heuristic.ForcePosition(GetMousePos(), true);
+                    }
+                    else
+                    {
+                        _odometry_Heuristic.SetPosition(GetMousePos(), true);
+                    }
                     _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), true);
                 }
             }
@@ -359,6 +374,19 @@ void TrackingWidget::_DrawAlgorithmData()
             }
         }
     }
+
+
+    // draw robot angle with arrow
+    cv::Point2f robotPos = odometry.Robot().robotPosition;
+    double robotAngle = odometry.Robot().robotAngle;
+    cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
+    cv::arrowedLine(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+
+    // draw opponent angle with arrow
+    cv::Point2f opponentPos = odometry.Opponent().robotPosition;
+    double opponentAngle = odometry.Opponent().robotAngle;
+    arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
+    cv::arrowedLine(_trackingMat, opponentPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
 }
 

@@ -260,12 +260,15 @@ void RobotOdometry::FuseAndUpdatePositions()
     {
         trackingMat = TrackingWidget::GetInstance()->GetTrackingMat();
 
-        // put text at top center of the image
-        cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+        if( !trackingMat.empty() )
+        {
+            // put text at top center of the image
+            cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
 
-        // draw robot angle with an arrow
-        cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
-        cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
+            // draw robot angle with an arrow
+            cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
+            cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
+        }
     }
 
     _dataRobot = *candidateRobot;

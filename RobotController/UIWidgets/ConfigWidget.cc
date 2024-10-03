@@ -144,11 +144,42 @@ void ConfigWidget::Draw()
     ImGui::Text("  FG Min Size:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##FGMinSize", &HEU_FOREGROUND_MINSIZE, 5, 70); ImGui::PopItemWidth();
-    // ImGui::SameLine();
-    //ImGui::Text("  FG Blur Size:");
-    //ImGui::SameLine();
-    //ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 2, 30); ImGui::PopItemWidth();
-    //ImGui::SameLine();
+    ImGui::Text("  FG Blur Size:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 1, 30); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  BG Blur Size (make odd):");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##BGBlur", &HEU_BACKGROUND_BLURSIZE, 1, 30); ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+    ImGui::Text("  Blur Count:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##BlurCount", &HEU_BLUR_COUNT, 0, 10); ImGui::PopItemWidth();
+
+    ImGui::Text("MATCH START ");
+    ImGui::SameLine();
+    ImGui::Text("  Auto Gamma Corr:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(150); ImGui::SliderFloat("##BrightCorr", &HEU_BRIGHTNESS_CORR, 0.5, 1.5); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("  BG Blur Size:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##BGBlurInit", &HEU_BACKGROUND_BLURSIZE_INIT, 1, 30); ImGui::PopItemWidth();
+    ImGui::SameLine();
+
+    ImGui::Text("  Blur Count:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##BlurCountInit", &HEU_BLUR_COUNT_INIT, 1, 15); ImGui::PopItemWidth();
+    ImGui::SameLine();
+
+    ImGui::Text("FG Min Delta:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGThresholdInit", &HEU_FOREGROUND_THRESHOLD_INIT, 0, 40); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Checkbox(":Heal BG", &HEU_HEAL_BG_INIT);
+
+
     //ImGui::Text("  BBox Buffer:");
     //ImGui::SameLine();
     //ImGui::PushItemWidth(50); ImGui::SliderInt("##FGBuffer", &HEU_FOREGROUND_BUFFER, 0, 10); ImGui::PopItemWidth();
