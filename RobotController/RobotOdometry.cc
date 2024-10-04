@@ -136,14 +136,14 @@ void RobotOdometry::Update(void)
             // Update our data
             if (humanData_odometry_Human.NewDataValid(_dataRobot_Human.id, false))
             {
-                _dataRobot_Human = humanData_odometry_Human.GetData(false);
-                _dataRobot_Human_is_new = true;
+                humanData._dataRobot_Human = humanData_odometry_Human.GetData(false);
+                humanData._dataRobot_Human_is_new = true;
                 newDataArrived = true;
             }
-            else if humanData(_odometry_Human.NewDataValid(_dataOpponent_Human.id, true))
+            else if humanData(_odometry_Human.NewDataValid(humanData._dataOpponent_Human.id, true))
             {
-                _dataOpponent_Human = humanData_odometry_Human.GetData(true);
-                _dataOpponent_Human_is_new = true;
+                humanData._dataOpponent_Human = humanData_odometry_Human.GetData(true);
+                humanData._dataOpponent_Human_is_new = true;
                 newDataArrived = true;
             }
         }
@@ -358,10 +358,10 @@ void RobotOdometry::FuseAndUpdatePositions()
         if (humanData_odometry_Human.IsRunning())
         {
             // if opponent changed
-            if (_dataOpponent_Human_is_new && _dataOpponent_Human.robotAngleValid)
+            if (humanData._dataOpponent_Human_is_new && humanData._dataOpponent_Human.robotAngleValid)
             {
-                candidateOpponentDeref.robotAngle = _dataOpponent_Human.robotAngle;
-                _dataOpponent_Human_is_new = false;
+                candidateOpponentDeref.robotAngle = humanData._dataOpponent_Human.robotAngle;
+                humanData._dataOpponent_Human_is_new = false;
             }
         }
     }
