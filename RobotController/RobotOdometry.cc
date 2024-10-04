@@ -11,12 +11,23 @@
 #include "UIWidgets/ImageWidget.h"
 #include "Globals.h"
 
+#define HUMAN_ODOMETRY_PORTS {"11117", "11118", "11119"}
+
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
                                                              _odometry_Blob(&videoSource),
                                                              _odometry_Heuristic(&videoSource),
-                                                             _odometry_Neural(&videoSource),
-                                                             _odometry_Human(&videoSource)
+                                                             _odometry_Neural(&videoSource)
 {
+    // Initialize human odometry
+    for (std::string port: HUMAN_ODOMETRY_PORTS)
+    {
+        HumanOdometryData_t humanData;
+        humanData.port = port;
+        humanData._odometry_Human = HumanPosition(&videoSource, port);
+        
+        _humanOdometryClients.push_back(humanData);
+    }
+
 }
 
 void RobotOdometry::_AdjustAngleWithArrowKeys()
@@ -118,21 +129,23 @@ void RobotOdometry::Update(void)
             newDataArrived = true;
         }
     }
-
-    if (_odometry_Human.IsRunning())
+    for (HumanOdometryData_t humanData: _humanOdometryClients)
     {
-        // Update our data
-        if (_odometry_Human.NewDataValid(_dataRobot_Human.id, false))
+        if (humanData._odometry_Human.IsRunning())
         {
-            _dataRobot_Human = _odometry_Human.GetData(false);
-            _dataRobot_Human_is_new = true;
-            newDataArrived = true;
-        }
-        else if (_odometry_Human.NewDataValid(_dataOpponent_Human.id, true))
-        {
-            _dataOpponent_Human = _odometry_Human.GetData(true);
-            _dataOpponent_Human_is_new = true;
-            newDataArrived = true;
+            // Update our data
+            if (humanData_odometry_Human.NewDataValid(_dataRobot_Human.id, false))
+            {
+                _dataRobot_Human = humanData_odometry_Human.GetData(false);
+                _dataRobot_Human_is_new = true;
+                newDataArrived = true;
+            }
+            else if humanData(_odometry_Human.NewDataValid(_dataOpponent_Human.id, true))
+            {
+                _dataOpponent_Human = humanData_odometry_Human.GetData(true);
+                _dataOpponent_Human_is_new = true;
+                newDataArrived = true;
+            }
         }
     }
 
@@ -340,13 +353,16 @@ void RobotOdometry::FuseAndUpdatePositions()
     candidateOpponentDeref.robotAngleVelocity = _dataOpponent.robotAngleVelocity;
 
     ///// human + heuristic rotation for opponent
-    if (_odometry_Human.IsRunning())
+    for (HumanOdometryData_t humanData: _humanOdometryClients)
     {
-        // if opponent changed
-        if (_dataOpponent_Human_is_new && _dataOpponent_Human.robotAngleValid)
+        if (humanData_odometry_Human.IsRunning())
         {
-            candidateOpponentDeref.robotAngle = _dataOpponent_Human.robotAngle;
-            _dataOpponent_Human_is_new = false;
+            // if opponent changed
+            if (_dataOpponent_Human_is_new && _dataOpponent_Human.robotAngleValid)
+            {
+                candidateOpponentDeref.robotAngle = _dataOpponent_Human.robotAngle;
+                _dataOpponent_Human_is_new = false;
+            }
         }
     }
 
@@ -577,7 +593,19 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
         return _odometry_Neural.Run();
 
     case OdometryAlg::Human:
-        return _odometry_Human.Run();
+        std::vector<bool> results;
+        for (HumanOdometryData_t humanData: _humanOdometryClients)
+        {
+            results.push_back(humanData._odometry_Human.Run())
+        }
+        for (bool result: results)
+        {
+            if (!result)
+            {
+                return false;
+            }
+        }
+        return true;
     default:
         break;
     }
@@ -603,7 +631,19 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
         return _odometry_Neural.Stop();
     
     case OdometryAlg::Human:
-        return _odometry_Human.Stop();
+        std::vector<bool> results;
+        for (HumanOdometryData_t humanData: _humanOdometryClients)
+        {
+            results.push_back(humanData._odometry_Human.Stop())
+        }
+        for (bool result: results)
+        {
+            if (!result)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     return false;
@@ -627,7 +667,19 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
         return _odometry_Neural.IsRunning();
     
     case OdometryAlg::Human:
-        return _odometry_Human.IsRunning();
+        std::vector<bool> results;
+        for (HumanOdometryData_t humanData: _humanOdometryClients)
+        {
+            results.push_back(humanData._odometry_Human.IsRunning())
+        }
+        for (bool result: results)
+        {
+            if (!result)
+            {
+                return false;
+            }
+        }
+        return true;
     
     default:
         break;
