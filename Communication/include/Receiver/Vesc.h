@@ -17,7 +17,7 @@ public:
     static void OnMessage(const CAN_message_t &msg);
     VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id, int self_righter_id);
 
-    void Drive(float leftPower, float rightPower, float selfRighterPower);
+    void Drive(float leftPower, float rightPower, float selfRighterPower, bool isDutyCycleControl);
     void DriveWeapons(float frontCurrent_amps, float backCurrent_amps);
     
     void GetCurrents(unsigned char* outCurrents);

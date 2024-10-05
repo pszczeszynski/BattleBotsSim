@@ -39,7 +39,7 @@ void Drive(DriveCommand &command)
     digitalWrite(STATUS_1_LED_PIN, HIGH);
 
     // apply powers
-    vesc.Drive(leftPower, rightPower, command.selfRighterPower);
+    vesc.Drive(leftPower, rightPower, command.selfRighterPower, command.selfRighterDuty);
 }
 
 void DriveWeapons(DriveCommand &command)

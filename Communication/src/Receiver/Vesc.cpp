@@ -214,11 +214,12 @@ void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
 }
 
 
-void VESC::Drive(float leftPower, float rightPower, float selfRighterPower)
+void VESC::Drive(float leftPower, float rightPower, float selfRighterPower, bool isDutyCycleControl)
 {
     _SetMotorPower(leftPower, l_drive);
     _SetMotorPower(rightPower, r_drive);
-    if(selfRighterPower > 0)
+
+    if(isDutyCycleControl)
     {
         _SetMotorPower(selfRighterPower, self_righter);
     }

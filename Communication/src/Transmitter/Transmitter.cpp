@@ -146,6 +146,7 @@ void tx_loop()
             if (command.type == DRIVE_COMMAND)
             {
                 DownsampledPrintf("Self righter power: %f\n", command.driveCommand.selfRighterPower);
+                DownsampledPrintf("Self righter command type: %d\n", command.driveCommand.selfRighterDuty);
             }
         }
     }
@@ -159,7 +160,7 @@ void tx_loop()
         receivedPacket = false;
     }
 
-    if (millis() - lastDebugTime > 1000) {
+    if (false){//(millis() - lastDebugTime > 1000) {
         Serial.print("Sent: ");
         Serial.print(sentPackets - lastSentPackets);
         Serial.print(", Received: ");

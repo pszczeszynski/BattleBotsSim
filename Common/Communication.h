@@ -210,6 +210,7 @@ struct DriveCommand
     float frontWeaponPower;
     float backWeaponPower;
     float selfRighterPower;
+    bool selfRighterDuty;
 };
 
 enum DriverStationMessageType : char

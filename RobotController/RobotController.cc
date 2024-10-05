@@ -635,9 +635,16 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
         // spinner
         command.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
         command.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
-        if(command.selfRighterPower < 0)
+
+        if(command.selfRighterPower < 0.1 && command.selfRighterPower > -0.1)
         {
-            command.selfRighterPower *= 0.3;
+            command.selfRighterDuty = false;
+            command.selfRighterPower = SELF_RIGHTER_IDLE_CURRENT/10;
+        }
+        else
+        {
+            command.selfRighterDuty = true;
+            command.selfRighterPower *= -1;
         }
     }
     else if (msg.type == DriverStationMessageType::AUTO_DRIVE)
