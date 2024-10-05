@@ -112,7 +112,10 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         if (type == DataType::ROBOT_POSITION)
         {
-            _UpdateData(true, frameTime, &clickPosition, nullptr);
+            // _UpdateData(true, frameTime, &clickPosition, nullptr);
+            RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, false);
+            RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, false);
+
         }
         else if (type == DataType::OPPONENT_POSITION)
         {
