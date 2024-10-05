@@ -36,6 +36,7 @@ extern int MASTER_MOVE_SCALE_PERCENT;
 extern int MASTER_TURN_SCALE_PERCENT;
 extern float MAX_FRONT_WEAPON_SPEED;
 extern float MAX_BACK_WEAPON_SPEED;
+extern float SELF_RIGHTER_IDLE_CURRENT;
 extern int preprocess_tl_x;
 extern int preprocess_tl_y;
 extern int preprocess_tr_x;

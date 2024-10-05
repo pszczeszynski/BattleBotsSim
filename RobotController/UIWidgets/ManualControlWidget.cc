@@ -50,6 +50,7 @@ void ManualControlWidget::Draw()
         MASTER_TURN_SCALE_PERCENT = 0;
         MAX_FRONT_WEAPON_SPEED = 0;
         MAX_BACK_WEAPON_SPEED = 0;
+        SELF_RIGHTER_IDLE_CURRENT = 0;
     }
 
     // spacers
@@ -78,6 +79,7 @@ void ManualControlWidget::Draw()
     // sliders for the weapon speeds
     ImGui::SliderFloat("Bar Speed", &MAX_FRONT_WEAPON_SPEED, 0, 300.0);
     ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 300.0);
+    ImGui::SliderFloat("Self Righter Idle current", &SELF_RIGHTER_IDLE_CURRENT, 0, 3.0);
 
 
 

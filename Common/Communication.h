@@ -127,7 +127,8 @@ enum MotorIndexes
     l_drive = 0,
     r_drive,
     f_weapon,
-    b_weapon
+    b_weapon,
+    self_righter
 };
 
 
@@ -138,11 +139,11 @@ enum MotorIndexes
 
 struct CANData
 {
-    unsigned char motorCurrent[4];
-    unsigned char motorVoltage[4];
-    unsigned char motorERPM[4];
-    unsigned char escFETTemp[4];
-    unsigned char motorTemp[4];
+    unsigned char motorCurrent[5];
+    unsigned char motorVoltage[5];
+    unsigned char motorERPM[5];
+    unsigned char escFETTemp[5];
+    unsigned char motorTemp[5];
 };
 
 struct RadioData
@@ -209,6 +210,7 @@ struct DriveCommand
     float frontWeaponPower;
     float backWeaponPower;
     float selfRighterPower;
+    bool selfRighterDuty;
 };
 
 enum DriverStationMessageType : char

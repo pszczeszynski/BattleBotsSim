@@ -7,7 +7,7 @@
 class VESC
 {
 private:
-    float lastPowers[4] = { 0, 0, 0, 0 };
+    float lastPowers[5] = { 0, 0, 0, 0, 0 };
 
     void _SetMotorPower(float power, int motorIndex);
     void _SetMotorCurrent(float current_amps, int motorIndex);
@@ -15,9 +15,9 @@ private:
 public:
 
     static void OnMessage(const CAN_message_t &msg);
-    VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id);
+    VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id, int self_righter_id);
 
-    void Drive(float leftPower, float rightPower);
+    void Drive(float leftPower, float rightPower, float selfRighterPower, bool isDutyCycleControl);
     void DriveWeapons(float frontCurrent_amps, float backCurrent_amps);
     
     void GetCurrents(unsigned char* outCurrents);

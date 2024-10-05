@@ -55,6 +55,10 @@ enum board_placement
 
 ///////////////////////////RX SPECIFIC HARDWARE//////////////////////////
 
+#define NUM_MOTORS 5
+
+#define SELF_RIGHTER_REVERSE_CURRENT_MAX 10
+
 // extended CAN IDs for everything (29 bits)
 // Lower 8 bits used for hardware ID, upper 21 bits for message ID
 
@@ -63,6 +67,7 @@ enum board_placement
 #define RIGHT_MOTOR_CAN_ID 1
 #define FRONT_WEAPON_CAN_ID 2
 #define BACK_WEAPON_CAN_ID 4
+#define SELF_RIGHTER_CAN_ID 23
 
 // teensy can bus ids - derived from 0x
 #define LEFT_TEENSY_ID rxLeft|0xf0

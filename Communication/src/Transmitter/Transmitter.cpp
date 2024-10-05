@@ -142,6 +142,12 @@ void tx_loop()
             // blink the LED
             digitalWrite(STATUS_2_LED_PIN, HIGH);
             sentPackets++;
+
+            if (command.type == DRIVE_COMMAND)
+            {
+                DownsampledPrintf("Self righter power: %f\n", command.driveCommand.selfRighterPower);
+                DownsampledPrintf("Self righter command type: %d\n", command.driveCommand.selfRighterDuty);
+            }
         }
     }
     else
@@ -154,7 +160,7 @@ void tx_loop()
         receivedPacket = false;
     }
 
-    if (millis() - lastDebugTime > 1000) {
+    if (false){//(millis() - lastDebugTime > 1000) {
         Serial.print("Sent: ");
         Serial.print(sentPackets - lastSentPackets);
         Serial.print(", Received: ");
@@ -162,5 +168,7 @@ void tx_loop()
         lastReceivedPackets = receivedPackets;
         lastSentPackets = sentPackets;
         lastDebugTime = millis();
+
+    
     }
 }

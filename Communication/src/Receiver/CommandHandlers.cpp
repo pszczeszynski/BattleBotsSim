@@ -39,7 +39,7 @@ void Drive(DriveCommand &command)
     digitalWrite(STATUS_1_LED_PIN, HIGH);
 
     // apply powers
-    vesc.Drive(leftPower, rightPower);
+    vesc.Drive(leftPower, rightPower, command.selfRighterPower, command.selfRighterDuty);
 }
 
 void DriveWeapons(DriveCommand &command)
@@ -147,7 +147,7 @@ void DriveWithMessage(DriverStationMessage &msg)
 
 void DriveLEDs(RobotMessage &message)
 {
-    static unsigned char lastFETTemps[4] = {0, 0, 0, 0};
+    static unsigned char lastFETTemps[5] = {0, 0, 0, 0, 0};
     static long flashStartTime = 0;
 
     // color variable
@@ -176,7 +176,7 @@ void DriveLEDs(RobotMessage &message)
     else if (message.type == RobotMessageType::CAN_DATA)
     {
         // if any of the fet temps changed
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)
         {
             // turned on
             if ((int) message.canData.escFETTemp[i] > 0 && (int) lastFETTemps[i] == 0)
@@ -186,7 +186,7 @@ void DriveLEDs(RobotMessage &message)
         }
 
         // save the last temps
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)
         {
             lastFETTemps[i] = message.canData.escFETTemp[i];
         }
