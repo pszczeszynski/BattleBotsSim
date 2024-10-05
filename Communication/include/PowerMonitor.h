@@ -27,6 +27,6 @@ private:
     const float _3v3_vsns_divider_upper = 750;
     const float _3v3_vsns_divider_lower = 8250;
 
-    const float _3v3_isns_shunt_R = 0.00001;
+    const float _3v3_isns_shunt_R = 0.01;
     const float _3v3_isns_gain = 100;
 };
