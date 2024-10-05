@@ -17,6 +17,7 @@
 #include "GenericReceiver.h"
 #include "Radio.h"
 #include "Utils.h"
+#include "PowerMonitor.h"
 #include <SPI.h>
 #include <RF24.h>
 #include <cstring> // for std::memcpy
@@ -24,6 +25,44 @@
 Radio<DriverStationMessage, RobotMessage> tx_radio{};
 const byte address[6] = "00001"; // Define address/pipe to use.
 char ping_response_buffer[64];
+char sendBuffer[64];
+
+volatile bool receivedPacket = false;
+long int receivedPackets = 0;
+long int sentPackets = 0;
+long int lastReceivedPackets = 0;
+long int lastSentPackets = 0;
+uint32_t lastDebugTime = 0;
+#define NO_MESSAGE_REINIT_TIME 70
+
+#define RECEIVE_TIMEOUT 0
+
+uint32_t lastSendTime = 0;
+#define SEND_INTERVAL_TIME_US 5000
+#define SEND_TIMEOUT 1
+
+PowerMonitor txMonitor;
+
+void HandleTxPacket()
+{
+    if (!tx_radio.Available()) return;
+    RobotMessage message = tx_radio.Receive();
+
+    if (message.type != RobotMessageType::INVALID)
+    {
+        receivedPackets ++;
+        memset(sendBuffer, 0, sizeof(sendBuffer));
+        std::memcpy(sendBuffer, &message, sizeof(RobotMessage));
+        receivedPacket = true;
+
+        // blink the LED
+        digitalWrite(STATUS_3_LED_PIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(STATUS_3_LED_PIN, LOW);
+    }
+}
 
 //===============================================================================
 //  Initialization
@@ -51,6 +90,7 @@ void tx_setup()
     std::memcpy(ping_response_buffer, &ping_response, sizeof(RobotMessage));
 
     digitalWrite(STATUS_1_LED_PIN, HIGH);
+    attachInterrupt(digitalPinToInterrupt(RADIO_IRQ_PIN), HandleTxPacket, FALLING);
 
 }
 
@@ -62,15 +102,6 @@ unsigned int packetCount = 0;
 //===============================================================================
 //  Main
 //===============================================================================
-long int receivedPackets = 0;
-long int sentPackets = 0;
-long int lastReceivedPackets = 0;
-long int lastSentPackets = 0;
-uint32_t lastDebugTime = 0;
-#define NO_MESSAGE_REINIT_TIME 70
-
-#define SEND_TIMEOUT 1
-#define RECEIVE_TIMEOUT 0
 void tx_loop()
 {
     static unsigned long lastTime = 0;
@@ -82,10 +113,20 @@ void tx_loop()
     // if the message is a tx ping, send a response back
     // forward to the robot otherwise
     if (n > sizeof(DriverStationMessage))
+    //if (micros() - lastSendTime > SEND_INTERVAL_TIME_US)
     {
+        lastSendTime = micros();
         DriverStationMessage command;
         // reinterpret the buffer as a DriveCommand
         std::memcpy(&command, buffer, sizeof(command));
+        /*command.type = DRIVE_COMMAND;
+        command.driveCommand.backWeaponPower = 0;
+        command.driveCommand.frontWeaponPower = 0;
+        command.driveCommand.movement = 0;
+        command.driveCommand.selfRighterPower = 0;
+        command.driveCommand.turn = 0;
+        command.radioChannel = TEENSY_RADIO_3;
+        command.valid = true;*/
 
         if(command.type == LOCAL_PING_REQUEST)
         {
@@ -108,28 +149,9 @@ void tx_loop()
         digitalWrite(STATUS_2_LED_PIN, LOW);
     }
 
-    bool hadData = false;
-    // read data from rc
-    RobotMessage message = tx_radio.Receive();
-
-    if (message.type != RobotMessageType::INVALID)
-    {
-        receivedPackets ++;
-
-        char sendBuffer[64];
-        memset(sendBuffer, 0, sizeof(sendBuffer));
-        std::memcpy(sendBuffer, &message, sizeof(RobotMessage));
-
+    if(receivedPacket) {
         n = RawHID.send(sendBuffer, SEND_TIMEOUT);
-
-        hadData = true;
-
-        // blink the LED
-        digitalWrite(STATUS_3_LED_PIN, HIGH);
-    }
-    else
-    {
-        digitalWrite(STATUS_3_LED_PIN, LOW);
+        receivedPacket = false;
     }
 
     if (millis() - lastDebugTime > 1000) {

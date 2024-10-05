@@ -447,7 +447,7 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
     if (!_transmitterConnected) return; // don't do anything if no TXs connected to drive station
     if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS) return; // don't switch if recently switched
 
-    int nextChannel = -1; //the free channel to switch to
+    int32_t nextChannel = -1; //the free channel to switch to
     if (_transmitterConnected && _secondaryTransmitterConnected) 
     {
         // get whichever one isn't being used
