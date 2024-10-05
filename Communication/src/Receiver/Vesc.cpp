@@ -5,23 +5,24 @@
 #include <limits>
 
 // Voltage, Duty Cycle, RPM, AH, FET TEMP, MOTOR TEMP, CURRENT
-int _ids[4];
-float _volts[4];
-float _duty_cycles[4];
-int _rpms[4];
-float _ahs[4];
-float _fet_temps[4];
-float _motor_temps[4];
-float _currents[4];
+int _ids[NUM_MOTORS];
+float _volts[NUM_MOTORS];
+float _duty_cycles[NUM_MOTORS];
+int _rpms[NUM_MOTORS];
+float _ahs[NUM_MOTORS];
+float _fet_temps[NUM_MOTORS];
+float _motor_temps[NUM_MOTORS];
+float _currents[NUM_MOTORS];
 
-VESC::VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id)
+VESC::VESC(CANBUS *can, int l_drive_id, int r_drive_id, int f_weapon_id, int b_weapon_id, int self_righter_id)
 {
     _ids[l_drive] = l_drive_id;
     _ids[r_drive] = r_drive_id;
     _ids[f_weapon] = f_weapon_id;
     _ids[b_weapon] = b_weapon_id;
+    _ids[self_righter] = self_righter_id;
     // set volts, duty_cycles, rpms, ahs, fet_temps, motor_temps, currents to 0
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < NUM_MOTORS; i++)
     {
         _volts[i] = 0;
         _duty_cycles[i] = 0;
@@ -74,6 +75,10 @@ void VESC::OnMessage(const CAN_message_t &msg)
     else if (_ids[b_weapon] == vesc_id)
     {
         enum_index = b_weapon;
+    }
+    else if (_ids[self_righter] == vesc_id)
+    {
+        enum_index = self_righter;
     }
     else
     {
@@ -209,10 +214,18 @@ void VESC::_SetMotorCurrent(float current_amps, int motorIndex)
 }
 
 
-void VESC::Drive(float leftPower, float rightPower)
+void VESC::Drive(float leftPower, float rightPower, float selfRighterPower)
 {
     _SetMotorPower(leftPower, l_drive);
     _SetMotorPower(rightPower, r_drive);
+    if(selfRighterPower > 0)
+    {
+        _SetMotorPower(selfRighterPower, self_righter);
+    }
+    else
+    {
+        _SetMotorCurrent(selfRighterPower*SELF_RIGHTER_REVERSE_CURRENT_MAX, self_righter);
+    }
 }
 
 void VESC::DriveWeapons(float frontCurrent_amps, float backPower_amps)

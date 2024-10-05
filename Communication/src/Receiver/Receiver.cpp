@@ -63,7 +63,7 @@ Radio<RobotMessage, DriverStationMessage> rxRadio;
 PowerMonitor monitor;
 Logger logger{};
 CANBUS can{};
-VESC vesc{&can, LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID};
+VESC vesc{&can, LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID, SELF_RIGHTER_CAN_ID};
 
 // FUNCTION PROTOTYPES
 RobotMessage GenerateTelemetryPacket();
@@ -367,12 +367,12 @@ void rx_loop()
         digitalWriteFast(STATUS_1_LED_PIN, LOW);
     }
 
-    float fetTemps[4];
-    float voltages[4];
-    float currents[4];
-    float motorTemps[4];
-    int erpms[4];
-    float dutyCycle[4];
+    float fetTemps[NUM_MOTORS];
+    float voltages[NUM_MOTORS];
+    float currents[NUM_MOTORS];
+    float motorTemps[NUM_MOTORS];
+    int erpms[NUM_MOTORS];
+    float dutyCycle[NUM_MOTORS];
 
     vesc.GetFloatFETTemps(fetTemps);
     vesc.GetFloatVolts(voltages);

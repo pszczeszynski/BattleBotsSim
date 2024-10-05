@@ -27,6 +27,7 @@ void CANBUS::OnMessage(const CAN_message_t &msg)
         case RIGHT_MOTOR_CAN_ID:
         case FRONT_WEAPON_CAN_ID:
         case BACK_WEAPON_CAN_ID:
+        case SELF_RIGHTER_CAN_ID:
             //VESC::OnMessage(msg);
             if(_vesc_handler)
             {

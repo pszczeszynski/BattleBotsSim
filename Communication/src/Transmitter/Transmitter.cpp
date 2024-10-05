@@ -142,6 +142,11 @@ void tx_loop()
             // blink the LED
             digitalWrite(STATUS_2_LED_PIN, HIGH);
             sentPackets++;
+
+            if (command.type == DRIVE_COMMAND)
+            {
+                DownsampledPrintf("Self righter power: %f\n", command.driveCommand.selfRighterPower);
+            }
         }
     }
     else
@@ -162,5 +167,7 @@ void tx_loop()
         lastReceivedPackets = receivedPackets;
         lastSentPackets = sentPackets;
         lastDebugTime = millis();
+
+    
     }
 }
