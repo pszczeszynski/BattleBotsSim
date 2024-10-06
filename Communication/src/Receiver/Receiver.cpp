@@ -19,16 +19,20 @@
 
 #define ARBITRATION_TIMEOUT_MS 500
 
+// LED 1
 // these interrupts are ordered by priority highest -> lowest
 #define WATCHDOG_PRIORITY 0x70
 #define WATCHDOG_INTERVAL 10000 // 10000us = 100hz
 
+// LED 2
 #define CAN_EVENTS_PRIORITY 0x71
 #define CAN_EVENTS_INTERVAL 100 // 10kHz
 
+// LED 3
 // radio interrupt should be 0x80 priority
 // Place watchdog above radio and everything else below
 
+// LED 4
 #define IMU_PRIORITY 0xFD
 #define IMU_INTERVAL 10000 // microseconds -> 2000us = 500hz
 
@@ -73,13 +77,15 @@ RobotMessage GenerateTelemetryPacket();
 IntervalTimer imuTimer;
 void ServiceImu()
 {
+    digitalWriteFast(STATUS_4_LED_PIN, HIGH);
     imu.Update();
+    digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
 
 IntervalTimer angleSyncTimer;
 void ServiceAngleSync()
 {
-    // Only send current angle after a set time
+    /*// Only send current angle after a set time
     // Ensures that if one board reboots it does not send incorrect values
     if(millis() > BOOT_GYRO_MERGE_MS)
     {
@@ -88,12 +94,13 @@ void ServiceAngleSync()
         syncMessage.angle = float(imu.getRotation());
 
         can.SendTeensy(&syncMessage);
-    }
+    }*/
 }
 
 IntervalTimer packetWatchdogTimer;
 void ServicePacketWatchdog()
 {
+    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     // NOTE: don't stop robot unless comms are lost on all three boards
     // IE lastReceiveTime must update when another board receives a packet
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
@@ -113,17 +120,21 @@ void ServicePacketWatchdog()
             noPacketWatchdogTrigger = true;
         }
     }
+    digitalWriteFast(STATUS_1_LED_PIN, LOW);
 }
 
 IntervalTimer CANEventsTimer;
 void ServiceCANEvents()
 {
+    digitalWriteFast(STATUS_2_LED_PIN, HIGH);
     can.Update();
+    digitalWriteFast(STATUS_2_LED_PIN, LOW);
 }
 
 void HandlePacket()
 {
     if (!rxRadio.Available()) return;
+    digitalWriteFast(STATUS_3_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
 
     RobotMessage return_msg = GenerateTelemetryPacket();
@@ -145,8 +156,9 @@ void HandlePacket()
     }
 
     noPacketWatchdogTrigger = false;
-    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
+    //digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     receivedPacketSinceBoot = true;
+    digitalWriteFast(STATUS_2_LED_PIN, LOW);
 }
 
 // RECEIVER HELPER FUNCTIONS
@@ -344,7 +356,7 @@ void rx_setup()
     digitalWrite(STATUS_1_LED_PIN, LOW);
     digitalWrite(STATUS_2_LED_PIN, LOW);
     digitalWrite(STATUS_3_LED_PIN, LOW);
-    digitalWrite(STATUS_4_LED_PIN, HIGH);
+    digitalWrite(STATUS_4_LED_PIN, LOW);
 
     Serial.println("RX Setup: boot complete");
 
@@ -364,7 +376,7 @@ void rx_loop()
             Serial.println("Reinit radio");
             rxRadio.InitRadio(radioChannel);
         }
-        digitalWriteFast(STATUS_1_LED_PIN, LOW);
+        //digitalWriteFast(STATUS_1_LED_PIN, LOW);
     }
 
     float fetTemps[NUM_MOTORS];
