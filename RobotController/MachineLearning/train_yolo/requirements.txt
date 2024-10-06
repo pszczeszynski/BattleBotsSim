@@ -3,7 +3,3 @@ matplotlib
 opencv-python
 tensorflow
 ultralytics
-<<<<<<< Updated upstream
-=======
-imageio
->>>>>>> Stashed changes
