@@ -20,6 +20,8 @@ extern Logger logger;
 extern uint32_t lastPacketID;
 extern CANBUS can;
 
+#define MSG_MAX_DELAY_RESET 5000000
+
 
 void Drive(DriveCommand &command)
 {
@@ -70,7 +72,10 @@ void DriveWithMessage(DriverStationMessage &msg)
     lastMessage = msg;
 
     // only send the drive command if its the newest one seen sent across the bus
-    if (msg.timestamp > lastPacketID)
+    if (
+        (msg.timestamp > lastPacketID) ||
+        (msg.timestamp < lastPacketID && lastPacketID - msg.timestamp > MSG_MAX_DELAY_RESET)
+    )
     {
         //send the packet ID over the bus to notify other boards, then send commands
         CANMessage packetIdMessage;

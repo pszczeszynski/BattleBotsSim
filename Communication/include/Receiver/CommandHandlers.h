@@ -3,7 +3,7 @@
 #include "Communication.h"
 #include "Hardware.h"
 
-#define LED_BRIGHTNESS 60
+#define LED_BRIGHTNESS 0
 #define NUM_LEDS 14
 
 /**

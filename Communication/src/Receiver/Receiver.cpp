@@ -358,7 +358,7 @@ void rx_loop()
 {
     if(millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
-        if (!receivedPacketSinceBoot && millis() - lastReinitRadioTime > 500)
+        if (millis() - lastReinitRadioTime > 1000)
         {
             lastReinitRadioTime = millis();
             Serial.println("Reinit radio");
