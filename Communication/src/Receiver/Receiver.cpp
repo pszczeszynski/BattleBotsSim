@@ -77,9 +77,7 @@ RobotMessage GenerateTelemetryPacket();
 IntervalTimer imuTimer;
 void ServiceImu()
 {
-    digitalWriteFast(STATUS_4_LED_PIN, HIGH);
     imu.Update();
-    digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
 
 IntervalTimer angleSyncTimer;
@@ -100,7 +98,6 @@ void ServiceAngleSync()
 IntervalTimer packetWatchdogTimer;
 void ServicePacketWatchdog()
 {
-    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     // NOTE: don't stop robot unless comms are lost on all three boards
     // IE lastReceiveTime must update when another board receives a packet
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
@@ -120,29 +117,29 @@ void ServicePacketWatchdog()
             noPacketWatchdogTrigger = true;
         }
     }
-    digitalWriteFast(STATUS_1_LED_PIN, LOW);
 }
 
 IntervalTimer CANEventsTimer;
 void ServiceCANEvents()
 {
-    digitalWriteFast(STATUS_2_LED_PIN, HIGH);
     can.Update();
-    digitalWriteFast(STATUS_2_LED_PIN, LOW);
 }
 
 void HandlePacket()
 {
     if (!rxRadio.Available()) return;
-    digitalWriteFast(STATUS_3_LED_PIN, HIGH);
+    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
+    
+    digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
     RobotMessage return_msg = GenerateTelemetryPacket();
     DriveLEDs(return_msg);
+    digitalWriteFast(STATUS_3_LED_PIN, HIGH);
     return_msg.timestamp = msg.timestamp;
     SendOutput result = rxRadio.Send(return_msg);
     logger.updateRadioData((int)result, 0, 0, 0);
-
+    digitalWriteFast(STATUS_4_LED_PIN, HIGH);
     if(ErrorCheckMessage(msg))
     {
         DriveWithMessage(msg);
@@ -158,7 +155,10 @@ void HandlePacket()
     noPacketWatchdogTrigger = false;
     //digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     receivedPacketSinceBoot = true;
+    digitalWriteFast(STATUS_1_LED_PIN, LOW);
     digitalWriteFast(STATUS_2_LED_PIN, LOW);
+    digitalWriteFast(STATUS_3_LED_PIN, LOW);
+    digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
 
 // RECEIVER HELPER FUNCTIONS
