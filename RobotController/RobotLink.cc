@@ -149,14 +149,6 @@ bool IRobotLink::IsSecondaryTransmitterConnected()
 }
 
 
-#define TRANSMITTER_COM_PORT TEXT("COM8")
-
-#define COM_READ_TIMEOUT_MS 100
-#define COM_WRITE_TIMEOUT_MS 100
-
-char lastChar = '\0';
-int messageCount = 0;
-
 #ifndef SIMULATION
 
 #define RADIO_DEVICES 5
@@ -377,7 +369,7 @@ void RobotLinkReal::RadioThreadFunction(void)
     std::thread secondaryRadioRecvThread(&RobotLinkReal::RadioThreadRecvFunction, this, &_radios[1], &_unconsumedMessagesMutex, &_unconsumedMessages, &_secondaryRadioStats, &_secondaryReceivedTimer, &_secondaryRadioStatsMutex);
     while (true)
     {
-        while(devices_opened < 1)
+        while (devices_opened < 1)
         {
             devices_opened = RawHID_Open(_radios, 2, 0x16C0, 0x0486, 0xFFAB, 0x0200);
             std::this_thread::sleep_for(std::chrono::milliseconds(USB_RETRY_TIME));

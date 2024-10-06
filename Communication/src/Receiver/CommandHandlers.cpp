@@ -217,6 +217,9 @@ void DriveLEDs(RobotMessage &message)
     {
         leds[i] = color;
     }
+    
+    FastLED.setBrightness(LED_BRIGHTNESS);
+
 
     // show the color
     FastLED.show();

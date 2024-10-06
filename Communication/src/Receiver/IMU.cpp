@@ -164,11 +164,6 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
     _currAcceleration.y = rotatedY;
     //////////////////////////////////////////////////////
 
-    // Serial.print("rotatedAcceleration: ");
-    // Serial.print(rotatedX);
-    // Serial.print(", ");
-    // Serial.println(rotatedY);
-
 
     Point avgAccel = (_currAcceleration + _prevAcceleration) / 2;
     double accelNewWeight = deltaTimeMS / IMU_CALIBRATE_PERIOD_MS;

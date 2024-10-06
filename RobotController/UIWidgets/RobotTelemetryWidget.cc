@@ -52,7 +52,7 @@ void DrawCANDataTable()
                 // Set row color to red
                 ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 0, 0, 255));
             }
-            else if (data.escFETTemp[i] > 50 || data.motorTemp[i] > 60)
+            else if (data.escFETTemp[i] > 60 || data.motorTemp[i] > 60)
             {
                 // Set row color to yellow
                 ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 0, 255));

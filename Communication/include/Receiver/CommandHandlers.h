@@ -3,8 +3,8 @@
 #include "Communication.h"
 #include "Hardware.h"
 
-#define LED_BRIGHTNESS 255
-#define NUM_LEDS 3
+#define LED_BRIGHTNESS 60
+#define NUM_LEDS 14
 
 /**
  * Applys the drive command to the robot
