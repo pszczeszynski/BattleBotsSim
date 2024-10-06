@@ -21,7 +21,7 @@ extern uint32_t lastPacketID;
 extern CANBUS can;
 
 #define MSG_MAX_DELAY_RESET 5000000
-
+#define ENABLE_AUTONOMOUS_DRIVE
 
 void Drive(DriveCommand &command)
 {
@@ -38,7 +38,7 @@ void Drive(DriveCommand &command)
     }
 
     // set status led
-    digitalWrite(STATUS_1_LED_PIN, HIGH);
+    //digitalWrite(STATUS_1_LED_PIN, HIGH);
 
     // apply powers
     vesc.Drive(leftPower, rightPower, command.selfRighterPower, command.selfRighterDuty);
@@ -48,7 +48,7 @@ void DriveWeapons(DriveCommand &command)
 {
     // Serial.println("Driving weapons with powers: " + String(command.frontWeaponPower) + ", " + String(command.backWeaponPower));
     // set status led
-    digitalWrite(STATUS_2_LED_PIN, HIGH);
+    //digitalWrite(STATUS_2_LED_PIN, HIGH);
 
     vesc.DriveWeapons(command.frontWeaponPower, command.backWeaponPower);
 }
@@ -130,7 +130,7 @@ void DriveWithMessage(DriverStationMessage &msg)
             DriveWeapons(command);
 
             // set status led for autonomous drive
-            digitalWrite(STATUS_3_LED_PIN, HIGH);
+            //digitalWrite(STATUS_3_LED_PIN, HIGH);
 #endif
         }
         else if (lastMessage.type == DRIVE_COMMAND)

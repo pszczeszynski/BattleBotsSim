@@ -25,7 +25,7 @@
 #define WATCHDOG_INTERVAL 10000 // 10000us = 100hz
 
 // LED 2
-#define CAN_EVENTS_PRIORITY 0x71
+#define CAN_EVENTS_PRIORITY 0x81
 #define CAN_EVENTS_INTERVAL 100 // 10kHz
 
 // LED 3
@@ -128,18 +128,15 @@ void ServiceCANEvents()
 void HandlePacket()
 {
     if (!rxRadio.Available()) return;
-    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
     
-    digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
     RobotMessage return_msg = GenerateTelemetryPacket();
-    DriveLEDs(return_msg);
-    digitalWriteFast(STATUS_3_LED_PIN, HIGH);
+    //DriveLEDs(return_msg);
+    delayMicroseconds(100);
     return_msg.timestamp = msg.timestamp;
     SendOutput result = rxRadio.Send(return_msg);
-    logger.updateRadioData((int)result, 0, 0, 0);
-    digitalWriteFast(STATUS_4_LED_PIN, HIGH);
+    //logger.updateRadioData((int)result, 0, 0, 0);
     if(ErrorCheckMessage(msg))
     {
         DriveWithMessage(msg);
@@ -259,20 +256,24 @@ RobotMessage GenerateTelemetryPacket()
     // every other packet is an IMU message
     if ((updateCount % CAN_DATA_TELEMETRY_INTERVAL) == 2)
     {
+        digitalWriteFast(STATUS_1_LED_PIN, HIGH);
         GenerateCANTelemetryPacket(msg);
     }
     else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 4)
     {
+        digitalWriteFast(STATUS_2_LED_PIN, HIGH);
         GenerateRadioStatsPacket(msg);
     }
     else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 6)
     {
+        digitalWriteFast(STATUS_3_LED_PIN, HIGH);
         GeneratePowerStatsPacket(msg);
     }
     else
     {
+        digitalWriteFast(STATUS_4_LED_PIN, HIGH);
         GenerateIMUPacket(msg);
-        logger.updateIMUData(msg.imuData.rotation, msg.imuData.rotationVelocity, msg.imuData.accelX, msg.imuData.accelY);
+        //logger.updateIMUData(msg.imuData.rotation, msg.imuData.rotationVelocity, msg.imuData.accelX, msg.imuData.accelY);
     }
     updateCount++;
  
@@ -281,6 +282,7 @@ RobotMessage GenerateTelemetryPacket()
 
 void OnTeensyMessage(const CAN_message_t &msg)
 {
+    DownsampledPrintf("Received message with ID %x\n", msg.id);
     CANMessage message;
     memcpy(&message, msg.buf, sizeof(CANMessage));
 
@@ -363,12 +365,13 @@ void rx_setup()
     imu.Update();
 
     attachInterrupt(digitalPinToInterrupt(RADIO_IRQ_PIN), HandlePacket, FALLING);
+    Serial.println("RX Setup: boot complete");
 }
 
 // CONTINUOUSLY CALLED ON RECEIVER
 void rx_loop()
 {
-    if(millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
+    if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
         if (millis() - lastReinitRadioTime > 1000)
         {
@@ -398,4 +401,5 @@ void rx_loop()
     logger.update();
 
     monitor.readSensors();
+    DownsampledPrintf("main loop running\n");
 }

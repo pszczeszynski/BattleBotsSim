@@ -9,6 +9,8 @@
 #define SIDE_GYRO_SCALE_FACTOR -1.02316240643
 #define SIDE_GYRO_AXIS gyrX
 
+#define MULT_BY_2_FACTOR 2
+
 #define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
 #define PI 3.14159
 
@@ -111,7 +113,7 @@ void IMU::ForceCalibrate()
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
-    _currRotVelZ = -(myICM.*_gyro_axis)() * TO_RAD;
+    _currRotVelZ = -(myICM.*_gyro_axis)() * TO_RAD * MULT_BY_2_FACTOR;
     _currRotVelZ *= _gyro_scale_factor;
 
     double avgRotVelZ = (_currRotVelZ + _prevRotVelZ) / 2;

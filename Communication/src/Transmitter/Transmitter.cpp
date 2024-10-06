@@ -42,6 +42,7 @@ uint32_t lastSendTime = 0;
 #define SEND_TIMEOUT 1
 
 PowerMonitor txMonitor;
+uint32_t lastReceivedMessageTime = 0;
 
 void HandleTxPacket()
 {
@@ -54,6 +55,7 @@ void HandleTxPacket()
         memset(sendBuffer, 0, sizeof(sendBuffer));
         std::memcpy(sendBuffer, &message, sizeof(RobotMessage));
         receivedPacket = true;
+        lastReceivedMessageTime = millis();
 
         // blink the LED
         digitalWrite(STATUS_3_LED_PIN, HIGH);
@@ -154,7 +156,13 @@ void tx_loop()
 
     if(receivedPacket) {
         n = RawHID.send(sendBuffer, SEND_TIMEOUT);
+        
         receivedPacket = false;
+    }
+
+    if(millis() - lastReceivedMessageTime > 50)
+    {
+        digitalWrite(STATUS_3_LED_PIN, LOW);
     }
 
     if (false){//(millis() - lastDebugTime > 1000) {
