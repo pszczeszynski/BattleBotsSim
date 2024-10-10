@@ -170,7 +170,7 @@ public class VisionAITrainer : MonoBehaviour
         Volume volume = postProcessingVolume.GetComponent<Volume>();
         volume.profile.TryGet<Bloom>(out Bloom bloom);
         // set bloom thresh
-        float bloomThresh = Random.Range(0.75f, 1.1f);
+        float bloomThresh = Random.Range(0.75f, 2.0f);
         bloom.threshold.value = bloomThresh;
 
         // randomize shadows midtones highlights
