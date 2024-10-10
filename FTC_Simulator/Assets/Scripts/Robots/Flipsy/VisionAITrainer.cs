@@ -56,6 +56,8 @@ public class VisionAITrainer : MonoBehaviour
     private Vector3 _originalCameraPosition;
     private Quaternion _originalCameraRotation;
 
+    private Transform _orbitronForks;
+
     private void Start()
     {
         _imagesSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs");
@@ -105,6 +107,14 @@ public class VisionAITrainer : MonoBehaviour
         // save original camera position and rotation
         _originalCameraPosition = captureCamera.transform.position;
         _originalCameraRotation = captureCamera.transform.rotation;
+
+
+        // Find the "Body" object under orbitron
+        Transform _orbitronBody = robotTransform.Find("Body");
+
+        // Find the "Forks" object under the body
+        _orbitronForks = _orbitronBody.Find("Forks");
+
     }
 
     public void Update()
@@ -117,6 +127,7 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeLights();
             RandomizePostProcessingVolume();
             RandomizeOtherRobots();
+            RandomizeForks();
 
             CaptureAndSaveData();
         }
@@ -222,6 +233,16 @@ public class VisionAITrainer : MonoBehaviour
 
             // randomly enable or disable the robot
             otherRobot.gameObject.SetActive(Random.Range(0, 4) != 0);
+        }
+    }
+
+    private void RandomizeForks()
+    {
+
+        // iterate through all transforms under forks, randomly enable them with 80% probability, disable with 20%
+        foreach (Transform fork in _orbitronForks)
+        {
+            fork.gameObject.SetActive(Random.Range(0, 5) != 0);
         }
     }
 
