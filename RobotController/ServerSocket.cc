@@ -38,7 +38,7 @@ int ServerSocket::setup_receiving_socket()
     SOCKADDR_IN serverAddress;
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(std::stoi(port));
-    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
 
     // Create a SOCKET for listening
     listenSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -56,6 +56,10 @@ int ServerSocket::setup_receiving_socket()
         closesocket(listenSocket);
         WSACleanup();
         return 1;
+    }
+    else
+    {
+        std::cout << "Listening on port " << port << std::endl;
     }
 
     return 0;
@@ -107,6 +111,7 @@ std::string ServerSocket::receive(int* outError)
             ret.assign(recvbuf, numBytesReceived);
             // Update last_sender_addr and last_sender_addr_len
             // This is already handled by recvfrom parameters
+            _lastSenderValid = true;
         }
     }
 
@@ -124,6 +129,20 @@ std::string ServerSocket::receive(int* outError)
  */
 void ServerSocket::reply_to_last_sender(std::string data)
 {
+    // check if open socket
+    if (listenSocket == INVALID_SOCKET)
+    {
+        std::cerr << "Socket is not open" << std::endl;
+        return;
+    }
+
+    if (!_lastSenderValid)
+    {
+        std::cerr << "No valid sender to reply to" << std::endl;
+        return;
+    }
+
+
     int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (SOCKADDR *)&last_sender_addr, last_sender_addr_len);
 
     if (iSendResult == SOCKET_ERROR)

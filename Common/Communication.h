@@ -197,8 +197,8 @@ struct AutoDrive
     short MIN_TURN_POWER_PERCENT;
     short SCALE_DOWN_MOVEMENT_PERCENT;
     bool invertTurn;
-    short frontWeaponPower;
-    short backWeaponPower;
+    unsigned char frontWeaponPowerPercent; 
+    unsigned char backWeaponPowerPercent;
 };
 
 // driver station -> robot

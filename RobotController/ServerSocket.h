@@ -23,6 +23,7 @@ private:
     SOCKADDR last_sender_addr;
     // The length of the last sender's address
     int last_sender_addr_len;
+    bool _lastSenderValid = false;
 
     int setup_receiving_socket();
 
