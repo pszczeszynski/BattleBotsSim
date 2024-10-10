@@ -13,9 +13,9 @@ reload(Utilities)
 from Utilities import prepare_and_augment_image, Augmentations
 sys.path.remove('..')
 
-train_size = 20000
-test_size = 5000
-data_dir = "set4_forks_preprocessed"
+train_size = 30
+test_size = 10
+data_dir = "test_set"
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 - 0.5
@@ -74,19 +74,19 @@ def move_data(img_dir, i):
     key_name = f'image_{i}.json'
     
     shutil.copy(f'../TrainingData/TrainingKeys/{key_name}', f'datasets/{data_dir}/keys/')
-    with open(f"datasets/{data_dir}/keys/image_{i}.json", "r") as json_file:
+    with open(f"datasets/{data_dir}/keys/{key_name}", "r") as json_file:
         json_data = json.load(json_file)
 
-    x = int(json_data["transformedPoint"]["x"])
-    y = int(json_data['transformedPoint']['y'])
-    w = int(json_data["transformedPoint"]["z"])
-    h = int(json_data["transformedPoint"]["w"])
+    x = int(json_data["position"]["x"]) - (1280-720)//2
+    y = int(json_data['position']['y'])
+    w = int(json_data["position"]["z"])
+    h = int(json_data["position"]["w"])
 
-    img = cv2.imread(f'../TrainingData/TrainingInputsPosition/{img_name}')
+    img = cv2.imread(f'../TrainingData/TrainingInputs/{img_name}')
+    img = img[:,(1280-720)//2:(1280-720)//2+720, :]
     aug_img, params = prepare_and_augment_image(img, augs)
     aug_img = (aug_img*255).astype(np.uint8) 
     img_gray = cv2.cvtColor(aug_img, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite(f'datasets/{data_dir}/{img_dir}/images/{img_name}', img_gray)
 
     theta = params['theta']
     tx = params['tx']
@@ -108,8 +108,84 @@ def move_data(img_dir, i):
     w /= zx
     h /= zy
 
+    if x1 - w/2 < 0:
+        if x1 + w/2 > 0:
+            x1 = 0 + (x1 + w/2 - 0) / 2
+            w = x1 + w/2 - 0
+        else:
+            return False
+    if x1 + w/2 > 720:
+        if x1 - w/2 < 720:
+            x1 = 720 - (720 - x1 + w/2) / 2
+            w = 720 - x1 + w/2
+        else:
+            return False
+    if y1 - h/2 < 0:
+        if y1 + h/2 > 0:
+            y1 = (y1 + h/2) / 2
+            h = y1 + h/2
+        else:
+            return False
+    if y1 + h/2 > 720:
+        if y1 - h/2 < 720:
+            y1 = 720 - (720 - y1 + h/2) / 2
+            h = 720 - y1 + h/2
+        else:
+            return False
+
+    cv2.imwrite(f'datasets/{data_dir}/{img_dir}/images/{img_name}', img_gray)
+
     with open(f"datasets/{data_dir}/{img_dir}/labels/image_{i}.txt", "w") as file:
         file.write(f'0 {x1/720} {y1/720} {w/720} {h/720}')
+
+    return True
+
+def move_data_no_aug(img_dir, i):
+    img_name = f'image_{i}.jpg'
+    key_name = f'image_{i}.json'
+    
+    with open(f"datasets/{data_dir}/keys/{key_name}", "r") as json_file:
+        json_data = json.load(json_file)
+
+    x = int(json_data["position"]["x"])
+    y = int(json_data['position']['y'])
+    w = int(json_data["position"]["z"])
+    h = int(json_data["position"]["w"])
+
+    img = cv2.imread(f'../TrainingData/TrainingInputs/{img_name}')
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    if x - w/2 < 0:
+        if x + w/2 > 0:
+            x = 0 + (x + w/2 - 0) / 2
+            w = x + w/2 - 0
+        else:
+            return False
+    if x + w/2 > 720:
+        if x - w/2 < 720:
+            x = 720 - (720 - x + w/2) / 2
+            w = 720 - x + w/2
+        else:
+            return False
+    if y - h/2 < 0:
+        if y + h/2 > 0:
+            y = (y + h/2) / 2
+            h = y + h/2
+        else:
+            return False
+    if y + h/2 > 720:
+        if y - h/2 < 720:
+            y = 720 - (720 - y + h/2) / 2
+            h = 720 - y + h/2
+        else:
+            return False
+
+    cv2.imwrite(f'datasets/{data_dir}/{img_dir}/images/{img_name}', img_gray)
+
+    with open(f"datasets/{data_dir}/{img_dir}/labels/image_{i}.txt", "w") as file:
+        file.write(f'0 {x/720} {y/720} {w/720} {h/720}')
+
+    return True
 
 def train_test_split(train_size, test_size):
     os.makedirs(f'datasets/{data_dir}/train/images', exist_ok=True)
@@ -118,15 +194,25 @@ def train_test_split(train_size, test_size):
     os.makedirs(f'datasets/{data_dir}/val/labels', exist_ok=True)
     os.makedirs(f'datasets/{data_dir}/keys', exist_ok=True)
 
+    count = 0
     for i in range(train_size):
-        move_data('train', i)
+        if not move_data('train', i):
+            count += 1
+            if not move_data_no_aug('train', i):
+                continue
         if i%100 == 0:
             print(i)
+    print(count)
 
+    count = 0
     for i in range(train_size, train_size+test_size+1):
-        move_data('val', i)
+        if not move_data('val', i):
+            count += 1
+            if not move_data_no_aug('val', i):
+                continue
         if i%100 == 0:
             print(i)
+    print(count)
 
 # input size of training set and validation set, testing set not included yet
 train_test_split(train_size, test_size)
