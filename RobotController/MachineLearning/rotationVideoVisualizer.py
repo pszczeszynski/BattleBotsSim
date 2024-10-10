@@ -3,6 +3,8 @@ import numpy as np
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from keras.optimizers import Adam
+
+from Visualization import network_output_to_angle
 IMG_SIZE = (128, 128)
 
 # Global variables for mouse position
@@ -77,7 +79,7 @@ def warp_frame_fixed_size(frame, src_points):
 
 def main():
     # Load the video
-    video_path = '../Recordings/HyperShock_witchdoctor_clip.avi'  # Replace with your video path
+    video_path = '../Recordings/DisarrayFight2_clip.avi'  # Replace with your video path
     cap = cv2.VideoCapture(video_path)
     
     # Load the model
@@ -118,8 +120,8 @@ def main():
         ret, frame = cap.read()
         if not ret:
             break  # End of video
-        frame = warp_frame_fixed_size(frame,
-            [(frame.shape[1] * 0.25, 0), (frame.shape[1] * 0.75, 0), (frame.shape[1], frame.shape[0]), (0, frame.shape[0])])
+        # frame = warp_frame_fixed_size(frame,
+        #     [(frame.shape[1] * 0.25, 0), (frame.shape[1] * 0.75, 0), (frame.shape[1], frame.shape[0]), (0, frame.shape[0])])
         # scale frame down 1.4
         # frame = cv2.resize(frame, (0, 0), fx=0.7, fy=0.7)
         # Get current mouse position
@@ -163,19 +165,11 @@ def main():
         
         # Predict using the model
         prediction = model.predict(input_img)
-        
-        # Get cos and sin components
-        cos_scaled, sin_scaled = prediction[0]
-        cos_theta = cos_scaled * 2.0 - 1.0
-        sin_theta = sin_scaled * 2.0 - 1.0
 
-        # fix coordinate system
-        cos_theta = -cos_theta
-        cos_theta, sin_theta = sin_theta, cos_theta
+        angle = network_output_to_angle(prediction)
 
-        
-        # Compute angle
-        angle = np.arctan2(sin_theta, cos_theta)
+        cos_theta = np.cos(angle)
+        sin_theta = np.sin(angle)
         
         # Compute arrow endpoint
         arrow_length = 50  # Adjust as needed

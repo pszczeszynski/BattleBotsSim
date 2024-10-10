@@ -18,18 +18,15 @@ def network_output_to_angle(output: np.ndarray) -> np.ndarray:
     x_components = (x_components * 2) - 1
     y_components = (y_components * 2) - 1
 
-    # fix coordinate system
-    x_components = -x_components
-    x_components, y_components = y_components, x_components
-
     # get the angle in radians
     # and multiply by 0.5 since we multiplied all the labels by 2 to map to 0-360
-    angles = np.arctan2(y_components, x_components) * 1.0
+    angles = np.arctan2(y_components, x_components) * 0.5
     return angles
 
-
-def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2, 5), IMG_SIZE: Tuple[int, int] = (128, 128)):
+def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2, 5),
+                                   IMG_SIZE: Tuple[int, int] = (128, 128), start_index=0):
     import cv2
+    import numpy as np
 
     """
     Visualize predictions vs. true labels for the validation set.
@@ -40,24 +37,51 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
     - num_samples: Number of samples to visualize
     - grid_dims: Tuple specifying the grid dimensions for display (rows, cols)
     - IMG_SIZE: The input size to the model
+    - start_index: The index to start visualization from in the validation set
     """
-    # images, true_labels = next(val_gen) -> gets one
-    # get all validation images, true_labels
     images = []
     true_labels = []
-    while len(images) < num_samples:
-        val_images, labels = next(val_gen)
-        images.extend(val_images)
-        true_labels.extend(labels)
+    samples_collected = 0
+    samples_skipped = 0
+
+    # Loop through the generator to collect the required samples
+    while samples_collected < num_samples:
+        try:
+            val_images, labels = next(val_gen)
+        except StopIteration:
+            print("Reached the end of the validation generator.")
+            break
+
+        batch_size = len(val_images)
+
+        # Skip batches until we reach the start_index
+        if samples_skipped + batch_size <= start_index:
+            samples_skipped += batch_size
+            continue
+        else:
+            # Calculate the starting point within the current batch
+            start_within_batch = max(0, start_index - samples_skipped)
+            val_images = val_images[start_within_batch:]
+            labels = labels[start_within_batch:]
+            samples_skipped += start_within_batch + len(val_images)
+
+            # Add samples to the list until num_samples is reached
+            for img, label in zip(val_images, labels):
+                if samples_collected < num_samples:
+                    images.append(img)
+                    true_labels.append(label)
+                    samples_collected += 1
+                else:
+                    break
 
     images = np.array(images)
-    # add channels if necessary
+    # Ensure images have the correct shape
     if len(images.shape) == 3:
         images = np.expand_dims(images, axis=-1)
 
     # Create a blank canvas for the grid
     canvas = np.zeros((IMG_SIZE[0] * grid_dims[0],
-                      IMG_SIZE[1] * grid_dims[1], 3), dtype=np.uint8)
+                       IMG_SIZE[1] * grid_dims[1], 3), dtype=np.uint8)
 
     # Get predictions
     predictions = model.predict(images)
@@ -68,8 +92,9 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
 
     for idx in range(min(num_samples, len(images))):
         image = (images[idx] * 255).astype(np.uint8)
-        # bgr -> rgb
-        cv2.cvtColor(image, cv2.COLOR_GRAY2RGB, image)
+        # Convert grayscale to RGB if necessary
+        if image.shape[-1] == 1 or len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
         # Arrow start point (center of image)
         arrow_start = (IMG_SIZE[0] // 2, IMG_SIZE[1] // 2)
@@ -82,10 +107,8 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
 
         # Arrow end point for predicted labels
         arrow_end_pred = (
-            int(arrow_start[0] + 50 *
-                np.cos(predictions[idx])),
-            int(arrow_start[1] + 50 *
-                np.sin(predictions[idx]))
+            int(arrow_start[0] + 50 * np.cos(predictions[idx])),
+            int(arrow_start[1] + 50 * np.sin(predictions[idx]))
         )
 
         # Draw arrows on the image
@@ -96,8 +119,8 @@ def visualize_rotation_predictions(val_gen, model, num_samples=10, grid_dims=(2,
 
         # Determine position on canvas
         row, col = divmod(idx, grid_dims[1])
-        canvas[row * IMG_SIZE[0]:(row + 1) * IMG_SIZE[0], col *
-               IMG_SIZE[1]:(col + 1) * IMG_SIZE[1]] = image_with_arrows
+        canvas[row * IMG_SIZE[0]:(row + 1) * IMG_SIZE[0],
+               col * IMG_SIZE[1]:(col + 1) * IMG_SIZE[1]] = image_with_arrows
 
     # Show canvas image
     cv2.imshow("Predictions", canvas)
