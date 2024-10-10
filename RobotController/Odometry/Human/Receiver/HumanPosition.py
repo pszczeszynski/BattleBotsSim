@@ -136,16 +136,16 @@ try:
             continue
 
         currMessagePos = 0
-        robotPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
-        currMessagePos += 4
-        robotPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
-        currMessagePos += 4
-        opponentPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
-        currMessagePos += 4
-        opponentPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
-        currMessagePos += 4
-        opponentAngleDeg = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
-        currMessagePos += 4
+        # robotPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        # currMessagePos += 4
+        # robotPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        # currMessagePos += 4
+        # opponentPosX = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        # currMessagePos += 4
+        # opponentPosY = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        # currMessagePos += 4
+        # opponentAngleDeg = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
+        # currMessagePos += 4
         imageSize = int.from_bytes(data[currMessagePos:currMessagePos+4], byteorder='big')
         currMessagePos += 4
         image_data = data[currMessagePos:]
