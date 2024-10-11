@@ -25,7 +25,8 @@ enum OdometryAlg
     Heuristic,
     IMU,
     Neural,
-    Human
+    Human,
+    NeuralRot
 };
 
 
@@ -81,6 +82,8 @@ private:
 
     CVPosition _odometry_Neural;
     OdometryData _dataRobot_Neural;
+
+    CVRotation _odometry_NeuralRot;
 
     HumanPosition _odometry_Human;
     OdometryData _dataRobot_Human;

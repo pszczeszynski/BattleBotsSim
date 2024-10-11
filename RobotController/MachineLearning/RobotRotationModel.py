@@ -16,7 +16,7 @@ MODEL_NAME = "rotationDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
 IMG_SIZE = (128, 128)
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 7
 REDUCE_LR_PATIENCE = 3
@@ -43,22 +43,24 @@ for j in json_files:
     # add to labels_data
     labels_data.append(label)
 
+
 # convert to numpy array
 labels_data = np.array(labels_data)
+print("labels_data shape: ", labels_data.shape)
 
 print("Found {} images and {} json files.".format(
     len(img_files), len(json_files)))
 
 # add augmentations to make the model more robust
 augmentations = Augmentations(
-    zoom_range=0.2,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
+    zoom_range=0.3,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
     rotation_range=0.0,
     brightness_range=(0.75, 1.25),
     max_overlay_objects=10,
     object_size=(10, 10),
-    blur_probability=0.5
+    blur_probability=0.3
 )
 
 train_gen = custom_data_gen(img_files, labels_data,
@@ -69,9 +71,9 @@ val_gen = custom_data_gen(img_files, labels_data,
 
 # Calculate steps per epoch and validation steps
 steps_per_epoch = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.9) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsProjected", "image_*.jpg"))) * 0.9) // BATCH_SIZE
 val_steps = int(len(glob.glob(os.path.join(
-    DATA_PATH, "TrainingInputs", "image_*.jpg"))) * 0.1) // BATCH_SIZE
+    DATA_PATH, "TrainingInputsProjected", "image_*.jpg"))) * 0.1) // BATCH_SIZE
 
 # Model Architecture
 model = Sequential([
@@ -90,7 +92,7 @@ model = Sequential([
 ])
 
 # Now compile the model with this custom loss
-model.compile(optimizer=Adam(), loss="mse", metrics=['mae'])
+model.compile(optimizer=Adam(learning_rate=0.001), loss="mse", metrics=['mae'])
 
 # load weights
 try:
@@ -116,7 +118,7 @@ def train_model():
         # Train the model
         model.fit(
             train_gen,
-            epochs=50,
+            epochs=15,
             steps_per_epoch=steps_per_epoch,
             validation_data=val_gen,
             validation_steps=val_steps,
@@ -130,13 +132,12 @@ def train_model():
 
     print("Training completed and model saved!")
 
-
 ##### VISUALIZATION #####
 train_model()
 save_onnx_model(model, "rotation_model.onnx")
 
 # Call the visualization function after training:
-visualize_rotation_predictions(val_gen, model, 100, (10, 10), IMG_SIZE)
+visualize_rotation_predictions(train_gen, model, 100, (10, 10), IMG_SIZE)
 
-# visualize some testing rotations
-visualize_testing_rotations(model, TESTING_PATH, IMG_SIZE)
+# # visualize some testing rotations
+# visualize_testing_rotations(model, TESTING_PATH, IMG_SIZE)

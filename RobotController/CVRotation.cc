@@ -4,19 +4,47 @@
 #include "RobotController.h"
 #include "UIWidgets/ClockWidget.h"
 #include <opencv2/dnn/dnn.hpp>
+CVRotation* CVRotation::_instance = nullptr;
 
-CVRotation::CVRotation()
+CVRotation::CVRotation(ICameraReceiver* videoSource) : OdometryBase(videoSource)
 {
     // Load the model
     _net = cv::dnn::readNetFromONNX(MODEL_PATH);
     _net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
     _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+
+    _instance = this;
 }
 
-CVRotation& CVRotation::GetInstance()
+CVRotation* CVRotation::GetInstance()
 {
-    static CVRotation instance;
-    return instance;
+    return _instance;
+}
+
+void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
+{
+    cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
+    double rotation = ComputeRobotRotation(frame, robotPos);
+    _frameID++;
+
+    // show the rotation using imshow
+    cv::Mat rotationImage = frame.clone();
+    // convert to rgb
+    cv::cvtColor(rotationImage, rotationImage, cv::COLOR_GRAY2BGR);
+    
+    cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(rotation), 50 * sin(rotation));
+    cv::arrowedLine(rotationImage, robotPos, arrowEnd, cv::Scalar(0, 255, 0), 2);
+    cv::imshow("Rotation", rotationImage);
+    cv::waitKey(1);
+
+
+    std::unique_lock<std::mutex> lock(_updateMutex);
+    _currDataRobot.Clear();
+    _currDataRobot.isUs = true;
+    _currDataRobot.robotAngleValid = true;
+    _currDataRobot.robotAngle = Angle(rotation);
+    _currDataRobot.id = _frameID;
+    _currDataRobot.time = frameTime;
 }
 
 void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
@@ -143,13 +171,13 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
         avgAngle = angle_wrap(avgAngle + M_PI);
     }
 
-    // // if the angle changed by more than 15 degrees, blend it with the last angle
-    // float deltaAngle = angle_wrap(avgAngle - _lastRotation);
-    // const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
-    // if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
-    // {
-    //     avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.3f);
-    // }
+    // if the angle changed by more than 15 degrees, blend it with the last angle
+    float deltaAngle = angle_wrap(avgAngle - _lastRotation);
+    const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
+    if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
+    {
+        avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.3f);
+    }
     _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
 
     _lastRotation = avgAngle;

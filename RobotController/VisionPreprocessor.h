@@ -8,6 +8,7 @@
 
 #include "Globals.h"
 #include "ThreadPool.h"
+#define MACHINE_LEARNING
 
 #ifndef MACHINE_LEARNING
 #include "UIWidgets/ClockWidget.h"

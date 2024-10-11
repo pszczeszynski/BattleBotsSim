@@ -89,17 +89,29 @@ void IMUWidget::Draw()
     // draw the cross
     DrawCrossRotated(mat, center, rotation, crossColor, radius);
 
+    CVRotation* pcvRotation = CVRotation::GetInstance();
     ////////// CV ROTATION VISUALIZATION //////////
-    // get the cv rotation
-    double cvRotation = CVRotation::GetInstance().GetLastComputedRotation();
-    // draw a dotted cross, rotated by the rotation
-    cv::Scalar cvCrossColor = InterpolateRedToGreen(CVRotation::GetInstance().GetLastConfidence());
-    cv::Point2f cvCenter(WIDGET_RADIUS, WIDGET_RADIUS);
-    float cvRadius = WIDGET_RADIUS - 40;
-    cvRadius *= CVRotation::GetInstance().GetLastConfidence();
+    if (pcvRotation != nullptr && pcvRotation->IsRunning())
+    {
+        // get the cv rotation
+        double cvRotation = pcvRotation->GetLastComputedRotation();
+        // draw a dotted cross, rotated by the rotation
+        cv::Scalar cvCrossColor = InterpolateRedToGreen(pcvRotation->GetLastConfidence());
+        cv::Point2f cvCenter(WIDGET_RADIUS, WIDGET_RADIUS);
+        float cvRadius = WIDGET_RADIUS - 40;
+        cvRadius *= pcvRotation->GetLastConfidence();
 
-    // draw the dotted cross
-    DrawCrossRotated(mat, cvCenter, cvRotation, cvCrossColor, cvRadius, 3);
+        // draw the dotted cross
+        DrawCrossRotated(mat, cvCenter, cvRotation, cvCrossColor, cvRadius, 3);
+    }
+    else if (pcvRotation != nullptr)
+    {
+        std::cout << "CV Rotation not running" << std::endl;
+    }
+    else
+    {
+        std::cout << "CV Rotation is null" << std::endl;
+    }
 
     // draw the widget
     ImageWidget::UpdateMat(mat);

@@ -11,7 +11,9 @@ public class VisionAITrainer : MonoBehaviour
     [SerializeField]
     private Transform robotTransform;
     [SerializeField]
-    private BoxCollider robotBoundsCollider;
+    private BoxCollider robotBoundsColliderForks;
+    [SerializeField]
+    private BoxCollider robotBoundsColliderNoForks;
     [SerializeField]
     private Camera captureCamera;
     [SerializeField]
@@ -55,6 +57,9 @@ public class VisionAITrainer : MonoBehaviour
 
     private Vector3 _originalCameraPosition;
     private Quaternion _originalCameraRotation;
+
+    private Transform _orbitronForks;
+    private bool _forksEnabledThisCapure = false;
 
     private void Start()
     {
@@ -105,6 +110,14 @@ public class VisionAITrainer : MonoBehaviour
         // save original camera position and rotation
         _originalCameraPosition = captureCamera.transform.position;
         _originalCameraRotation = captureCamera.transform.rotation;
+
+
+        // Find the "Body" object under orbitron
+        Transform _orbitronBody = robotTransform.Find("Body");
+
+        // Find the "Forks" object under the body
+        _orbitronForks = _orbitronBody.Find("Forks");
+
     }
 
     public void Update()
@@ -117,6 +130,7 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeLights();
             RandomizePostProcessingVolume();
             RandomizeOtherRobots();
+            RandomizeForks();
 
             CaptureAndSaveData();
         }
@@ -225,6 +239,16 @@ public class VisionAITrainer : MonoBehaviour
         }
     }
 
+    private void RandomizeForks()
+    {
+        _forksEnabledThisCapure = Random.Range(0, 2) != 0;
+        // iterate through all transforms under forks, randomly enable them with 80% probability, disable with 20%
+        foreach (Transform fork in _orbitronForks)
+        {
+            fork.gameObject.SetActive((Random.Range(0, 5) != 0) && _forksEnabledThisCapure);
+        }
+    }
+
     private void RandomizeRobotPosition()
     {
         float x = Random.Range(movementBoundsX.x, movementBoundsX.y);
@@ -243,9 +267,9 @@ public class VisionAITrainer : MonoBehaviour
     {
         float Xmax = 0, Xmin = int.MaxValue, Ymax = 0, Ymin = int.MaxValue;
 
-        BoxCollider col = robotBoundsCollider;
+        BoxCollider col = _forksEnabledThisCapure ? robotBoundsColliderForks : robotBoundsColliderNoForks;
 
-        var trans = robotBoundsCollider.transform;
+        var trans = col.transform;
         var min = col.center - col.size * 0.5f;
         var max = col.center + col.size * 0.5f;
 

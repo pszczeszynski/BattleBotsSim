@@ -13,6 +13,7 @@
 #include "VisionPreprocessor.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/TrackingWidget.h"
+#include "UIWidgets/ClockWidget.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -578,7 +579,12 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     // Apply processing to it
     cv::Mat finalImage;
+// #define PREPROCESS
+#ifdef PREPROCESS
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+#else
+    finalImage = _rawFrame;
+#endif
     std::cout << "size: " << finalImage.size() << std::endl;
 
     // convert to gray if it is not
