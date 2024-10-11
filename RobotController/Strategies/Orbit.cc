@@ -6,7 +6,8 @@
 #include "../RobotController.h"
 #include "../UIWidgets/GraphWidget.h"
 #include "../PurePursuit.h"
-
+// clock
+#include "../UIWidgets/ClockWidget.h"
 Orbit::Orbit()
 {
 }

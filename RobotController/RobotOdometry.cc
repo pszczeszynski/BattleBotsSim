@@ -15,7 +15,8 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
                                                              _odometry_Blob(&videoSource),
                                                              _odometry_Heuristic(&videoSource),
                                                              _odometry_Neural(&videoSource),
-                                                             _odometry_Human(&videoSource)
+                                                             _odometry_Human(&videoSource),
+                                                             _odometry_NeuralRot(&videoSource)
 {
 }
 
@@ -578,6 +579,9 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
 
     case OdometryAlg::Human:
         return _odometry_Human.Run();
+
+    case OdometryAlg::NeuralRot:
+        return _odometry_NeuralRot.Run();
     default:
         break;
     }
@@ -604,6 +608,9 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
     
     case OdometryAlg::Human:
         return _odometry_Human.Stop();
+    
+    case OdometryAlg::NeuralRot:
+        return _odometry_NeuralRot.Stop();
     }
 
     return false;
@@ -628,6 +635,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
     
     case OdometryAlg::Human:
         return _odometry_Human.IsRunning();
+    
+    case OdometryAlg::NeuralRot:
+        return _odometry_NeuralRot.IsRunning();
     
     default:
         break;

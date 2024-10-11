@@ -13,6 +13,7 @@
 #include "VisionPreprocessor.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/TrackingWidget.h"
+#include "UIWidgets/ClockWidget.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)

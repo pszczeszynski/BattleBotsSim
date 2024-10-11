@@ -1,6 +1,9 @@
 #include "OdometryBase.h"
 #include <opencv2/core.hpp>
 
+// clock widget
+#include "../UIWidgets/ClockWidget.h"
+
 // ctor for odometry data
 OdometryData::OdometryData() : robotPosition(-1.0f, -1.0f), robotVelocity(0, 0)
 {
