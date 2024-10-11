@@ -109,7 +109,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
         _valid_frames_counter++;
     }
 
-    cv::Point2f velocity = (data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
+    cv::Point2f velocity = cv::Point2f(0,0);//(data.center - lastPos) / (double) ((data.time_millis - _lastData.time_millis) / 1000.0);
     lastPos = data.center;
 
     if (data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES)
