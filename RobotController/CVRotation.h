@@ -17,7 +17,7 @@ public:
 
     double ComputeRobotRotation(cv::Mat& fieldImage, cv::Point2f robotPos);
     double GetLastComputedRotation();
-    void _CropImage(cv::Mat& src, cv::Mat& dst, cv::Rect roi);
+    bool _CropImage(cv::Mat& src, cv::Mat& dst, cv::Rect roi);
     double GetLastConfidence();
 private:
     static CVRotation* _instance;

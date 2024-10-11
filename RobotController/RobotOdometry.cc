@@ -120,6 +120,17 @@ void RobotOdometry::Update(void)
         }
     }
 
+    // Get Neural Rot
+    if (_odometry_NeuralRot.IsRunning())
+    {
+        // Update our data
+        if (_odometry_NeuralRot.NewDataValid(_dataRobot_NeuralRot.id, false))
+        {
+            _dataRobot_NeuralRot = _odometry_NeuralRot.GetData(false);
+            newDataArrived = true;
+        }
+    }
+
     if (_odometry_Human.IsRunning())
     {
         // Update our data
@@ -162,219 +173,272 @@ void RobotOdometry::Update(void)
 
 void RobotOdometry::FuseAndUpdatePositions()
 {
-    OdometryData* candidateRobot = &_dataRobot_Heuristic;
+    // ******************************
+    // We have the following sources of data:
+    // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |  THEM ROT | THEM A.VEL
+    // -------------------------------------------------------------------------------------------------
+    // Heuristic |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
+    // Blob      |   X    |    X   |         |          |    X     |   X      |           |       
+    // Neural    |   X    |        |         |          |          |          |           |  
+    // NeuralRot |        |        |     X   |          |          |          |           |
+    // IMU       |        |        |     X   |    X     |          |          |           |
+    // Human     |<Hidden>|        |         |          | <Hidden> |          |     X     |    X
+    //
+    // TODO: Need to calculate Them A.Vel for human interface
+    //
+    // _odometry_Human: If angle changed, then update all angles
+    //
+    // 
+    // Priorities:
+    //
+    // GLOBAL PRECHECK:
+    //      // If Neural says we should be swapped, then swap
+    //      G1) if Neural = Heuristic.them: SWAP Heuristic
+    //
+    //      // If Neural agrees with blob, use Neural
+    //      G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
+    //                
+    //  US POS:   
+    //           Rule:  1) Heuristic, 2) Neural Pos, 3) Blob
+    //           Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold, setpos on blob
+    //           If Heuristic.invalid, 1) setpos(blob) 2) setpos(neural)
+    //
+    //  US VEL:
+    //           Rule: 1) Heuristic, 2) Blob
+    //
+    //  US ROT: 
+    //            Rule: 1) IMU (Neural is already fused), 2) Neural Rot 3) Heuristic
+    //
+    //  US A. VEL:
+    //            Rule: 1) IMU, 2) Heuristic
+    //
+    //  THEM POS:
+    //            Rule: 1) Heuristic, 2) Blob
+    //            Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold, setpos on blob
+    //            If Heuristic.invalid, setpos(blob)    
+    // 
+    //  THEM VEL:
+    //            Rule: 1) Heuristic, 2) Blob
+    //
+    //  THEM ROT:
+    //            Rule: 1) Human, 2) Heuristic
+    //
+    //  THEM A. VEL:
+    //            Rule: 1) Human, 2) Heuristic 
+    //
+    // 
 
-    // 1 compute if each algorithm is valid
-    bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid;
-    bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
-    // check if the neural net is far away from the candidate, override to neural net if yes
-    double currTimeSeconds = Clock::programClock.getElapsedTime();
-    double ageOfNeural = currTimeSeconds - _dataRobot_Neural.time;
-    // the neural is valid if it isn't too old && it's running
-    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && ageOfNeural < 0.3;
+    // ******************************
+    // HUMAN OVERRIDES
+    // ******************************
 
-    // IF only heuristic is valid, the candidate is the heuristic
-    if (heuristicValid && !blobValid)
+    bool humanThemAngle_valid = false;
+    // Opponent rotation
+    if( _odometry_Human.IsRunning() && _odometry_Heuristic.IsRunning() && _dataOpponent_Human.robotAngleValid && _dataOpponent_Human_is_new)
     {
-        candidateRobot = &_dataRobot_Heuristic;
-    }
-    // IF only blob is valid, the candidate is blob
-    else if (blobValid && !heuristicValid)
-    {
-        candidateRobot = &_dataRobot_Blob;
-    }
-    // IF both are valid
-    else if (heuristicValid && blobValid)
-    {
-        // if neural net is running and valid, take the one closer to the neural net
-        if (neuralValid)
+        // Clear flag
+        _dataOpponent_Human_is_new = false;
+
+        // Check if it arrived within reasonable time
+        if(_dataOpponent_Human.GetAge() < _dataAgeThreshold)
         {
-            OdometryData robotNeural = _dataRobot_Neural;
-            // extrapolate to current time
-            robotNeural.Extrapolate(Clock::programClock.getElapsedTime());
-            cv::Point2f robotPosNeural = robotNeural.robotPosition;
-
-            double distHeuristic = cv::norm(_dataRobot_Heuristic.robotPosition - robotPosNeural);
-            double distBlob = cv::norm(_dataRobot_Blob.robotPosition - robotPosNeural);
-
-            // choose the one closer to the neural net
-            if (distHeuristic < distBlob)
-            {
-                candidateRobot = &_dataRobot_Heuristic;
-            }
-            else
-            {
-                candidateRobot = &_dataRobot_Blob;
-            }
+            // Set angle for heuristic
+            _odometry_Heuristic.SetAngle(_dataOpponent_Human.robotAngle, true);
+            _odometry_Heuristic.SetAngularVelocity( _dataOpponent_Human.robotAngleVelocity, true);            
+            humanThemAngle_valid = true;               
         }
     }
 
-    // if the neural net is valid, then check if it is far away from the candidate
-    if (neuralValid)
+    // ******************************
+    // HELPER VARIABLES
+    // ******************************
+
+    bool heuristicValid = _odometry_Heuristic.IsRunning() && (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
+    bool heuristicUsPos_valid = heuristicValid && _dataRobot_Heuristic.robotPosValid;
+    bool heuristicUsAngle_valid = heuristicValid && _dataRobot_Heuristic.robotAngleValid;
+    bool heuristicThemPos_valid = heuristicValid && _dataOpponent_Heuristic.robotPosValid;
+    bool heuristicThemAngle_valid = heuristicValid && _dataOpponent_Heuristic.robotAngleValid;
+
+    bool blobValid = _odometry_Blob.IsRunning() && (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
+    bool blobUsPos_valid = blobValid && _dataRobot_Blob.robotPosValid;
+    bool blobThemPos_valid = blobValid && _dataOpponent_Blob.robotPosValid;
+
+    bool neuralUsPos_valid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
+
+    bool neuralRot_valid = _odometry_NeuralRot.IsRunning() && _dataRobot_NeuralRot.robotAngleValid && (_dataRobot_NeuralRot.GetAge() < _dataAgeThreshold);
+
+    bool imuValid = _odometry_IMU.IsRunning() && (_dataRobot_IMU.GetAge() < _dataAgeThreshold);
+    bool imuUsRot_valid = imuValid && _dataRobot_IMU.robotAngleValid;
+
+    // ******************************   
+    // Prechecks
+    // ******************************
+
+    // G1) if Neural = Heuristic.them: SWAP Heuristic
+    if( neuralUsPos_valid && heuristicThemPos_valid )
     {
-        OdometryData robotNeural = _dataRobot_Neural;
-        // extrapolate to current time
-        robotNeural.Extrapolate(Clock::programClock.getElapsedTime());
-        cv::Point2f robotPosNeural = robotNeural.robotPosition;
-
-        // compute distance from the current candidate
-        double distCandidate = cv::norm(candidateRobot->robotPosition - robotPosNeural);
-
-        // if far away, then use the neural net
-        if (distCandidate > 50)
+        // Check if point is inside bounding box
+        if( _dataOpponent_Heuristic.IsPointInside(_dataRobot_Neural.robotPosition))
         {
-            candidateRobot = &_dataRobot_Neural;
+            // Swap heuristic
+            _odometry_Heuristic.SwitchRobots();
+        }
 
-            // call set position on the other two algorithms so we re-lock
-            _odometry_Blob.SetPosition(candidateRobot->robotPosition, false);
-            _odometry_Heuristic.SetPosition(candidateRobot->robotPosition, false);
+        heuristicThemPos_valid = false;
+        heuristicThemAngle_valid = false;
+        heuristicUsPos_valid = false;
+        heuristicUsAngle_valid = false;
+    }
+
+    // G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
+    if( neuralUsPos_valid && blobUsPos_valid && _dataRobot_Blob.IsPointInside(_dataRobot_Neural.robotPosition))
+    {
+        // Force position if heuristic doesn't agree
+        if( !heuristicUsPos_valid || !_dataRobot_Heuristic.IsPointInside(_dataRobot_Neural.robotPosition))
+        {
+            _odometry_Heuristic.ForcePosition(_dataRobot_Neural.robotPosition, false);
+            heuristicUsPos_valid = false;
+            heuristicUsAngle_valid = false;
+        }  
+    }
+
+    // ******************************   
+    // PRIORITIES
+    // ******************************
+    //  US POS:   
+    //           Rule:  1) Heuristic, 2) Neural Pos, 3) Blob
+    //           Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold, setpos on blob
+    //           If Heuristic.invalid, 1) setpos(blob) 2) setpos(neural)
+    if( heuristicUsPos_valid )
+    {
+        _dataRobot.robotPosition = _dataRobot_Heuristic.robotPosition;
+
+        // If blob position isn't inside our rectangle then set position
+        if( blobUsPos_valid && !_dataRobot_Heuristic.IsPointInside(_dataRobot_Blob.robotPosition))
+        {
+            _odometry_Blob.SetPosition(_dataRobot_Heuristic.robotPosition, false);
         }
     }
-
-
-    cv::Scalar color = cv::Scalar(0, 255, 0);
-    std::string algorithmName = "None";
-    if (candidateRobot == &_dataRobot_Blob)
+    else if( neuralUsPos_valid )
     {
-        // set to blue
-        color = cv::Scalar(0, 0, 255);
-        algorithmName = "Blob";
+        _dataRobot.robotPosition = _dataRobot_Neural.robotPosition;
     }
-    else if (candidateRobot == &_dataRobot_Heuristic)
+    else if( blobUsPos_valid )
     {
-        // set to yellow - orange
-        color = cv::Scalar(0, 180, 255);
-        algorithmName = "Heuristic";
-    }
-    else if (candidateRobot == &_dataRobot_Neural)
-    {
-        // set to purple
-        color = cv::Scalar(255, 0, 255);
-        algorithmName = "Neural";
+        _dataRobot.robotPosition = _dataRobot_Blob.robotPosition;
     }
 
-    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
+
+    //  US VEL:
+    //           Rule: 1) Heuristic, 2) Blob
+    if( heuristicUsPos_valid )
+    {
+        _dataRobot.robotVelocity = _dataRobot_Heuristic.robotVelocity;     
+    }
+    else if( blobUsPos_valid )
+    {
+        _dataRobot.robotVelocity = _dataRobot_Blob.robotVelocity;
+    }
+
+    //  US ROT: 
+    //            Rule: 1) IMU (Neural is already fused), 2) Neural Rot 3) Heuristic
+
+    if( imuUsRot_valid )
+    {
+        _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
+    }
+    else if( neuralRot_valid )
+    {
+        _dataRobot.robotAngle = _dataRobot_NeuralRot.robotAngle;
+    }
+    else if( heuristicUsAngle_valid )
+    {
+        _dataRobot.robotAngle = _dataRobot_Heuristic.robotAngle;    
+    }
+
+
+    //  US A. VEL:
+    //            Rule: 1) IMU, 2) Heuristic
+    if( imuValid )
+    {
+        _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
+    }
+    else if( heuristicUsAngle_valid )
+    {
+        _dataRobot.robotAngleVelocity = _dataRobot_Heuristic.robotAngleVelocity;
+    }
+
+
+    //  THEM POS:
+    //            Rule: 1) Heuristic, 2) Blob
+    //            Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold, setpos on blob
+    //            If Heuristic.invalid, setpos(blob)   
+    if( heuristicThemPos_valid )
+    {
+        _dataOpponent.robotPosition = _dataOpponent_Heuristic.robotPosition;
+
+        // If blob position isn't inside our rectangle then set position
+        if( blobThemPos_valid && !_dataOpponent_Heuristic.IsPointInside(_dataOpponent_Blob.robotPosition))
+        {
+            _odometry_Blob.SetPosition(_dataOpponent_Heuristic.robotPosition, true);
+        }
+    }
+    else if( blobThemPos_valid )
+    {
+        _dataOpponent.robotPosition = _dataOpponent_Blob.robotPosition;
+        _odometry_Heuristic.SetPosition(_dataOpponent_Blob.robotPosition, true);
+    }
+
+    //  THEM VEL:
+    //            Rule: 1) Heuristic, 2) Blob
+    if( heuristicThemPos_valid )
+    {
+        _dataOpponent.robotVelocity = _dataOpponent_Heuristic.robotVelocity;     
+    }
+    else if( blobThemPos_valid )
+    {
+        _dataOpponent.robotVelocity = _dataOpponent_Blob.robotVelocity;
+    }
+
+    //  THEM ROT:   
+    //            Rule: 1) Human, 2) Heuristic
+    if( humanThemAngle_valid )
+    {
+        _dataOpponent.robotAngle = _dataOpponent_Human.robotAngle;    
+    }
+    else if( heuristicThemAngle_valid )
+    {
+        _dataOpponent.robotAngle = _dataOpponent_Heuristic.robotAngle;    
+    }
+
+    //  THEM A. VEL:
+    //            Rule: 1) Human, 2) Heuristic
+    if( humanThemAngle_valid )
+    {
+        _dataOpponent.robotAngleVelocity = _dataOpponent_Human.robotAngleVelocity;
+    }
+    else if( heuristicThemAngle_valid )
+    {
+        _dataOpponent.robotAngleVelocity = _dataOpponent_Heuristic.robotAngleVelocity;
+    }
+
+
+    // ******************************
+    //  FINISHED
+    // ******************************
+   TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
 
     cv::Mat trackingMat;
-    if (trackingWidget)
+    if (trackingWidget) 
     {
         trackingMat = TrackingWidget::GetInstance()->GetTrackingMat();
-
-        if( !trackingMat.empty() )
-        {
-            // put text at top center of the image
-            cv::putText(trackingMat, "Robot using " + algorithmName, cv::Point(trackingMat.cols / 2 - 75, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
-
-            // draw robot angle with an arrow
-            cv::Point2f arrowEnd = _dataRobot.robotPosition + cv::Point2f(50 * cos(_dataRobot_IMU.robotAngle), 50 * sin(_dataRobot_IMU.robotAngle));
-            cv::arrowedLine(trackingMat, _dataRobot.robotPosition, arrowEnd, color, 2);
-        }
     }
-
-    _dataRobot = *candidateRobot;
-
-
-
-
-
-    //////////////// OPPONENT //////////////////
-    OdometryData* candidateOpponent = &_dataOpponent_Blob;
-
-    heuristicValid = _odometry_Heuristic.IsRunning() && _dataOpponent_Heuristic.robotPosValid;
-    blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
-
-    // IF only heuristic is valid, the candidate is the heuristic
-    if (heuristicValid && !blobValid)
-    {
-        candidateOpponent = &_dataOpponent_Heuristic;
-    }
-    // IF only blob is valid, the candidate is blob
-    else if (blobValid && !heuristicValid)
-    {
-        candidateOpponent = &_dataOpponent_Blob;
-    }
-    // IF both are valid
-    else if (heuristicValid && blobValid)
-    {
-        OdometryData oldOpponent = _dataOpponent;
-        // extrapolate the old opponent to current time
-        oldOpponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        // choose the one closer to the old opponent
-        double distHeuristic = cv::norm(_dataOpponent_Heuristic.robotPosition - oldOpponent.robotPosition);
-        double distBlob = cv::norm(_dataOpponent_Blob.robotPosition - oldOpponent.robotPosition);
-
-        if (distHeuristic < distBlob)
-        {
-            candidateOpponent = &_dataOpponent_Heuristic;
-        }
-        else
-        {
-            candidateOpponent = &_dataOpponent_Blob;
-        }
-    }
-
-
-
-    std::string algorithmNameOpponent = "None";
-    cv::Scalar colorOpponent = cv::Scalar(0, 255, 0);
-
-    if (candidateOpponent == &_dataOpponent_Blob)
-    {
-        // set to blue
-        colorOpponent = cv::Scalar(0, 0, 255);
-        algorithmNameOpponent = "Blob";
-    }
-    else if (candidateOpponent == &_dataOpponent_Heuristic)
-    {
-        // set to yellow - orange
-        colorOpponent = cv::Scalar(0, 180, 255);
-        algorithmNameOpponent = "Heuristic";
-    }
-
-
-
-
-    ////////////////// OPPONENT ANGLE + POS override //////////////////
-
-
-    OdometryData candidateOpponentDeref = *candidateOpponent;
-    // copy over the old angle for the opponent
-    candidateOpponentDeref.robotAngle = _dataOpponent.robotAngle;
-    candidateOpponentDeref.robotAngleVelocity = _dataOpponent.robotAngleVelocity;
-
-    ///// human + heuristic rotation for opponent
-    if (_odometry_Human.IsRunning())
-    {
-        // if opponent changed
-        if (_dataOpponent_Human_is_new && _dataOpponent_Human.robotAngleValid)
-        {
-            candidateOpponentDeref.robotAngle = _dataOpponent_Human.robotAngle;
-            _dataOpponent_Human_is_new = false;
-        }
-    }
-
-    if (_odometry_Heuristic.IsRunning())
-    {
-        // if angle valid
-        if (_dataOpponent_Heuristic.robotAngleValid)
-        {
-            // increment the angle by the delta angle
-            Angle deltaAngle = _dataOpponent_Heuristic.robotAngle - _dataOpponent_Heuristic_prev.robotAngle;
-            _dataOpponent_Heuristic_prev = _dataOpponent_Heuristic;
-            //candidateOpponentDeref.robotAngle = candidateOpponentDeref.robotAngle + deltaAngle;
-        }
-    }
-
-
-
-    _dataOpponent = candidateOpponentDeref;   
 
     if (!trackingMat.empty())
     {
         // put text at top center of the image
-        cv::putText(trackingMat, "Opponent using " + algorithmNameOpponent, cv::Point(trackingMat.cols / 2 - 75, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
         int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
+
         // draw on the tracking mat a square
         cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size), _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255), 2);
 
@@ -384,6 +448,8 @@ void RobotOdometry::FuseAndUpdatePositions()
         // draw a circle for the opponent
         cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
     }
+    
+
 }
 
 /*
@@ -713,10 +779,14 @@ void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool
     }
     else if (alg == OdometryAlg::IMU)
     {
-        _odometry_IMU.SetVelocity(vel, opponent);
+        std::cerr << "ERROR: Cannot set velocity for IMU" << std::endl;
     }
     else if (alg == OdometryAlg::Neural)
     {
         _odometry_Neural.SetVelocity(vel, opponent);
+    }
+    else if (alg == OdometryAlg::NeuralRot)
+    {
+        std::cerr << "ERROR: Cannot set velocity for NeuralRot" << std::endl;
     }
 }

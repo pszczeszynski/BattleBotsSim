@@ -394,7 +394,7 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     data.robotAngleVelocity = 0;
 
     double deltaTime = data.time - oldData.time;
-    if (deltaTime > 0)
+    if ((deltaTime > 0) && (deltaTime < angleVelocityTimeConstant) )
     {
         data.robotAngleVelocity = data.robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + angleVelocityTimeConstant * (data.robotAngle - oldData.robotAngle);
     }
@@ -546,6 +546,27 @@ void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 
     odoData.robotVelocity = newVel;
 }
+
+void HeuristicOdometry::SetAngularVelocity(double newVel, bool opponentRobot)
+{
+    // First lock for all robot tracking and find the robot
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+
+    // Update robot trackers
+    RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+
+    if (tracker != NULL)
+    {
+        // tracker->SetRotation(newAngle);
+    }
+    locktracking.unlock();
+
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+
+    odoData.robotAngleVelocity = newVel;
+}
+
 
 void HeuristicOdometry::SwitchRobots(void)
 {

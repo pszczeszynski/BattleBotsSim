@@ -48,6 +48,11 @@ public:
 
     void Extrapolate(double newtime); // Extrapolates position and anlge into newtime future
     double GetAge(); // returns the age of this data in seconds
+
+    bool IsPointInside(cv::Point2f point)
+    {
+        return (robotPosValid && rect.contains(point));
+    }
 };
 
 // ***********************
@@ -73,6 +78,7 @@ public:
     virtual void ForcePosition(cv::Point2f newPos, bool opponentRobot); // Forces position to be overriden regardless of state 
     virtual void SetVelocity(cv::Point2f newVel, bool opponentRobot);
     virtual void SetAngle(double newAngle, bool opponentRobot);
+    virtual void SetAngularVelocity(double newVel, bool opponentRobot);
 
 protected:
     // If not overriding Start/Stop/IsRunning, then you can tie into this:

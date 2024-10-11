@@ -70,6 +70,9 @@ private:
     // Video source to initialize odometry olgorithms with
     ICameraReceiver& _videoSource;
 
+    // Tunings
+    double _dataAgeThreshold = 0.3; // How old data can be before we consider it invalid
+
     // Some of our odometry algorithms
     BlobDetection _odometry_Blob;
     OdometryData _dataRobot_Blob;
@@ -84,6 +87,7 @@ private:
     OdometryData _dataRobot_Neural;
 
     CVRotation _odometry_NeuralRot;
+    OdometryData _dataRobot_NeuralRot;
 
     HumanPosition _odometry_Human;
     OdometryData _dataRobot_Human;
@@ -93,6 +97,7 @@ private:
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;
+
 
     // Final Data
     std::mutex _updateMutex;    // Mutex for updating core results

@@ -219,6 +219,7 @@ void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot)
     odoData.robotVelocity = newVel;
 }
 
+// Sets angle and zeroes out angular velocity
 void OdometryBase::SetAngle(double newAngle, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -228,4 +229,14 @@ void OdometryBase::SetAngle(double newAngle, bool opponentRobot)
     odoData.robotAngle = Angle(newAngle);
     odoData.robotAngleValid = true;
     odoData.robotAngleVelocity = 0;
+}
+
+
+void OdometryBase::SetAngularVelocity(double newVel, bool opponentRobot)
+{
+    std::unique_lock<std::mutex> locker(_updateMutex);
+
+    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+
+    odoData.robotAngleVelocity = newVel;
 }

@@ -21,6 +21,7 @@ public:
     void SwitchRobots(void) override;                                  // Switches who's who
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
     void SetAngle(double newAngle, bool opponentRobot) override;
+    void SetAngularVelocity(double newnewVel, bool opponentRobot) override;
 
     void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
 

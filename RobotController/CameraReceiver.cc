@@ -114,7 +114,17 @@ bool ICameraReceiver::NewFrameReady(long old_id)
     return _frameID > old_id;
 }
 
+ CameraType ICameraReceiver::GetType()
+ {
+    return CameraType::BASE_CLASS;
+ }
+
 ////////////////////////////////////////// REAL VERSION //////////////////////////////////////////
+
+CameraType CameraReceiver::GetType() 
+ {
+    return CameraType::REAL_CAMERA;
+ }
 
 CameraReceiver::CameraReceiver() : ICameraReceiver()
 {
@@ -380,6 +390,12 @@ CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int 
     _StartCaptureThread();
 }
 
+CameraType CameraReceiverSim::GetType() 
+ {
+    return CameraType::SIM_CAMERA;
+ }
+
+
 bool CameraReceiverSim::_InitializeCamera()
 {
     std::wstring sharedFileNameW(_sharedFileName.begin(), _sharedFileName.end());
@@ -498,6 +514,12 @@ CameraReceiverVideo::CameraReceiverVideo() : ICameraReceiver()
 {
     _StartCaptureThread();
 }
+
+CameraType CameraReceiverVideo::GetType() 
+ {
+    return CameraType::VIDEO_CAMERA;
+ }
+
 
 bool CameraReceiverVideo::_CaptureFrame()
 {
@@ -663,6 +685,11 @@ CameraReceiverUSB::CameraReceiverUSB() : ICameraReceiver()
 {
     _StartCaptureThread();
 }
+
+CameraType CameraReceiverUSB::GetType() 
+ {
+    return CameraType::USB_CAMERA;
+ }
 
 bool CameraReceiverUSB::_InitializeCamera()
 {

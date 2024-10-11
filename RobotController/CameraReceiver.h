@@ -16,12 +16,22 @@
 #include "SpinGenApi/SpinnakerGenApi.h"
 
 
+enum class CameraType
+{
+    BASE_CLASS = 0,
+    SIM_CAMERA,
+    VIDEO_CAMERA,
+    REAL_CAMERA,
+    USB_CAMERA
+};
+
 class ICameraReceiver
 {
 public:
     virtual long GetFrame(cv::Mat &output, long old_id, double* frameTime = NULL, bool blockUntilReady = true);
     virtual bool NewFrameReady(long old_id);
     static ICameraReceiver& GetInstance();
+    virtual CameraType GetType();
 
 protected:
     void _StartCaptureThread();
@@ -46,6 +56,7 @@ class CameraReceiverSim : public ICameraReceiver
 public:
     CameraReceiverSim(std::string fileName, int width = 1280, int height = 720);
     ~CameraReceiverSim();
+    CameraType GetType() override;
 
 private:
     bool _InitializeCamera() override;
@@ -72,6 +83,7 @@ public:
     CameraReceiver();
     ~CameraReceiver();
     void SetCameraGain(float gain);
+    CameraType GetType() override;
 
 private:
     virtual bool _InitializeCamera() override;
@@ -89,6 +101,7 @@ class CameraReceiverUSB : public ICameraReceiver
 public:
     CameraReceiverUSB();
     ~CameraReceiverUSB();
+    CameraType GetType() override;
 
 private:
     virtual bool _InitializeCamera() override;
@@ -101,6 +114,7 @@ class CameraReceiverVideo : public ICameraReceiver
 {
 public:
     CameraReceiverVideo();
+    CameraType GetType() override;
 private:
     cv::VideoCapture _cap;
     virtual bool _InitializeCamera() override;

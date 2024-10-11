@@ -47,23 +47,32 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     _currDataRobot.time = frameTime;
 }
 
-void CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
+bool CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
 {
     // Create an output image of the size of the ROI filled with black
     cropped = cv::Mat(roi.size(), input.type(), cv::Scalar::all(0));
 
-    // Compute the overlapping region between the ROI and the input image
-    cv::Rect validROI(
-        max(roi.x, 0),
-        max(roi.y, 0),
-        min(roi.width - max(0, -roi.x), input.cols - max(roi.x, 0)),
-        min(roi.height - max(0, -roi.y), input.rows - max(roi.y, 0)));
+    // Define the image boundaries
+    cv::Rect image_rect(0, 0, input.cols, input.rows);
 
-    // If there's an overlapping region, copy it to the corresponding location in the cropped image
+    // Compute the overlapping region between the ROI and the input image
+    cv::Rect validROI = roi & image_rect;
+
+    // Check if there's any overlapping region
     if (validROI.area() > 0)
     {
-        input(validROI).copyTo(cropped(cv::Rect(validROI.x - roi.x, validROI.y - roi.y,
-                                                validROI.width, validROI.height)));
+        // Compute the destination ROI in the cropped image
+        cv::Rect destROI(validROI.x - roi.x, validROI.y - roi.y, validROI.width, validROI.height);
+
+        // Copy the overlapping region from the input image to the cropped image
+        input(validROI).copyTo(cropped(destROI));
+
+        return true; // Valid image data exists within the crop
+    }
+    else
+    {
+        // No valid image data within the crop
+        return false;
     }
 }
 
@@ -129,7 +138,14 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     // crop the image, but make sure we don't go out of bounds
     cv::Rect roi(robotPos.x - CROP_SIZE/2, robotPos.y - CROP_SIZE/2, CROP_SIZE, CROP_SIZE);
     cv::Mat croppedImage;
-    _CropImage(fieldImagePreprocessed, croppedImage, roi);
+    bool success = _CropImage(fieldImagePreprocessed, croppedImage, roi);
+
+    if (!success)
+    {
+        clock.markEnd();
+        // if the crop failed, return the last rotation
+        return _lastRotation;
+    }
 
     // flip the image horizontally for another prediction
     cv::Mat croppedImageFlipped;
