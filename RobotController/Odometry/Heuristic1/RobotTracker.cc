@@ -393,7 +393,7 @@ void RobotTracker::InitializeDeratingMat(void)
 void RobotTracker::FindBestBBox(double currTime, std::vector<myRect> &allBBoxes)
 {
     // Clear bestBBox
-    bestBBox = NULL;
+    bestBBox = nullptr;
 
     // Find the best overlap bboundingbox
     predictedBBox = GetExtrapolatedBBOX(currTime);

@@ -290,6 +290,10 @@ void RobotOdometry::FuseAndUpdatePositions()
         heuristicUsAngle_valid = false;
     }
 
+    if( neuralUsPos_valid)
+    {
+        int i = 0;
+    }
     // G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
     if( neuralUsPos_valid && blobUsPos_valid && _dataRobot_Blob.IsPointInside(_dataRobot_Neural.robotPosition))
     {

@@ -179,7 +179,7 @@ public:
 
 
     cv::Rect predictedBBox;
-    myRect *bestBBox;
+    myRect *bestBBox = nullptr;
     void FindBestBBox(double currTime, std::vector<myRect> &allBBoxes); // Finds and saves best bbox
 
     double FindNewPosAndRotUsingMatchTemplate(cv::Mat &currFrame, cv::Mat &foreground, cv::Rect &fgFoundBBox, Vector2 &newRot);

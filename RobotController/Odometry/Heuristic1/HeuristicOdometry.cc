@@ -432,8 +432,10 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         return;
     }
 
-    RobotTracker *&firstbot = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
-    RobotTracker *&secondbot = (opponentRobot) ? ourRobotTracker : opponentRobotTracker;
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+
+    RobotTracker *&firstbot = (opponentRobot) ? opponentRobotTracker : ourRobotTracker; // Guaranteed not to be nullpts
+    RobotTracker *&secondbot = (opponentRobot) ? ourRobotTracker : opponentRobotTracker; // could be nullptr
     
     // Next we have have the following scenario:
     // 1) newPos is inside our robot and our tracker is not combined
@@ -443,8 +445,6 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     //   ->Swap positions and set position on our new swapped foreground
     // 4) Position is outside all of us
     //   -> Locate robots and force position
-
-    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
 
     int scenario = 0;
 
