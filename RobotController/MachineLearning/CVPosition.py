@@ -8,7 +8,7 @@ import cv2
 SHARED_FILE_NAME = 'cv_pos_img'
 SHAPE = (720, 720)
 PORT = 11116
-SCALE_RATIO = 1.0
+SCALE_RATIO = 0.75
 
 def get_mat(name) -> Optional[np.ndarray]:
     """
@@ -80,9 +80,10 @@ def run_inference(model, img: np.ndarray):
         img = np.stack((img, img, img), axis=2)
     
     print("image shape: " + str(img.shape))
+
     
     try:
-        results = model.predict(img)[0]
+        results = model.predict(img, device='cuda')[0]
     except Exception as e:
         print("Error in model.predict: ", e)
         return False, None, None
@@ -104,7 +105,9 @@ def run_inference(model, img: np.ndarray):
 
 def main():
     print("Initializing YOLO model")
-    model = YOLO('train_yolo/model4_orbitron_preprocessed_forks.pt')
+    model = YOLO('train_yolo/model_2.0_faceoffs.pt')
+    model.to('cuda')  # Move model to GPU
+
     print("YOLO model initialized")
 
     while True:
@@ -128,8 +131,56 @@ def main():
         if img is None:
             continue
 
-        result, max_conf, bounding_box = run_inference(model, img)
+        result1, max_conf1, bounding_box1 = run_inference(model, img)
 
+        # flipped_img = cv2.flip(img, 1)
+        # # re-run inference on a horizontal flip
+        # result2, max_conf2, bounding_box2 = run_inference(model, flipped_img)
+        # show the image
+        # cv2.imshow("image", img)
+        # cv2.imshow("flipped", flipped_img)
+        # cv2.waitKey(1)
+
+        result = result1
+        max_conf = max_conf1
+        bounding_box = bounding_box1
+
+        # if result2:
+        #     # flip
+        #     bounding_box2[0] = SHAPE[1] - bounding_box2[0]
+        #     bounding_box2[2] = SHAPE[1] - bounding_box2[2]
+        #     # swap
+        #     bounding_box2[0], bounding_box2[2] = bounding_box2[2], bounding_box2[0]
+
+        # result = None
+        # max_conf = None
+        # bounding_box = None
+        # if result1 and not result2:
+        #     result = result1
+        #     max_conf = max_conf1
+        #     bounding_box = bounding_box1
+        # elif result2 and not result1:
+        #     result = result2
+        #     max_conf = max_conf2
+        #     bounding_box = bounding_box2
+        # elif result1 and result2:
+        #     # average
+        #     result = True
+        #     max_conf = (max_conf1 + max_conf2) / 2
+        #     bounding_box = (bounding_box1 + bounding_box2) / 2
+        
+        # show both predictions
+        img = cv2.resize(img, (0, 0), fx=SCALE_RATIO, fy=SCALE_RATIO)
+        # draw
+        if result1:
+            cv2.rectangle(img, (int(bounding_box1[0]), int(bounding_box1[1])), (int(bounding_box1[0] + bounding_box1[2]), int(bounding_box1[1] + bounding_box1[3])), (0, 255, 0), 2)
+        # if result2:
+        #     cv2.rectangle(img, (int(bounding_box2[0]), int(bounding_box2[1])), (int(bounding_box2[0] + bounding_box2[2]), int(bounding_box2[1] + bounding_box2[3])), (0, 255, 0), 2)
+        
+        # show
+        cv2.imshow("image", img)
+        cv2.waitKey(1)
+        
         # draw the bounding box
 
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
@@ -140,16 +191,8 @@ def main():
                 print("continuing")
                 continue
 
-            # draw circle at bb[0] and bb[1]
-
-            # img = cv2.rectangle(img, (int(bb[0] - bb[2] / 2), int(bb[1] - bb[3] / 2)), (int(bb[0] + bb[2] / 2), int(bb[1] + bb[3] / 2)), (0, 255, 0), 2)
-            # cv2.imshow("Bounding Box", img)
-            # cv2.waitKey(1)
-
-            # print("bb[0]: " + str(bb[0]))
-
-            print("bounding box: ", bounding_box)
             send_results_to_rc(bounding_box, max_conf, frame_id, time_milliseconds)
+            print("bounding box: ", bounding_box)
 
 if __name__ == '__main__':
     main()

@@ -71,7 +71,7 @@ private:
     ICameraReceiver& _videoSource;
 
     // Tunings
-    double _dataAgeThreshold = 0.3; // How old data can be before we consider it invalid
+    const double _dataAgeThreshold = 0.1; // How old data can be before we consider it invalid
 
     // Some of our odometry algorithms
     BlobDetection _odometry_Blob;

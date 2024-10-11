@@ -468,7 +468,7 @@ bool RobotOdometry::IsTrackingGoodQuality()
     bool heuristicValid = _odometry_Heuristic.IsRunning() && _dataRobot_Heuristic.robotPosValid && _dataRobot_Heuristic.GetAge() < 0.3;
     bool blobValid = _odometry_Blob.IsRunning(); // don't include valid, since it might just be stopped
     // the neural is valid if it isn't too old && it's running
-    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && _dataRobot_Neural.GetAge() < 0.3;
+    bool neuralValid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && _dataRobot_Neural.GetAge() < 0.1;
 
     // std::cout << "heuristicValid: " << heuristicValid << std::endl;
     // std::cout << "blobValid: " << blobValid << std::endl;
