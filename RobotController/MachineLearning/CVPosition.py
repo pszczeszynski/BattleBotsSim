@@ -45,7 +45,7 @@ print("Initializing socket")
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 print("Socket initialized")
 
-def send_results_to_rc(bounding_box: np.ndarray, conf: float, frame_id: int, time_milliseconds: int):
+def send_results_to_rc(bounding_box: list, conf: float, frame_id: int, time_milliseconds: int):
     """
     Sends bounding box information to the robot controller via UDP.
 
@@ -56,7 +56,7 @@ def send_results_to_rc(bounding_box: np.ndarray, conf: float, frame_id: int, tim
     - time_milliseconds: the time in milliseconds (extracted from the next 4 pixels)
     """
     # Convert the bounding box numpy array to a list and then to JSON string
-    bounding_box_list: List = bounding_box.tolist()
+    bounding_box_list: List = bounding_box
 
     print("Bounding box: ", bounding_box_list)
     print("Confidence: ", conf)
@@ -133,41 +133,42 @@ def main():
 
         result1, max_conf1, bounding_box1 = run_inference(model, img)
 
-        # flipped_img = cv2.flip(img, 1)
-        # # re-run inference on a horizontal flip
-        # result2, max_conf2, bounding_box2 = run_inference(model, flipped_img)
-        # show the image
-        # cv2.imshow("image", img)
-        # cv2.imshow("flipped", flipped_img)
-        # cv2.waitKey(1)
+        flipped_img = cv2.flip(img, 1)
+        # re-run inference on a horizontal flip
+        result2, max_conf2, bounding_box2 = run_inference(model, flipped_img)
 
-        result = result1
-        max_conf = max_conf1
-        bounding_box = bounding_box1
+        result = None
+        max_conf = None
+        bounding_box = None
+        def flip_boundingbox(bounding_box):
+            # flip
+            bounding_box[0] = SHAPE[1] - bounding_box[0]
+            return bounding_box
 
-        # if result2:
-        #     # flip
-        #     bounding_box2[0] = SHAPE[1] - bounding_box2[0]
-        #     bounding_box2[2] = SHAPE[1] - bounding_box2[2]
-        #     # swap
-        #     bounding_box2[0], bounding_box2[2] = bounding_box2[2], bounding_box2[0]
+        if result1:
+            bounding_box1 = bounding_box1.tolist()
 
-        # result = None
-        # max_conf = None
-        # bounding_box = None
-        # if result1 and not result2:
-        #     result = result1
-        #     max_conf = max_conf1
-        #     bounding_box = bounding_box1
-        # elif result2 and not result1:
-        #     result = result2
-        #     max_conf = max_conf2
-        #     bounding_box = bounding_box2
-        # elif result1 and result2:
-        #     # average
-        #     result = True
-        #     max_conf = (max_conf1 + max_conf2) / 2
-        #     bounding_box = (bounding_box1 + bounding_box2) / 2
+        if result2:
+            bounding_box2 = flip_boundingbox(bounding_box2.tolist())
+
+        result = None
+        max_conf = None
+        bounding_box = None
+        if result1 and not result2:
+            result = result1
+            max_conf = max_conf1
+            bounding_box = bounding_box1
+        elif result2 and not result1:
+            result = result2
+            max_conf = max_conf2
+            bounding_box = bounding_box2
+        elif result1 and result2:
+            # average
+            result = True
+            max_conf = (max_conf1 + max_conf2) / 2
+            # average the 2 lists
+            bounding_box = [(bounding_box1[i] + bounding_box2[i]) / 2 for i in range(4)]
+            
         
         # show both predictions
         img = cv2.resize(img, (0, 0), fx=SCALE_RATIO, fy=SCALE_RATIO)
@@ -184,8 +185,8 @@ def main():
         # draw the bounding box
 
         print("result: ", result, "max_conf: ", max_conf, "bounding_box: ", bounding_box)
-        if result:
-            bb = bounding_box.tolist()
+        if result1:
+            bb = bounding_box
             print("bb: ", bb)
             if (len(bb) < 4):
                 print("continuing")
