@@ -1,7 +1,7 @@
 #include "BlobDetection.h"
 #include "../../UIWidgets/ImageWidget.h"
 #include "../../RobotConfig.h"
-
+#include "../../RobotController.h"
 // Ctor
 BlobDetection::BlobDetection(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
