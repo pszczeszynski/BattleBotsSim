@@ -81,6 +81,25 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
         cv::cvtColor(diff, grayDiff, cv::COLOR_BGRA2GRAY);
     }
 
+    // check if neural valid
+    CVPosition& neuralOdometry = RobotController::GetInstance().odometry.GetNeuralOdometry();
+    OdometryData neuralData = neuralOdometry.GetData();
+    bool blackOutNeural = false;
+
+    if (neuralOdometry.IsRunning() && neuralData.robotPosValid && neuralData.GetAge() < 0.1)
+    {
+        std::vector<int> boundingBox = neuralOdometry.GetBoundingBox();
+        boundingBox[0] -= boundingBox[2] / 2;
+        boundingBox[1] -= boundingBox[3] / 2;
+        blackOutNeural = true;
+        // imshow
+        cv::Rect neuralRect = cv::Rect(boundingBox[0], boundingBox[1], boundingBox[2], boundingBox[3]);
+        cv::rectangle(grayDiff, neuralRect, cv::Scalar(0), -1);
+
+        // cv::imshow("Neural", grayDiff);
+        // cv::waitKey(1);
+    }
+
     // cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY); // Image is already grayscale
 
     // Convert the difference to a binary image with a certain threshold
@@ -161,7 +180,7 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     // Need previous data to be able to predict this data
     // Should we use extrapolated data? In this case maybe not so that we dont compound a bad reading?
     locker.lock();
-    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent);
+    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent, blackOutNeural);
 }
 
 #ifdef SIMULATION

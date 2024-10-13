@@ -62,7 +62,7 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs, cv::Point2f p
  * @param frame the latest frame from the camera
  * @param motionImage a frame with only the motion as white pixels
  */
-VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData)
+VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut)
 {
     VisionClassification classificationResult;
 
@@ -73,55 +73,28 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
 
     double matchingDistThresholdRobot = MATCHING_DIST_THRESHOLD;
     double matchingDistThresholdOpponent = MATCHING_DIST_THRESHOLD;
-
-    CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
-
-    // check if the neural network has a new position
-    if (cvPosition.IsRunning() && cvPosition.NewDataValid(lastNeuralID) && cvPosition.GetData().GetAge() < 0.3)
+    if (neuralBlackedOut)
     {
-        lastNeuralID = cvPosition.GetData().id;
+        CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
 
         // get the latest position from the neural network
-        cv::Point2f neuralPosition = cvPosition.GetData().robotPosition;
+        cv::Point2f neuralPosition = cvPosition.GetData(false).robotPosition;
+
+        MotionBlob neuralBlob;
+        neuralBlob.center = neuralPosition;
+        neuralBlob.rect = cv::Rect(neuralPosition.x - 10, neuralPosition.y - 10, 20, 20);
+        neuralBlob.frame = &frame;
+        neuralBlob.rotation = 0;
+
+        // classify the neural blob
+        classificationResult.SetRobot(neuralBlob);
 
         if (blobs.size() > 0)
         {
-            // find closest blob to the neural position
-            MotionBlob closest = GetClosestBlobAndRemove(blobs, neuralPosition);
+            // find the closest blob to the last opponent
+            MotionBlob closestBlob = GetClosestBlobAndRemove(blobs, opponentData.robotPosition);
 
-            // if the closest blob is close enough to the neural position
-            if (cv::norm(closest.center - neuralPosition) < matchingDistThresholdRobot)
-            {
-                // set robot
-                classificationResult.SetRobot(closest);
-                noRobotClock.markStart();
-            }
-        }
-
-        // remove any blob within the matching threshold of the neural position
-        for (int i = 0; i < blobs.size(); i++)
-        {
-            if (cv::norm(blobs[i].center - neuralPosition) < matchingDistThresholdRobot)
-            {
-                blobs.erase(blobs.begin() + i);
-                i--;
-            }
-        }
-
-        if (blobs.size() > 0)
-        {
-            // find the closest blob to the opponent
-            MotionBlob closest = GetClosestBlobAndRemove(blobs, opponentData.robotPosition);
-
-            // if close to the opponent
-            if (cv::norm(closest.center - opponentData.robotPosition) < matchingDistThresholdOpponent && 
-                // and far from us
-                cv::norm(closest.center - robotData.robotPosition) > matchingDistThresholdRobot)
-            {
-                // set opponent
-                classificationResult.SetOpponent(closest);
-                noOpponentClock.markStart(); 
-            }
+            classificationResult.SetOpponent(closestBlob);
         }
 
         return classificationResult;
