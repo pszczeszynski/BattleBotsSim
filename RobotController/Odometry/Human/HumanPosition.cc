@@ -11,6 +11,7 @@ HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoS
     _socket = new ServerSocket("11118");
 }
 
+const int NUMBER_OF_FIELDS = 7;
 std::vector<int> HumanPosition::_GetDataFromSocket()
 {
     std::vector<int> data = {};
@@ -18,6 +19,7 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
     int error = 0;
     // Receive 12 bytes from the socket
     std::string data_str = _socket->receive(&error);
+    
 
     if (error != 0)
     {
@@ -26,15 +28,15 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
         _socket = new ServerSocket("11118");
     }
 
-    int mode = *(int*)data_str.c_str();
-    int x = *(int*)(data_str.c_str() + 4);
-    int y = *(int*)(data_str.c_str() + 8);
-
-    if (x != 0 && y != 0)
+    if (data_str.size() != NUMBER_OF_FIELDS * 4)
     {
-        data.push_back(mode);
-        data.push_back(x);
-        data.push_back(y);
+        return data;
+    }
+
+    // parse the 7 values to an int
+    for (int i = 0; i < NUMBER_OF_FIELDS; i ++)
+    {
+        data.push_back(*(int*)(data_str.c_str() + i * 4));
     }
 
     return data;
@@ -97,22 +99,33 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     std::vector<int> data = _GetDataFromSocket();
 
-    if (data.size() == 3)
+    if (data.size() == NUMBER_OF_FIELDS)
     {
-        cv::Point2f clickPosition(data[1], data[2]);
-        clickPosition *= 2; // since image is scaled down by 2
         DataType type = (DataType)data[0];
+        cv::Point2f clickPosition(data[1], data[2]);
+        clickPosition *= 2; // since image is scaled down by 2  
+
+        const int foreground_min_delta = data[3];
+        const int background_heal_rate = data[4];
+        const int force_pos_bool = data[5];
+        const int force_heal_value = data[6];
 
         if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
         {
             return;
         }
 
+
+        std::cout << "foreground_min_delta: " << foreground_min_delta << std::endl;
+        std::cout << "background_heal_rate: " << background_heal_rate << std::endl;
+        std::cout << "force_pos_bool: " << force_pos_bool << std::endl;
+        std::cout << "force_heal_value: " << force_heal_value << std::endl;
+        
+
         std::cout << "Received data: " << data[0] << " " << data[1] << " " << data[2] << std::endl;
 
         if (type == DataType::ROBOT_POSITION)
         {
-            // _UpdateData(true, frameTime, &clickPosition, nullptr);
             RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, false);
             RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, false);
 

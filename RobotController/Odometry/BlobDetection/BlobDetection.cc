@@ -184,7 +184,7 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
 }
 
 #ifdef SIMULATION
-#define HARDCODE_SIM
+// #define HARDCODE_SIM
 #endif
 
 void BlobDetection::UpdateData(VisionClassification robotBlobData, double timestamp)
