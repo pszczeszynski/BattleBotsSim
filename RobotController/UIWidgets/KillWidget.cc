@@ -21,7 +21,7 @@ void KillWidget::Draw()
     ImGui::Begin("Kill Config");
     ImGui::Button("Kill");
     _buttonPressed = ImGui::IsItemActive();
-    ImGui::SliderInt("Angle Extrapolate (ms)", &KILL_ANGLE_EXTRAPOLATE_MS, 0, 1000);
+    ImGui::SliderInt("Angle Extrapolate (ms)", &KILL_KD_PERCENT, 0, 1000);
     ImGui::End();
 }
 

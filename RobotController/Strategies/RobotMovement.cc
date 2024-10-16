@@ -103,7 +103,7 @@ void DrawDeltaAngleGraphic(double value)
  */
 DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
                                               cv::Point2f targetPos,
-                                              int ANGLE_EXTRAPOLATE_MS,
+                                              unsigned short KD_PERCENT,
                                               int TURN_THRESH_1_DEG,
                                               int TURN_THRESH_2_DEG,
                                               int MAX_TURN_POWER_PERCENT,
@@ -111,6 +111,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
                                               int SCALE_DOWN_MOVEMENT_PERCENT,
                                               DriveDirection direction)
 {
+
     double angleToTarget = atan2(targetPos.y - currPos.y, targetPos.x - currPos.x);
 
     // add 180 if driving backwards
@@ -119,6 +120,17 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
         angleToTarget = angle_wrap(angleToTarget + M_PI);
     }
 
+    ////////// compute angular velocity of the target ////////////
+    static double lastAngleToTarget = 0;
+    static Clock lastCallClock;
+    double deltaTargetAngle = angle_wrap(angleToTarget - lastAngleToTarget) /
+                              lastCallClock.getElapsedTime();
+    double angleToTargetVel = angle_wrap(angleToTarget - lastAngleToTarget) / lastCallClock.getElapsedTime();
+    if (lastCallClock.getElapsedTime() > 0.2) { angleToTargetVel = 0; }
+    lastAngleToTarget = angleToTarget;
+    lastCallClock.markStart();
+    //////////////////////////////////////////////////////////////
+
     // shift the angle to be in the teensy's frame of reference
     float angleToTargetForTeensy = angle_wrap(angleToTarget + RobotController::GetInstance().odometry.GetIMUOffset());
 
@@ -126,7 +138,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     response.type = AUTO_DRIVE;
     response.autoDrive.movement = RobotController::GetInstance().gamepad.GetRightStickY();
     response.autoDrive.targetAngle = angleToTargetForTeensy;
-    response.autoDrive.ANGLE_EXTRAPOLATE_MS = ANGLE_EXTRAPOLATE_MS;
+    response.autoDrive.KD_PERCENT = KD_PERCENT;
     response.autoDrive.TURN_THRESH_1_DEG = TURN_THRESH_1_DEG;
     response.autoDrive.TURN_THRESH_2_DEG = TURN_THRESH_2_DEG;
     response.autoDrive.MAX_TURN_POWER_PERCENT = MAX_TURN_POWER_PERCENT;
@@ -134,7 +146,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     response.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT = SCALE_DOWN_MOVEMENT_PERCENT;
     float currAngle = RobotController::GetInstance().odometry.Robot().robotAngle;
     float angleVelocity = RobotController::GetInstance().odometry.Robot().robotAngleVelocity;
-    DrawDeltaAngleGraphic(angle_wrap(angleToTarget - (currAngle + angleVelocity * (ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0))));
+    DrawDeltaAngleGraphic(angle_wrap(angleToTarget - currAngle + angleVelocity));
 
     return response;
 }

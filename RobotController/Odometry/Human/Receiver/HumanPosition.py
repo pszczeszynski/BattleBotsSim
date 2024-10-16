@@ -2,9 +2,14 @@ from enum import Enum
 import socket
 import cv2
 import numpy as np
+import threading
+from PIL import Image, ImageTk
+import tkinter as tk
+from tkinter import ttk
+from tkinter import HORIZONTAL
 
 # Server configuration
-HOST = '10.13.37.102'
+HOST = 'localhost'
 PORT = 11118
 
 POSITION = 0
@@ -24,12 +29,40 @@ class LastClickData:
         self.position_clicked: tuple[int, int] = position_clicked
         self.data_type: int = data_type
 
-# Function to draw an 'X' at a given position
-def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
-    x, y = center
-    x, y = int(x), int(y)
-    cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
-    cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
+
+# Function to send data to robot controller
+def send_data_to_robot_controller():
+    """
+    Send the last click data and UI state to the robot controller.
+
+    Data order:
+    1. Data type (4 bytes)
+    2. X position (4 bytes)
+    3. Y position (4 bytes)
+    4. Foreground min delta (4 bytes)
+    5. Background heal rate (4 bytes)
+    6. Force Pos on click (4 bytes)
+    7. Force Heal (4 bytes)
+    """
+    # Collect UI state
+    foreground_min_delta_value = int(foreground_min_delta_slider.get())
+    background_heal_rate_value = int(background_heal_rate_slider.get())
+    force_pos_value = int(force_pos_var.get())
+    force_heal_value = int(force_heal_var.get())
+
+    # Prepare data to send
+    # For example, pack the data into bytes
+    data = last_click.data_type.to_bytes(4, byteorder='little') + \
+           int(last_click.position_clicked[0] / 2).to_bytes(4, byteorder='little') + \
+           int(last_click.position_clicked[1] / 2).to_bytes(4, byteorder='little') + \
+           foreground_min_delta_value.to_bytes(4, byteorder='little') + \
+           background_heal_rate_value.to_bytes(4, byteorder='little') + \
+           force_pos_value.to_bytes(4, byteorder='little') + \
+           force_heal_value.to_bytes(4, byteorder='little')
+
+    print("sending click data: ", last_click.data_type, last_click.position_clicked)
+    client_socket.sendto(data, (HOST, PORT))
+
 
 robotPosX = 0
 robotPosY = 0
@@ -39,55 +72,178 @@ opponentAngleDeg = 0
 
 last_click = LastClickData((0, 0), POSITION)
 
-# Callback on mouse events
-def mouse_callback(event, x, y, flags, param):
-    global last_click
-
-    total_width = 2 * WINDOW_IMAGE_SIZE
-    if x < 0 or x > total_width or y < 0 or y > WINDOW_IMAGE_SIZE:
-        return
-
-    # Determine if the click is on the left or right image
-    if x < WINDOW_IMAGE_SIZE:
-        # Left image (cropped over opponent) - handle rotation on mouse hover
-        if event == cv2.EVENT_MOUSEMOVE:
-            last_click.data_type = OPPONENT_ROTATION
-            last_click.position_clicked = (x, y)
-    else:
-        # Right image (full field) - handle position clicks
-        x_adjusted = x - WINDOW_IMAGE_SIZE
-        if event == cv2.EVENT_LBUTTONDOWN:
-            # Left click sets the robot's position
-            last_click.position_clicked = (x_adjusted, y)
-            last_click.data_type = POSITION
-        elif event == cv2.EVENT_RBUTTONDOWN:
-            # Right click sets the opponent's position
-            last_click.position_clicked = (x_adjusted, y)
-            last_click.data_type = OPPONENT_POSITION
-
 # Create a UDP socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 print("UDP socket created.")
-
-# Set up the window and callback
-cv2.namedWindow("Streaming Image", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("Streaming Image", 2 * WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE)
-cv2.setMouseCallback("Streaming Image", mouse_callback)
-
-def send_data_to_robot_controller():
-    """
-    Send the last click data to the robot controller.
-    """
-    data = last_click.data_type.to_bytes(4, byteorder='little') + \
-           int(last_click.position_clicked[0] / 2).to_bytes(4, byteorder='little') + \
-           int(last_click.position_clicked[1] / 2).to_bytes(4, byteorder='little')
-    client_socket.sendto(data, (HOST, PORT))
 
 # Send a test message
 client_socket.sendto(b'Hello', (HOST, PORT))
 print("Test message sent.")
 
-try:
+# Create the main GUI window
+root = tk.Tk()
+root.title("Streaming Image with Custom UI")
+
+# Main panel
+main_panel = tk.Frame(root)
+main_panel.grid(row=0, column=0)
+
+# Create a placeholder for the OpenCV image
+image_label = tk.Label(main_panel)
+image_label.grid(row=0, column=0)
+
+# Side panel
+side_panel = tk.Frame(root)
+side_panel.grid(row=0, column=1, padx=10, pady=10)
+
+# Auto L and Auto R buttons
+auto_l_button = tk.Button(side_panel, text="Auto L", bg="lightblue", width=10)
+auto_r_button = tk.Button(side_panel, text="Auto R", bg="red", width=10)
+auto_l_button.grid(row=0, column=0, padx=5, pady=5)
+auto_r_button.grid(row=0, column=1, padx=5, pady=5)
+
+# Sliders with values displayed
+foreground_label = tk.Label(side_panel, text="Foreground min delta:")
+foreground_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+
+foreground_min_delta_label = tk.Label(side_panel, text="0")
+foreground_min_delta_label.grid(row=2, column=0, sticky="w", padx=5)
+foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
+foreground_min_delta_slider.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+max_foreground_min_delta_label = tk.Label(side_panel, text="100")
+max_foreground_min_delta_label.grid(row=2, column=1, sticky="e", padx=5)
+
+background_label = tk.Label(side_panel, text="Background Heal Rate:")
+background_label.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+background_min_label = tk.Label(side_panel, text="0")
+background_min_label.grid(row=4, column=0, sticky="w", padx=5)
+background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
+background_heal_rate_slider.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+
+max_background_heal_rate_label = tk.Label(side_panel, text="100")
+max_background_heal_rate_label.grid(row=4, column=1, sticky="e", padx=5)
+
+# Checkboxes
+force_pos_var = tk.IntVar()
+force_pos_checkbox = tk.Checkbutton(side_panel, text="Force Pos on click?", variable=force_pos_var)
+force_pos_checkbox.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+
+# Add space before the emergency section
+side_panel.grid_rowconfigure(6, minsize=50)
+
+# Emergency section
+emergency_label = tk.Label(side_panel, text="-------- Emergency --------", font=("Arial", 10, "bold"))
+emergency_label.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+force_heal_var = tk.IntVar()
+force_heal_checkbox = tk.Checkbutton(side_panel, text="Force Heal?", variable=force_heal_var)
+force_heal_checkbox.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+
+# Emergency buttons
+reboot_button = tk.Button(side_panel, text="Reboot recovery sequence", bg="orange", width=25)
+hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25)
+reboot_button.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
+hard_reboot_button.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
+
+# Placeholder for the image to prevent garbage collection
+tk_image = None
+
+# Variables to store the latest image and lock
+latest_image = None
+image_lock = threading.Lock()
+
+# Function to update the image in the GUI
+def update_image():
+    global tk_image
+
+    with image_lock:
+        if latest_image is not None:
+            # Convert the image from BGR to RGB
+            combined_image_rgb = cv2.cvtColor(latest_image, cv2.COLOR_BGR2RGB)
+
+            # Convert the image to PIL Image
+            pil_image = Image.fromarray(combined_image_rgb)
+
+            # Convert the PIL Image to a PhotoImage
+            tk_image = ImageTk.PhotoImage(image=pil_image)
+
+            # Update the image_label
+            image_label.config(image=tk_image)
+            image_label.image = tk_image  # Keep a reference
+
+    # Schedule the next update
+    root.after(20, update_image)
+
+# Mouse event handlers
+def on_left_click(event):
+    global last_click
+
+    x = event.x
+    y = event.y
+
+    total_width = combined_image.shape[1]  # Assuming combined_image is available
+    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+        return
+
+    if x < WINDOW_IMAGE_SIZE:
+        # Left image (cropped over opponent)
+        pass  # Left clicks on left image are ignored
+    else:
+        # Right image (full field)
+        x_adjusted = x - WINDOW_IMAGE_SIZE
+        print("Shifted from: ", x, " to: ", x_adjusted)
+
+        last_click.position_clicked = (x_adjusted, y)
+        last_click.data_type = POSITION
+
+def on_right_click(event):
+    global last_click
+
+    x = event.x
+    y = event.y
+
+    total_width = combined_image.shape[1]  # Assuming combined_image is available
+    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+        return
+
+    if x < WINDOW_IMAGE_SIZE:
+        # Right clicks on left image are ignored
+        pass
+    else:
+        # Right image (full field)
+        x_adjusted = x - WINDOW_IMAGE_SIZE
+        print("Shifted from: ", x, " to: ", x_adjusted)
+        last_click.position_clicked = (x_adjusted, y)
+        last_click.data_type = OPPONENT_POSITION
+
+def on_mouse_move(event):
+    global last_click
+
+    x = event.x
+    y = event.y
+
+    total_width = combined_image.shape[1]  # Assuming combined_image is available
+    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+        return
+
+    if x < WINDOW_IMAGE_SIZE:
+        # Left image (cropped over opponent)
+        last_click.data_type = OPPONENT_ROTATION
+        last_click.position_clicked = (x, y)
+    else:
+        # Right image (full field)
+        pass
+
+# Bind the mouse events
+image_label.bind("<Button-1>", on_left_click)
+image_label.bind("<Button-3>", on_right_click)
+image_label.bind("<Motion>", on_mouse_move)
+
+# Thread to receive data from the server
+def receive_thread():
+    global robotPosX, robotPosY, opponentPosX, opponentPosY, opponentAngleDeg, latest_image, combined_image
+
     while True:
         # Receive data from the server
         try:
@@ -224,6 +380,13 @@ try:
             # Draw 'X' on the right image
             x_draw = int(last_click.position_clicked[0])
             y_draw = int(last_click.position_clicked[1])
+
+            def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
+                x, y = center
+                x, y = int(x), int(y)
+                cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
+                cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
+
             draw_x(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw), color=(0, 0, 255), size=20, thickness=2)
         elif last_click.data_type == OPPONENT_POSITION:
             # Draw circle on the right image
@@ -241,12 +404,18 @@ try:
 
         send_data_to_robot_controller()
 
-        # Display the combined image
-        cv2.imshow("Streaming Image", combined_image)
-        cv2.waitKey(1)
+        # Update the latest_image
+        with image_lock:
+            latest_image = combined_image.copy()
 
-except KeyboardInterrupt:
-    # Close the socket
-    client_socket.close()
-    # Close OpenCV window
-    cv2.destroyAllWindows()
+# Start the receive thread
+threading.Thread(target=receive_thread, daemon=True).start()
+
+# Start the image update loop
+update_image()
+
+# Start the Tkinter main loop
+root.mainloop()
+
+# Close the socket when the window is closed
+client_socket.close()

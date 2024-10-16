@@ -481,7 +481,7 @@ DriverStationMessage RobotController::ManualMode()
 
         ret = RobotMovement::HoldAngle(currPoint,
                                        lookAtPoint,
-                                       KILL_ANGLE_EXTRAPOLATE_MS,
+                                       KILL_KD_PERCENT,
                                        TURN_THRESH_1_DEG_KILL,
                                        TURN_THRESH_2_DEG_KILL,
                                        MAX_TURN_POWER_PERCENT_KILL,
@@ -599,8 +599,9 @@ DriverStationMessage RobotController::RobotLogic()
     if (ret.type == AUTO_DRIVE)
     {
         ret.autoDrive.movement = manual.driveCommand.movement;
-        ret.autoDrive.frontWeaponPower = manual.driveCommand.frontWeaponPower;
-        ret.autoDrive.backWeaponPower = manual.driveCommand.backWeaponPower;
+        // convert weapon powers 
+        ret.autoDrive.frontWeaponPowerPercent = (unsigned int) (manual.driveCommand.frontWeaponPower * 100.0);
+        ret.autoDrive.backWeaponPowerPercent = (unsigned int) (manual.driveCommand.backWeaponPower * 100.0);
     }
 
     // return the response
@@ -676,8 +677,8 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
             autoDrive.invertTurn = true;
         }
 
-        autoDrive.backWeaponPower *= MAX_BACK_WEAPON_SPEED;
-        autoDrive.frontWeaponPower *= MAX_FRONT_WEAPON_SPEED;
+        autoDrive.backWeaponPowerPercent *= MAX_BACK_WEAPON_SPEED;
+        autoDrive.frontWeaponPowerPercent *= MAX_FRONT_WEAPON_SPEED;
     }
 }
 

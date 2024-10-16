@@ -191,15 +191,16 @@ struct AutoDrive
 {
     float movement;
     float targetAngle; // SHOULD BE ADJUSTED FOR THIS TEENSY (is not a global angle)
-    short ANGLE_EXTRAPOLATE_MS;
+    float targetAngleVelocity; // velocity of the target angle in rad / s. Needed to compute the D term in the PID
+    unsigned short KD_PERCENT; // d term * 100
     short TURN_THRESH_1_DEG;
     short TURN_THRESH_2_DEG;
-    short MAX_TURN_POWER_PERCENT;
-    short MIN_TURN_POWER_PERCENT;
-    short SCALE_DOWN_MOVEMENT_PERCENT;
+    unsigned char MAX_TURN_POWER_PERCENT;
+    unsigned char MIN_TURN_POWER_PERCENT;
+    unsigned char SCALE_DOWN_MOVEMENT_PERCENT;
     bool invertTurn;
-    short frontWeaponPower;
-    short backWeaponPower;
+    unsigned char frontWeaponPowerPercent;
+    unsigned char backWeaponPowerPercent;
 };
 
 // driver station -> robot

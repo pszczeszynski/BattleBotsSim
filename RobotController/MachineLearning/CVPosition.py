@@ -75,7 +75,6 @@ def main():
     print("Initializing YOLO model")
     model = YOLO('train_yolo/model_2.0_faceoffs.pt')
     model.to('cuda')  # Move model to GPU
-    # Uncomment the following line if your GPU supports half-precision
     model.half()  # Use half-precision
 
     print("YOLO model initialized")

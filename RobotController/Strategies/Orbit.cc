@@ -602,7 +602,7 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
     DriverStationMessage response = RobotMovement::HoldAngle(exState.position, targetPoint,
-                                                             ORBIT_ANGLE_EXTRAPOLATE_MS,
+                                                             ORBIT_KD_PERCENT,
                                                              TURN_THRESH_1_DEG_ORBIT, TURN_THRESH_2_DEG_ORBIT,
                                                              MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT,
                                                              SCALE_DOWN_MOVEMENT_PERCENT_ORBIT,

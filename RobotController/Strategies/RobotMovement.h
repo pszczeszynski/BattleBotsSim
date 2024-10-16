@@ -13,7 +13,7 @@ namespace RobotMovement
 
     DriverStationMessage HoldAngle(cv::Point2f currPos,
                                    cv::Point2f targetPos,
-                                   int ANGLE_EXTRAPOLATE_MS,
+                                   unsigned short KD_PERCENT,
                                    int TURN_THRESH_1_DEG,
                                    int TURN_THRESH_2_DEG,
                                    int MAX_TURN_POWER_PERCENT,

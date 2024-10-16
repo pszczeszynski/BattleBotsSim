@@ -36,7 +36,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     // hold angle to the opponent
     DriverStationMessage ret = RobotMovement::HoldAngle(ourData.robotPosition,
                                                         opponentData.robotPosition,
-                                                        KILL_ANGLE_EXTRAPOLATE_MS,
+                                                        KILL_KD_PERCENT,
                                                         TURN_THRESH_1_DEG_KILL,
                                                         TURN_THRESH_2_DEG_KILL,
                                                         MAX_TURN_POWER_PERCENT_KILL,

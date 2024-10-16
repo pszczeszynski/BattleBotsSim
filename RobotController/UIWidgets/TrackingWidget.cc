@@ -387,7 +387,6 @@ void TrackingWidget::_DrawAlgorithmData()
     double opponentAngle = odometry.Opponent().robotAngle;
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
     cv::arrowedLine(_trackingMat, opponentPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
-
 }
 
 cv::Mat& TrackingWidget::GetTrackingMat()
