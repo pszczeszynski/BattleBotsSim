@@ -208,14 +208,9 @@ double DoubleThreshToTarget(double error,
     double distance = std::abs(error);
     double ret = 0;
 
-    if (distance >= threshold1)
+    if (distance > threshold2)
     {
-        // Move towards the target with full power
-        ret = maxPower;
-    }
-    else if (distance < threshold1 && distance > threshold2)
-    {
-        // Scale linearly from maxPower to minPower
+        // Scale linearly from maxPower to minPower, but even may exceed maxPower
         ret = ((distance - threshold2) / (threshold1 - threshold2)) * (maxPower - minPower) + minPower;
     }
     else

@@ -24,14 +24,9 @@ double DoubleThreshToTarget(double error,
     double distance = std::abs(error);
     double ret = 0;
 
-    if (distance >= threshold1)
+    if (distance > threshold2)
     {
-        // Move towards the target with full power
-        ret = maxPower;
-    }
-    else if (distance < threshold1 && distance > threshold2)
-    {
-        // Scale linearly from maxPower to minPower
+        // Scale linearly from maxPower to minPower, but even may exceed maxPower
         ret = ((distance - threshold2) / (threshold1 - threshold2)) * (maxPower - minPower) + minPower;
     }
     else
@@ -104,6 +99,8 @@ DriveCommand DriveToAngle(double currAngle,
 
     double deltaAngleVel = targetAngleVelocity - angularVelocity;
     ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
+    // clip turn
+    ret.turn = std::max(-1.0f, std::min(1.0f, ret.turn));
 
     // Slow down when far away from the target angle
     double drive_scale = std::max(0.0, 1.0 - abs(ret.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * (SCALE_DOWN_MOVEMENT_PERCENT / 100.0));
