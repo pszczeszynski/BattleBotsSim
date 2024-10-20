@@ -183,8 +183,12 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     float avgAngle = InterpolateAngles(Angle(rotation1), Angle(rotation2), 0.5);
 
 
+
+    
+    // the guiding Angle is either our last rotation or the imu. This is used to decide the +- 180 degree ambiguity
+    double guidingAngle = RobotController::GetInstance().odometry.Robot().robotAngle;
     // add 180 if closer to last rotation since the robot is symmetrical
-    if (abs(angle_wrap(avgAngle - _lastRotation)) > M_PI / 2)
+    if (abs(angle_wrap(avgAngle - guidingAngle)) > M_PI / 2)
     {
         avgAngle = angle_wrap(avgAngle + M_PI);
     }

@@ -803,6 +803,11 @@ BlobDetection &RobotOdometry::GetBlobOdometry()
     return _odometry_Blob;
 }
 
+CVRotation &RobotOdometry::GetNeuralRotOdometry()
+{
+    return _odometry_NeuralRot;
+}
+
 
 
 /**

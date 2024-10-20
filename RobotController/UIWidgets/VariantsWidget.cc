@@ -183,5 +183,16 @@ void VariantsWidget::Draw()
     ImGui::PopStyleColor();
 
 
+
+    // neural rotation
+    ImGui::Spacing();
+    CenterText("Neural Rotation Fusion");
+
+    // ANGLE_FUSE_CONF_THRESH
+    ImGui::SliderFloat("Confidence Thresh", &ANGLE_FUSE_CONF_THRESH, 0.0f, 1.0f);
+    // ANGLE_FUSE_SPEED
+    ImGui::SliderFloat("Fuse Speed", &ANGLE_FUSE_SPEED, 0.0f, 10.0f);
+
+
     ImGui::End();
 }

@@ -4,6 +4,8 @@
 #include <algorithm>
 #include "../MathUtils.h"
 
+#include "../UIWidgets/GraphWidget.h"
+
 #define M_PI 3.14159265358979323846
 #define TO_RAD (M_PI / 180.0)
 
@@ -32,6 +34,9 @@ DriveCommand DriveToAngle(double currAngle,
                           short MIN_TURN_POWER_PERCENT,
                           short SCALE_DOWN_MOVEMENT_PERCENT)
 {
+    static GraphWidget derivativeWidget("Derivative of Angle Error", -10, 10, "rad/s");
+    static GraphWidget targetAngleWidget("Target Angle Vel", -10, 10, "rad/s");
+    static GraphWidget robotAngleWidget("Angle Vel", -10, 10, "rad/s");
     // Calculate the angle to the target
     double deltaAngleRad = angle_wrap(targetAngle - currAngle);
 
@@ -42,7 +47,11 @@ DriveCommand DriveToAngle(double currAngle,
                                     MIN_TURN_POWER_PERCENT / 100.0,
                                     MAX_TURN_POWER_PERCENT / 100.0);
 
+    // deriviative of error
     double deltaAngleVel = targetAngleVelocity - angularVelocity;
+    derivativeWidget.AddData(deltaAngleVel);
+    targetAngleWidget.AddData(targetAngleVelocity);
+    robotAngleWidget.AddData(angularVelocity);
     ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
     // clip turn
     ret.turn = std::max(-1.0f, std::min(1.0f, ret.turn));

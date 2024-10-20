@@ -10,9 +10,8 @@ class OdometryIMU : public OdometryBase
 public:
     OdometryIMU();
     void SetAngle(double newAngle, bool opponentRobot) override;
-    void SwitchRobots(void) override{}; // Dont do anything for SwitchRobots
 
-    bool Run(void) override; // Starts the thread(s) to decode data. Returns true if succesful
+    bool Run() override; // Starts the thread(s) to decode data. Returns true if succesful
 
     float GetOffset();
 

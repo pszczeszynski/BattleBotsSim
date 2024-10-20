@@ -97,6 +97,8 @@ extern float HEU_LEFTSTART_Y;
 extern float HEU_RIGHTSTART_X;
 extern float HEU_RIGHTSTART_Y;
 extern float NN_MIN_CONFIDENCE;
+extern float ANGLE_FUSE_CONF_THRESH;
+extern float ANGLE_FUSE_SPEED;
 extern float CAMERA_GAIN;
 extern std::string IMAGE_REF_INTENSITY;
 extern std::string IMAGE_START_BACKGROUND;

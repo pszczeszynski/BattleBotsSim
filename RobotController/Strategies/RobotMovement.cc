@@ -126,10 +126,17 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
 
     ////////// compute angular velocity of the target ////////////
     static double lastAngleToTarget = 0;
+    static double lastAngleToTargetVel = 0;
     static Clock lastCallClock;
     double deltaTargetAngle = angle_wrap(angleToTarget - lastAngleToTarget) /
                               lastCallClock.getElapsedTime();
+
     double angleToTargetVel = angle_wrap(angleToTarget - lastAngleToTarget) / lastCallClock.getElapsedTime();
+    // low pass filter the velocity
+    double interpolateAmount = lastCallClock.getElapsedTime() / 0.03; // 30 ms RC time constant
+    angleToTargetVel = lastAngleToTargetVel * (1.0 - interpolateAmount) + angleToTargetVel * interpolateAmount;
+
+    lastAngleToTargetVel = angleToTargetVel;
     if (lastCallClock.getElapsedTime() > 0.2) { angleToTargetVel = 0; }
     lastAngleToTarget = angleToTarget;
     lastCallClock.markStart();
@@ -142,6 +149,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     response.type = AUTO_DRIVE;
     response.autoDrive.movement = RobotController::GetInstance().gamepad.GetRightStickY();
     response.autoDrive.targetAngle = angleToTargetForTeensy;
+    response.autoDrive.targetAngleVelocity = angleToTargetVel;
     response.autoDrive.KD_PERCENT = KD_PERCENT;
     response.autoDrive.TURN_THRESH_1_DEG = TURN_THRESH_1_DEG;
     response.autoDrive.TURN_THRESH_2_DEG = TURN_THRESH_2_DEG;

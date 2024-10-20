@@ -64,6 +64,7 @@ public:
     HeuristicOdometry& GetHeuristicOdometry();
     CVPosition& GetNeuralOdometry();
     BlobDetection& GetBlobOdometry();
+    CVRotation& GetNeuralRotOdometry();
     void _AdjustAngleWithArrowKeys();
 
 private:

@@ -2,6 +2,8 @@
 #include "../../UIWidgets/ImageWidget.h"
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
+#include "../../RobotOdometry.h"
+#include "../../CVRotation.h"
 
 OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0)
 {
@@ -9,7 +11,7 @@ OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0)
 
 // Start the thread
 // Returns false if already running
-bool OdometryIMU::Run(void)
+bool OdometryIMU::Run()
 {
     if (_running)
     {
@@ -60,8 +62,15 @@ float OdometryIMU::GetOffset()
 
 void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 {
+    CVRotation& cvRotation = RobotController::GetInstance().odometry.GetNeuralRotOdometry();
+    OdometryData cvRotData = cvRotation.GetData(false);
+    cvRotData.Extrapolate(timestamp);
+    double neuralRotConfidence = cvRotation.GetLastConfidence();
+
     // Get unique access
     std::unique_lock<std::mutex> locker(_updateMutex);
+
+    double deltaTime = timestamp - _currDataRobot.time;
 
     _currDataRobot.id++;                // Increment frame id
     _currDataRobot.time = timestamp;    // Set to new time
@@ -85,6 +94,14 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 
     // increment the robot angle
     _currDataRobot.robotAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
+
+    // fuse towards the neural rotation if confidence is high
+    if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH)
+    {
+        double interpolateAmount = std::min(1.0, deltaTime * ANGLE_FUSE_SPEED);
+        _currDataRobot.robotAngle = InterpolateAngles(_currDataRobot.robotAngle, cvRotData.robotAngle, interpolateAmount);
+    }
+
     _currDataRobot.robotAngleVelocity = imuData.rotationVelocity;
 
     _lastImuAngle = imuData.rotation;
