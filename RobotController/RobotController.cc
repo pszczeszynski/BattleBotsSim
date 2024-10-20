@@ -600,8 +600,10 @@ DriverStationMessage RobotController::RobotLogic()
     {
         ret.autoDrive.movement = manual.driveCommand.movement;
         // convert weapon powers 
-        ret.autoDrive.frontWeaponPowerPercent = (unsigned int) (manual.driveCommand.frontWeaponPower * 100.0);
-        ret.autoDrive.backWeaponPowerPercent = (unsigned int) (manual.driveCommand.backWeaponPower * 100.0);
+
+
+        ret.autoDrive.frontWeaponCurrent10 = (unsigned char) (manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
+        ret.autoDrive.backWeaponCurrent10 = (unsigned char) (manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
     }
 
     // return the response
@@ -676,9 +678,10 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
         {
             autoDrive.invertTurn = true;
         }
-
-        autoDrive.backWeaponPowerPercent *= MAX_BACK_WEAPON_SPEED;
-        autoDrive.frontWeaponPowerPercent *= MAX_FRONT_WEAPON_SPEED;
+        
+        // weapon speed scaling for auto_drive is applied in robotlogic
+        //autoDrive.backWeaponPowerPercent *= MAX_BACK_WEAPON_SPEED;
+        //autoDrive.frontWeaponPowerPercent *= MAX_FRONT_WEAPON_SPEED;
     }
 }
 

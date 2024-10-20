@@ -199,8 +199,10 @@ struct AutoDrive
     unsigned char MIN_TURN_POWER_PERCENT;
     unsigned char SCALE_DOWN_MOVEMENT_PERCENT;
     bool invertTurn;
-    unsigned char frontWeaponPowerPercent;
-    unsigned char backWeaponPowerPercent;
+
+    // LSB = 10A of current
+    unsigned char frontWeaponCurrent10;
+    unsigned char backWeaponCurrent10;
 };
 
 // driver station -> robot

@@ -99,8 +99,8 @@ void DriveWithMessage(DriverStationMessage &msg)
 
             // apply the movement from the last drive command
             command.movement = lastMessage.driveCommand.movement;
-            command.frontWeaponPower = (float) lastAutoCommand.frontWeaponPowerPercent / 100.0;
-            command.backWeaponPower = (float) lastAutoCommand.backWeaponPowerPercent / 100.0;
+            command.frontWeaponPower = (float) lastAutoCommand.frontWeaponCurrent10 * 10.0;
+            command.backWeaponPower = (float) lastAutoCommand.backWeaponCurrent10 * 10.0;
 
 #ifdef DEBUG_AUTO
             Serial.println("imu rotation: " + (String)imu.getRotation());
