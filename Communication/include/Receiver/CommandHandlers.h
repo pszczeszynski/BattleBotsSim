@@ -21,7 +21,9 @@ void DriveWeapons(DriveCommand &command);
  */
 void DriveSelfRighter(DriveCommand &command);
 
-void DriveWithMessage(DriverStationMessage &msg);
+// when packets are lost the same auto_drive message may be sent multiple times
+// on subsequent sends the packet ID is ignored
+void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false);
 
 /**
  * Drives the LEDs based on the message

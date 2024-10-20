@@ -40,6 +40,7 @@
 #define ANGLE_SYNC_INTERVAL 100000 // 100,000us = 10hz
 
 #define STOP_ROBOT_TIMEOUT_MS 250
+#define RESEND_AUTO_DRIVE_MS 8
 
 #define POWER_STATS_TELEMETRY_INTERVAL 50 // every 50 packets -> updates at 4hz
 #define RADIO_STATS_TELEMETRY_INITERVAL 20 // every 20 packets -> 10hz
@@ -60,7 +61,8 @@ DriverStationMessage lastMessage;
 int maxReceiveIntervalMs = 0;
 volatile uint32_t lastPacketID = 0;
 volatile bool receivedPacketSinceBoot = false;
-
+volatile uint32_t lastAutoSendTime = 0;
+volatile bool shouldResendAuto = false;
 // RECEIVER COMPONENTS
 IMU imu;
 Radio<RobotMessage, DriverStationMessage> rxRadio;
@@ -83,7 +85,7 @@ void ServiceImu()
 IntervalTimer angleSyncTimer;
 void ServiceAngleSync()
 {
-    /*// Only send current angle after a set time
+    // Only send current angle after a set time
     // Ensures that if one board reboots it does not send incorrect values
     if(millis() > BOOT_GYRO_MERGE_MS)
     {
@@ -92,7 +94,7 @@ void ServiceAngleSync()
         syncMessage.angle = float(imu.getRotation());
 
         can.SendTeensy(&syncMessage);
-    }*/
+    }
 }
 
 IntervalTimer packetWatchdogTimer;
@@ -116,6 +118,15 @@ void ServicePacketWatchdog()
             // TODO: self righter
             noPacketWatchdogTrigger = true;
         }
+    }
+    else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
+            (shouldResendAuto))
+    {
+        DriveWithMessage(lastMessage, true);
+        lastAutoSendTime = millis();
+        Serial.print("Time: ");
+        Serial.print(millis());
+        Serial.println(", resending auto_drive command");
     }
 }
 
@@ -144,6 +155,7 @@ void HandlePacket()
     {
         DriveWithMessage(msg);
         lastReceiveTime = millis();
+        lastAutoSendTime = millis();
         validMessageCount++;
         maxReceiveIntervalMs = max(maxReceiveIntervalMs, millis() - lastReceiveTime);
     }
@@ -304,6 +316,8 @@ void OnTeensyMessage(const CAN_message_t &msg)
         case COMMAND_PACKET_ID:
             lastPacketID = message.packetID;
             lastReceiveTime = millis();
+            lastAutoSendTime = millis();
+            shouldResendAuto = false;
         /*case CHANNEL_CHANGE:
             if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
                 radioChannel = message.channel.newChannel;

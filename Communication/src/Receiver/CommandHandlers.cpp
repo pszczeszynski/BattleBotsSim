@@ -19,6 +19,7 @@ extern IMU imu;
 extern Logger logger;
 extern uint32_t lastPacketID;
 extern CANBUS can;
+extern volatile bool shouldResendAuto;
 
 #define MSG_MAX_DELAY_RESET 5000000
 
@@ -58,7 +59,7 @@ void DriveSelfRighter(DriveCommand &command)
     // TODO
 }
 
-void DriveWithMessage(DriverStationMessage &msg)
+void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false)
 {
     // save the last message
     if (msg.type == DRIVE_COMMAND)
@@ -73,6 +74,7 @@ void DriveWithMessage(DriverStationMessage &msg)
 
     // only send the drive command if its the newest one seen sent across the bus
     if (
+        (ignoreMessageID && (msg.timestamp == lastPacketID)) || 
         (msg.timestamp > lastPacketID) ||
         (msg.timestamp < lastPacketID && lastPacketID - msg.timestamp > MSG_MAX_DELAY_RESET)
     )
@@ -85,6 +87,10 @@ void DriveWithMessage(DriverStationMessage &msg)
         lastPacketID = msg.timestamp;
         if (lastMessage.type == AUTO_DRIVE)
         {
+            if(!ignoreMessageID)
+            {
+                shouldResendAuto = true;
+            }
             // drive to the target angle
             DriveCommand command = DriveToAngle(imu.getRotation(),
                                                 imu.getRotationVelocity(),
@@ -99,7 +105,7 @@ void DriveWithMessage(DriverStationMessage &msg)
 
             // apply the movement from the last drive command
             command.movement = lastMessage.driveCommand.movement;
-            command.frontWeaponPower = (float) lastAutoCommand.frontWeaponCurrent10 * 10.0;
+            command.frontWeaponPower = (float)lastAutoCommand.frontWeaponCurrent10 * 10.0;
             command.backWeaponPower = (float) lastAutoCommand.backWeaponCurrent10 * 10.0;
 
 #ifdef DEBUG_AUTO
@@ -135,6 +141,7 @@ void DriveWithMessage(DriverStationMessage &msg)
         }
         else if (lastMessage.type == DRIVE_COMMAND)
         {
+            shouldResendAuto = false;
             // add to the logger
             logger.updateRadioCommandData(lastDriveCommand.movement,
                                         lastDriveCommand.turn,
