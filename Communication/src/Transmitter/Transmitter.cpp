@@ -104,9 +104,6 @@ unsigned int packetCount = 0;
 //===============================================================================
 void tx_loop()
 {
-    static unsigned long lastTime = 0;
-    static int curr_packet_id = 0;
-
     int n;
     n = RawHID.recv(buffer, RECEIVE_TIMEOUT);
 

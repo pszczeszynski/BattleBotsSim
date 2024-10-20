@@ -263,7 +263,7 @@ bool ErrorCheckMessage(DriverStationMessage &msg)
         // sanity check command fields
         if (msg.autoDrive.movement > 1.1 || msg.autoDrive.movement < -1.1 ||
             msg.autoDrive.targetAngle > 2 * M_PI || msg.autoDrive.targetAngle < -2 * M_PI ||
-            msg.autoDrive.ANGLE_EXTRAPOLATE_MS < 0 ||
+            msg.autoDrive.KD_PERCENT < 0 ||
             msg.autoDrive.TURN_THRESH_1_DEG < 0 || msg.autoDrive.TURN_THRESH_1_DEG > 360 ||
             msg.autoDrive.TURN_THRESH_2_DEG < 0 || msg.autoDrive.TURN_THRESH_2_DEG > 360 ||
             msg.autoDrive.MAX_TURN_POWER_PERCENT < 0 || msg.autoDrive.MAX_TURN_POWER_PERCENT > 100 ||
@@ -276,7 +276,7 @@ bool ErrorCheckMessage(DriverStationMessage &msg)
 
         // check for nan
         if (isnan(msg.autoDrive.movement) || isnan(msg.autoDrive.targetAngle) ||
-            isnan(msg.autoDrive.ANGLE_EXTRAPOLATE_MS) || isnan(msg.autoDrive.TURN_THRESH_1_DEG) ||
+            isnan(msg.autoDrive.KD_PERCENT) || isnan(msg.autoDrive.TURN_THRESH_1_DEG) ||
             isnan(msg.autoDrive.TURN_THRESH_2_DEG) || isnan(msg.autoDrive.MAX_TURN_POWER_PERCENT) ||
             isnan(msg.autoDrive.MIN_TURN_POWER_PERCENT) || isnan(msg.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT))
         {
