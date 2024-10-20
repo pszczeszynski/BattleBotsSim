@@ -34,7 +34,6 @@ void ConfigWidget::Draw()
     // text for BAR
     ImGui::Text(LEAD_WITH_BAR ? "BAR" : "DISK");
 
-    ImGui::SliderInt("KD * 100", &ORBIT_KD_PERCENT, 0, 100);
     ImGui::SliderInt("Angle Extrap switching (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);

@@ -23,6 +23,8 @@ void DrawDeltaAngleGraphic(double value)
                 ImGui::SliderInt("Turn Thresh 2 Deg", &TURN_THRESH_2_DEG_ORBIT, 0, 360);
                 ImGui::SliderInt("Min Turn Power (%)", &MIN_TURN_POWER_PERCENT_ORBIT, 0, 100);
                 ImGui::SliderInt("Max Turn Power (%)", &MAX_TURN_POWER_PERCENT_ORBIT, 0, 100);
+                ImGui::SliderInt("KD * 100", &ORBIT_KD_PERCENT, 0, 100);
+
                 ImGui::SliderInt("Scale Down Movement (%)", &SCALE_DOWN_MOVEMENT_PERCENT_ORBIT, 0, 100);
             }
             else
@@ -31,6 +33,8 @@ void DrawDeltaAngleGraphic(double value)
                 ImGui::SliderInt("Turn Thresh 2 Deg", &TURN_THRESH_2_DEG_KILL, 0, 360);
                 ImGui::SliderInt("Min Turn Power (%)", &MIN_TURN_POWER_PERCENT_KILL, 0, 100);
                 ImGui::SliderInt("Max Turn Power (%)", &MAX_TURN_POWER_PERCENT_KILL, 0, 100);
+                ImGui::SliderInt("KD * 100", &KILL_KD_PERCENT, 0, 100);
+
                 ImGui::SliderInt("Scale Down Movement (%)", &SCALE_DOWN_MOVEMENT_PERCENT_KILL, 0, 100);
             }
         });
