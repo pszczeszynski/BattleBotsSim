@@ -156,6 +156,7 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
     {
         _currDataRobot.id++;
         _currDataRobot.time = time;
+        _currDataRobot.time_angle = time;
         _currDataRobot.Clear(); // doesn't clear id or time
         if (pos != nullptr)
         {
@@ -182,6 +183,7 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
     {
         _currDataOpponent.id++;
         _currDataOpponent.time = time;
+        _currDataOpponent.time_angle = time;
         _currDataOpponent.Clear(); // doesn't clear id or time
         if (pos != nullptr)
         {

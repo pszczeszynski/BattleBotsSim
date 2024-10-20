@@ -284,6 +284,13 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     _UpdateData(frameTime);
     locker.unlock();
 
+    // Add the debug string
+    if( show_track_mat || save_video_enabled && save_to_video_output)
+    {
+        std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
+        AddDebugStringToFrame(currFrameColor, debugROStringForVideo);
+    }
+
     if (show_track_mat)
     {
         // Add foreground onto the color frame
@@ -344,6 +351,25 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::pollKey();
 }
 
+// Prints the debugString to the frame
+void HeuristicOdometry::AddDebugStringToFrame(cv::Mat &frame, std::string debugString)
+{
+    int y_offset = 20;
+    std::vector<std::string> lines;
+    std::istringstream f(debugString);
+    std::string line;
+    while (std::getline(f, line))
+    {
+        lines.push_back(line);
+    }
+
+    for (int i = 0; i < lines.size(); i++)
+    {
+        printText(lines[i], frame, y_offset);
+        y_offset += 20;
+    }
+}
+
 void HeuristicOdometry::_UpdateData(double timestamp)
 {
     // Get unique access
@@ -355,8 +381,10 @@ void HeuristicOdometry::_UpdateData(double timestamp)
 
     _currDataRobot.id++;                // Increment frame id
     _currDataRobot.time = timestamp;    // Set to new time
+    _currDataRobot.time_angle = timestamp;    // Set to new time
     _currDataOpponent.id++;             // Increment frame id
     _currDataOpponent.time = timestamp; // Set to new time
+    _currDataOpponent.time_angle = timestamp; // Set to new time
 
     // Clear curr data
     _currDataRobot.Clear();

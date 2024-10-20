@@ -10,6 +10,9 @@
 
 // ***********************
 // Camera Decoder Class
+extern std::mutex debugROStringForVideo_mutex;
+extern std::string debugROStringForVideo;
+
 class HeuristicOdometry : public OdometryBase
 {
 public:
@@ -155,4 +158,5 @@ private:
     void SaveToVideo(cv::Mat &image);
     void DumpRobotTrackerInfo(cv::Mat &channel, std::string title);
     void DumpCurrFrameInfo(cv::Mat &channel, cv::Mat &currForeground, std::string title);
+    void AddDebugStringToFrame(cv::Mat &channel, std::string debugString);
 };

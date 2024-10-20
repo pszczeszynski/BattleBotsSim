@@ -179,5 +179,5 @@ void OpponentProfile::DrawGraphic(cv::Mat &drawing_image)
     cv::setMouseCallback("Opponent Profile", mouseCallback);
 
     cv::imshow("Opponent Profile", drawing_image);
-    cv::waitKey(1);
+    cv::pollKey();
 }

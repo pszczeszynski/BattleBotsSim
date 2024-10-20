@@ -24,6 +24,7 @@ public:
 
     double time = 0; // The time of the last video frame this data is based off since the start of this program in seconds.
                      // A value of 0 means it hasn't been initialized yet
+    double time_angle = -1; // The time of the last angle update
 
     bool isUs = false; // Set to true for our robot to help generic functions know
 

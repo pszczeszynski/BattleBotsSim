@@ -27,6 +27,16 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     double rotation = ComputeRobotRotation(frame, robotPos);
     _frameID++;
 
+    std::unique_lock<std::mutex> lock(_updateMutex);
+    _currDataRobot.Clear();
+    _currDataRobot.isUs = true;
+    _currDataRobot.robotAngleValid = true;
+    _currDataRobot.robotAngle = Angle(rotation);
+    _currDataRobot.id = _frameID;
+    _currDataRobot.time = frameTime;
+    _currDataRobot.time_angle = frameTime;
+    lock.unlock();
+
     // show the rotation using imshow
     cv::Mat rotationImage = frame.clone();
     // convert to rgb
@@ -35,16 +45,8 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(rotation), 50 * sin(rotation));
     cv::arrowedLine(rotationImage, robotPos, arrowEnd, cv::Scalar(0, 255, 0), 2);
     cv::imshow("Rotation", rotationImage);
-    cv::waitKey(1);
+    cv::pollKey();
 
-
-    std::unique_lock<std::mutex> lock(_updateMutex);
-    _currDataRobot.Clear();
-    _currDataRobot.isUs = true;
-    _currDataRobot.robotAngleValid = true;
-    _currDataRobot.robotAngle = Angle(rotation);
-    _currDataRobot.id = _frameID;
-    _currDataRobot.time = frameTime;
 }
 
 bool CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
@@ -192,7 +194,7 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     const float THRESH_LARGE_CHANGE = 15 * TO_RAD;
     if (abs(deltaAngle) > THRESH_LARGE_CHANGE)
     {
-        avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.3f);
+        avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.5f);
     }
     _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
 
