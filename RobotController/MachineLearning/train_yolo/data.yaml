@@ -1,5 +1,5 @@
-train: set_2.0_new_model/train/images
-val: set_2.0_new_model/val/images
+train: set_2.1_hypershock/train/images
+val: set_2.1_hypershock/val/images
 
 nc: 1
 names: ["orbitron"]

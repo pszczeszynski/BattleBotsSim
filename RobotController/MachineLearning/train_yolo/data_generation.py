@@ -15,7 +15,7 @@ sys.path.remove('..')
 
 train_size = 35000
 test_size = 15000
-data_dir = "set_2.0_new_model"
+data_dir = "set_2.1_hypershock"
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 - 0.5
