@@ -83,6 +83,12 @@ struct CANPingData
     uint32_t timestamp;
 };
 
+struct CANPacketHeader
+{
+    uint32_t packetID;
+    bool isResentMessage; // whether the message being sent is an old AUTO_DRIVE message being repeated
+};
+
 struct CANChannelChange
 {
     uint8_t targetTeensyID;
@@ -96,7 +102,7 @@ struct CANMessage
     {
         float angle;
         CANPingData ping;
-        uint32_t packetID;
+        CANPacketHeader packetID;
         CANChannelChange channel;
     };
 };

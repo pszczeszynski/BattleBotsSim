@@ -102,6 +102,7 @@ void ServicePacketWatchdog()
 {
     // NOTE: don't stop robot unless comms are lost on all three boards
     // IE lastReceiveTime must update when another board receives a packet
+    // MAKE SURE ESTOP HAS HIGHEST PRIORITY
     if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
     {
         if (!noPacketWatchdogTrigger)
@@ -314,8 +315,14 @@ void OnTeensyMessage(const CAN_message_t &msg)
             DownsampledPrintf("Received ping response from %x, time taken: %d\n", message.ping.pingID, micros() - message.ping.timestamp);
             break;
         case COMMAND_PACKET_ID:
-            lastPacketID = message.packetID;
-            lastReceiveTime = millis();
+            lastPacketID = message.packetID.packetID;
+            
+            // THIS ACTS AS A SAFEGUARD TO ENSURE ROBOT ESTOPS ON RADIO DISCONNECT
+            // only "fresh" packets can feed the watchdog, resent packets don't count
+            if(!message.packetID.isResentMessage)
+            {
+                lastReceiveTime = millis();
+            }
             lastAutoSendTime = millis();
             shouldResendAuto = false;
         /*case CHANNEL_CHANGE:

@@ -82,7 +82,8 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false)
         //send the packet ID over the bus to notify other boards, then send commands
         CANMessage packetIdMessage;
         packetIdMessage.type = COMMAND_PACKET_ID;
-        packetIdMessage.packetID = msg.timestamp;
+        packetIdMessage.packetID.packetID = msg.timestamp;
+        packetIdMessage.packetID.isResentMessage = ignoreMessageID;
         can.SendTeensy(&packetIdMessage);
         lastPacketID = msg.timestamp;
         if (lastMessage.type == AUTO_DRIVE)
