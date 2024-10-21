@@ -92,6 +92,9 @@ private:
 
     HumanPosition _odometry_Human;
     OdometryData _dataRobot_Human;
+
+    HumanPosition _odometry_Human_Heuristic;
+
     bool _dataRobot_Human_is_new = false;
     OdometryData _dataOpponent_Human;
     bool _dataOpponent_Human_is_new = false;

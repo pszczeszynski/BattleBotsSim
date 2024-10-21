@@ -291,15 +291,16 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         AddDebugStringToFrame(currFrameColor, debugROStringForVideo);
     }
 
+    // Add foreground onto the color frame
+    cv::Mat fg_color;
+    cv::cvtColor(fg_mask, fg_color, cv::COLOR_GRAY2BGR);
+    fg_color.setTo(cv::Scalar(255, 100, 100), fg_mask);
+
+    cv::addWeighted(currFrameColor, 1.0f, fg_color, 0.3f, 0, currFrameColor);
+    currFrameColor.copyTo(prevFrameColor);
+
     if (show_track_mat)
     {
-        // Add foreground onto the color frame
-        cv::Mat fg_color;
-        cv::cvtColor(fg_mask, fg_color, cv::COLOR_GRAY2BGR);
-        fg_color.setTo(cv::Scalar(255, 100, 100), fg_mask);
-
-        cv::addWeighted(currFrameColor, 1.0f, fg_color, 0.3f, 0, currFrameColor);
-
         _imshow("HeuristicData", currFrameColor);
     }
     else
