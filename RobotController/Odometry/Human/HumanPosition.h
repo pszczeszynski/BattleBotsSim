@@ -16,11 +16,14 @@ enum class DataType
 class HumanPosition : public OdometryBase
 {
 public:
-    HumanPosition(ICameraReceiver *videoSource);
+    HumanPosition(ICameraReceiver *videoSource, std::string port, bool sendHeuristicMat = false);
 
 protected:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime);
 private:
+    std::string _port;
+    bool _sendHeuristicMat = false;
+
     cv::Point2f _lastReceivedPos;
     DataType _lastReceivedType;
     ServerSocket* _socket;

@@ -27,6 +27,7 @@ public:
     void SetAngularVelocity(double newnewVel, bool opponentRobot) override;
 
     void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
+    cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
 
     bool enable_camera_antishake = false;  // Turn off/on anti shake
     bool enable_background_healing = true; // Turn off/on background healing
@@ -83,6 +84,7 @@ private:
 
     // ***** Color capable currFraem for annotating stuff
     cv::Mat currFrameColor;
+    cv::Mat prevFrameColor;
 
     // Anti-Shake
     int x_offset = 5;             // x offset of camera for cropped imag. Should be >= -1*crop_x and <= crop_x

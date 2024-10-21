@@ -6,9 +6,11 @@
 #include "../../RobotController.h"
 #include <iostream>
 
-HumanPosition::HumanPosition(ICameraReceiver *videoSource) : OdometryBase(videoSource)
+HumanPosition::HumanPosition(ICameraReceiver *videoSource, std::string port, bool sendHeuristicMat) : OdometryBase(videoSource)
 {
-    _socket = new ServerSocket("11118");
+    _port = port;
+    _sendHeuristicMat = sendHeuristicMat;
+    _socket = new ServerSocket(port);
 }
 
 const int NUMBER_OF_FIELDS = 7;
@@ -25,7 +27,7 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
     {
         // call dtor
         delete _socket;
-        _socket = new ServerSocket("11118");
+        _socket = new ServerSocket(_port);
     }
 
     if (data_str.size() != NUMBER_OF_FIELDS * 4)
@@ -47,9 +49,21 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // convert mat to std::string
     // Encode the image
     std::vector<uchar> buf;
-    cv::Mat scaled = currFrame;
+
+    cv::Mat& frameToUse = currFrame;
+
+    if (_sendHeuristicMat)
+    {
+        cv::Mat& heuristicFrame = RobotController::GetInstance().odometry.GetHeuristicOdometry().GetPrevTrackingMatRef();
+        if (!heuristicFrame.empty())
+        {
+            frameToUse = heuristicFrame;
+        }
+    }
+
+    cv::Mat scaled;
     // scale down by 4x.
-    cv::resize(currFrame, scaled, cv::Size(WIDTH / 2, HEIGHT / 2), 0, 0, cv::INTER_LINEAR);
+    cv::resize(frameToUse, scaled, cv::Size(WIDTH / 2, HEIGHT / 2), 0, 0, cv::INTER_LINEAR);
 
     cv::imencode(".jpg", scaled, buf);
     std::string image_string(buf.begin(), buf.end());
@@ -110,7 +124,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         const int force_pos_bool = data[5];
         const int force_heal_value = data[6];
 
-        if (clickPosition == _lastReceivedPos && type == _lastReceivedType && type != DataType::OPPONENT_ANGLE_VEL)
+        if (clickPosition == _lastReceivedPos && type == _lastReceivedType)
         {
             return;
         }
@@ -142,18 +156,6 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             double MIDDLE = WIDTH / 2;
             Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
             _UpdateData(false, frameTime, nullptr, &angle);
-        }
-        else if (type == DataType::OPPONENT_ANGLE_VEL)
-        {
-            double MIDDLE = WIDTH / 2;
-
-            double angle_vel = (clickPosition.x - MIDDLE) / MIDDLE;
-            // square
-            angle_vel *= abs(angle_vel);
-            const double MAX_ADJUST_SPEED = 2 * M_PI;
-            angle_vel *= MAX_ADJUST_SPEED;
-
-            _UpdateData(false, frameTime, nullptr, nullptr, &angle_vel);
         }
 
         _lastReceivedPos = clickPosition;

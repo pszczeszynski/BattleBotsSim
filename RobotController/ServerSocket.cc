@@ -126,8 +126,8 @@ void ServerSocket::reply_to_last_sender(std::string data)
 {
     int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (SOCKADDR *)&last_sender_addr, last_sender_addr_len);
 
-    if (iSendResult == SOCKET_ERROR)
-    {
-        std::cerr << "sendto failed with error: " << WSAGetLastError() << std::endl;
-    }
+    // if (iSendResult == SOCKET_ERROR)
+    // {
+    //     std::cerr << "sendto failed with error: " << WSAGetLastError() << std::endl;
+    // }
 }
