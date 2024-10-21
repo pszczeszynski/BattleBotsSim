@@ -8,9 +8,9 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import HORIZONTAL
 
-# Server configuration
-HOST = 'localhost'
-PORT = 11118
+# Removed hardcoded HOST and PORT
+# HOST = 'localhost'
+# PORT = 11118
 
 POSITION = 0
 OPPONENT_POSITION = 1
@@ -30,8 +30,12 @@ class LastClickData:
         self.data_type: int = data_type
 
 
+# Initialize client_socket as None
+client_socket = None
+
 # Function to send data to robot controller
 def send_data_to_robot_controller():
+    global client_socket
     """
     Send the last click data and UI state to the robot controller.
 
@@ -61,7 +65,10 @@ def send_data_to_robot_controller():
            force_heal_value.to_bytes(4, byteorder='little')
 
     print("sending click data: ", last_click.data_type, last_click.position_clicked)
-    client_socket.sendto(data, (HOST, PORT))
+    if client_socket is not None:
+        client_socket.sendto(data, (HOST, PORT))
+    else:
+        print("Not connected yet.")
 
 
 robotPosX = 0
@@ -71,14 +78,6 @@ opponentPosY = 0
 opponentAngleDeg = 0
 
 last_click = LastClickData((0, 0), POSITION)
-
-# Create a UDP socket
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-print("UDP socket created.")
-
-# Send a test message
-client_socket.sendto(b'Hello', (HOST, PORT))
-print("Test message sent.")
 
 # Create the main GUI window
 root = tk.Tk()
@@ -96,55 +95,89 @@ image_label.grid(row=0, column=0)
 side_panel = tk.Frame(root)
 side_panel.grid(row=0, column=1, padx=10, pady=10)
 
+# IP address and port input fields
+ip_label = tk.Label(side_panel, text="IP Address:")
+ip_label.grid(row=0, column=0, padx=5, pady=5)
+ip_entry = tk.Entry(side_panel)
+ip_entry.insert(0, "localhost")  # Default value
+ip_entry.grid(row=0, column=1, padx=5, pady=5)
+
+port_label = tk.Label(side_panel, text="Port:")
+port_label.grid(row=1, column=0, padx=5, pady=5)
+port_entry = tk.Entry(side_panel)
+port_entry.insert(0, "11118")  # Default value
+port_entry.grid(row=1, column=1, padx=5, pady=5)
+
+# Connect button
+def connect_to_server():
+    global HOST, PORT, client_socket
+
+    HOST = ip_entry.get()
+    PORT = int(port_entry.get())
+
+    # Create a UDP socket
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print("UDP socket created.")
+
+    # Send a test message
+    client_socket.sendto(b'Hello', (HOST, PORT))
+    print("Test message sent.")
+
+    # Start the receive thread
+    threading.Thread(target=receive_thread, daemon=True).start()
+
+connect_button = tk.Button(side_panel, text="Connect", command=connect_to_server)
+connect_button.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
 # Auto L and Auto R buttons
 auto_l_button = tk.Button(side_panel, text="Auto L", bg="lightblue", width=10)
 auto_r_button = tk.Button(side_panel, text="Auto R", bg="red", width=10)
-auto_l_button.grid(row=0, column=0, padx=5, pady=5)
-auto_r_button.grid(row=0, column=1, padx=5, pady=5)
+auto_l_button.grid(row=3, column=0, padx=5, pady=5)
+auto_r_button.grid(row=3, column=1, padx=5, pady=5)
 
 # Sliders with values displayed
 foreground_label = tk.Label(side_panel, text="Foreground min delta:")
-foreground_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+foreground_label.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
 
 foreground_min_delta_label = tk.Label(side_panel, text="0")
-foreground_min_delta_label.grid(row=2, column=0, sticky="w", padx=5)
+foreground_min_delta_label.grid(row=5, column=0, sticky="w", padx=5)
 foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
-foreground_min_delta_slider.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+foreground_min_delta_slider.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
 
 max_foreground_min_delta_label = tk.Label(side_panel, text="100")
-max_foreground_min_delta_label.grid(row=2, column=1, sticky="e", padx=5)
+max_foreground_min_delta_label.grid(row=5, column=1, sticky="e", padx=5)
 
 background_label = tk.Label(side_panel, text="Background Heal Rate:")
-background_label.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+background_label.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
 
 background_min_label = tk.Label(side_panel, text="0")
-background_min_label.grid(row=4, column=0, sticky="w", padx=5)
+background_min_label.grid(row=7, column=0, sticky="w", padx=5)
 background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
-background_heal_rate_slider.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+background_heal_rate_slider.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
 max_background_heal_rate_label = tk.Label(side_panel, text="100")
-max_background_heal_rate_label.grid(row=4, column=1, sticky="e", padx=5)
+max_background_heal_rate_label.grid(row=7, column=1, sticky="e", padx=5)
 
 # Checkboxes
 force_pos_var = tk.IntVar()
 force_pos_checkbox = tk.Checkbutton(side_panel, text="Force Pos on click?", variable=force_pos_var)
-force_pos_checkbox.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+force_pos_checkbox.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
 
 # Add space before the emergency section
-side_panel.grid_rowconfigure(6, minsize=50)
+side_panel.grid_rowconfigure(9, minsize=50)
 
 # Emergency section
 emergency_label = tk.Label(side_panel, text="-------- Emergency --------", font=("Arial", 10, "bold"))
-emergency_label.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+emergency_label.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 force_heal_var = tk.IntVar()
 force_heal_checkbox = tk.Checkbutton(side_panel, text="Force Heal?", variable=force_heal_var)
-force_heal_checkbox.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+force_heal_checkbox.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
 
 # Emergency buttons
 reboot_button = tk.Button(side_panel, text="Reboot recovery sequence", bg="orange", width=25)
 hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25)
-reboot_button.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
-hard_reboot_button.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
+reboot_button.grid(row=12, column=0, columnspan=2, padx=5, pady=5)
+hard_reboot_button.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
 
 # Placeholder for the image to prevent garbage collection
 tk_image = None
@@ -408,14 +441,17 @@ def receive_thread():
         with image_lock:
             latest_image = combined_image.copy()
 
-# Start the receive thread
-threading.Thread(target=receive_thread, daemon=True).start()
-
 # Start the image update loop
 update_image()
 
+# Handle window close event to close the socket
+def on_closing():
+    global client_socket
+    if client_socket is not None:
+        client_socket.close()
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
 # Start the Tkinter main loop
 root.mainloop()
-
-# Close the socket when the window is closed
-client_socket.close()
