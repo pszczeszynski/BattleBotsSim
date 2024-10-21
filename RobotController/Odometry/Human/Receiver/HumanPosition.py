@@ -9,8 +9,6 @@ from tkinter import ttk
 from tkinter import HORIZONTAL
 
 # Removed hardcoded HOST and PORT
-# HOST = 'localhost'
-# PORT = 11118
 
 POSITION = 0
 OPPONENT_POSITION = 1
@@ -32,6 +30,9 @@ class LastClickData:
 
 # Initialize client_socket as None
 client_socket = None
+
+# Initialize mode
+current_mode = 'pos_and_rot'  # Default mode
 
 # Function to send data to robot controller
 def send_data_to_robot_controller():
@@ -55,7 +56,6 @@ def send_data_to_robot_controller():
     force_heal_value = int(force_heal_var.get())
 
     # Prepare data to send
-    # For example, pack the data into bytes
     data = last_click.data_type.to_bytes(4, byteorder='little') + \
            int(last_click.position_clicked[0] / 2).to_bytes(4, byteorder='little') + \
            int(last_click.position_clicked[1] / 2).to_bytes(4, byteorder='little') + \
@@ -129,55 +129,64 @@ def connect_to_server():
 connect_button = tk.Button(side_panel, text="Connect", command=connect_to_server)
 connect_button.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
 
+# Mode selection
+mode_label = tk.Label(side_panel, text="Mode:")
+mode_label.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+current_mode_var = tk.StringVar(value='pos_and_rot')  # Default mode
+
+def on_mode_change(*args):
+    global current_mode
+    current_mode = current_mode_var.get()
+    print(f"Mode set to: {current_mode}")
+
+current_mode_var.trace('w', on_mode_change)
+
+pos_only_radiobutton = tk.Radiobutton(side_panel, text="Pos Only", variable=current_mode_var, value='pos_only')
+pos_and_rot_radiobutton = tk.Radiobutton(side_panel, text="Pos and Rot", variable=current_mode_var, value='pos_and_rot')
+
+pos_only_radiobutton.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+pos_and_rot_radiobutton.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+
 # Auto L and Auto R buttons
 auto_l_button = tk.Button(side_panel, text="Auto L", bg="lightblue", width=10)
 auto_r_button = tk.Button(side_panel, text="Auto R", bg="red", width=10)
-auto_l_button.grid(row=3, column=0, padx=5, pady=5)
-auto_r_button.grid(row=3, column=1, padx=5, pady=5)
+auto_l_button.grid(row=6, column=0, padx=5, pady=5)
+auto_r_button.grid(row=6, column=1, padx=5, pady=5)
 
 # Sliders with values displayed
 foreground_label = tk.Label(side_panel, text="Foreground min delta:")
-foreground_label.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+foreground_label.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
-foreground_min_delta_label = tk.Label(side_panel, text="0")
-foreground_min_delta_label.grid(row=5, column=0, sticky="w", padx=5)
 foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
-foreground_min_delta_slider.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
-
-max_foreground_min_delta_label = tk.Label(side_panel, text="100")
-max_foreground_min_delta_label.grid(row=5, column=1, sticky="e", padx=5)
+foreground_min_delta_slider.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
 
 background_label = tk.Label(side_panel, text="Background Heal Rate:")
-background_label.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
+background_label.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
 
-background_min_label = tk.Label(side_panel, text="0")
-background_min_label.grid(row=7, column=0, sticky="w", padx=5)
 background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
-background_heal_rate_slider.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
-
-max_background_heal_rate_label = tk.Label(side_panel, text="100")
-max_background_heal_rate_label.grid(row=7, column=1, sticky="e", padx=5)
+background_heal_rate_slider.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 
 # Checkboxes
 force_pos_var = tk.IntVar()
 force_pos_checkbox = tk.Checkbutton(side_panel, text="Force Pos on click?", variable=force_pos_var)
-force_pos_checkbox.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+force_pos_checkbox.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
 
 # Add space before the emergency section
-side_panel.grid_rowconfigure(9, minsize=50)
+side_panel.grid_rowconfigure(12, minsize=50)
 
 # Emergency section
 emergency_label = tk.Label(side_panel, text="-------- Emergency --------", font=("Arial", 10, "bold"))
-emergency_label.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
+emergency_label.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
 force_heal_var = tk.IntVar()
 force_heal_checkbox = tk.Checkbutton(side_panel, text="Force Heal?", variable=force_heal_var)
-force_heal_checkbox.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
+force_heal_checkbox.grid(row=14, column=0, columnspan=2, padx=5, pady=5)
 
 # Emergency buttons
 reboot_button = tk.Button(side_panel, text="Reboot recovery sequence", bg="orange", width=25)
 hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25)
-reboot_button.grid(row=12, column=0, columnspan=2, padx=5, pady=5)
-hard_reboot_button.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
+reboot_button.grid(row=15, column=0, columnspan=2, padx=5, pady=5)
+hard_reboot_button.grid(row=16, column=0, columnspan=2, padx=5, pady=5)
 
 # Placeholder for the image to prevent garbage collection
 tk_image = None
@@ -215,19 +224,28 @@ def on_left_click(event):
     x = event.x
     y = event.y
 
-    total_width = combined_image.shape[1]  # Assuming combined_image is available
-    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
-        return
+    if current_mode == 'pos_and_rot':
+        total_width = combined_image.shape[1]
+        if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+            return
 
-    if x < WINDOW_IMAGE_SIZE:
-        # Left image (cropped over opponent)
-        pass  # Left clicks on left image are ignored
-    else:
-        # Right image (full field)
-        x_adjusted = x - WINDOW_IMAGE_SIZE
-        print("Shifted from: ", x, " to: ", x_adjusted)
+        if x < WINDOW_IMAGE_SIZE:
+            # Left image (cropped over opponent)
+            pass  # Left clicks on left image are ignored
+        else:
+            # Right image (full field)
+            x_adjusted = x - WINDOW_IMAGE_SIZE
+            print("Shifted from: ", x, " to: ", x_adjusted)
 
-        last_click.position_clicked = (x_adjusted, y)
+            last_click.position_clicked = (x_adjusted, y)
+            last_click.data_type = POSITION
+    elif current_mode == 'pos_only':
+        # Only one image displayed
+        total_width = combined_image.shape[1]
+        if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+            return
+
+        last_click.position_clicked = (x, y)
         last_click.data_type = POSITION
 
 def on_right_click(event):
@@ -236,18 +254,26 @@ def on_right_click(event):
     x = event.x
     y = event.y
 
-    total_width = combined_image.shape[1]  # Assuming combined_image is available
-    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
-        return
+    if current_mode == 'pos_and_rot':
+        total_width = combined_image.shape[1]
+        if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+            return
 
-    if x < WINDOW_IMAGE_SIZE:
-        # Right clicks on left image are ignored
-        pass
-    else:
-        # Right image (full field)
-        x_adjusted = x - WINDOW_IMAGE_SIZE
-        print("Shifted from: ", x, " to: ", x_adjusted)
-        last_click.position_clicked = (x_adjusted, y)
+        if x < WINDOW_IMAGE_SIZE:
+            # Right clicks on left image are ignored
+            pass
+        else:
+            # Right image (full field)
+            x_adjusted = x - WINDOW_IMAGE_SIZE
+            print("Shifted from: ", x, " to: ", x_adjusted)
+            last_click.position_clicked = (x_adjusted, y)
+            last_click.data_type = OPPONENT_POSITION
+    elif current_mode == 'pos_only':
+        total_width = combined_image.shape[1]
+        if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+            return
+
+        last_click.position_clicked = (x, y)
         last_click.data_type = OPPONENT_POSITION
 
 def on_mouse_move(event):
@@ -256,22 +282,59 @@ def on_mouse_move(event):
     x = event.x
     y = event.y
 
-    total_width = combined_image.shape[1]  # Assuming combined_image is available
-    if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
-        return
+    if current_mode == 'pos_and_rot':
+        total_width = combined_image.shape[1]
+        if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
+            return
 
-    if x < WINDOW_IMAGE_SIZE:
-        # Left image (cropped over opponent)
-        last_click.data_type = OPPONENT_ROTATION
-        last_click.position_clicked = (x, y)
-    else:
-        # Right image (full field)
+        if x < WINDOW_IMAGE_SIZE:
+            # Left image (cropped over opponent)
+            last_click.data_type = OPPONENT_ROTATION
+            last_click.position_clicked = (x, y)
+        else:
+            pass
+    elif current_mode == 'pos_only':
         pass
 
 # Bind the mouse events
 image_label.bind("<Button-1>", on_left_click)
 image_label.bind("<Button-3>", on_right_click)
 image_label.bind("<Motion>", on_mouse_move)
+
+# Function to crop image around a point
+def crop_image_around_robot(image, robot_pos, crop_size):
+    x = robot_pos[0] - crop_size // 2
+    y = robot_pos[1] - crop_size // 2
+
+    x1 = x
+    y1 = y
+    x2 = x + crop_size
+    y2 = y + crop_size
+
+    height, width = image.shape[:2]
+
+    # Calculate necessary padding
+    pad_left = max(0, -x1)
+    pad_right = max(0, x2 - width)
+    pad_top = max(0, -y1)
+    pad_bottom = max(0, y2 - height)
+
+    # Pad the image with black pixels if needed
+    image_padded = np.pad(
+        image,
+        ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
+        mode='constant',
+        constant_values=0
+    )
+
+    # Adjust coordinates due to padding
+    x1_new = x1 + pad_left
+    y1_new = y1 + pad_top
+
+    # Crop the image
+    cropped_image = image_padded[y1_new:y1_new + crop_size, x1_new:x1_new + crop_size]
+
+    return cropped_image
 
 # Thread to receive data from the server
 def receive_thread():
@@ -316,124 +379,136 @@ def receive_thread():
         # Decode the numpy array to an image
         received_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-        # Create the cropped image centered on the opponent
-        def crop_image_around_robot(image, robot_pos, crop_size):
-            x = robot_pos[0] - crop_size // 2
-            y = robot_pos[1] - crop_size // 2
+        # Handle the current mode
+        if current_mode == 'pos_only':
+            # Resize the full field image
+            full_field_image = cv2.resize(received_image.copy(), (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
 
-            x1 = x
-            y1 = y
-            x2 = x + crop_size
-            y2 = y + crop_size
+            # Draw on the full field image
+            original_height, original_width = received_image.shape[:2]
+            scale_factor_x = original_width / WINDOW_IMAGE_SIZE
+            scale_factor_y = original_height / WINDOW_IMAGE_SIZE
 
-            height, width = image.shape[:2]
+            screenRobotPosX = int(robotPosX / scale_factor_x)
+            screenRobotPosY = int(robotPosY / scale_factor_y)
 
-            # Calculate necessary padding
-            pad_left = max(0, -x1)
-            pad_right = max(0, x2 - width)
-            pad_top = max(0, -y1)
-            pad_bottom = max(0, y2 - height)
+            screenOpponentPosX = int(opponentPosX / scale_factor_x)
+            screenOpponentPosY = int(opponentPosY / scale_factor_y)
 
-            # Pad the image with black pixels if needed
-            image_padded = np.pad(
-                image,
-                ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
-                mode='constant',
-                constant_values=0
-            )
+            # Draw the robot position
+            cv2.circle(full_field_image, (screenRobotPosX, screenRobotPosY), radius=20, color=(0, 255, 0), thickness=2)
+            # Draw the opponent position
+            cv2.circle(full_field_image, (screenOpponentPosX, screenOpponentPosY), radius=20, color=(255, 0, 0), thickness=2)
 
-            # Adjust coordinates due to padding
-            x1_new = x1 + pad_left
-            y1_new = y1 + pad_top
+            # Handle last_click data for drawing
+            if last_click.data_type == POSITION:
+                # Draw 'X' on the image
+                x_draw = int(last_click.position_clicked[0])
+                y_draw = int(last_click.position_clicked[1])
 
-            # Crop the image
-            cropped_image = image_padded[y1_new:y1_new + crop_size, x1_new:x1_new + crop_size]
+                def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
+                    x, y = center
+                    x, y = int(x), int(y)
+                    cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
+                    cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
 
-            return cropped_image
+                draw_x(full_field_image, (x_draw, y_draw), color=(0, 0, 255), size=20, thickness=2)
+            elif last_click.data_type == OPPONENT_POSITION:
+                # Draw circle on the image
+                x_draw = int(last_click.position_clicked[0])
+                y_draw = int(last_click.position_clicked[1])
+                cv2.circle(full_field_image, (x_draw, y_draw), radius=20, color=(255, 0, 0), thickness=2)
+            # No rotation in pos_only mode
 
-        # Prepare the left image (cropped)
-        left_image = crop_image_around_robot(received_image, (opponentPosX, opponentPosY), RAW_IMAGE_SIZE)
-        left_image = cv2.resize(left_image, (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
+            # Set combined_image to full_field_image
+            combined_image = full_field_image
 
-        # Prepare the right image (full field)
-        right_image = cv2.resize(received_image.copy(), (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
+        elif current_mode == 'pos_and_rot':
+            # Existing logic for dual view mode
 
-        # Combine images side by side
-        combined_image = np.hstack((left_image, right_image))
+            # Prepare the left image (cropped)
+            left_image = crop_image_around_robot(received_image, (opponentPosX, opponentPosY), RAW_IMAGE_SIZE)
+            left_image = cv2.resize(left_image, (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
 
-        # Draw on the left image (cropped)
-        # Relative positions for the cropped image
-        relRobotPosX = robotPosX - opponentPosX
-        relRobotPosY = robotPosY - opponentPosY
+            # Prepare the right image (full field)
+            right_image = cv2.resize(received_image.copy(), (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
 
-        # Scale factor for left image
-        scale_factor_left = WINDOW_IMAGE_SIZE / RAW_IMAGE_SIZE
+            # Combine images side by side
+            combined_image = np.hstack((left_image, right_image))
 
-        screenRobotPosX_left = int((relRobotPosX + RAW_IMAGE_SIZE // 2) * scale_factor_left)
-        screenRobotPosY_left = int((relRobotPosY + RAW_IMAGE_SIZE // 2) * scale_factor_left)
+            # Draw on the left image (cropped)
+            # Relative positions for the cropped image
+            relRobotPosX = robotPosX - opponentPosX
+            relRobotPosY = robotPosY - opponentPosY
 
-        screenOpponentPosX_left = WINDOW_IMAGE_SIZE // 2
-        screenOpponentPosY_left = WINDOW_IMAGE_SIZE // 2
+            # Scale factor for left image
+            scale_factor_left = WINDOW_IMAGE_SIZE / RAW_IMAGE_SIZE
 
-        # Draw the robot position on the left image
-        cv2.circle(combined_image[:, :WINDOW_IMAGE_SIZE], (screenRobotPosX_left, screenRobotPosY_left), radius=20, color=(0, 255, 0), thickness=2)
-        # Draw the opponent position on the left image
-        cv2.circle(combined_image[:, :WINDOW_IMAGE_SIZE], (screenOpponentPosX_left, screenOpponentPosY_left), radius=20, color=(255, 0, 0), thickness=2)
+            screenRobotPosX_left = int((relRobotPosX + RAW_IMAGE_SIZE // 2) * scale_factor_left)
+            screenRobotPosY_left = int((relRobotPosY + RAW_IMAGE_SIZE // 2) * scale_factor_left)
 
-        # Draw the opponent's rotation arrow on the left image
-        opponentRotRad = np.radians(opponentAngleDeg)
-        x_arrow = int(screenOpponentPosX_left + 50 * np.cos(opponentRotRad))
-        y_arrow = int(screenOpponentPosY_left + 50 * np.sin(opponentRotRad))
-        cv2.arrowedLine(combined_image[:, :WINDOW_IMAGE_SIZE], (screenOpponentPosX_left, screenOpponentPosY_left), (x_arrow, y_arrow), color=(0, 255, 0), thickness=2)
+            screenOpponentPosX_left = WINDOW_IMAGE_SIZE // 2
+            screenOpponentPosY_left = WINDOW_IMAGE_SIZE // 2
 
-        # Draw on the right image (full field)
-        # Scale factor for right image
-        original_height, original_width = received_image.shape[:2]
-        scale_factor_right_x = original_width / WINDOW_IMAGE_SIZE
-        scale_factor_right_y = original_height / WINDOW_IMAGE_SIZE
+            # Draw the robot position on the left image
+            cv2.circle(combined_image[:, :WINDOW_IMAGE_SIZE], (screenRobotPosX_left, screenRobotPosY_left), radius=20, color=(0, 255, 0), thickness=2)
+            # Draw the opponent position on the left image
+            cv2.circle(combined_image[:, :WINDOW_IMAGE_SIZE], (screenOpponentPosX_left, screenOpponentPosY_left), radius=20, color=(255, 0, 0), thickness=2)
 
-        screenRobotPosX_right = int(robotPosX / scale_factor_right_x)
-        screenRobotPosY_right = int(robotPosY / scale_factor_right_y)
+            # Draw the opponent's rotation arrow on the left image
+            opponentRotRad = np.radians(opponentAngleDeg)
+            x_arrow = int(screenOpponentPosX_left + 50 * np.cos(opponentRotRad))
+            y_arrow = int(screenOpponentPosY_left + 50 * np.sin(opponentRotRad))
+            cv2.arrowedLine(combined_image[:, :WINDOW_IMAGE_SIZE], (screenOpponentPosX_left, screenOpponentPosY_left), (x_arrow, y_arrow), color=(0, 255, 0), thickness=2)
 
-        screenOpponentPosX_right = int(opponentPosX / scale_factor_right_x)
-        screenOpponentPosY_right = int(opponentPosY / scale_factor_right_y)
+            # Draw on the right image (full field)
+            # Scale factor for right image
+            original_height, original_width = received_image.shape[:2]
+            scale_factor_right_x = original_width / WINDOW_IMAGE_SIZE
+            scale_factor_right_y = original_height / WINDOW_IMAGE_SIZE
 
-        # Draw the robot position on the right image
-        cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (screenRobotPosX_right, screenRobotPosY_right), radius=20, color=(0, 255, 0), thickness=2)
-        # Draw the opponent position on the right image
-        cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (screenOpponentPosX_right, screenOpponentPosY_right), radius=20, color=(255, 0, 0), thickness=2)
+            screenRobotPosX_right = int(robotPosX / scale_factor_right_x)
+            screenRobotPosY_right = int(robotPosY / scale_factor_right_y)
 
-        # Draw the opponent's rotation arrow on the right image
-        x_arrow_right = int(screenOpponentPosX_right + 50 * np.cos(opponentRotRad))
-        y_arrow_right = int(screenOpponentPosY_right + 50 * np.sin(opponentRotRad))
-        cv2.arrowedLine(combined_image[:, WINDOW_IMAGE_SIZE:], (screenOpponentPosX_right, screenOpponentPosY_right), (x_arrow_right, y_arrow_right), color=(0, 255, 0), thickness=2)
+            screenOpponentPosX_right = int(opponentPosX / scale_factor_right_x)
+            screenOpponentPosY_right = int(opponentPosY / scale_factor_right_y)
 
-        # Handle last_click data for drawing
-        if last_click.data_type == POSITION:
-            # Draw 'X' on the right image
-            x_draw = int(last_click.position_clicked[0])
-            y_draw = int(last_click.position_clicked[1])
+            # Draw the robot position on the right image
+            cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (screenRobotPosX_right, screenRobotPosY_right), radius=20, color=(0, 255, 0), thickness=2)
+            # Draw the opponent position on the right image
+            cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (screenOpponentPosX_right, screenOpponentPosY_right), radius=20, color=(255, 0, 0), thickness=2)
 
-            def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
-                x, y = center
-                x, y = int(x), int(y)
-                cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
-                cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
+            # Draw the opponent's rotation arrow on the right image
+            x_arrow_right = int(screenOpponentPosX_right + 50 * np.cos(opponentRotRad))
+            y_arrow_right = int(screenOpponentPosY_right + 50 * np.sin(opponentRotRad))
+            cv2.arrowedLine(combined_image[:, WINDOW_IMAGE_SIZE:], (screenOpponentPosX_right, screenOpponentPosY_right), (x_arrow_right, y_arrow_right), color=(0, 255, 0), thickness=2)
 
-            draw_x(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw), color=(0, 0, 255), size=20, thickness=2)
-        elif last_click.data_type == OPPONENT_POSITION:
-            # Draw circle on the right image
-            x_draw = int(last_click.position_clicked[0])
-            y_draw = int(last_click.position_clicked[1])
-            cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw), radius=20, color=(255, 0, 0), thickness=2)
-        elif last_click.data_type == OPPONENT_ROTATION:
-            # Draw arrow on the left image
-            x_draw = int(last_click.position_clicked[0])
-            y_draw = int(last_click.position_clicked[1])
-            center_left = (WINDOW_IMAGE_SIZE // 2, WINDOW_IMAGE_SIZE // 2)
-            cv2.arrowedLine(combined_image[:, :WINDOW_IMAGE_SIZE], center_left, (x_draw, y_draw), color=(0, 255, 0), thickness=2)
-        else:
-            print("Error: Invalid data type")
+            # Handle last_click data for drawing
+            if last_click.data_type == POSITION:
+                # Draw 'X' on the right image
+                x_draw = int(last_click.position_clicked[0])
+                y_draw = int(last_click.position_clicked[1])
+
+                def draw_x(img, center, color=(0, 0, 255), size=20, thickness=2):
+                    x, y = center
+                    x, y = int(x), int(y)
+                    cv2.line(img, (x - size, y - size), (x + size, y + size), color, thickness)
+                    cv2.line(img, (x - size, y + size), (x + size, y - size), color, thickness)
+
+                draw_x(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw), color=(0, 0, 255), size=20, thickness=2)
+            elif last_click.data_type == OPPONENT_POSITION:
+                # Draw circle on the right image
+                x_draw = int(last_click.position_clicked[0])
+                y_draw = int(last_click.position_clicked[1])
+                cv2.circle(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw), radius=20, color=(255, 0, 0), thickness=2)
+            elif last_click.data_type == OPPONENT_ROTATION:
+                # Draw arrow on the left image
+                x_draw = int(last_click.position_clicked[0])
+                y_draw = int(last_click.position_clicked[1])
+                center_left = (WINDOW_IMAGE_SIZE // 2, WINDOW_IMAGE_SIZE // 2)
+                cv2.arrowedLine(combined_image[:, :WINDOW_IMAGE_SIZE], center_left, (x_draw, y_draw), color=(0, 255, 0), thickness=2)
+            else:
+                print("Error: Invalid data type")
 
         send_data_to_robot_controller()
 
