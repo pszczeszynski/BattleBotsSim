@@ -52,7 +52,7 @@ uint8_t radioChannel = 0;
 uint32_t lastReinitRadioTime = 0;
 volatile uint32_t lastReceiveTime = 0;
 CRGB leds[NUM_LEDS];
-volatile bool noPacketWatchdogTrigger = false;
+volatile bool noPacketWatchdogTrigger = true;
 volatile int validMessageCount = 0;
 volatile int invalidMessageCount = 0;
 DriveCommand lastDriveCommand;
@@ -63,6 +63,7 @@ volatile uint32_t lastPacketID = 0;
 volatile bool receivedPacketSinceBoot = false;
 volatile uint32_t lastAutoSendTime = 0;
 volatile bool shouldResendAuto = false;
+RobotMessage lastTelemetryMessage;
 // RECEIVER COMPONENTS
 IMU imu;
 Radio<RobotMessage, DriverStationMessage> rxRadio;
@@ -114,6 +115,7 @@ void ServicePacketWatchdog()
             command.frontWeaponPower = 0;
             command.backWeaponPower = 0;
             command.selfRighterPower = 0;
+            command.selfRighterPower = 0;
             Drive(command);
             DriveWeapons(command);
             // TODO: self righter
@@ -125,9 +127,6 @@ void ServicePacketWatchdog()
     {
         DriveWithMessage(lastMessage, true);
         lastAutoSendTime = millis();
-        Serial.print("Time: ");
-        Serial.print(millis());
-        Serial.println(", resending auto_drive command");
     }
 }
 
@@ -146,7 +145,7 @@ void HandlePacket()
     digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
     RobotMessage return_msg = GenerateTelemetryPacket();
-    DriveLEDs(return_msg);
+    lastTelemetryMessage = return_msg;
     digitalWriteFast(STATUS_3_LED_PIN, HIGH);
     return_msg.timestamp = msg.timestamp;
     SendOutput result = rxRadio.Send(return_msg);
@@ -419,4 +418,5 @@ void rx_loop()
     logger.update();
 
     monitor.readSensors();
+    DriveLEDs(lastTelemetryMessage);
 }

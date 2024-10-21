@@ -22,6 +22,7 @@ extern CANBUS can;
 extern volatile bool shouldResendAuto;
 
 #define MSG_MAX_DELAY_RESET 5000000
+#define ENABLE_AUTONOMOUS_DRIVE
 
 
 void Drive(DriveCommand &command)
