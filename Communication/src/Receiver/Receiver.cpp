@@ -154,10 +154,10 @@ void HandlePacket()
     if(ErrorCheckMessage(msg))
     {
         DriveWithMessage(msg);
-        lastReceiveTime = millis();
-        lastAutoSendTime = millis();
         validMessageCount++;
         maxReceiveIntervalMs = max(maxReceiveIntervalMs, millis() - lastReceiveTime);
+        lastReceiveTime = millis();
+        lastAutoSendTime = millis();
     }
     else
     {
