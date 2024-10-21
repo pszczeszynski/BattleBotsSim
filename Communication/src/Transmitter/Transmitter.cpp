@@ -139,17 +139,6 @@ void tx_loop()
             // blink the LED
             digitalWrite(STATUS_2_LED_PIN, HIGH);
             sentPackets++;
-
-            if (command.type == DRIVE_COMMAND)
-            {
-                DownsampledPrintf("manu: front weapon power: %f\n", command.driveCommand.frontWeaponPower);
-                DownsampledPrintf("manu: back weapon power: %f\n", command.driveCommand.backWeaponPower);
-            }
-            else if (command.type == AUTO_DRIVE)
-            {
-                DownsampledPrintf("auto: front weapon power: %d\n", command.autoDrive.frontWeaponCurrent10);
-                DownsampledPrintf("auto: back weapon power: %d\n", command.autoDrive.backWeaponCurrent10);
-            }
         }
     }
     else

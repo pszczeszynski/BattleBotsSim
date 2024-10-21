@@ -35,11 +35,11 @@ public:
     void printRawAGMT(ICM_20948_AGMT_t agmt);
     void printFormattedFloat(float val, uint8_t leading, uint8_t decimals);
 
+    ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
 private:
     void _updateGyro(double deltaTimeMS);
     void _updateAccelerometer(double deltaTimeMS);
 
-    ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
     Point _velocity;
     Point _calibrationAccel;
     Point _currAcceleration;
