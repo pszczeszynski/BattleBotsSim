@@ -80,7 +80,7 @@ RobotMessage GenerateTelemetryPacket();
 IntervalTimer imuTimer;
 void ServiceImu()
 {
-    imu.Update();
+    //imu.Update();
 }
 
 IntervalTimer angleSyncTimer;
@@ -118,16 +118,15 @@ void ServicePacketWatchdog()
             command.selfRighterPower = 0;
             Drive(command);
             DriveWeapons(command);
-            // TODO: self righter
             noPacketWatchdogTrigger = true;
         }
     }
-    else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
+    /*else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
             (shouldResendAuto))
     {
         DriveWithMessage(lastMessage, true);
         lastAutoSendTime = millis();
-    }
+    }*/
 }
 
 IntervalTimer CANEventsTimer;
@@ -141,7 +140,7 @@ void HandlePacket()
     if (!rxRadio.Available()) return;
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
-    
+    imu.Update();
     digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
     RobotMessage return_msg = GenerateTelemetryPacket();
