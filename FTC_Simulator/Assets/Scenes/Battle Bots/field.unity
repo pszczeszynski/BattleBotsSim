@@ -14042,6 +14042,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hypershock FBX
       objectReference: {fileID: 0}
+    - target: {fileID: 8136443301539052497, guid: 904ab1321de345b49b7fbfab071776d4,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8908582675643048299, guid: 904ab1321de345b49b7fbfab071776d4,
         type: 3}
       propertyPath: m_RootOrder
@@ -23562,7 +23567,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &2606356602163893702
 GameObject:
   m_ObjectHideFlags: 0

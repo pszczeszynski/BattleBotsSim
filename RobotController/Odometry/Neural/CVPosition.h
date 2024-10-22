@@ -32,6 +32,7 @@ private:
     cv::Size modelShape{};
 
     CVPositionData _lastData;
+    cv::Point2f _lastVelocity;
     std::mutex _lastDataMutex;
 
     CVPositionData _GetDataFromPython();

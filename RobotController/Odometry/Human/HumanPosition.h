@@ -25,6 +25,11 @@ private:
     bool _sendHeuristicMat = false;
 
     cv::Point2f _lastReceivedPos;
+    int _lastAutoLCount = 0;
+    int _lastAutoRCount = 0;
+    int _lastHardRebootCount = 0;
+    int _lastRebootRecoveryCount = 0;
+
     DataType _lastReceivedType;
     ServerSocket* _socket;
     std::vector<int> _GetDataFromSocket();

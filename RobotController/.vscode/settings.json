@@ -141,6 +141,6 @@
         "editor.formatOnSaveMode": "file",
         "editor.formatOnPaste": false,
         "editor.formatOnType": false,
-        "editor.defaultFormatter": "ms-python.python",
+        "editor.defaultFormatter": "ms-python.black-formatter",
     },
 }

@@ -15,6 +15,7 @@ OPPONENT_ROTATION_VEL = 3
 
 WINDOW_IMAGE_SIZE = 720
 RAW_IMAGE_SIZE = 360
+SCALE_FACTOR = float(WINDOW_IMAGE_SIZE) / RAW_IMAGE_SIZE
 
 MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 
@@ -32,10 +33,18 @@ last_click = LastClickData()
 combined_image: Optional[np.ndarray] = None
 primary_click_action = 'robot'  # Initialize primary click action
 
+# Counters for button presses
+auto_l_count = 0
+auto_r_count = 0
+hard_reboot_count = 0
+reboot_recovery_count = 0
+
 
 # Function to send data to robot controller
 def send_data_to_robot_controller() -> None:
     global client_socket
+    global auto_l_count, auto_r_count, hard_reboot_count, reboot_recovery_count
+
     # Collect UI state
     foreground_min_delta_value = int(foreground_min_delta_slider.get())
     background_heal_rate_value = int(background_heal_rate_slider.get())
@@ -45,15 +54,23 @@ def send_data_to_robot_controller() -> None:
     # Prepare data to send
     data = (
         last_click.data_type.to_bytes(4, byteorder="little")
-        + int(last_click.position[0] / 2).to_bytes(4, byteorder="little")
-        + int(last_click.position[1] / 2).to_bytes(4, byteorder="little")
+        + int(last_click.position[0] / SCALE_FACTOR).to_bytes(4, byteorder="little")
+        + int(last_click.position[1] / SCALE_FACTOR).to_bytes(4, byteorder="little")
         + foreground_min_delta_value.to_bytes(4, byteorder="little")
         + background_heal_rate_value.to_bytes(4, byteorder="little")
         + force_pos_value.to_bytes(4, byteorder="little")
         + force_heal_value.to_bytes(4, byteorder="little")
+        + auto_l_count.to_bytes(4, byteorder="little")
+        + auto_r_count.to_bytes(4, byteorder="little")
+        + hard_reboot_count.to_bytes(4, byteorder="little")
+        + reboot_recovery_count.to_bytes(4, byteorder="little")
     )
 
-    print("Sending click data:", last_click.data_type, last_click.position)
+    # print("Sending click data:", last_click.data_type, last_click.position)
+    # print("Auto L count:", auto_l_count, "Auto R count:", auto_r_count)
+    # print("foreground_min_delta:", foreground_min_delta_value, "background_heal_rate:", background_heal_rate_value)
+    # print("Hard reboot count:", hard_reboot_count, "Reboot recovery count:", reboot_recovery_count)
+
     if client_socket is not None:
         client_socket.sendto(data, (HOST, PORT))
     else:
@@ -108,6 +125,10 @@ def draw_robot_position(
     color: Tuple[int, int, int] = (0, 255, 0),
     radius: int = 20,
 ) -> None:
+    # sanity check
+    if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
+        return
+
     cv2.circle(image, position, radius=radius, color=color, thickness=2)
 
 
@@ -117,6 +138,10 @@ def draw_opponent_position(
     color: Tuple[int, int, int] = (255, 0, 0),
     radius: int = 20,
 ) -> None:
+    # sanity check
+    if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
+        return
+
     cv2.circle(image, position, radius=radius, color=color, thickness=2)
 
 
@@ -333,7 +358,7 @@ side_panel.grid(row=0, column=1, padx=10, pady=10)
 ip_label = tk.Label(side_panel, text="IP Address:")
 ip_label.grid(row=0, column=0, padx=5, pady=5)
 ip_entry = tk.Entry(side_panel)
-ip_entry.insert(0, "localhost")  # Default value
+ip_entry.insert(0, "192.168.0.115")  # Default value
 ip_entry.grid(row=0, column=1, padx=5, pady=5)
 
 port_label = tk.Label(side_panel, text="Port:")
@@ -391,8 +416,28 @@ pos_only_radiobutton.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
 pos_and_rot_radiobutton.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
 
 # Auto L and Auto R buttons
-auto_l_button = tk.Button(side_panel, text="Auto L", bg="lightblue", width=10)
-auto_r_button = tk.Button(side_panel, text="Auto R", bg="red", width=10)
+def on_auto_l_button_press():
+    global auto_l_count
+    auto_l_count += 1
+    send_data_to_robot_controller()
+
+def on_auto_r_button_press():
+    global auto_r_count
+    auto_r_count += 1
+    send_data_to_robot_controller()
+
+def on_foreground_min_delta_change(event):
+    send_data_to_robot_controller()
+
+def on_background_heal_rate_change(event):
+    send_data_to_robot_controller()
+
+def on_force_pos_change():
+    send_data_to_robot_controller()
+
+
+auto_l_button = tk.Button(side_panel, text="Auto L", bg="lightblue", width=10, command=on_auto_l_button_press)
+auto_r_button = tk.Button(side_panel, text="Auto R", bg="red", width=10, command=on_auto_r_button_press)
 auto_l_button.grid(row=6, column=0, padx=5, pady=5)
 auto_r_button.grid(row=6, column=1, padx=5, pady=5)
 
@@ -400,19 +445,19 @@ auto_r_button.grid(row=6, column=1, padx=5, pady=5)
 foreground_label = tk.Label(side_panel, text="Foreground min delta:")
 foreground_label.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
-foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
+foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=30, orient=HORIZONTAL, command=on_foreground_min_delta_change)
 foreground_min_delta_slider.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
 
 background_label = tk.Label(side_panel, text="Background Heal Rate:")
 background_label.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
 
-background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=100, orient=HORIZONTAL)
+background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=300, orient=HORIZONTAL, command=on_background_heal_rate_change)
 background_heal_rate_slider.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 
 # Checkboxes
 force_pos_var = tk.IntVar()
 force_pos_checkbox = tk.Checkbutton(
-    side_panel, text="Force Pos on click?", variable=force_pos_var
+    side_panel, text="Force Pos on click?", variable=force_pos_var, command=on_force_pos_change
 )
 force_pos_checkbox.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
 
@@ -431,10 +476,20 @@ force_heal_checkbox = tk.Checkbutton(
 force_heal_checkbox.grid(row=14, column=0, columnspan=2, padx=5, pady=5)
 
 # Emergency buttons
+def on_reboot_recovery_button_press():
+    global reboot_recovery_count
+    reboot_recovery_count += 1
+    send_data_to_robot_controller()
+
+def on_hard_reboot_button_press():
+    global hard_reboot_count
+    hard_reboot_count += 1
+    send_data_to_robot_controller()
+
 reboot_button = tk.Button(
-    side_panel, text="Reboot recovery sequence", bg="orange", width=25
+    side_panel, text="Reboot recovery sequence", bg="orange", width=25, command=on_reboot_recovery_button_press
 )
-hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25)
+hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25, command=on_hard_reboot_button_press)
 reboot_button.grid(row=15, column=0, columnspan=2, padx=5, pady=5)
 hard_reboot_button.grid(row=16, column=0, columnspan=2, padx=5, pady=5)
 
@@ -496,8 +551,10 @@ def on_right_click(event: tk.Event) -> None:
     else:
         handle_mouse_event(event, POSITION)
 
-
 def on_left_drag(event: tk.Event) -> None:
+    if current_mode == "pos_and_rot" and event.x < WINDOW_IMAGE_SIZE:
+        handle_mouse_event(event, OPPONENT_ROTATION)
+
     if primary_click_action == 'robot':
         handle_mouse_event(event, POSITION)
     else:
@@ -514,6 +571,11 @@ def on_right_drag(event: tk.Event) -> None:
 def on_mouse_move(event: tk.Event) -> None:
     if current_mode == "pos_and_rot" and event.x < WINDOW_IMAGE_SIZE:
         handle_mouse_event(event, OPPONENT_ROTATION)
+    
+    elif primary_click_action == 'robot':
+        handle_mouse_event(event, POSITION)
+    else:
+        handle_mouse_event(event, OPPONENT_POSITION)
 
 
 def handle_mouse_event(event: tk.Event, data_type: int) -> None:
@@ -552,8 +614,8 @@ def handle_mouse_event(event: tk.Event, data_type: int) -> None:
 
 
 # Bind the mouse events
-image_label.bind("<Button-1>", on_left_click)
-image_label.bind("<Button-3>", on_right_click)
+image_label.bind("<ButtonPress-1>", on_left_click)
+image_label.bind("<ButtonPress-3>", on_right_click)
 image_label.bind("<B1-Motion>", on_left_drag)
 image_label.bind("<B3-Motion>", on_right_drag)
 image_label.bind("<Motion>", on_mouse_move)
@@ -605,6 +667,9 @@ def receive_thread() -> None:
         # Update the latest_image
         with image_lock:
             latest_image = combined_image.copy()
+        
+        send_data_to_robot_controller()
+
 
 
 # Start the image update loop

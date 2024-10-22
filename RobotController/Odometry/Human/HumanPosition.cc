@@ -4,6 +4,7 @@
 #include "../../RobotConfig.h"
 #include "../../RobotOdometry.h"
 #include "../../RobotController.h"
+#include "../../UIWidgets/ConfigWidget.h"
 #include <iostream>
 
 HumanPosition::HumanPosition(ICameraReceiver *videoSource, std::string port, bool sendHeuristicMat) : OdometryBase(videoSource)
@@ -13,7 +14,7 @@ HumanPosition::HumanPosition(ICameraReceiver *videoSource, std::string port, boo
     _socket = new ServerSocket(port);
 }
 
-const int NUMBER_OF_FIELDS = 7;
+const int NUMBER_OF_FIELDS = 11;
 std::vector<int> HumanPosition::_GetDataFromSocket()
 {
     std::vector<int> data = {};
@@ -35,7 +36,7 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
         return data;
     }
 
-    // parse the 7 values to an int
+    // parse the 11 values to an int
     for (int i = 0; i < NUMBER_OF_FIELDS; i ++)
     {
         data.push_back(*(int*)(data_str.c_str() + i * 4));
@@ -123,33 +124,58 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         const int background_heal_rate = data[4];
         const int force_pos_bool = data[5];
         const int force_heal_value = data[6];
+        const int auto_l_count = data[7];
+        const int auto_r_count = data[8];
+        const int hard_reboot_count = data[9];
+        const int reboot_recovery_count = data[10];
 
-        if (clickPosition == _lastReceivedPos && type == _lastReceivedType)
+        if (_sendHeuristicMat)
+        {
+            HEU_FOREGROUND_THRESHOLD = foreground_min_delta;
+            HEU_BACKGROUND_AVGING = background_heal_rate;
+            RobotController::GetInstance().odometry.GetHeuristicOdometry().force_background_averaging = (bool)force_heal_value;
+        }
+
+        if (clickPosition == _lastReceivedPos && type == _lastReceivedType &&
+            auto_l_count == _lastAutoLCount && auto_r_count == _lastAutoRCount &&
+            hard_reboot_count == _lastHardRebootCount && reboot_recovery_count == _lastRebootRecoveryCount)
         {
             return;
         }
 
+        BlobDetection& blob = RobotController::GetInstance().odometry.GetBlobOdometry();
+        HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
         std::cout << "foreground_min_delta: " << foreground_min_delta << std::endl;
         std::cout << "background_heal_rate: " << background_heal_rate << std::endl;
         std::cout << "force_pos_bool: " << force_pos_bool << std::endl;
         std::cout << "force_heal_value: " << force_heal_value << std::endl;
-        
-
         std::cout << "Received data: " << data[0] << " " << data[1] << " " << data[2] << std::endl;
 
         if (type == DataType::ROBOT_POSITION)
         {
-            RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, false);
-            RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, false);
-
+            blob.SetPosition(clickPosition, false);
+            if (force_pos_bool)
+            {
+                heuristic.ForcePosition(clickPosition, false);
+            }
+            else
+            {
+                heuristic.SetPosition(clickPosition, false);
+            }
         }
         else if (type == DataType::OPPONENT_POSITION)
         {
             // call set position on blob + heuristic
-            RobotController::GetInstance().odometry.GetBlobOdometry().SetPosition(clickPosition, true);
-            RobotController::GetInstance().odometry.GetHeuristicOdometry().SetPosition(clickPosition, true);
-            // _UpdateData(false, frameTime, &clickPosition, nullptr);
+            blob.SetPosition(clickPosition, true);
+            if (force_pos_bool)
+            {
+                heuristic.ForcePosition(clickPosition, true);
+            }
+            else
+            {
+                heuristic.SetPosition(clickPosition, true);
+            }
         }
         else if (type == DataType::OPPONENT_ANGLE)
         {
@@ -158,8 +184,32 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             _UpdateData(false, frameTime, nullptr, &angle);
         }
 
+        if (auto_l_count > _lastAutoLCount)
+        {
+            heuristic.MatchStart(ConfigWidget::leftStart, ConfigWidget::rightStart);
+        }
+
+        if (auto_r_count > _lastAutoRCount)
+        {
+            heuristic.MatchStart(ConfigWidget::rightStart, ConfigWidget::leftStart);
+        }
+
+        if (hard_reboot_count > _lastHardRebootCount)
+        {
+            heuristic.set_currFrame_to_bg = true;
+        }
+
+
+        
+
+        
+
         _lastReceivedPos = clickPosition;
         _lastReceivedType = (DataType)data[0];
+        _lastAutoLCount = auto_l_count;
+        _lastAutoRCount = auto_r_count;
+        _lastHardRebootCount = hard_reboot_count;
+        _lastRebootRecoveryCount = reboot_recovery_count;
     }
 }
 

@@ -236,6 +236,12 @@ void RobotOdometry::FuseAndUpdatePositions()
     //
     // 
 
+    double currTime = Clock::programClock.getElapsedTime();
+    // 1. extrapolate all data to current time
+    _dataRobot_Blob.Extrapolate(currTime);
+    _dataRobot_Heuristic.Extrapolate(currTime);
+    _dataRobot_Neural.Extrapolate(currTime);
+
     // ******************************
     // HUMAN OVERRIDES
     // ******************************
@@ -305,23 +311,20 @@ void RobotOdometry::FuseAndUpdatePositions()
             // Swap heuristic
             _odometry_Heuristic.SwitchRobots();
 
-            // but if still a problem, swap back
-            if (_dataOpponent_Heuristic.IsPointInside(_dataRobot_Neural.robotPosition))
-            {
-                _odometry_Heuristic.SwitchRobots();
-            }
+    
+            heuristicThemPos_valid = false;
+            heuristicThemAngle_valid = false;
+            heuristicUsPos_valid = false;
+            heuristicUsAngle_valid = false;
         }
 
-        heuristicThemPos_valid = false;
-        heuristicThemAngle_valid = false;
-        heuristicUsPos_valid = false;
-        heuristicUsAngle_valid = false;
     }
 
 
     // G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
     if( neuralUsPos_valid && blobUsPos_valid && _dataRobot_Blob.IsPointInside(_dataRobot_Neural.robotPosition))
     {
+
         // Force position if heuristic doesn't agree
         if( !heuristicUsPos_valid || !_dataRobot_Heuristic.IsPointInside(_dataRobot_Neural.robotPosition))
         {
