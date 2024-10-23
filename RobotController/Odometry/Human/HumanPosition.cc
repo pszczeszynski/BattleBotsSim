@@ -146,11 +146,6 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         BlobDetection& blob = RobotController::GetInstance().odometry.GetBlobOdometry();
         HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-        std::cout << "foreground_min_delta: " << foreground_min_delta << std::endl;
-        std::cout << "background_heal_rate: " << background_heal_rate << std::endl;
-        std::cout << "force_pos_bool: " << force_pos_bool << std::endl;
-        std::cout << "force_heal_value: " << force_heal_value << std::endl;
-        std::cout << "Received data: " << data[0] << " " << data[1] << " " << data[2] << std::endl;
 
         if (type == DataType::ROBOT_POSITION)
         {

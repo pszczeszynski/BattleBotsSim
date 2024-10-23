@@ -123,7 +123,7 @@ def draw_robot_position(
     image: np.ndarray,
     position: Tuple[int, int],
     color: Tuple[int, int, int] = (0, 255, 0),
-    radius: int = 20,
+    radius: int = 10,
 ) -> None:
     # sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
@@ -136,7 +136,7 @@ def draw_opponent_position(
     image: np.ndarray,
     position: Tuple[int, int],
     color: Tuple[int, int, int] = (255, 0, 0),
-    radius: int = 20,
+    radius: int = 10,
 ) -> None:
     # sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
@@ -171,7 +171,7 @@ def draw_x_marker(
     image: np.ndarray,
     center: Tuple[int, int],
     color: Tuple[int, int, int] = (0, 0, 255),
-    size: int = 20,
+    size: int = 10,
     thickness: int = 2,
 ) -> None:
     x, y = center
@@ -246,7 +246,7 @@ def process_pos_only_mode(
     draw_robot_position(full_field_image, screen_robot_pos)
     draw_opponent_position(full_field_image, screen_opponent_pos)
 
-    draw_last_click_marker(full_field_image, last_click)
+    # draw_last_click_marker(full_field_image, last_click)
 
     return full_field_image
 
@@ -320,7 +320,7 @@ def process_pos_and_rot_mode(
             cv2.circle(
                 combined_image[:, WINDOW_IMAGE_SIZE:],
                 (x_draw, y_draw),
-                radius=20,
+                radius=10,
                 color=(255, 0, 0),
                 thickness=2,
             )
@@ -445,13 +445,13 @@ auto_r_button.grid(row=6, column=1, padx=5, pady=5)
 foreground_label = tk.Label(side_panel, text="Foreground min delta:")
 foreground_label.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
-foreground_min_delta_slider = ttk.Scale(side_panel, from_=0, to=30, orient=HORIZONTAL, command=on_foreground_min_delta_change)
+foreground_min_delta_slider = ttk.Scale(side_panel, from_=1, to=30, orient=HORIZONTAL, command=on_foreground_min_delta_change)
 foreground_min_delta_slider.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
 
 background_label = tk.Label(side_panel, text="Background Heal Rate:")
 background_label.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
 
-background_heal_rate_slider = ttk.Scale(side_panel, from_=0, to=300, orient=HORIZONTAL, command=on_background_heal_rate_change)
+background_heal_rate_slider = ttk.Scale(side_panel, from_=1, to=300, orient=HORIZONTAL, command=on_background_heal_rate_change)
 background_heal_rate_slider.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 
 # Checkboxes
@@ -461,19 +461,11 @@ force_pos_checkbox = tk.Checkbutton(
 )
 force_pos_checkbox.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
 
-# Add space before the emergency section
-side_panel.grid_rowconfigure(12, minsize=50)
-
-# Emergency section
-emergency_label = tk.Label(
-    side_panel, text="-------- Emergency --------", font=("Arial", 10, "bold")
-)
-emergency_label.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
 force_heal_var = tk.IntVar()
 force_heal_checkbox = tk.Checkbutton(
     side_panel, text="Force Heal?", variable=force_heal_var
 )
-force_heal_checkbox.grid(row=14, column=0, columnspan=2, padx=5, pady=5)
+force_heal_checkbox.grid(row=12, column=0, columnspan=2, padx=5, pady=5)
 
 # Emergency buttons
 def on_reboot_recovery_button_press():
@@ -486,12 +478,12 @@ def on_hard_reboot_button_press():
     hard_reboot_count += 1
     send_data_to_robot_controller()
 
-reboot_button = tk.Button(
-    side_panel, text="Reboot recovery sequence", bg="orange", width=25, command=on_reboot_recovery_button_press
-)
+# reboot_button = tk.Button(
+#     side_panel, text="Reboot recovery sequence", bg="orange", width=25, command=on_reboot_recovery_button_press
+# )
 hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25, command=on_hard_reboot_button_press)
-reboot_button.grid(row=15, column=0, columnspan=2, padx=5, pady=5)
-hard_reboot_button.grid(row=16, column=0, columnspan=2, padx=5, pady=5)
+# reboot_button.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
+hard_reboot_button.grid(row=14, column=0, columnspan=2, padx=5, pady=5)
 
 # Add a big button to toggle the primary click action
 def toggle_primary_click_action():
@@ -504,7 +496,7 @@ def toggle_primary_click_action():
         primary_click_button.config(text="Primary: Robot")
 
 primary_click_button = tk.Button(side_panel, text="Primary: Robot", command=toggle_primary_click_action, width=20, height=2)
-primary_click_button.grid(row=17, column=0, columnspan=2, padx=5, pady=10)
+primary_click_button.grid(row=15, column=0, columnspan=2, padx=5, pady=10)
 
 # Placeholder for the image to prevent garbage collection
 tk_image: Optional[ImageTk.PhotoImage] = None
@@ -528,6 +520,7 @@ def update_image() -> None:
 
             # Convert the PIL Image to a PhotoImage
             tk_image = ImageTk.PhotoImage(image=pil_image)
+            
 
             # Update the image_label
             image_label.config(image=tk_image)
