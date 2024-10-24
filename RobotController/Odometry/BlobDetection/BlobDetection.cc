@@ -327,7 +327,7 @@ void BlobDetection::_GetSmoothedVisualVelocity(OdometryData &currData, OdometryD
     double elapsedVelTime = currData.time - prevData.userDataDouble["lastVelTime"];
 
     // If elapsed time between vel updates is too big, reset it
-    if (elapsedVelTime > 0.1f)
+    if ((elapsedVelTime > 0.1f) || (currData.robotPosValid == false) || (prevData.robotPosValid == false))
     {
         currData.userDataDouble["lastVelTime"] = currData.time;
         currData.robotVelocity = cv::Point2f(0, 0);
@@ -469,12 +469,14 @@ void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot)
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
     odoData.robotPosition = newPos;
+    odoData.robotVelocity = cv::Point2f(0, 0);
     odoData.robotPosValid = true;
     odoData.id++;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
     odoData2.robotPosition = newPos;
-    odoData2.robotPosValid = true;
+    odoData2.robotVelocity = cv::Point2f(0, 0);
+    odoData2.robotPosValid = false;
 }
 
 void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot)

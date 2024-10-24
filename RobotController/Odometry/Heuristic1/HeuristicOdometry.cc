@@ -52,6 +52,9 @@ cv::Mat HeuristicOdometry::backgroundOverlay = cv::Mat::zeros(0,0, CV_8UC3);
 void HeuristicOdometry::UpdateSettings()
 {
     averagingCount = HEU_BACKGROUND_AVGING;
+    // add sanity check 
+    if( averagingCount < 4) { averagingCount = 4; } 
+
     trackedAvgCount = HEU_UNTRACKED_MOVING_BLOB_AVGING;
     fg_threshold = HEU_FOREGROUND_THRESHOLD;
     fg_threshold_ratio = HEU_FOREGROUND_RATIO / 100.0f;
@@ -441,24 +444,34 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+    RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
 
-    odoData.robotPosition = newPos;
+    odoData.robotPosition = (tracker != nullptr) ? tracker->position.Point2f() : newPos;
     odoData.robotPosValid = true;
+    odoData.robotVelocity = cv::Point2f(0, 0);
 }
 
 void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
 {
     // Here we assume newPos is inside the current tracked box. 
     // If we have no tracker, use setPosition
+    // If setPosition fails, than continue on with force position
     if( opponentRobot && opponentRobotTracker == nullptr)
     {
         SetPosition(newPos, opponentRobot);
-        return;
+
+        if( opponentRobotTracker == nullptr)
+        {
+            return;
+        }
     }
     else if( !opponentRobot && ourRobotTracker == nullptr)
     {
         SetPosition(newPos, opponentRobot);
-        return;
+        if( ourRobotTracker == nullptr)
+        {
+            return;
+        }
     }
 
     std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
@@ -731,8 +744,19 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDispl
         else
         {
             // Draw the rectangle of this tracked bot
-            cv::rectangle(frameToDisplay, (*currIter)->bbox, cv::Scalar(0, 255, 255), 3);
-            cv::circle(frameToDisplay, (*currIter)->GetCenter(), 10, cv::Scalar(0, 255, 0), 3);
+            // Draw a Green circle around us
+            cv::Scalar colorRectangle =  cv::Scalar(0, 255, 255);
+
+            if ((*currIter) == ourRobotTracker)
+            {
+                colorRectangle = cv::Scalar(0, 255, 0);
+            }
+            else if ((*currIter) == opponentRobotTracker)
+            {
+                colorRectangle = cv::Scalar(0, 0, 255);
+            }
+            cv::rectangle(frameToDisplay, (*currIter)->bbox, colorRectangle, 3);
+            cv::circle(frameToDisplay, (*currIter)->GetCenter(), 10, colorRectangle, 3);
             cv::Point rotationdir((*currIter)->rotation.x * 50.0, (*currIter)->rotation.y * 50.0);
             cv::Point centerBBox = (*currIter)->bbox.tl();
             centerBBox.x += (*currIter)->bbox.width / 2;
@@ -744,7 +768,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDispl
             //  cv::line(frameToDisplay, centerBBox, centerBBox + avgVelocityPoint, cv::Scalar(0,10,150), 3 );
 
             // Draw rotation
-            cv::line(frameToDisplay, centerBBox, centerBBox + rotationdir, cv::Scalar(0, 50, 250), 1);
+            cv::line(frameToDisplay, centerBBox, centerBBox + rotationdir, cv::Scalar(0, 50, 250), 2);
 
             int line = 0;
             printText("Bbox w,h=" + std::to_string((*currIter)->bbox.width) + "," + std::to_string((*currIter)->bbox.height),
