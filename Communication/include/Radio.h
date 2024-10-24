@@ -61,7 +61,6 @@ bool Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
     radio.setPALevel(POWER);
-    Serial.println(POWER_STATUS_MSG);
     radio.startListening();
     radio.setAutoAck(false);
     if (!radio.setDataRate(RF24_2MBPS)) return false;

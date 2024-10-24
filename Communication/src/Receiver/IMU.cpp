@@ -82,6 +82,7 @@ void IMU::Initialize(enum board_placement placement)
     _prevAcceleration = Point{0, 0, 0};
     _rotation = 0;
     _currRotVelZ = 0;
+    ForceCalibrate();
 
     Serial.println("Success!");
 }

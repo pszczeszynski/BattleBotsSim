@@ -19,20 +19,16 @@
 
 #define ARBITRATION_TIMEOUT_MS 500
 
-// LED 1
 // these interrupts are ordered by priority highest -> lowest
 #define WATCHDOG_PRIORITY 0x70
 #define WATCHDOG_INTERVAL 10000 // 10000us = 100hz
 
-// LED 2
 #define CAN_EVENTS_PRIORITY 0x71
 #define CAN_EVENTS_INTERVAL 100 // 10kHz
 
-// LED 3
 // radio interrupt should be 0x80 priority
 // Place watchdog above radio and everything else below
 
-// LED 4
 #define IMU_PRIORITY 0xFD
 #define IMU_INTERVAL 10000 // microseconds -> 2000us = 500hz
 
@@ -118,16 +114,15 @@ void ServicePacketWatchdog()
             command.selfRighterPower = 0;
             Drive(command);
             DriveWeapons(command);
-            // TODO: self righter
             noPacketWatchdogTrigger = true;
         }
     }
-    else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
+    /*else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
             (shouldResendAuto))
     {
         DriveWithMessage(lastMessage, true);
         lastAutoSendTime = millis();
-    }
+    }*/
 }
 
 IntervalTimer CANEventsTimer;
@@ -141,7 +136,7 @@ void HandlePacket()
     if (!rxRadio.Available()) return;
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
-    
+    //imu.Update();
     digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
     RobotMessage return_msg = GenerateTelemetryPacket();
@@ -418,5 +413,4 @@ void rx_loop()
     logger.update();
 
     monitor.readSensors();
-    DriveLEDs(lastTelemetryMessage);
 }
