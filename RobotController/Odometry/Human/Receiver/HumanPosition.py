@@ -13,12 +13,14 @@ OPPONENT_POSITION = 1
 OPPONENT_ROTATION = 2
 OPPONENT_ROTATION_VEL = 3
 
-WINDOW_IMAGE_SIZE = 720
+WINDOW_IMAGE_SIZE = 360
 RAW_IMAGE_SIZE = 360
 SCALE_FACTOR = float(WINDOW_IMAGE_SIZE) / RAW_IMAGE_SIZE
 
 MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 
+# Display scaling factor
+DISPLAY_SCALE_FACTOR = 2  # Multiply the display size by 2
 
 class LastClickData:
     def __init__(self, position: Tuple[int, int] = (0, 0), data_type: int = POSITION):
@@ -65,11 +67,6 @@ def send_data_to_robot_controller() -> None:
         + hard_reboot_count.to_bytes(4, byteorder="little")
         + reboot_recovery_count.to_bytes(4, byteorder="little")
     )
-
-    # print("Sending click data:", last_click.data_type, last_click.position)
-    # print("Auto L count:", auto_l_count, "Auto R count:", auto_r_count)
-    # print("foreground_min_delta:", foreground_min_delta_value, "background_heal_rate:", background_heal_rate_value)
-    # print("Hard reboot count:", hard_reboot_count, "Reboot recovery count:", reboot_recovery_count)
 
     if client_socket is not None:
         client_socket.sendto(data, (HOST, PORT))
@@ -125,7 +122,7 @@ def draw_robot_position(
     color: Tuple[int, int, int] = (0, 255, 0),
     radius: int = 10,
 ) -> None:
-    # sanity check
+    # Sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
         return
 
@@ -138,7 +135,7 @@ def draw_opponent_position(
     color: Tuple[int, int, int] = (255, 0, 0),
     radius: int = 10,
 ) -> None:
-    # sanity check
+    # Sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
         return
 
@@ -226,27 +223,13 @@ def process_pos_only_mode(
     opponent_pos: Tuple[int, int],
     last_click: LastClickData,
 ) -> np.ndarray:
-    full_field_image = cv2.resize(
-        received_image.copy(), (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE)
-    )
+    full_field_image = received_image.copy()  # No resizing
 
-    original_height, original_width = received_image.shape[:2]
-    scale_factor_x = original_width / WINDOW_IMAGE_SIZE
-    scale_factor_y = original_height / WINDOW_IMAGE_SIZE
-
-    screen_robot_pos = (
-        int(robot_pos[0] / scale_factor_x),
-        int(robot_pos[1] / scale_factor_y),
-    )
-    screen_opponent_pos = (
-        int(opponent_pos[0] / scale_factor_x),
-        int(opponent_pos[1] / scale_factor_y),
-    )
+    screen_robot_pos = robot_pos
+    screen_opponent_pos = opponent_pos
 
     draw_robot_position(full_field_image, screen_robot_pos)
     draw_opponent_position(full_field_image, screen_opponent_pos)
-
-    # draw_last_click_marker(full_field_image, last_click)
 
     return full_field_image
 
@@ -260,65 +243,57 @@ def process_pos_and_rot_mode(
     last_click: LastClickData,
 ) -> np.ndarray:
     left_image = crop_image_around_point(received_image, opponent_pos, RAW_IMAGE_SIZE)
-    left_image = cv2.resize(left_image, (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE))
+    right_image = received_image.copy()
 
-    right_image = cv2.resize(
-        received_image.copy(), (WINDOW_IMAGE_SIZE, WINDOW_IMAGE_SIZE)
-    )
+    # Ensure both images have the same height
+    if left_image.shape[0] != right_image.shape[0]:
+        desired_height = right_image.shape[0]
+        left_image = cv2.resize(left_image, (left_image.shape[1], desired_height))  # Only downscaling if needed
 
     combined_image = np.hstack((left_image, right_image))
 
+    # Adjust positions accordingly
     rel_robot_pos_x = robot_pos[0] - opponent_pos[0]
     rel_robot_pos_y = robot_pos[1] - opponent_pos[1]
 
-    scale_factor_left = WINDOW_IMAGE_SIZE / RAW_IMAGE_SIZE
-
     screen_robot_pos_left = (
-        int((rel_robot_pos_x + RAW_IMAGE_SIZE // 2) * scale_factor_left),
-        int((rel_robot_pos_y + RAW_IMAGE_SIZE // 2) * scale_factor_left),
+        int(rel_robot_pos_x + left_image.shape[1] // 2),
+        int(rel_robot_pos_y + left_image.shape[0] // 2),
     )
-    screen_opponent_pos_left = (WINDOW_IMAGE_SIZE // 2, WINDOW_IMAGE_SIZE // 2)
+    screen_opponent_pos_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
 
-    draw_robot_position(combined_image[:, :WINDOW_IMAGE_SIZE], screen_robot_pos_left)
+    draw_robot_position(combined_image[:, :left_image.shape[1]], screen_robot_pos_left)
     draw_opponent_position(
-        combined_image[:, :WINDOW_IMAGE_SIZE], screen_opponent_pos_left
+        combined_image[:, :left_image.shape[1]], screen_opponent_pos_left
     )
     draw_opponent_rotation(
-        combined_image[:, :WINDOW_IMAGE_SIZE],
+        combined_image[:, :left_image.shape[1]],
         screen_opponent_pos_left,
         opponent_angle_deg,
     )
 
-    original_height, original_width = received_image.shape[:2]
-    scale_factor_right_x = original_width / WINDOW_IMAGE_SIZE
-    scale_factor_right_y = original_height / WINDOW_IMAGE_SIZE
+    # For right_image
+    screen_robot_pos_right = robot_pos
+    screen_opponent_pos_right = opponent_pos
 
-    screen_robot_pos_right = (
-        int(robot_pos[0] / scale_factor_right_x),
-        int(robot_pos[1] / scale_factor_right_y),
-    )
-    screen_opponent_pos_right = (
-        int(opponent_pos[0] / scale_factor_right_x),
-        int(opponent_pos[1] / scale_factor_right_y),
-    )
-
-    draw_robot_position(combined_image[:, WINDOW_IMAGE_SIZE:], screen_robot_pos_right)
+    draw_robot_position(combined_image[:, left_image.shape[1]:], screen_robot_pos_right)
     draw_opponent_position(
-        combined_image[:, WINDOW_IMAGE_SIZE:], screen_opponent_pos_right
+        combined_image[:, left_image.shape[1]:], screen_opponent_pos_right
     )
     draw_opponent_rotation(
-        combined_image[:, WINDOW_IMAGE_SIZE:],
+        combined_image[:, left_image.shape[1]:],
         screen_opponent_pos_right,
         opponent_angle_deg,
     )
 
+    # Handle last click events (adjust if necessary)
     if last_click.data_type == POSITION or last_click.data_type == OPPONENT_POSITION:
         x_draw, y_draw = map(int, last_click.position)
         if last_click.data_type == POSITION:
-            draw_x_marker(combined_image[:, WINDOW_IMAGE_SIZE:], (x_draw, y_draw))
+            draw_x_marker(combined_image[:, left_image.shape[1]:], (x_draw, y_draw))
         else:
             cv2.circle(
-                combined_image[:, WINDOW_IMAGE_SIZE:],
+                combined_image[:, left_image.shape[1]:],
                 (x_draw, y_draw),
                 radius=10,
                 color=(255, 0, 0),
@@ -326,9 +301,9 @@ def process_pos_and_rot_mode(
             )
     elif last_click.data_type == OPPONENT_ROTATION:
         x_draw, y_draw = map(int, last_click.position)
-        center_left = (WINDOW_IMAGE_SIZE // 2, WINDOW_IMAGE_SIZE // 2)
+        center_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
         cv2.arrowedLine(
-            combined_image[:, :WINDOW_IMAGE_SIZE],
+            combined_image[:, :left_image.shape[1]],
             center_left,
             (x_draw, y_draw),
             color=(0, 255, 0),
@@ -478,11 +453,7 @@ def on_hard_reboot_button_press():
     hard_reboot_count += 1
     send_data_to_robot_controller()
 
-# reboot_button = tk.Button(
-#     side_panel, text="Reboot recovery sequence", bg="orange", width=25, command=on_reboot_recovery_button_press
-# )
 hard_reboot_button = tk.Button(side_panel, text="Hard reboot", bg="red", width=25, command=on_hard_reboot_button_press)
-# reboot_button.grid(row=13, column=0, columnspan=2, padx=5, pady=5)
 hard_reboot_button.grid(row=14, column=0, columnspan=2, padx=5, pady=5)
 
 # Add a big button to toggle the primary click action
@@ -518,9 +489,14 @@ def update_image() -> None:
             # Convert the image to PIL Image
             pil_image = Image.fromarray(combined_image_rgb)
 
+            # Resize the image for display
+            pil_image = pil_image.resize(
+                (pil_image.width * DISPLAY_SCALE_FACTOR, pil_image.height * DISPLAY_SCALE_FACTOR),
+                Image.NEAREST
+            )
+
             # Convert the PIL Image to a PhotoImage
             tk_image = ImageTk.PhotoImage(image=pil_image)
-            
 
             # Update the image_label
             image_label.config(image=tk_image)
@@ -545,7 +521,7 @@ def on_right_click(event: tk.Event) -> None:
         handle_mouse_event(event, POSITION)
 
 def on_left_drag(event: tk.Event) -> None:
-    if current_mode == "pos_and_rot" and event.x < WINDOW_IMAGE_SIZE:
+    if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
         handle_mouse_event(event, OPPONENT_ROTATION)
 
     if primary_click_action == 'robot':
@@ -562,9 +538,9 @@ def on_right_drag(event: tk.Event) -> None:
 
 
 def on_mouse_move(event: tk.Event) -> None:
-    if current_mode == "pos_and_rot" and event.x < WINDOW_IMAGE_SIZE:
+    return
+    if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
         handle_mouse_event(event, OPPONENT_ROTATION)
-    
     elif primary_click_action == 'robot':
         handle_mouse_event(event, POSITION)
     else:
@@ -577,25 +553,27 @@ def handle_mouse_event(event: tk.Event, data_type: int) -> None:
     if combined_image is None:
         return
 
-    x, y = event.x, event.y
+    # Adjust coordinates based on the display scaling
+    x, y = int(event.x / DISPLAY_SCALE_FACTOR), int(event.y / DISPLAY_SCALE_FACTOR)
 
     if current_mode == "pos_and_rot":
         total_width = combined_image.shape[1]
+        half_width = total_width // 2
         if x < 0 or x > total_width or y < 0 or y > combined_image.shape[0]:
             return
 
         if data_type == POSITION:
-            if x >= WINDOW_IMAGE_SIZE:
-                x_adjusted = x - WINDOW_IMAGE_SIZE
+            if x >= half_width:
+                x_adjusted = x - half_width
                 last_click.position = (x_adjusted, y)
                 last_click.data_type = POSITION
         elif data_type == OPPONENT_POSITION:
-            if x >= WINDOW_IMAGE_SIZE:
-                x_adjusted = x - WINDOW_IMAGE_SIZE
+            if x >= half_width:
+                x_adjusted = x - half_width
                 last_click.position = (x_adjusted, y)
                 last_click.data_type = OPPONENT_POSITION
         elif data_type == OPPONENT_ROTATION:
-            if x < WINDOW_IMAGE_SIZE:
+            if x < half_width:
                 last_click.position = (x, y)
                 last_click.data_type = OPPONENT_ROTATION
     elif current_mode == "pos_only":
