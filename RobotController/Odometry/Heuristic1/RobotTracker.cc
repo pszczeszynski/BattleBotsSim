@@ -495,6 +495,8 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         lastTime = currTime;
         numFramesNotTracked++;
         debugLine += "Case 1";
+        // Decay velocity
+        avgVelocity *=  0.95;
         return;
     }
 
@@ -519,14 +521,21 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     {
         useNewBBox = false;
         numFramesNotTracked++;
+            
+        // Decay velocity
+        avgVelocity *=  0.95;
+
         debugLine += "Case 3a";
     }
-
-    if ((matchingBBox.width - bbox.width > maxNewBBoxIncrease) || (matchingBBox.height - bbox.height > maxNewBBoxIncrease))
+    else if ((matchingBBox.width - bbox.width > maxNewBBoxIncrease) || (matchingBBox.height - bbox.height > maxNewBBoxIncrease))
     {
         useNewBBox = false;
         numFramesNotTracked++;
         debugLine += "Case 3b";
+
+        // Decay velocity
+        avgVelocity *=  0.95;
+
 
         // Calculate the maximum area to scan of the foreground (minimize possibility of false convergence)
         matchingBBox = getBoundingRect(predictedBBox, bbox, combinedBBoxScanBuffer) & matchingBBox;
@@ -561,6 +570,10 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         position = GetExtrapolatedPosition(currTime);
         lastTime = currTime;
         numFramesNotTracked++;
+        
+        // Decay velocity
+        avgVelocity *=  0.95;
+        
         debugLine += "Failed FindNewPos";
         return;
     }

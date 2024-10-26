@@ -76,6 +76,18 @@ public:
         }
         return *this;
     }
+
+    // Multiplication operator 
+    Vector2 operator*(const float& scalar) const {
+        return Vector2(x * scalar, y * scalar);
+    }   
+
+    // *= operator
+    Vector2& operator*=(const float& scalar) {
+        x *= scalar;
+        y *= scalar;
+        return *this;
+    }
 };
 
 // myRect class
