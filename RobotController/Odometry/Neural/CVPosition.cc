@@ -111,9 +111,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     
     double deltaTime = (data.time_millis - _lastData.time_millis) / 1000.0;
     cv::Point2f velocity = (data.center - lastPos) / deltaTime;
-    std::cout << "new velocity: " << velocity << std::endl;
-    std::cout << "last velocity: " << _lastVelocity << std::endl;
-    
+
     // We're updating every 10ms, so lets filter over 50ms
     double timeconst = 0.05;
     double interp = deltaTime / timeconst;
@@ -123,13 +121,11 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     }
 
     velocity = velocity * interp + _lastVelocity * (1.0 - interp);
-    std::cout << "interp velocity: " << velocity << std::endl;
 
     // force 0 velocity if there has been more than 0.1 seconds since the last data
     if (deltaTime > 0.1 || cv::norm(data.center - _lastData.center) > 100)
     {
         velocity = cv::Point2f(0, 0);
-        std::cout << "forcing 0 velocity" << std::endl;
     }
 
     lastPos = data.center;

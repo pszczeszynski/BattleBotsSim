@@ -60,6 +60,17 @@ void OdometryData::Extrapolate(double newtime)
     time_angle = newtime;
 }
 
+void OdometryData::ExtrapolateBounded(double newtime, double maxTime)
+{
+    if (newtime > maxTime)
+    {
+        return;
+    }
+
+    Extrapolate(newtime);
+}
+
+
 /**
  * Returns the age of this data in seconds
 */
