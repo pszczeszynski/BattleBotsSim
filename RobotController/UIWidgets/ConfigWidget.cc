@@ -98,7 +98,12 @@ void ConfigWidget::Draw()
 
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
-    if (ImGui::Button("Load Bg"))
+    if (ImGui::Button("Load Start Bg"))
+    {
+        heuristic.load_start_background = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Saved Bg"))
     {
         heuristic.load_background = true;
     }

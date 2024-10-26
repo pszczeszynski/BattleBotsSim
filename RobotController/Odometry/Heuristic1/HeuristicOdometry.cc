@@ -197,10 +197,14 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     if (load_background)
     {
-        //_allRobotTrackersClear();
-        // all_bboxes.clear();
-        LoadBackground(newFrame);
+        LoadBackground(newFrame, loadBackgroundsPath + "/savedBackground.jpg"); // Use savebackground path
         load_background = false;
+    }
+
+    if (load_start_background)
+    {
+        LoadBackground(newFrame); // Loads image start background by default
+        load_start_background = false;
     }
 
     // ************************************
@@ -856,10 +860,10 @@ void HeuristicOdometry::_allRobotTrackersClear()
 bool HeuristicOdometry::SaveBackground()
 {
     currBackground.copyTo(regularBackground);
-    return DumpBackground("regularBackground", loadBackgroundsPath);
+    return DumpBackground("savedBackground", loadBackgroundsPath);
 }
 
-void HeuristicOdometry::LoadBackground(cv::Mat &currFrame)
+void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_name)
 {
     // Center anti-shake cropping
     x_offset = crop_x;
@@ -867,7 +871,12 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame)
 
     // First load the regular Background. This should be an 8-bit image ideally
     // This should also be cropped already
-    regularBackground = cv::imread(IMAGE_START_BACKGROUND, cv::IMREAD_GRAYSCALE);
+    if( image_name.length() < 1)
+    {
+        image_name = IMAGE_START_BACKGROUND;
+    }
+
+    regularBackground = cv::imread(image_name, cv::IMREAD_GRAYSCALE);
 
     // Also load the reference intesnity image
     refBackground = cv::imread(IMAGE_REF_INTENSITY, cv::IMREAD_GRAYSCALE);

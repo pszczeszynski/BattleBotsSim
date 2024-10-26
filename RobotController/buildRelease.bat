@@ -6,6 +6,7 @@ setlocal EnableDelayedExpansion
 for %%a in (%*) do (
     echo "%%a"
     if "%%a"=="SIMULATION" set "cmakeParams=!cmakeParams! -DSIMULATION=ON"
+    if "%%a"=="SIM" set "cmakeParams=!cmakeParams! -DSIMULATION=ON"
     if "%%a"=="VIDEO_FILES" set "cmakeParams=!cmakeParams! -DVIDEO_FILES=ON"
     if "%%a"=="VIDEO" set "cmakeParams=!cmakeParams! -DVIDEO_FILES=ON"
     if "%%a"=="XBOX" set "cmakeParams=!cmakeParams! -DXBOX=ON"
