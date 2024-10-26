@@ -433,8 +433,17 @@ DriverStationMessage RobotController::ManualMode()
 
     bool leftBumper = gamepad.GetLeftBumper();
     bool rightBumper = gamepad.GetRightBumper();
+
+
+    // don't allow auto turning when using orbit or kill modes
+    bool canAutoTurn = true;
+    if ((gamepad.GetLeftStickY() > 0.7 || _guiOrbit) ||
+        (gamepad.GetLeftStickY() < -0.7 || _guiKill))
+    {
+        canAutoTurn = false;
+    }
     //////////////// 180 degrees if left bumper //////////////////
-    if (leftBumper || rightBumper)
+    if (canAutoTurn && (leftBumper || rightBumper))
     {
         // initiated press
         if (!lastLeftBumper && leftBumper)
@@ -488,11 +497,12 @@ DriverStationMessage RobotController::ManualMode()
                                        MIN_TURN_POWER_PERCENT_KILL,
                                        SCALE_DOWN_MOVEMENT_PERCENT_KILL,
                                        direction);
+        ret.autoDrive.frontWeaponCurrent10 = weapons.GetFrontWeaponTargetPower() * MAX_FRONT_WEAPON_SPEED / 10;
+        ret.autoDrive.backWeaponCurrent10 = weapons.GetBackWeaponTargetPower() * MAX_BACK_WEAPON_SPEED / 10;
     }
 
     lastLeftBumper = leftBumper;
     lastRightBumper = rightBumper;
-    
     return ret;
 }
 
@@ -581,7 +591,8 @@ DriverStationMessage RobotController::RobotLogic()
         cv::putText(drawingImage, "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
     }
 
-
+    // wonky shit happens if we try to do 180 turns and orbit/kill
+    // make sure we can only do one at once
     // if we are killing, execute kill mode
     if (_killing)
     {
@@ -598,12 +609,18 @@ DriverStationMessage RobotController::RobotLogic()
 
     if (ret.type == AUTO_DRIVE)
     {
-        ret.autoDrive.movement = manual.driveCommand.movement;
-        // convert weapon powers 
-
-
-        ret.autoDrive.frontWeaponCurrent10 = (unsigned char) (manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
-        ret.autoDrive.backWeaponCurrent10 = (unsigned char) (manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
+        if(manual.type == AUTO_DRIVE)
+        {
+            ret.autoDrive.frontWeaponCurrent10 = manual.autoDrive.frontWeaponCurrent10;
+            ret.autoDrive.backWeaponCurrent10 = manual.autoDrive.backWeaponCurrent10;
+        }
+        else if (manual.type == DRIVE_COMMAND)
+        {
+            ret.autoDrive.movement = manual.driveCommand.movement;
+            // convert weapon powers 
+            ret.autoDrive.frontWeaponCurrent10 = (unsigned char) (manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
+            ret.autoDrive.backWeaponCurrent10 = (unsigned char) (manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
+        }
     }
 
     // return the response

@@ -156,8 +156,10 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     response.autoDrive.MAX_TURN_POWER_PERCENT = MAX_TURN_POWER_PERCENT;
     response.autoDrive.MIN_TURN_POWER_PERCENT = MIN_TURN_POWER_PERCENT;
     response.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT = SCALE_DOWN_MOVEMENT_PERCENT;
+    response.autoDrive.frontWeaponCurrent10 = 0;
+    response.autoDrive.backWeaponCurrent10 = 0;
     float currAngle = RobotController::GetInstance().odometry.Robot().robotAngle;
     DrawDeltaAngleGraphic(angle_wrap(angleToTarget - currAngle));
-
+    
     return response;
 }

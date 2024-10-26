@@ -344,7 +344,6 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
                 {
                     dev->ResetRecv();
                     recvTimeout.markStart();
-                    printf("reset timeout\n");
                 }
             }
         }
