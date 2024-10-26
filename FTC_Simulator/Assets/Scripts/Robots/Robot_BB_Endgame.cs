@@ -23,6 +23,9 @@ public class Robot_BB_Endgame : RobotInterface3D
         // turn with j and l
         float turn_amount = (Input.GetKey(KeyCode.A) ? 1.0f : 0) - (Input.GetKey(KeyCode.D) ? 1.0f : 0);
 
+        movement_amount += (float) Robot_BB_Orbitron.opponent_movement_amount;
+        turn_amount += (float) Robot_BB_Orbitron.opponent_turn_amount;
+
         // movement_amount -= Input.GetAxis("J1Axis5");
         // turn_amount -= Input.GetAxis("J1Axis1");
 

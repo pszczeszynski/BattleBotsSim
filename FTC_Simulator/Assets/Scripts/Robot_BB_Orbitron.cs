@@ -45,6 +45,9 @@ public class Robot_BB_Orbitron : RobotInterface3D
 
     private bool _spinnersOn;
 
+    public static double opponent_movement_amount = 0;
+    public static double opponent_turn_amount = 0;
+
     // adds a force to the robot body to keep it on the ground
     void ApplyDownForce()
     {
@@ -218,6 +221,9 @@ public class Robot_BB_Orbitron : RobotInterface3D
         {
             movement_amount += (float)input.Value.drive_amount;
             turn_amount += (float)input.Value.turn_amount;
+
+            opponent_movement_amount = (float) input.Value.opponent_drive_amount;
+            opponent_turn_amount = (float) input.Value.opponent_turn_amount;
 
             UnityEngine.Debug.Log("spinner 1 power: " + input.Value.front_weapon_power);
             UnityEngine.Debug.Log("spinner 2 power: " + input.Value.back_weapon_power);

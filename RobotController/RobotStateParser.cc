@@ -26,6 +26,8 @@ std::string RobotStateParser::serialize(UnityDriveCommand message)
     j["front_weapon_power"] = message.front_weapon_power;
     j["back_weapon_power"] = message.back_weapon_power;
     j["reset"] = message.reset;
+    j["opponent_drive_amount"] = message.opponent_drive_amount;
+    j["opponent_turn_amount"] = message.opponent_turn_amount;
 
     return j.dump();
 }
