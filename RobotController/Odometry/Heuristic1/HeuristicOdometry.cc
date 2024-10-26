@@ -457,31 +457,28 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
 
 void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
 {
-    // Here we assume newPos is inside the current tracked box. 
+    // Here we assume newPos is inside the current tracked box.
     // If we have no tracker, use setPosition First
     // If setPosition fails, than continue on with force position
-    if( opponentRobot && opponentRobotTracker == nullptr)
+    if (opponentRobot && opponentRobotTracker == nullptr)
     {
         SetPosition(newPos, opponentRobot);
 
-        if( opponentRobotTracker == nullptr)
+        if (opponentRobotTracker == nullptr)
         {
             _currDataOpponent.robotPosValid = false;
             return;
         }
-
     }
-    else if( !opponentRobot && ourRobotTracker == nullptr)
+    else if (!opponentRobot && ourRobotTracker == nullptr)
     {
         SetPosition(newPos, opponentRobot);
-        if( ourRobotTracker == nullptr)
+        if (ourRobotTracker == nullptr)
         {
             _currDataRobot.robotPosValid = false;
             return;
         }
-
     }
-    
 
     std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
 

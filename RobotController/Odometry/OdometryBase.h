@@ -14,6 +14,7 @@
 // The total time to wait stopping the main task in seconds before killing it
 #define ODOMETRY_STOP_TIMEOUT 0.1f
 #define ODO_MUTEX_TIMEOUT std::chrono::milliseconds(250)
+#define MAX_EXTRAPOLATION_TIME_S 0.1
 
 class OdometryData
 {
@@ -48,6 +49,7 @@ public:
     void Clear(); // Clears all position and user data to invalid;
 
     void Extrapolate(double newtime); // Extrapolates position and anlge into newtime future
+    void ExtrapolateBounded(double newtime, double maxTime = MAX_EXTRAPOLATION_TIME_S); // Extrapolates position and anlge into newtime future, but not past maxTime
     double GetAge(); // returns the age of this data in seconds
 
     bool IsPointInside(cv::Point2f point)

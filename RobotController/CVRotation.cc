@@ -44,8 +44,8 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(rotation), 50 * sin(rotation));
     cv::arrowedLine(rotationImage, robotPos, arrowEnd, cv::Scalar(0, 255, 0), 2);
-    cv::imshow("Rotation", rotationImage);
-    cv::pollKey();
+    // cv::imshow("Rotation", rotationImage);
+    // cv::pollKey();
 
 }
 

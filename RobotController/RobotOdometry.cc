@@ -15,7 +15,6 @@
 
 std::mutex debugROStringForVideo_mutex;
 std::string debugROStringForVideo = "";
-#define MAX_EXTRAPOLATION_TIME_S 0.1
 
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
@@ -249,39 +248,17 @@ void RobotOdometry::FuseAndUpdatePositions()
     OdometryData dataOpponent_Heuristic = _dataOpponent_Heuristic;
     OdometryData dataOpponent_Human = _dataOpponent_Human;
 
-    if (currTime - dataRobot_Blob.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_Blob.Extrapolate(currTime);
-    }
-    if (currTime - dataRobot_Heuristic.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_Heuristic.Extrapolate(currTime);
-    }
-    if (currTime - dataRobot_Neural.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_Neural.Extrapolate(currTime);
-    }
-    if (currTime - dataRobot_NeuralRot.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_NeuralRot.Extrapolate(currTime);
-    }
-    if (currTime - dataRobot_IMU.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_IMU.Extrapolate(currTime);
-    }
-    if (currTime - dataRobot_Human.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataRobot_Human.Extrapolate(currTime);
-    }
+    dataRobot_Blob.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_Heuristic.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_Neural.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_NeuralRot.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_NeuralRot.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_IMU.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataRobot_Human.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
 
-    if (currTime - dataOpponent_Blob.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataOpponent_Blob.Extrapolate(currTime);
-    }
-    if (currTime - dataOpponent_Heuristic.time < MAX_EXTRAPOLATION_TIME_S)
-    {
-        dataOpponent_Heuristic.Extrapolate(currTime);
-    }
+    dataOpponent_Blob.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+    dataOpponent_Heuristic.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+
 
     // ******************************
     // HUMAN OVERRIDES
