@@ -303,6 +303,8 @@ void TrackingWidget::_DrawAlgorithmData()
     if (_odometry_Neural.IsRunning())
     {
         OdometryData robot = _odometry_Neural.GetData(false);
+        robot.Extrapolate(Clock::programClock.getElapsedTime());
+
         if( robot.robotPosValid && (robot.GetAge() < 0.3) )
         {
             DrawX(_trackingMat, robot.robotPosition, neuralColor, 30);
