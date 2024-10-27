@@ -620,7 +620,7 @@ OdometryData RobotOdometry::Robot(double currTime)
     locker.unlock();
 
     double extrapolateTime = min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
-    currData.Extrapolate(extrapolateTime);
+    currData.Extrapolate(extrapolateTime + currData.time);
 
     return currData;
 }
@@ -645,7 +645,7 @@ OdometryData RobotOdometry::Opponent(double currTime)
     locker.unlock();
 
     double extrapolateTime = min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
-    currData.Extrapolate(extrapolateTime);
+    currData.Extrapolate(extrapolateTime + currData.time);
 
     return currData;
 }

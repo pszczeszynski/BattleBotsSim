@@ -208,6 +208,179 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
 }
 
+#define MSG_FIELD_SEPERATOR '%'
+#define IMG_SCALE 2
+void HumanPosition::_ProcessNewFrameNew(cv::Mat currFrame, double frameTime)
+{
+    // convert mat to std::string
+    // Encode the image
+    std::vector<uchar> buf;
+
+    cv::Mat& frameToUse = currFrame;
+
+    if (_sendHeuristicMat)
+    {
+        cv::Mat& heuristicFrame = RobotController::GetInstance().odometry.GetHeuristicOdometry().GetPrevTrackingMatRef();
+        if (!heuristicFrame.empty())
+        {
+            frameToUse = heuristicFrame;
+        }
+    }
+
+    // Scale down image
+    cv::Mat scaled;
+    cv::resize(frameToUse, scaled, cv::Size(WIDTH / IMG_SCALE, HEIGHT / IMG_SCALE), 0, 0, cv::INTER_LINEAR);
+
+    cv::imencode(".jpg", scaled, buf);
+    std::string image_string(buf.begin(), buf.end());
+
+    // ************************************
+    // ********* SEND DATA ****************
+    // DATA ORDER:
+    // 1) Number of Fields (not including this field)
+    // 2,3) Robot X,Y
+    // 4,5) Opponent X,Y
+    // 6) Opponent Angle
+    // 7) Image Size
+    // 8) Image Data
+    
+    // Create a message buffer 
+    std::string message;
+
+    int numOfFields = 0;
+
+    // Add robot and opponent stuff
+    cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
+    cv::Point2i  scaled_robotpos = robotPos / IMG_SCALE;
+
+    message += std::to_string(scaled_robotpos.x) + MSG_FIELD_SEPERATOR + std::to_string(scaled_robotpos.y) + MSG_FIELD_SEPERATOR;
+    numOfFields += 2;
+
+    cv::Point2f opponentPos = RobotController::GetInstance().odometry.Opponent().robotPosition;
+    cv::Point2i scaled_opponentpos = opponentPos / IMG_SCALE;
+
+    message += std::to_string(scaled_opponentpos.x) + MSG_FIELD_SEPERATOR + std::to_string(scaled_opponentpos.y) + MSG_FIELD_SEPERATOR;
+    numOfFields += 2;
+
+
+    double opponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+    // enforce 0 to 360
+    while (opponentAngle < 0)
+    {
+        opponentAngle += 2 * M_PI;
+    }
+
+    message += std::to_string((int) (opponentAngle * 180 / M_PI)) + MSG_FIELD_SEPERATOR;
+    numOfFields++;
+    
+    uint32_t image_size = htonl(image_string.size()); // Convert to big-endian (network byte order)
+    numOfFields++;
+   
+    // Copy the image data into the message buffer
+    message += image_string;
+    message = std::to_string(numOfFields) + MSG_FIELD_SEPERATOR + message;
+ 
+    // send the image back
+    _socket->reply_to_last_sender(message);
+
+    // **************************************
+    // ******** RECEIVE DATA ****************
+    std::vector<int> data = _GetDataFromSocket();
+
+    if (data.size() == NUMBER_OF_FIELDS)
+    {
+        DataType type = (DataType)data[0];
+        cv::Point2f clickPosition(data[1], data[2]);
+        clickPosition *= 2; // since image is scaled down by 2  
+
+        const int foreground_min_delta = data[3];
+        const int background_heal_rate = data[4];
+        const int force_pos_bool = data[5];
+        const int force_heal_value = data[6];
+        const int auto_l_count = data[7];
+        const int auto_r_count = data[8];
+        const int hard_reboot_count = data[9];
+        const int reboot_recovery_count = data[10];
+
+        if (_sendHeuristicMat)
+        {
+            HEU_FOREGROUND_THRESHOLD = foreground_min_delta;
+            HEU_BACKGROUND_AVGING = background_heal_rate;
+            RobotController::GetInstance().odometry.GetHeuristicOdometry().force_background_averaging = (bool)force_heal_value;
+        }
+
+        if (clickPosition == _lastReceivedPos && type == _lastReceivedType &&
+            auto_l_count == _lastAutoLCount && auto_r_count == _lastAutoRCount &&
+            hard_reboot_count == _lastHardRebootCount && reboot_recovery_count == _lastRebootRecoveryCount)
+        {
+            return;
+        }
+
+        BlobDetection& blob = RobotController::GetInstance().odometry.GetBlobOdometry();
+        HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
+
+
+        if (type == DataType::ROBOT_POSITION)
+        {
+            blob.SetPosition(clickPosition, false);
+            if (force_pos_bool)
+            {
+                heuristic.ForcePosition(clickPosition, false);
+            }
+            else
+            {
+                heuristic.SetPosition(clickPosition, false);
+            }
+        }
+        else if (type == DataType::OPPONENT_POSITION)
+        {
+            // call set position on blob + heuristic
+            blob.SetPosition(clickPosition, true);
+            if (force_pos_bool)
+            {
+                heuristic.ForcePosition(clickPosition, true);
+            }
+            else
+            {
+                heuristic.SetPosition(clickPosition, true);
+            }
+        }
+        else if (type == DataType::OPPONENT_ANGLE)
+        {
+            double MIDDLE = WIDTH / 2;
+            Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
+            _UpdateData(false, frameTime, nullptr, &angle);
+        }
+
+        if (auto_l_count > _lastAutoLCount)
+        {
+            heuristic.MatchStart(ConfigWidget::leftStart, ConfigWidget::rightStart);
+        }
+
+        if (auto_r_count > _lastAutoRCount)
+        {
+            heuristic.MatchStart(ConfigWidget::rightStart, ConfigWidget::leftStart);
+        }
+
+        if (hard_reboot_count > _lastHardRebootCount)
+        {
+            heuristic.set_currFrame_to_bg = true;
+        }
+
+
+        
+
+        
+
+        _lastReceivedPos = clickPosition;
+        _lastReceivedType = (DataType)data[0];
+        _lastAutoLCount = auto_l_count;
+        _lastAutoRCount = auto_r_count;
+        _lastHardRebootCount = hard_reboot_count;
+        _lastRebootRecoveryCount = reboot_recovery_count;
+    }
+}
+
 void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle* angle, double* angle_vel)
 {
     _updateMutex.lock();

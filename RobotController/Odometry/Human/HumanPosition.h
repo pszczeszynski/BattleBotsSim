@@ -19,6 +19,7 @@ public:
     HumanPosition(ICameraReceiver *videoSource, std::string port, bool sendHeuristicMat = false);
 
 protected:
+    void _ProcessNewFrameNew(cv::Mat currFrame, double frameTime);
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime);
 private:
     std::string _port;
