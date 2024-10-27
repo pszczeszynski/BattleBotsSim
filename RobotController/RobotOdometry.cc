@@ -182,6 +182,12 @@ void RobotOdometry::Update(void)
 
 void RobotOdometry::FuseAndUpdatePositions()
 {
+    // Clear robot/opponent valid flags
+    _dataRobot.robotPosValid = false;
+    _dataOpponent.robotPosValid = false;
+    _dataRobot.robotAngleValid = false;
+    _dataOpponent.robotAngleValid = false;
+
 
     // ******************************
     // We have the following sources of data:
@@ -372,7 +378,8 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Heu";
         _dataRobot.robotPosition = dataRobot_Heuristic.robotPosition;
         _dataRobot.time = dataRobot_Heuristic.time;
-
+        _dataRobot.robotPosValid = true;
+        
         // If blob position isn't inside our rectangle then set position
         if( blobUsPos_valid && !dataRobot_Heuristic.IsPointInside(dataRobot_Blob.robotPosition))
         {
@@ -384,12 +391,14 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Neu";
         _dataRobot.robotPosition = dataRobot_Neural.robotPosition;
         _dataRobot.time = dataRobot_Neural.time;
+        _dataRobot.robotPosValid = true;
     }
     else if( blobUsPos_valid )
     {
         debugROStringForVideo_tmp += "Blob";
         _dataRobot.robotPosition = dataRobot_Blob.robotPosition;
         _dataRobot.time = dataRobot_Blob.time;
+        _dataRobot.robotPosValid = true;
     }
     debugROStringForVideo_tmp += "\nUS Vel = ";
 
@@ -414,6 +423,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Imu";
         _dataRobot.robotAngle = dataRobot_IMU.robotAngle;
         _dataRobot.time_angle = dataRobot_IMU.time_angle;
+        _dataRobot.robotAngleValid = true;
 
         // Set heuristor to IMU
         _odometry_Heuristic.SetAngle(_dataRobot.robotAngle, false);        
@@ -423,6 +433,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "NeuRot";
         _dataRobot.robotAngle = dataRobot_NeuralRot.robotAngle;
         _dataRobot.time_angle = dataRobot_NeuralRot.time_angle;
+        _dataRobot.robotAngleValid = true;
 
         // Set heuristor to neural
         _odometry_Heuristic.SetAngle( _dataRobot.robotAngle, false);  
@@ -432,6 +443,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Heu";
         _dataRobot.robotAngle = dataRobot_Heuristic.robotAngle;   
         _dataRobot.time_angle = dataRobot_Heuristic.time_angle; 
+        _dataRobot.robotAngleValid = true;
     }
 
     debugROStringForVideo_tmp += "\nUS A_Vel = ";
@@ -458,6 +470,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Heu";
         _dataOpponent.robotPosition = dataOpponent_Heuristic.robotPosition;
         _dataOpponent.time = _dataRobot_Heuristic.time;
+        _dataOpponent.robotPosValid = true;
 
         // If blob position isn't inside our rectangle then set position
         if (blobThemPos_valid && !_dataOpponent_Heuristic.IsPointInside(dataOpponent_Blob.robotPosition))
@@ -470,6 +483,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Blob";
         _dataOpponent.robotPosition = dataOpponent_Blob.robotPosition;
         _dataOpponent.time = dataOpponent_Blob.time;
+        _dataOpponent.robotPosValid = true;
         _odometry_Heuristic.SetPosition(dataOpponent_Blob.robotPosition, true);
     }
 
@@ -495,12 +509,14 @@ void RobotOdometry::FuseAndUpdatePositions()
         debugROStringForVideo_tmp += "Human";
         _dataOpponent.robotAngle = dataOpponent_Human.robotAngle;    
         _dataOpponent.time_angle = dataOpponent_Human.time_angle;
+        _dataOpponent.robotAngleValid = true;
     }
     else if (heuristicThemAngle_valid)
     {
         debugROStringForVideo_tmp += "Heu";
         _dataOpponent.robotAngle = dataOpponent_Heuristic.robotAngle;   
         _dataOpponent.time_angle = dataOpponent_Heuristic.time_angle; 
+        _dataOpponent.robotAngleValid = true;
     }
 
     debugROStringForVideo_tmp += "\nTHEM A_Vel = ";
