@@ -318,7 +318,7 @@ void BlobDetection::SetData(MotionBlob *blob, OdometryData &currData, OdometryDa
 /**
  * Smooths out the visual velocity so it's not so noisy
  */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 250
+#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 50
 #define ANGLE_SMOOTHING_TIME_CONSTANT 50
 #define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
 void BlobDetection::_GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData)

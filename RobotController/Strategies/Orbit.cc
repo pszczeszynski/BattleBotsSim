@@ -115,7 +115,7 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
     // get our velocity
     double velocityNorm = cv::norm(odoData.robotVelocity);
     // scale the radius based on our velocity
-    double targetPurePursuitRadius = PURE_PURSUIT_RADIUS * velocityNorm / 200.0;
+    double targetPurePursuitRadius = PURE_PURSUIT_RADIUS + (velocityNorm * PP_RADIUS_VEL_SCALE);
     // calculate distance to the center of the circle
     double distToCenter = cv::norm(ourPosition - orbitCenter);
     // enforce the targetRadius to be between the min and max scales

@@ -173,6 +173,8 @@ void RobotOdometry::Update(void)
         _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
     }
 
+    _dataOpponent.robotAngle = Angle(opponentRotationSim);
+
 
 
     // locker will get unlocked here automatically

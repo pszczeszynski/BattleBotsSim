@@ -39,8 +39,8 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
     ImGui::SliderFloat("Orbit Radius MovAvg Blend Time (sec)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1.0f);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
+    ImGui::SliderFloat("PP Radius Vel Coef", &PP_RADIUS_VEL_SCALE, 0, 3.0);
     ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
-    ImGui::SliderInt("Go Around Radius", &GO_AROUND_RADIUS, 0, 500);
 
     // space
     ImGui::Spacing();
