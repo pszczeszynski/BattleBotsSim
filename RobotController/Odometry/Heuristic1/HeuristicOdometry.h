@@ -124,7 +124,7 @@ private:
     RobotTracker *ourRobotTracker = NULL;
     RobotTracker *opponentRobotTracker = NULL;
     double deleteForNoMovementTime = 0.7; // Number of s to delete a tracked object for not moving
-    int deleteForNoTrackingCount = 100;    // Number of frames to delete a tracked object that hasn't locked on
+    int deleteForNoTrackingCount = 150;    // Number of frames to delete a tracked object that hasn't locked on
 
     // *********  Functions
     void calcShakeRemoval(cv::Mat &image);

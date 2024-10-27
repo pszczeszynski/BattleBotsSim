@@ -293,11 +293,13 @@ void RobotOdometry::FuseAndUpdatePositions()
     bool heuristicValid = _odometry_Heuristic.IsRunning() && (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
     bool heuristicUsPos_valid = heuristicValid && _dataRobot_Heuristic.robotPosValid;
     bool heuristicUsAngle_valid = heuristicValid && _dataRobot_Heuristic.robotAngleValid;
+    heuristicValid = _odometry_Heuristic.IsRunning() && (_dataOpponent_Heuristic.GetAge() < _dataAgeThreshold);
     bool heuristicThemPos_valid = heuristicValid && _dataOpponent_Heuristic.robotPosValid;
     bool heuristicThemAngle_valid = heuristicValid && _dataOpponent_Heuristic.robotAngleValid;
 
     bool blobValid = _odometry_Blob.IsRunning() && (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
     bool blobUsPos_valid = blobValid && _dataRobot_Blob.robotPosValid;
+    blobValid = _odometry_Blob.IsRunning() && (_dataOpponent_Blob.GetAge() < _dataAgeThreshold);
     bool blobThemPos_valid = blobValid && _dataOpponent_Blob.robotPosValid;
 
     bool neuralUsPos_valid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
