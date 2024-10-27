@@ -450,8 +450,8 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
     RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
 
-    odoData.robotPosition = (tracker != nullptr) ? tracker->position.Point2f() : newPos;
-    odoData.robotPosValid = true;
+    odoData.robotPosValid = tracker != nullptr;
+    odoData.robotPosition = (odoData.robotPosValid) ? tracker->position.Point2f() : newPos;
     odoData.robotVelocity = cv::Point2f(0, 0);
 }
 

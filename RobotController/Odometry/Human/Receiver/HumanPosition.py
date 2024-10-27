@@ -80,28 +80,38 @@ def parse_server_data(
 ) -> Optional[Tuple[int, int, int, int, int, np.ndarray]]:
     curr_pos = 0
     try:
-        robot_pos_x = int.from_bytes(data[curr_pos : curr_pos + 4], byteorder="big")
-        curr_pos += 4
-        robot_pos_y = int.from_bytes(data[curr_pos : curr_pos + 4], byteorder="big")
-        curr_pos += 4
-        opponent_pos_x = int.from_bytes(data[curr_pos : curr_pos + 4], byteorder="big")
-        curr_pos += 4
-        opponent_pos_y = int.from_bytes(data[curr_pos : curr_pos + 4], byteorder="big")
-        curr_pos += 4
-        opponent_angle_deg = int.from_bytes(
-            data[curr_pos : curr_pos + 4], byteorder="big"
-        )
-        curr_pos += 4
-        image_size = int.from_bytes(data[curr_pos : curr_pos + 4], byteorder="big")
-        curr_pos += 4
-        image_data = data[curr_pos:]
-
-        if len(image_data) < image_size:
-            print("Error: Incomplete image data received")
+        # Check if data is bytes, convert to string for easier parsing
+        if isinstance(data, bytes):
+            data = data.decode('utf-8', errors='ignore')  # Assuming UTF-8 encoding, adjust if different
+        
+        # Split the string data by '%', but only up to the point where image data begins
+        parts = data.split('%', 5)  # Split at most 5 times to keep the rest as image data
+        
+        # Extract numeric data from strings
+        if len(parts) < 5:
+            print("Error: Not enough data parts to parse")
+            return None
+        
+        robot_pos_x = int(parts[0])
+        robot_pos_y = int(parts[1])
+        opponent_pos_x = int(parts[2])
+        opponent_pos_y = int(parts[3])
+        opponent_angle_deg = int(parts[4])
+        
+        # The rest of the data is considered image data
+        image_data_str = parts[5] if len(parts) > 5 else ""
+        
+        # Convert image data string to bytes
+        image_data = image_data_str.encode('utf-8')
+        
+        # Check if image_data is valid
+        if len(image_data) == 0:
+            print("Error: Incomplete or no image data received")
             return None
 
-        # Convert the received data to a numpy array
-        image_array = np.frombuffer(image_data[:image_size], dtype=np.uint8)
+        # Convert the received image data to a numpy array
+        # Note: This assumes that the byte representation directly corresponds to uint8 values
+        image_array = np.frombuffer(image_data, dtype=np.uint8)
         return (
             robot_pos_x,
             robot_pos_y,

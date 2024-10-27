@@ -45,7 +45,7 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
     return data;
 }
 
-void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
+void HumanPosition::_ProcessNewFrameTMP(cv::Mat currFrame, double frameTime)
 {
     // convert mat to std::string
     // Encode the image
@@ -210,7 +210,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
 #define MSG_FIELD_SEPERATOR '%'
 #define IMG_SCALE 2
-void HumanPosition::_ProcessNewFrameNew(cv::Mat currFrame, double frameTime)
+void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
     // convert mat to std::string
     // Encode the image
