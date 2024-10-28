@@ -112,14 +112,14 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     CVPositionData data = _GetDataFromPython();
 
     // make sure the data is newer than the last data
-    if (data.frameID <= _lastData.frameID)
+    if (data.frameID <= _lastData.frameID || data.center.x < 0 || data.center.y < 0 || data.center.x > frame.cols || data.center.y > frame.rows)
     {
         return;
     }
 
     // compute velocity
     // If lastpos isn't invalid, set to current position (0 velocity)
-    if( (lastPos.x < 0) || (lastPos.y < 0) )
+    if ((lastPos.x < 0) || (lastPos.y < 0) || (lastPos.x > frame.cols) || (lastPos.y > frame.rows))
     {
         lastPos = data.center;
     }
@@ -132,7 +132,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     {
         _valid_frames_counter++;
     }
-    
+
     double deltaTime = (data.time_millis - _lastData.time_millis) / 1000.0;
     cv::Point2f velocity = (data.center - lastPos) / deltaTime;
 
