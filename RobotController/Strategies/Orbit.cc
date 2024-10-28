@@ -213,6 +213,32 @@ cv::Point2f Orbit::_CalculatePathPoint(double angle,
 }
 
 /**
+ * Returns the linear velocity of us - opponent.
+*/
+double CalcVelocityTowardsOpponent()
+{
+    static double lastDistToOpponent = 0;
+    static Clock deltaTimeClock;
+
+    OdometryData odoData = RobotController::GetInstance().odometry.Robot();
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+
+    double distToOpponent = cv::norm(odoData.robotPosition - opponentData.robotPosition);
+    double deltaTime = deltaTimeClock.getElapsedTime();
+    deltaTimeClock.markStart();
+    double distToOpponentVel = 0;
+
+    if (deltaTime > 0)
+    {
+        distToOpponentVel = (distToOpponent - lastDistToOpponent) / deltaTime;
+    }
+
+    lastDistToOpponent = distToOpponent;
+
+    return -distToOpponentVel;
+}
+
+/**
  * Calculates the path to orbit given a direction
  * 
  * @param opponentWeaponPosEx The extrapolated position of the opponent's weapon
@@ -579,6 +605,39 @@ void DecideDirectionWithTriggers()
     }
 }
 
+void Orbit::_CalcStartAndEndAngle()
+{
+    static double smooth_agro_amount = 0;
+    static Clock agroClock;
+    const double AGRO_AMOUNT_TIME_FILTER = 0.06;
+
+    const double MAX_START_ANGLE = 120 * TO_RAD;  // safest condition => start shrinking at 120, very close to their butt
+    const double MIN_START_ANGLE = 60 * TO_RAD;     // most dangerous condition => end shrinking at 90, closer to the weapon
+    const double FULL_AGRO_VEL = 300; // px/s
+
+    double velocityTowardsOpponent = CalcVelocityTowardsOpponent();
+
+    double agro_amount = velocityTowardsOpponent / FULL_AGRO_VEL;
+    // clip between 0 and 1
+    agro_amount = std::max(0.0, agro_amount);
+    agro_amount = std::min(1.0, agro_amount);
+
+    double blendAmount = agroClock.getElapsedTime() / AGRO_AMOUNT_TIME_FILTER;
+    agroClock.markStart();
+    smooth_agro_amount = smooth_agro_amount * (1.0 - blendAmount) + agro_amount * blendAmount;
+
+    // calculate the start angle
+    // std::cout << "Velocity towards opponent: " << velocityTowardsOpponent << std::endl;
+    // std::cout << "Agro amount: " << agro_amount << std::endl;
+
+    // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
+    _START_ANGLE = MAX_START_ANGLE + (MIN_START_ANGLE - MAX_START_ANGLE) * smooth_agro_amount;
+    // std::cout << "Start angle: " << _START_ANGLE << std::endl;
+    _END_ANGLE = 165.0 * TO_RAD;
+}
+
+
+
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
@@ -586,6 +645,7 @@ void DecideDirectionWithTriggers()
  */
 DriverStationMessage Orbit::Execute(Gamepad& gamepad)
 {
+    _CalcStartAndEndAngle();
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
     // 2. Extrapolate our position
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
@@ -675,10 +735,7 @@ double Orbit::_GetDangerLevel(double angleOpponentToPoint,
     // calculate the number of radians to the weapon
     double angleToWeaponAbs = angle_wrap(angleOpponentToPoint - opponentAngle) * (orbitDirection ? 1 : -1);
 
-    // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
-    const double START_ANGLE = OPPONENT_SPIRAL_START_DEG * TO_RAD;
-    const double END_ANGLE = OPPONENT_SPIRAL_END_DEG * TO_RAD;
-    double shrinkAmount = (angleToWeaponAbs - START_ANGLE) / (END_ANGLE - START_ANGLE);
+    double shrinkAmount = (angleToWeaponAbs - _START_ANGLE) / (_END_ANGLE - _START_ANGLE);
 
     shrinkAmount = std::max(0.0, shrinkAmount);
     shrinkAmount = std::min(1.0, shrinkAmount);

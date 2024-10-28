@@ -41,6 +41,10 @@ private:
                                     double *outCurrRadius = nullptr,
                                     cv::Point2f *outCurrOrbitCenter = nullptr);
 
+    void _CalcStartAndEndAngle();
+    double _START_ANGLE = 0;
+    double _END_ANGLE = 0;
+
     std::vector<cv::Point2f> _CalculateOrbitPath(cv::Point2f opponentWeaponPosEx,
                                                  cv::Point2f opponentCenterEx,
                                                  double opponentAngleEx,
