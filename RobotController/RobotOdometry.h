@@ -1,7 +1,6 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include "Clock.h"
-#include "OpponentProfile.h"
 #include "MathUtils.h"
 #include "Globals.h"
 #include "CVRotation.h"
