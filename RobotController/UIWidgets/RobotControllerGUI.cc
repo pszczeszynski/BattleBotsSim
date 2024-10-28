@@ -74,7 +74,6 @@ bool RobotControllerGUI::Update()
 
 
     _manualControlWidget.Draw();
-    KillWidget::GetInstance().Draw();
 
     ClockWidget::DrawAll();
 

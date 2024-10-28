@@ -3,13 +3,13 @@
 #include "RobotMovement.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
+#include "Orbit.h"
+#include "Extrapolate.h"
 
 Kill::Kill()
 {
 }
 
-#define NUM_PREDICTION_ITERS 25
-#define MAX_PREDICTION_TIME 1.0
 DriverStationMessage Kill::Execute(Gamepad &gamepad)
 {
     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
@@ -19,16 +19,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     ourData.Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
 
     // extrapolate the opponent's position into the future
-    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
-
-    double distanceToOpponent = cv::norm(ourData.robotPosition - opponentData.robotPosition);
-
-    double extrapolationTime = (distanceToOpponent / ORBIT_RADIUS) * (OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0);
-    extrapolationTime += Clock::programClock.getElapsedTime();
-    extrapolationTime = std::min(opponentData.time + MAX_PREDICTION_TIME, extrapolationTime);
-
-    
-    opponentData.Extrapolate(extrapolationTime);
+    OdometryData opponentData = ExtrapolateOpponentPos();
 
     // draw a crosshair on the opponent
     cv::circle(RobotController::GetInstance().GetDrawingImage(), opponentData.robotPosition, 10, cv::Scalar(0, 0, 255), 2);
