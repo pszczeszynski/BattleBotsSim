@@ -471,12 +471,13 @@ void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot)
     odoData.robotPosition = newPos;
     odoData.robotVelocity = cv::Point2f(0, 0);
     odoData.robotPosValid = true;
+    odoData.time = Clock::programClock.getElapsedTime();
     odoData.id++;
 
-    OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
-    odoData2.robotPosition = newPos;
-    odoData2.robotVelocity = cv::Point2f(0, 0);
-    odoData2.robotPosValid = false;
+    OdometryData &prevData = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
+    prevData.robotPosition = newPos;
+    prevData.robotVelocity = cv::Point2f(0, 0);
+    prevData.robotPosValid = false;
 }
 
 void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot)
