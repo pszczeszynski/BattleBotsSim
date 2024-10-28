@@ -13,7 +13,6 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <opencv2/opencv.hpp>
 #include "ImageWidget.h"
-#include "KillWidget.h"
 #include "FieldWidget.h"
 #include "VariantsWidget.h"
 #include "PlaybackWidget.h"

@@ -11,7 +11,6 @@
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
 #include "Strategies/RobotMovement.h"
-#include "UIWidgets/KillWidget.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
 

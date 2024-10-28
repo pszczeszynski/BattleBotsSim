@@ -88,7 +88,6 @@ set(SOURCES
     CameraReceiver.cc
     UIWidgets/IMUWidget.cc
     UIWidgets/ImageWidget.cc
-    UIWidgets/KillWidget.cc
     UIWidgets/PlaybackWidget.cc
     UIWidgets/ClockWidget.cc
     UIWidgets/GraphWidget.cc

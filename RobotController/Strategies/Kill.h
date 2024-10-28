@@ -3,7 +3,6 @@
 #include "Strategy.h"
 #include "../../Common/Communication.h"
 #include "../Input/Gamepad.h"
-#include "../UIWidgets/KillWidget.h"
 
 class Kill : public Strategy
 {
