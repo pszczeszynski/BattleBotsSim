@@ -6,6 +6,7 @@
 #include "../../CameraReceiver.h"
 #include <nlohmann/json.hpp>
 #include "../../RobotConfig.h"
+#include <cstdlib> // For std::system
 
 #define VELOCITY_RESET_FRAMES 100
 
@@ -58,9 +59,32 @@ void CVPosition::_InitSharedImage()
     sharedImage = cv::Mat(height, width, type, sharedData);
 }
 
+void CVPosition::_StartPython()
+{
+    const std::string venv_path = "venv";            // Path to the venv directory
+    const std::string script_path = "CVPosition.py"; // Path to the Python script
+    // Create command string for Windows
+    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " > NUL 2>&1\"";
+
+    _pythonThread = std::thread([command]() {
+        // Run the command
+        int result = std::system(command.c_str());
+        if (result != 0)
+        {
+            std::cerr << "Failed to run CVPosition.py" << std::endl;
+        }
+    });
+}
+
 CVPosition::CVPosition(ICameraReceiver *videoSource) : _pythonSocket("11116"), _lastData(CVPositionData()), OdometryBase(videoSource)
 {
     _InitSharedImage();
+
+    _StartPython();
+}
+
+CVPosition::~CVPosition()
+{
 }
 
 // Start the thread

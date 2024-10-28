@@ -18,6 +18,7 @@ class CVPosition : public OdometryBase
 {
 public:
     CVPosition(ICameraReceiver *videoSource);
+    ~CVPosition();
 
     std::vector<int> GetBoundingBox(int* outFrameID = nullptr);
     cv::Point2f GetCenter(int* outFrameID = nullptr);
@@ -47,6 +48,8 @@ private:
     cv::Mat sharedImage;
 
     void _InitSharedImage();
+    void _StartPython();
+    std::thread _pythonThread;
 
     ServerSocket _pythonSocket;
 
