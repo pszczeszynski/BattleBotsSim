@@ -36,17 +36,6 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     _currDataRobot.time = frameTime;
     _currDataRobot.time_angle = frameTime;
     lock.unlock();
-
-    // show the rotation using imshow
-    cv::Mat rotationImage = frame.clone();
-    // convert to rgb
-    cv::cvtColor(rotationImage, rotationImage, cv::COLOR_GRAY2BGR);
-    
-    cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(rotation), 50 * sin(rotation));
-    cv::arrowedLine(rotationImage, robotPos, arrowEnd, cv::Scalar(0, 255, 0), 2);
-    // cv::imshow("Rotation", rotationImage);
-    // cv::pollKey();
-
 }
 
 bool CVRotation::_CropImage(cv::Mat &input, cv::Mat &cropped, cv::Rect roi)
