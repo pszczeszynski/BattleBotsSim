@@ -141,7 +141,6 @@ void RobotController::Run()
     // Do Neural
     odometry.Run(OdometryAlg::Neural);
 
-    std::cout << "about to do human" << std::endl;
     // Do Human
     odometry.Run(OdometryAlg::Human);
 

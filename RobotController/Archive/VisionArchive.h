@@ -8,7 +8,6 @@
 #include "CameraReceiver.h"
 #include "RobotOdometry.h"
 #include "OpticalFlow.h"
-#include "PathFinder.h"
 #include "Graphics/GameLoop.h"
 #include <opencv2/cudaarithm.hpp>
 #include <opencv2/cudastereo.hpp>
