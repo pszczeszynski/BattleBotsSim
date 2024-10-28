@@ -535,6 +535,50 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     return targetPoint;
 }
 
+void DecideDirectionWithTriggers()
+{
+    static bool _lastLeftTrigger = false;
+    static bool _lastRightTrigger = false;
+
+    Gamepad& gamepad1 = RobotController::GetInstance().gamepad;
+
+    // if the left trigger is pressed
+    if (gamepad1.GetLeftTrigger() > 0.5)
+    {
+        // if the left trigger was not pressed last frame
+        if (!_lastLeftTrigger)
+        {
+            // invert the direction
+            LEAD_WITH_BAR = false;
+        }
+        // set the last left trigger to true
+        _lastLeftTrigger = true;
+    }
+    else
+    {
+        // set the last left trigger to false
+        _lastLeftTrigger = false;
+    }
+
+    // if the right trigger is pressed
+    if (gamepad1.GetRightTrigger() > 0.5)
+    {
+        // if the right trigger was not pressed last frame
+        if (!_lastRightTrigger)
+        {
+            // invert the direction
+            LEAD_WITH_BAR = true;
+        }
+        // set the last right trigger to true
+        _lastRightTrigger = true;
+    }
+    else
+    {
+        // set the last right trigger to false
+        _lastRightTrigger = false;
+    }
+}
+
 /**
  * OrbitMode
  * Orbits the robot around the opponent at a fixed distance.
@@ -545,6 +589,8 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     cv::Mat& drawingImage = RobotController::GetInstance().GetDrawingImage();
     // 2. Extrapolate our position
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
+
+    DecideDirectionWithTriggers();
 
     double out_cost1 = 0;
     bool circleDirection = true;
