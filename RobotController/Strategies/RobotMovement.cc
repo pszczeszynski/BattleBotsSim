@@ -37,6 +37,8 @@ void DrawDeltaAngleGraphic(double value)
 
                 ImGui::SliderInt("Scale Down Movement (%)", &SCALE_DOWN_MOVEMENT_PERCENT_KILL, 0, 100);
             }
+            ImGui::SliderFloat("Global KD time constant", &KD_FILTER_TIME_CONSTANT, 0, 0.1);
+
         });
         hasAddedUI = true;
     }
@@ -133,8 +135,13 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
 
     double angleToTargetVel = angle_wrap(angleToTarget - lastAngleToTarget) / lastCallClock.getElapsedTime();
     // low pass filter the velocity
-    double interpolateAmount = lastCallClock.getElapsedTime() / 0.03; // 30 ms RC time constant
+    double interpolateAmount = lastCallClock.getElapsedTime() / KD_FILTER_TIME_CONSTANT; // 30 ms RC time constant
     angleToTargetVel = lastAngleToTargetVel * (1.0 - interpolateAmount) + angleToTargetVel * interpolateAmount;
+    // check for nan
+    if (std::isnan(angleToTargetVel) || std::isinf(angleToTargetVel))
+    {
+        angleToTargetVel = 0;
+    }
 
     lastAngleToTargetVel = angleToTargetVel;
     if (lastCallClock.getElapsedTime() > 0.2) { angleToTargetVel = 0; }

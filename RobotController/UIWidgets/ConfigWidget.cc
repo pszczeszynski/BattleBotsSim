@@ -37,10 +37,10 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Angle Extrap switching (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
-    ImGui::SliderFloat("Orbit Radius MovAvg Blend Time (sec)", &ORBIT_RADIUS_MOVAVG_SPEED, 0, 1.0f);
+    ImGui::SliderFloat("PP MovAvg Time (sec)", &PP_MOVAVG_TIME, 0, 0.1f);
     ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
-    ImGui::SliderFloat("PP Radius Vel Coef", &PP_RADIUS_VEL_SCALE, 0, 3.0);
-    ImGui::SliderInt("Opponent Position Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
+    ImGui::SliderFloat("PP Radius Vel Coef", &PP_RADIUS_VEL_SCALE, 0, 0.05);
+    ImGui::SliderInt("Global Opp Pos Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
 
     // space
     ImGui::Spacing();
@@ -49,7 +49,6 @@ void ConfigWidget::Draw()
     ImGui::SliderFloat("Opponent Weapon Offset", &OPPONENT_WEAPON_OFFSET, 0.0, 150.0);
     ImGui::SliderFloat("Opponent Spiral Start Deg", &OPPONENT_SPIRAL_START_DEG, 0.0, 180.0);
     ImGui::SliderFloat("Opponent Spiral End Deg", &OPPONENT_SPIRAL_END_DEG, 0.0, 180.0);
-    ImGui::SliderFloat("Opponent Angle Extrap (ms)", &OPPONENT_ANGLE_EXTRAPOLATE_MS, 0.0, 500.0);
     ImGui::SliderFloat("Preserve momentum factor", &ORBIT_PRESERVE_CURR_ANGLE_WEIGHT, 0.0, 5.0);
 
     EndSetMaxWidthWithMargin();
