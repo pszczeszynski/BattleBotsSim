@@ -82,7 +82,6 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
 
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     static Clock updateClock;
-    static GraphWidget purePursuitRadiusGraph("Pure Pursuit Radius", 0, 200, "px", 1000);
     double deltaTime = updateClock.getElapsedTime();
 
     // if the time since the last update is too small, then don't update the radius
@@ -113,9 +112,6 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
     purePursuitRadius = std::min(purePursuitRadius, distToCenter - 5);
     // enforce pure pursuit radius to be at least 1
     purePursuitRadius = std::max(purePursuitRadius, 1.0);
-
-    // add the radius to the graph
-    purePursuitRadiusGraph.AddData(purePursuitRadius);
 
     // return the radius
     return purePursuitRadius;
@@ -660,8 +656,8 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     cv::Point2f targetPoint2 = _GetOrbitFollowPoint(circleDirection, out_cost2, false);
 
     // put costs on screen
-    cv::putText(drawingImage, "Cost left: " + std::to_string(out_cost1), cv::Point(10, 150), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
-    cv::putText(drawingImage, "Cost right: " + std::to_string(out_cost2), cv::Point(10, 180), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    // cv::putText(drawingImage, "Cost left: " + std::to_string(out_cost1), cv::Point(10, 150), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    // cv::putText(drawingImage, "Cost right: " + std::to_string(out_cost2), cv::Point(10, 180), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
 
     cv::Point2f targetPoint;
     if (out_cost1 < out_cost2)
