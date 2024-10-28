@@ -51,6 +51,7 @@ extern int preprocess_br_y;
 extern int MIN_INTER_SEND_TIME_MS;
 extern int MIN_ROBOT_BLOB_SIZE;
 extern int MAX_ROBOT_BLOB_SIZE;
+extern int BLOB_MATCHING_DIST_THRESHOLD;
 extern int MIN_OPPONENT_BLOB_SIZE;
 extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;

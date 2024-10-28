@@ -54,7 +54,6 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs, cv::Point2f p
     return closest;
 }
 
-#define MATCHING_DIST_THRESHOLD 30 * WIDTH / 720
 /**
  * @brief Classifies the blobs and returns the robot and opponent blobs
  * @param blobs the blobs to classify
@@ -70,8 +69,8 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
     static Clock noRobotClock;
     static Clock noOpponentClock;
 
-    double matchingDistThresholdRobot = MATCHING_DIST_THRESHOLD;
-    double matchingDistThresholdOpponent = MATCHING_DIST_THRESHOLD;
+    double matchingDistThresholdRobot = BLOB_MATCHING_DIST_THRESHOLD;
+    double matchingDistThresholdOpponent = BLOB_MATCHING_DIST_THRESHOLD;
     if (neuralBlackedOut)
     {
         CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
@@ -96,7 +95,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
             MotionBlob closestBlob = GetClosestBlobAndRemove(blobs, opponentData.robotPosition);
 
             // check if sufficiently far from robot
-            if (cv::norm(closestBlob.center - opponentData.robotPosition) < MATCHING_DIST_THRESHOLD)
+            if (cv::norm(closestBlob.center - opponentData.robotPosition) < BLOB_MATCHING_DIST_THRESHOLD)
             {
                 classificationResult.SetOpponent(closestBlob);
             }

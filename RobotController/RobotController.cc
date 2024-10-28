@@ -435,71 +435,71 @@ DriverStationMessage RobotController::ManualMode()
     bool rightBumper = gamepad.GetRightBumper();
 
 
-    // don't allow auto turning when using orbit or kill modes
-    bool canAutoTurn = true;
-    if ((gamepad.GetLeftStickY() > 0.7 || _guiOrbit) ||
-        (gamepad.GetLeftStickY() < -0.7 || _guiKill))
-    {
-        canAutoTurn = false;
-    }
-    //////////////// 180 degrees if left bumper //////////////////
-    if (canAutoTurn && (leftBumper || rightBumper))
-    {
-        // initiated press
-        if (!lastLeftBumper && leftBumper)
-        {
-            // record the target angle
-            spinTargetAngle = angle_wrap(odometry.Robot().robotAngle - M_PI);
-            // record the intermediary angle (90 degrees from target)
-            spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle - M_PI / 2);
-        }
-        // initiated press
-        if (!lastRightBumper && rightBumper)
-        {
-            // record the target angle
-            spinTargetAngle = angle_wrap(odometry.Robot().robotAngle + M_PI);
-            // record the intermediary angle (90 degrees from target)
-            spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle + M_PI / 2);
-        }
+    // // don't allow auto turning when using orbit or kill modes
+    // bool canAutoTurn = true;
+    // if ((gamepad.GetLeftStickY() > 0.7 || _guiOrbit) ||
+    //     (gamepad.GetLeftStickY() < -0.7 || _guiKill))
+    // {
+    //     canAutoTurn = false;
+    // }
+    // //////////////// 180 degrees if left bumper //////////////////
+    // if (canAutoTurn && (leftBumper || rightBumper))
+    // {
+    //     // initiated press
+    //     if (!lastLeftBumper && leftBumper)
+    //     {
+    //         // record the target angle
+    //         spinTargetAngle = angle_wrap(odometry.Robot().robotAngle - M_PI);
+    //         // record the intermediary angle (90 degrees from target)
+    //         spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle - M_PI / 2);
+    //     }
+    //     // initiated press
+    //     if (!lastRightBumper && rightBumper)
+    //     {
+    //         // record the target angle
+    //         spinTargetAngle = angle_wrap(odometry.Robot().robotAngle + M_PI);
+    //         // record the intermediary angle (90 degrees from target)
+    //         spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle + M_PI / 2);
+    //     }
 
-        // default to the final target
-        float currTargetAngle = spinTargetAngle;
+    //     // default to the final target
+    //     float currTargetAngle = spinTargetAngle;
 
-        // check delta angle to target
-        double deltaAngle = angle_wrap(odometry.Robot().robotAngle - spinTargetAngle);
+    //     // check delta angle to target
+    //     double deltaAngle = angle_wrap(odometry.Robot().robotAngle - spinTargetAngle);
 
-        // if we are more than 90 degrees from the target angle
-        if (abs(deltaAngle) > TO_RAD * 135)
-        {
-            // aim at only 90 degrees away
-            currTargetAngle = spinIntermediaryAngle;
-        }
-        // else
-        // {
-        //     std::cout << "delta angle: " << deltaAngle << std::endl;
-        // }
+    //     // if we are more than 90 degrees from the target angle
+    //     if (abs(deltaAngle) > TO_RAD * 135)
+    //     {
+    //         // aim at only 90 degrees away
+    //         currTargetAngle = spinIntermediaryAngle;
+    //     }
+    //     // else
+    //     // {
+    //     //     std::cout << "delta angle: " << deltaAngle << std::endl;
+    //     // }
 
-        double originalMovement = ret.driveCommand.movement;
-        cv::Point2f currPoint = odometry.Robot().robotPosition;
-        cv::Point2f lookAtPoint = currPoint + cv::Point2f{cos(currTargetAngle) * 100, sin(currTargetAngle) * 100};
-        // draw the points
-        cv::circle(drawingImage, currPoint, 10, cv::Scalar(0, 255, 0), 2);
-        cv::circle(drawingImage, lookAtPoint, 10, cv::Scalar(0, 0, 255), 2);
+    //     double originalMovement = ret.driveCommand.movement;
+    //     cv::Point2f currPoint = odometry.Robot().robotPosition;
+    //     cv::Point2f lookAtPoint = currPoint + cv::Point2f{cos(currTargetAngle) * 100, sin(currTargetAngle) * 100};
+    //     // draw the points
+    //     cv::circle(drawingImage, currPoint, 10, cv::Scalar(0, 255, 0), 2);
+    //     cv::circle(drawingImage, lookAtPoint, 10, cv::Scalar(0, 0, 255), 2);
 
-        RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
+    //     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
-        ret = RobotMovement::HoldAngle(currPoint,
-                                       lookAtPoint,
-                                       KILL_KD_PERCENT,
-                                       TURN_THRESH_1_DEG_KILL,
-                                       TURN_THRESH_2_DEG_KILL,
-                                       MAX_TURN_POWER_PERCENT_KILL,
-                                       MIN_TURN_POWER_PERCENT_KILL,
-                                       SCALE_DOWN_MOVEMENT_PERCENT_KILL,
-                                       direction);
-        ret.autoDrive.frontWeaponCurrent10 = weapons.GetFrontWeaponTargetPower() * MAX_FRONT_WEAPON_SPEED / 10;
-        ret.autoDrive.backWeaponCurrent10 = weapons.GetBackWeaponTargetPower() * MAX_BACK_WEAPON_SPEED / 10;
-    }
+    //     ret = RobotMovement::HoldAngle(currPoint,
+    //                                    lookAtPoint,
+    //                                    KILL_KD_PERCENT,
+    //                                    TURN_THRESH_1_DEG_KILL,
+    //                                    TURN_THRESH_2_DEG_KILL,
+    //                                    MAX_TURN_POWER_PERCENT_KILL,
+    //                                    MIN_TURN_POWER_PERCENT_KILL,
+    //                                    SCALE_DOWN_MOVEMENT_PERCENT_KILL,
+    //                                    direction);
+    //     ret.autoDrive.frontWeaponCurrent10 = weapons.GetFrontWeaponTargetPower() * MAX_FRONT_WEAPON_SPEED / 10;
+    //     ret.autoDrive.backWeaponCurrent10 = weapons.GetBackWeaponTargetPower() * MAX_BACK_WEAPON_SPEED / 10;
+    // }
 
     lastLeftBumper = leftBumper;
     lastRightBumper = rightBumper;
