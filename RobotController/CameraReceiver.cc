@@ -339,8 +339,15 @@ bool CameraReceiver::_CaptureFrame()
     }
     // Get Next Image
     Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
-    // Get char data
+
+    if (!pResultImage || pResultImage->IsIncomplete())
+    {
+        std::cerr << "ERROR: Failed to capture frame!" << std::endl;
+        return false;
+    }
+
     unsigned char *img_data = (unsigned char *)pResultImage->GetData();
+
     // Create a Mat with the data
     cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
 
