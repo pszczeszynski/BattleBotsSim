@@ -402,8 +402,16 @@ void RobotOdometry::FuseAndUpdatePositions()
     }
     else if (blobUsPos_valid)
     {
-        debugROStringForVideo_tmp += "Blob";
-        _dataRobot.robotVelocity = dataRobot_Blob.robotVelocity;
+        if (neuralUsPos_valid)
+        {
+            debugROStringForVideo_tmp += "Neu";
+            _dataRobot.robotVelocity = dataRobot_Neural.robotVelocity;
+        }
+        else
+        {
+            debugROStringForVideo_tmp += "Blob";
+            _dataRobot.robotVelocity = dataRobot_Blob.robotVelocity;
+        }
     }
 
     //  US ROT:
