@@ -98,7 +98,6 @@ set(SOURCES
     UIWidgets/CameraWidget.cc
     CVRotation.cc
     Odometry/Neural/CVPosition.cc
-    MovementStrategy.cc
     Strategies/Kill.cc
     Strategies/Orbit.cc
     Strategies/RobotMovement.cc

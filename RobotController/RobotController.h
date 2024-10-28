@@ -10,7 +10,6 @@
 #include "Extrapolator.h"
 #include "MatQueue.h"
 #include "SelfRighter.h"
-#include "MovementStrategy.h"
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
 #include "Weapons.h"
@@ -54,8 +53,6 @@ private:
     int UpdateDrawingImage();
 
     cv::Mat drawingImage;
-
-    MovementStrategy _movementStrategy;
 
     void ApplyMoveScales(DriverStationMessage& command);
     void DrawStatusIndicators();
