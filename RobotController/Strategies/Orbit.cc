@@ -503,7 +503,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
 
     // add turning score
     double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
-    double angleDiff = angle_wrap(angleToTarget - (odoData.robotAngle + (circleDirection ? 0 : M_PI)));
+    double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle + (LEAD_WITH_BAR ? 0 : M_PI));
     double angleCost = abs(angleDiff) / (180 * TO_RAD);
 
     double angleToButt = angle_wrap(opponentExState.robotAngle + M_PI);
