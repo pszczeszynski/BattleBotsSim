@@ -96,6 +96,10 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
         blackOutNeural = true;
         // imshow
         cv::Rect neuralRect = cv::Rect(boundingBox[0], boundingBox[1], boundingBox[2], boundingBox[3]);
+        // extrapolate 
+        neuralRect.x += neuralData.robotVelocity.x * (Clock::programClock.getElapsedTime() - neuralData.time);
+        neuralRect.y += neuralData.robotVelocity.y * (Clock::programClock.getElapsedTime() - neuralData.time);
+
         cv::rectangle(grayDiff, neuralRect, cv::Scalar(0), -1);
 
         // cv::imshow("Neural", grayDiff);
