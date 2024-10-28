@@ -20,7 +20,7 @@ class RobotClassifier
 public:
     RobotClassifier();
 
-    VisionClassification ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut);
+    VisionClassification ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut, double frameTime);
 
 private:
     double ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData);

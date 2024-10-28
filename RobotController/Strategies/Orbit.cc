@@ -9,6 +9,7 @@
 // clock
 #include "../UIWidgets/ClockWidget.h"
 #include "Extrapolate.h"
+#include "../SafeDrawing.h"
 
 Orbit::Orbit()
 {
@@ -367,13 +368,13 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     if (draw)
     {
         // draw a dot at the opponent's weapon
-        cv::circle(drawingImage, opponentWeaponPosEx, 5, cv::Scalar(0, 0, 255), 2);
+        safe_circle(drawingImage, opponentWeaponPosEx, 5, cv::Scalar(0, 0, 255), 2);
         // // draw blue circle around opponent
-        // cv::circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 0, 0), 2);
+        // safe_circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 0, 0), 2);
         // // draw light blue circle around opponent to show evasion radius
-        // cv::circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 165, 0), 1);
+        // safe_circle(drawingImage, orbitCenter, orbitRadius, cv::Scalar(255, 165, 0), 1);
         // draw circle at our position with radius PURE_PURSUIT_RADIUS_PX
-        cv::circle(drawingImage, odoData.robotPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
+        safe_circle(drawingImage, odoData.robotPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
         // draw arrow at the ex state's angle
         cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
         cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
@@ -674,7 +675,7 @@ DriverStationMessage Orbit::Execute(Gamepad& gamepad)
     }
     
     // Draw the point
-    cv::circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
+    safe_circle(drawingImage, targetPoint, 10, cv::Scalar(0, 255, 0), 4);
 
     bool allowReverse = false;
 

@@ -5,6 +5,7 @@
 #include "../RobotController.h"
 #include "Orbit.h"
 #include "Extrapolate.h"
+#include "../SafeDrawing.h"
 
 Kill::Kill()
 {
@@ -22,7 +23,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     OdometryData opponentData = ExtrapolateOpponentPos();
 
     // draw a crosshair on the opponent
-    cv::circle(RobotController::GetInstance().GetDrawingImage(), opponentData.robotPosition, 10, cv::Scalar(0, 0, 255), 2);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), opponentData.robotPosition, 10, cv::Scalar(0, 0, 255), 2);
 
     // hold angle to the opponent
     DriverStationMessage ret = RobotMovement::HoldAngle(ourData.robotPosition,

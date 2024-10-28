@@ -4,6 +4,7 @@
 #include "../RobotConfig.h"
 #include "../Input/InputState.h"
 #include "CameraWidget.h"
+#include "../SafeDrawing.h"
 
 TrackingWidget *TrackingWidget::_instance = nullptr;
 cv::Point2f TrackingWidget::leftClickPoint = cv::Point2f(0, 0);
@@ -81,11 +82,11 @@ void TrackingWidget::_AdjustFieldCrop()
         {
             if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH)
             {
-                cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
+                safe_circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5, cv::Scalar(255, 100, 255), 2);
             }
             else
             {
-                cv::circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
+                safe_circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH, cv::Scalar(255, 0, 255), 2);
             }
         }
     }
@@ -271,7 +272,7 @@ void TrackingWidget::_DrawAlgorithmData()
         OdometryData opponent = _odometry_Blob.GetData(true);
         opponent.Extrapolate(Clock::programClock.getElapsedTime());
 
-        cv::circle(_trackingMat, opponent.robotPosition, 20, blobColor, 2);
+        safe_circle(_trackingMat, opponent.robotPosition, 20, blobColor, 2);
     }
 
     if (_odometry_Heuristic.IsRunning())
@@ -296,7 +297,7 @@ void TrackingWidget::_DrawAlgorithmData()
 
         if (opponent.robotPosValid)
         {
-            cv::circle(_trackingMat, opponent.robotPosition, 20, heuristicColor, 2);
+            safe_circle(_trackingMat, opponent.robotPosition, 20, heuristicColor, 2);
         }
     }
 

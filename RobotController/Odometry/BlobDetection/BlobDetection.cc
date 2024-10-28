@@ -2,6 +2,8 @@
 #include "../../UIWidgets/ImageWidget.h"
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
+#include "../../SafeDrawing.h"
+
 // Ctor
 BlobDetection::BlobDetection(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
@@ -28,7 +30,7 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // Do Blob detection and figure out which blobs is us versus opponent
     // Defer blocking of locker until inside DoBlobDetection core so that we give more chances to update data by other threads
     std::unique_lock<std::mutex> locker(_updateMutex, std::defer_lock);
-    VisionClassification robotData = DoBlobDetection(currFrame, _previousImage, locker); // Locks the locker
+    VisionClassification robotData = DoBlobDetection(currFrame, _previousImage, locker, frameTime); // Locks the locker
 
     // Now update our standard data
     UpdateData(robotData, frameTime);
@@ -51,7 +53,7 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
  * Locates the robots in the frame
  * Note: Incoming images are black and white
  */
-VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat &previousFrame, std::unique_lock<std::mutex> &locker)
+VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat &previousFrame, std::unique_lock<std::mutex> &locker, double frameTime)
 {
     static ImageWidget motionImageWidget{"Motion", true};
 
@@ -169,7 +171,7 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     for (const MotionBlob &blob : motionBlobs)
     {
         cv::rectangle(blobsImage, blob.rect, cv::Scalar(0, 255, 0), 2);
-        cv::circle(blobsImage, blob.center, 5, cv::Scalar(0, 255, 0), 2);
+        safe_circle(blobsImage, blob.center, 5, cv::Scalar(0, 255, 0), 2);
     }
 
     // draw the potential robots
@@ -180,7 +182,7 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     // Need previous data to be able to predict this data
     // Should we use extrapolated data? In this case maybe not so that we dont compound a bad reading?
     locker.lock();
-    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent, blackOutNeural);
+    return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent, blackOutNeural, frameTime);
 }
 
 #ifdef SIMULATION

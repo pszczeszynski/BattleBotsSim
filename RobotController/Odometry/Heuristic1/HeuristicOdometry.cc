@@ -24,6 +24,7 @@
 #include "HeuristicOdometry.h"
 #include "../../UIWidgets/ImageWidget.h"
 #include "../../RobotController.h"
+#include "../../SafeDrawing.h"
 
 // ****************************************
 // CameraDecoder
@@ -453,6 +454,7 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     odoData.robotPosValid = tracker != nullptr;
     odoData.robotPosition = (odoData.robotPosValid) ? tracker->position.Point2f() : newPos;
     odoData.robotVelocity = cv::Point2f(0, 0);
+    odoData.time = Clock::programClock.getElapsedTime();
 }
 
 void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
@@ -762,7 +764,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDispl
                 colorRectangle = cv::Scalar(0, 0, 255);
             }
             cv::rectangle(frameToDisplay, (*currIter)->bbox, colorRectangle, 3);
-            cv::circle(frameToDisplay, (*currIter)->GetCenter(), 10, colorRectangle, 3);
+            safe_circle(frameToDisplay, (*currIter)->GetCenter(), 10, colorRectangle, 3);
             cv::Point rotationdir((*currIter)->rotation.x * 50.0, (*currIter)->rotation.y * 50.0);
             cv::Point centerBBox = (*currIter)->bbox.tl();
             centerBBox.x += (*currIter)->bbox.width / 2;
@@ -1011,7 +1013,7 @@ void HeuristicOdometry::DumpRobotTrackerInfo(cv::Mat &channel, std::string title
         cv::bitwise_or(currRobot->fg_image, channel(bbox), channel(bbox));
 
         // Add Center Circle
-        cv::circle(channel, currRobot->GetCenter(), 5, cv::Scalar(255 / 2), 2);
+        safe_circle(channel, currRobot->GetCenter(), 5, cv::Scalar(255 / 2), 2);
 
         // Add info
         int i = bbox.y / 20;

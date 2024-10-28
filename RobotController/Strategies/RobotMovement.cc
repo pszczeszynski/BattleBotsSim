@@ -4,6 +4,7 @@
 #include "../RobotConfig.h"
 #include "../RobotController.h"
 #include "../UIWidgets/ImageWidget.h"
+#include "../SafeDrawing.h"
 
 void DrawDeltaAngleGraphic(double value)
 {
@@ -76,7 +77,7 @@ void DrawDeltaAngleGraphic(double value)
     int x = 200 + value * 200 / M_PI;
     int y = 100 - abs(power) * 100;
 
-    cv::circle(threshCurve, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), -1);
+    safe_circle(threshCurve, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), -1);
 
     cv::arrowedLine(threshCurve, cv::Point(200, 100), cv::Point(x, 100), cv::Scalar(0, 255, 0), 2);
 

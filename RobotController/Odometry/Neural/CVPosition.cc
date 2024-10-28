@@ -272,7 +272,6 @@ CVPositionData CVPosition::_GetDataFromPython()
     ret.frameID = id;
     ret.time_millis = time_milliseconds;
     ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
-    std::cout << "conf: " << conf << std::endl;
     ret.valid = conf >= NN_MIN_CONFIDENCE;
 
     return ret;

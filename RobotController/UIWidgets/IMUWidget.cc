@@ -2,6 +2,7 @@
 #include "../RobotController.h"
 #include "../GuiUtils.h"
 #include "imgui.h"
+#include "../SafeDrawing.h"
 
 #define REFRESH_INTERVAL_MS 30
 #define WIDGET_WIDTH 250
@@ -64,7 +65,7 @@ void IMUWidget::Draw()
 
     // draw circle
     cv::Scalar strokeColor = cv::Scalar(255, 255, 255, 255);
-    cv::circle(mat, midPoint, WIDGET_RADIUS, strokeColor, 2);
+    safe_circle(mat, midPoint, WIDGET_RADIUS, strokeColor, 2);
 
     // draw crosshair
     cv::line(mat, cv::Point(0, WIDGET_RADIUS),
@@ -76,7 +77,7 @@ void IMUWidget::Draw()
     cv::Scalar blue = cv::Scalar(0, 255, 255, 255);
     cv::Point2f dotCenter(WIDGET_RADIUS + (accelX / MAX_ACCEL_MPSS) * WIDGET_RADIUS,
                           WIDGET_RADIUS + (accelY / MAX_ACCEL_MPSS) * WIDGET_RADIUS);
-    cv::circle(mat, dotCenter, 15, blue, 3);
+    safe_circle(mat, dotCenter, 15, blue, 3);
 
     /////////// GYRO VISUALIZATION ///////////
     // get the gyro data

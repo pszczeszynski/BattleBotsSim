@@ -13,6 +13,7 @@
 #include "Strategies/RobotMovement.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
+#include "SafeDrawing.h"
 
 int main()
 {
@@ -481,8 +482,8 @@ DriverStationMessage RobotController::ManualMode()
     //     cv::Point2f currPoint = odometry.Robot().robotPosition;
     //     cv::Point2f lookAtPoint = currPoint + cv::Point2f{cos(currTargetAngle) * 100, sin(currTargetAngle) * 100};
     //     // draw the points
-    //     cv::circle(drawingImage, currPoint, 10, cv::Scalar(0, 255, 0), 2);
-    //     cv::circle(drawingImage, lookAtPoint, 10, cv::Scalar(0, 0, 255), 2);
+    //     safe_circle(drawingImage, currPoint, 10, cv::Scalar(0, 255, 0), 2);
+    //     safe_circle(drawingImage, lookAtPoint, 10, cv::Scalar(0, 0, 255), 2);
 
     //     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
@@ -726,7 +727,7 @@ void RobotController::DrawStatusIndicators()
     {
         color = cv::Scalar(0, 0, 255);
     }
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 50), 17, color, -1);
+    safe_circle(drawingImage, cv::Point(WIDTH - 50, 50), 17, color, -1);
     cv::putText(drawingImage, "Radio", cv::Point(WIDTH - 63, 54), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
@@ -742,7 +743,7 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
+    safe_circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
     cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
     // check if secondary robotlink transmission is working
@@ -757,7 +758,7 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
+    safe_circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
     cv::putText(drawingImage, "TX2", cv::Point(WIDTH - 57, 154), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
@@ -774,7 +775,7 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
+    safe_circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
     cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 204), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 
@@ -792,7 +793,7 @@ void RobotController::DrawStatusIndicators()
         color = cv::Scalar(0, 0, 255);
     }
 
-    cv::circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
+    safe_circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
     cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254), cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 
 

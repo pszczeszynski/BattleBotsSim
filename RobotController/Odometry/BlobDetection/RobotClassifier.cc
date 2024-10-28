@@ -60,7 +60,7 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs, cv::Point2f p
  * @param frame the latest frame from the camera
  * @param motionImage a frame with only the motion as white pixels
  */
-VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut)
+VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage, OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut, double frameTime)
 {
     VisionClassification classificationResult;
 
@@ -75,7 +75,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
     {
         CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
         OdometryData neuralData = cvPosition.GetData(false);
-        neuralData.ExtrapolateBounded(Clock::programClock.getElapsedTime());
+        neuralData.ExtrapolateBounded(frameTime);
 
         // get the latest position from the neural network
         cv::Point2f neuralPosition = neuralData.robotPosition;

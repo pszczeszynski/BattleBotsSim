@@ -10,7 +10,7 @@
 #include "UIWidgets/ImageWidget.h"
 #include "Globals.h"
 #include "UIWidgets/ClockWidget.h"
-
+#include "SafeDrawing.h"
 
 std::mutex debugROStringForVideo_mutex;
 std::string debugROStringForVideo = "";
@@ -546,7 +546,7 @@ void RobotOdometry::FuseAndUpdatePositions()
         size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
 
         // draw a circle for the opponent
-        cv::circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
+        safe_circle(trackingMat, _dataOpponent.robotPosition, size, cv::Scalar(255, 255, 255), 2);
     }
 
     // Copy over to the shared debug string

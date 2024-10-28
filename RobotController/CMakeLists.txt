@@ -106,6 +106,7 @@ set(SOURCES
     Strategies/DriveToAngleSimulation.cc
     PurePursuit.cc
     Strategies/Extrapolate.cc
+    SafeDrawing.cc
 )
 
 # Create the object files
