@@ -19,7 +19,6 @@ public:
     HumanPosition(ICameraReceiver *videoSource, std::string port, bool sendHeuristicMat = false);
 
 protected:
-    void _ProcessNewFrameTMP(cv::Mat currFrame, double frameTime);
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime);
 private:
     std::string _port;
@@ -30,6 +29,9 @@ private:
     int _lastAutoRCount = 0;
     int _lastHardRebootCount = 0;
     int _lastRebootRecoveryCount = 0;
+    int _lastLoadStartCount = 0;
+    int _lastLoadSavedCount = 0;
+    int _lastSavedCount = 0;
 
     DataType _lastReceivedType;
     ServerSocket* _socket;

@@ -91,7 +91,7 @@ std::string ServerSocket::receive(int* outError)
             else
             {
                 // Error occurred
-                std::cerr << "recvfrom failed with error: " << err << std::endl;
+                std::cerr << "recvfrom on port " << port << " failed with error: " << err << std::endl;
                 if (outError != nullptr)
                 {
                     *outError = err;
@@ -104,6 +104,7 @@ std::string ServerSocket::receive(int* outError)
         }
         else if (numBytesReceived > 0)
         {
+           
             ret.assign(recvbuf, numBytesReceived);
             // Update last_sender_addr and last_sender_addr_len
             // This is already handled by recvfrom parameters
@@ -124,6 +125,11 @@ std::string ServerSocket::receive(int* outError)
  */
 void ServerSocket::reply_to_last_sender(std::string data)
 {
+    if( (listenSocket == INVALID_SOCKET) || (last_sender_addr_len == 0))
+    {
+        return;
+    }
+
     int iSendResult = sendto(listenSocket, data.c_str(), data.length(), 0, (SOCKADDR *)&last_sender_addr, last_sender_addr_len);
 
     // if (iSendResult == SOCKET_ERROR)
