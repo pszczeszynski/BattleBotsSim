@@ -10,8 +10,6 @@
 #include "UIWidgets/ClockWidget.h"
 #endif
 
-const int CLOSE = 20;
-
 // #define STABALIZE
 
 VisionPreprocessor::VisionPreprocessor()

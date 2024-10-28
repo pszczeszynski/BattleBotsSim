@@ -82,7 +82,6 @@ set(SOURCES
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc
-    Timer.cc
     Clock.cc
     VisionPreprocessor.cc
     CameraReceiver.cc
