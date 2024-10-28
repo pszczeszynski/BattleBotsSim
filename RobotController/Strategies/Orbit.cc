@@ -662,8 +662,6 @@ double Orbit::_CalculateOrbitRadius(double angleOpponentToPoint,
 {
     // scale the radius based on the triggers
     double orbitRadius = ORBIT_RADIUS;
-    orbitRadius *= 1.0 + gamepad.GetRightTrigger();
-    orbitRadius /= 1.0 + gamepad.GetLeftTrigger();
 
     // get the danger level
     double dangerLevel = _GetDangerLevel(angleOpponentToPoint, opponentAngle, orbitDirection);
