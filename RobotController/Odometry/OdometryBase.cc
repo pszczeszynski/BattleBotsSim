@@ -60,9 +60,9 @@ void OdometryData::Extrapolate(double newtime)
     time_angle = newtime;
 }
 
-void OdometryData::ExtrapolateBounded(double newtime, double maxTime)
+void OdometryData::ExtrapolateBounded(double newtime, double maxRelativeTime)
 {
-    if (newtime > maxTime)
+    if (newtime > time + maxRelativeTime)
     {
         return;
     }

@@ -49,7 +49,7 @@ public:
     void Clear(); // Clears all position and user data to invalid;
 
     void Extrapolate(double newtime); // Extrapolates position and anlge into newtime future
-    void ExtrapolateBounded(double newtime, double maxTime = MAX_EXTRAPOLATION_TIME_S); // Extrapolates position and anlge into newtime future, but not past maxTime
+    void ExtrapolateBounded(double newtime, double maxRelativeTime = MAX_EXTRAPOLATION_TIME_S); // Extrapolates position and anlge into newtime future, but not past maxTime
     double GetAge(); // returns the age of this data in seconds
 
     bool IsPointInside(cv::Point2f point)
