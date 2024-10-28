@@ -541,7 +541,7 @@ DriverStationMessage RobotController::RobotLogic()
     Angle robotAngle = odoData.robotAngle;
     float robotAnglef = (double) robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
-    cv::arrowedLine(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
+    safe_arrow(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 
     // start with just manual control
     DriverStationMessage ret = ManualMode();

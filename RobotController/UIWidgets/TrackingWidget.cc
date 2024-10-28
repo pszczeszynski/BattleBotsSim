@@ -292,7 +292,7 @@ void TrackingWidget::_DrawAlgorithmData()
         if (opponent.robotAngleValid)
         {
             cv::Point2f arrowEnd = opponent.robotPosition + cv::Point2f(50 * cos(opponent.robotAngle), 50 * sin(opponent.robotAngle));
-            cv::arrowedLine(_trackingMat, opponent.robotPosition, arrowEnd, heuristicColor, 2);
+            safe_arrow(_trackingMat, opponent.robotPosition, arrowEnd, heuristicColor, 2);
         }
 
         if (opponent.robotPosValid)
@@ -383,13 +383,13 @@ void TrackingWidget::_DrawAlgorithmData()
     cv::Point2f robotPos = odometry.Robot().robotPosition;
     double robotAngle = odometry.Robot().robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
-    cv::arrowedLine(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+    safe_arrow(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
 
     // draw opponent angle with arrow
     cv::Point2f opponentPos = odometry.Opponent().robotPosition;
     double opponentAngle = odometry.Opponent().robotAngle;
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
-    cv::arrowedLine(_trackingMat, opponentPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
+    safe_arrow(_trackingMat, opponentPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
 }
 
 cv::Mat& TrackingWidget::GetTrackingMat()

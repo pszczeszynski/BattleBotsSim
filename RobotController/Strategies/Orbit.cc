@@ -377,10 +377,10 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
         safe_circle(drawingImage, odoData.robotPosition, purePursuitRadius, cv::Scalar(0, 255, 0), 1);
         // draw arrow at the ex state's angle
         cv::Point2f arrowEnd = exState.position + cv::Point2f(100.0 * cos(exState.angle), 100.0 * sin(exState.angle));
-        cv::arrowedLine(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
+        safe_arrow(drawingImage, exState.position, arrowEnd, cv::Scalar(0, 255, 0), 2);
 
         // draw arrow from from opponent ex state to their weapon
-        cv::arrowedLine(drawingImage, opponentExState.robotPosition,
+        safe_arrow(drawingImage, opponentExState.robotPosition,
                         opponentExState.robotPosition + cv::Point2f(cos(opponentExState.robotAngle) * 50,
                                                                sin(opponentExState.robotAngle) * 50),
                         cv::Scalar(0, 255, 255), 2);
@@ -534,13 +534,13 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     double angleFromUsToButt = angle_wrap(angleToButt - angleWeaponToUs - M_PI) + M_PI;
 
     // draw an arrow from the opponent to the weapon
-    cv::arrowedLine(drawingImage, opponentExState.robotPosition,
+    safe_arrow(drawingImage, opponentExState.robotPosition,
                     opponentExState.robotPosition + cv::Point2f(cos(opponentExState.robotAngle + M_PI) * 50,
                                                            sin(opponentExState.robotAngle + M_PI) * 50),
                     cv::Scalar(50, 150, 50), 2);
 
     // draw an arrow from weapon to us
-    cv::arrowedLine(drawingImage, opponentWeaponPosEx,
+    safe_arrow(drawingImage, opponentWeaponPosEx,
                     odoData.robotPosition,
                     cv::Scalar(0, 100, 255), 2);
 

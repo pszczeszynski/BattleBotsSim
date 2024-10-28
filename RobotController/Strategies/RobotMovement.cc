@@ -79,7 +79,7 @@ void DrawDeltaAngleGraphic(double value)
 
     safe_circle(threshCurve, cv::Point(x, y), 5, cv::Scalar(0, 0, 255), -1);
 
-    cv::arrowedLine(threshCurve, cv::Point(200, 100), cv::Point(x, 100), cv::Scalar(0, 255, 0), 2);
+    safe_arrow(threshCurve, cv::Point(200, 100), cv::Point(x, 100), cv::Scalar(0, 255, 0), 2);
 
     // put text that this is applied turn power
     cv::putText(threshCurve, "Applied Turn Power", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 0), 1);
