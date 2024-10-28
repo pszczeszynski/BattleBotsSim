@@ -80,6 +80,7 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
 {
     // get odometry data
     OdometryData odoData =  RobotController::GetInstance().odometry.Robot();
+    static GraphWidget purePursuitRadiusGraph("Pure Pursuit Radius", 0, 100, "px", 1000);
 
     static double purePursuitRadius = PURE_PURSUIT_RADIUS;
     static Clock updateClock;
@@ -113,6 +114,13 @@ double Orbit::_CalculatePurePursuitRadius(cv::Point2f ourPosition, cv::Point2f o
     purePursuitRadius = std::min(purePursuitRadius, distToCenter - 5);
     // enforce pure pursuit radius to be at least 1
     purePursuitRadius = std::max(purePursuitRadius, 1.0);
+    purePursuitRadiusGraph.AddData(purePursuitRadius);
+
+    // check if nan or inf
+    if (std::isnan(purePursuitRadius) || std::isinf(purePursuitRadius))
+    {
+        purePursuitRadius = PURE_PURSUIT_RADIUS;
+    }
 
     // return the radius
     return purePursuitRadius;
