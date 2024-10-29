@@ -121,7 +121,7 @@ def send_data_to_robot_controller() -> None:
     force_pos_value = int(force_pos_var.get())
     force_heal_value = int(force_heal_var.get())
     new_slider_data = int( (time.time() - lastSliderTime) < 0.5 )
-    status_label.set( str(lastSliderTime))
+
 
     # Prepare data to send
     data = (
@@ -444,8 +444,7 @@ def on_right_click(event: tk.Event) -> None:
 def on_left_drag(event: tk.Event) -> None:
     if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
         handle_mouse_event(event, OPPONENT_ROTATION)
-
-    if primary_click_action == 'robot':
+    elif primary_click_action == 'robot':
         handle_mouse_event(event, POSITION)
     else:
         handle_mouse_event(event, OPPONENT_POSITION)
@@ -459,7 +458,7 @@ def on_right_drag(event: tk.Event) -> None:
 
 
 def on_mouse_move(event: tk.Event) -> None:
-    return
+    #return
     if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
         handle_mouse_event(event, OPPONENT_ROTATION)
     elif primary_click_action == 'robot':
@@ -470,9 +469,9 @@ def on_mouse_move(event: tk.Event) -> None:
 
 # IP address and port input fields
 currRow = 0
-status_line = tk.Label(side_panel, textvariable=status_label)
-status_line.grid(row=currRow, column=0, columnspan=2,  padx=5, pady=5)
-currRow+=1
+# status_line = tk.Label(side_panel, textvariable=status_label)
+# status_line.grid(row=currRow, column=0, columnspan=2,  padx=5, pady=5)
+# currRow+=1
 
 ip_label = tk.Label(side_panel, text="IP Address:")
 ip_label.grid(row=currRow, column=0, padx=5, pady=5)
