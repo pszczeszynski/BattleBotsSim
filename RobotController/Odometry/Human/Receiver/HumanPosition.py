@@ -444,8 +444,7 @@ def on_right_click(event: tk.Event) -> None:
 def on_left_drag(event: tk.Event) -> None:
     if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
         handle_mouse_event(event, OPPONENT_ROTATION)
-
-    if primary_click_action == 'robot':
+    elif primary_click_action == 'robot':
         handle_mouse_event(event, POSITION)
     else:
         handle_mouse_event(event, OPPONENT_POSITION)

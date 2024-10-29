@@ -305,6 +305,22 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     fg_color.setTo(cv::Scalar(255, 100, 100), fg_mask);
 
     cv::addWeighted(currFrameColor, 1.0f, fg_color, 0.3f, 0, currFrameColor);
+
+    // Finaly add the actual robot tracking circles
+    OdometryData robotData = RobotController::GetInstance().odometry.Robot();
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+
+    if( robotData.robotPosValid)
+    {
+        safe_circle(currFrameColor, robotData.robotPosition, 10, cv::Scalar(0, 255, 100), 2, cv::LINE_AA, 0);
+    }
+
+    if( opponentData.robotPosValid)
+    {
+        safe_circle(currFrameColor, opponentData.robotPosition, 10, cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
+    }
+
+
     currFrameColor.copyTo(prevFrameColor);
 
     if (show_track_mat)
@@ -462,10 +478,15 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     // Here we assume newPos is inside the current tracked box.
     // If we have no tracker, use setPosition First
     // If setPosition fails, than continue on with force position
+    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes, std::defer_lock);
+
     if (opponentRobot && opponentRobotTracker == nullptr)
     {
+        // It will lock mallboxes
         SetPosition(newPos, opponentRobot);
 
+        // Now we need to lock it ourselves
+        locktracking.lock();
         if (opponentRobotTracker == nullptr)
         {
             _currDataOpponent.robotPosValid = false;
@@ -474,15 +495,21 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     }
     else if (!opponentRobot && ourRobotTracker == nullptr)
     {
+        // It will lock mallboxes
         SetPosition(newPos, opponentRobot);
+
+        // Now we need to lock it ourselves
+        locktracking.lock();
         if (ourRobotTracker == nullptr)
         {
             _currDataRobot.robotPosValid = false;
             return;
         }
     }
-
-    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
+    else
+    {
+        locktracking.lock();
+    }
 
     RobotTracker *&firstbot = (opponentRobot) ? opponentRobotTracker : ourRobotTracker; // Guaranteed not to be nullpts
     RobotTracker *&secondbot = (opponentRobot) ? ourRobotTracker : opponentRobotTracker; // could be nullptr
