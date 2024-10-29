@@ -61,7 +61,7 @@ void CVPosition::_InitSharedImage()
 
 void CVPosition::_StartPython()
 {
-    return;
+    // return;
     const std::string venv_path = "venv";            // Path to the venv directory
     const std::string script_path = "CVPosition.py"; // Path to the Python script
     // Create command string for Windows
