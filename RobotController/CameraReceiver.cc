@@ -51,7 +51,7 @@ void ICameraReceiver::_StartCaptureThread()
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(10000); // wait 1 second
+            Sleep(1000); // wait 1 second
         }
 
         std::cout << "Camera initialized" << std::endl;
@@ -62,7 +62,17 @@ void ICameraReceiver::_StartCaptureThread()
             captureTimer.markEnd();
             captureTimer.markStart();
 
-            _CaptureFrame();  
+            bool success = _CaptureFrame();
+
+            if (!success)
+            {
+                // try to initialize camera
+                while (!_InitializeCamera())
+                {
+                    std::cerr << "ERROR: failed to initialize camera!" << std::endl;
+                    Sleep(1000); // wait 1 second
+                }
+            }
         } });
 }
 
@@ -133,6 +143,12 @@ CameraReceiver::CameraReceiver() : ICameraReceiver()
 
 int ConfigureCamera(Spinnaker::CameraPtr pCam)
 {
+
+    if (pCam == nullptr)
+    {
+        std::cout << "error attempt to configure null camera. Returning" << std::endl;
+        return -1;
+    }
 
     std::cout << "Configuring camera" << std::endl;
     //
@@ -252,11 +268,22 @@ bool CameraReceiver::_InitializeCamera()
     // Finish if there are no cameras
     if (numCameras == 0)
     {
+        if (pCam != nullptr)
+        {
+            pCam->DeInit();
+            pCam = nullptr;
+        }
+
         // Clear camera list before releasing system
         camList.Clear();
 
-        // Release system
-        _system->ReleaseInstance();
+        if (_system != nullptr)
+        {
+            // Release system
+            _system->ReleaseInstance();
+            _system = nullptr;
+        }
+
 
         return false;
     }
@@ -281,14 +308,34 @@ bool CameraReceiver::_InitializeCamera()
     {
         std::cerr << "Failed to configure camera" << std::endl;
 
-        // Failed, exit
-        pCam = nullptr;
+        if (pCam != nullptr)
+        {
+            pCam->DeInit();
+            pCam = nullptr;
+        }
 
+        std::cout << "about to clear camlist" << std::endl;
         // Clear camera list before releasing system
         camList.Clear();
 
-        // Release system
-        _system->ReleaseInstance();
+        std::cout << "about to release system" << std::endl;
+
+        if (_system != nullptr)
+        {
+            try
+            {
+                // Release system
+                _system->ReleaseInstance();
+            }
+            catch (Spinnaker::Exception &e)
+            {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+            _system = nullptr;
+        }
+
+
+        std::cout << "returning false" << std::endl;
         // return failure
         return false;
     }
@@ -304,14 +351,22 @@ bool CameraReceiver::_InitializeCamera()
     catch (Spinnaker::Exception &e)
     {
         std::cout << "Error: " << e.what() << std::endl;
-        // Failed, exit
-        pCam = nullptr;
+        if (pCam != nullptr)
+        {
+            pCam->DeInit();
+            pCam = nullptr;
+        }
 
         // Clear camera list before releasing system
         camList.Clear();
 
-        // Release system
-        _system->ReleaseInstance();
+        if (_system != nullptr)
+        {
+            // Release system
+            _system->ReleaseInstance();
+            _system = nullptr;
+        }
+
         // return failure
         return false;
     }
@@ -338,7 +393,21 @@ bool CameraReceiver::_CaptureFrame()
         return false;
     }
     // Get Next Image
-    Spinnaker::ImagePtr pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
+    Spinnaker::ImagePtr pResultImage = nullptr;
+    
+    try
+    {
+        // Attempt to get the next image
+        pResultImage = pCam->GetNextImage(GET_FRAME_TIMEOUT_MS);
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        std::cerr << "Exception: " << e.what() << std::endl;
+        // Handle camera disconnection
+        pCam = nullptr;
+
+        return false;
+    }
 
     if (!pResultImage || pResultImage->IsIncomplete())
     {
