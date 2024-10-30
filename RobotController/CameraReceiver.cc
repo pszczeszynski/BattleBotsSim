@@ -270,7 +270,18 @@ bool CameraReceiver::_InitializeCamera()
     {
         if (pCam != nullptr)
         {
-            pCam->DeInit();
+            try
+            {
+                // Check if the camera is initialized before de-initializing
+                if (pCam->IsInitialized())
+                {
+                    pCam->DeInit();
+                }
+            }
+            catch (Spinnaker::Exception &e)
+            {
+                std::cerr << "Error during DeInit: " << e.what() << std::endl;
+            }
             pCam = nullptr;
         }
 
@@ -310,7 +321,19 @@ bool CameraReceiver::_InitializeCamera()
 
         if (pCam != nullptr)
         {
-            pCam->DeInit();
+            try
+            {
+                // Check if the camera is initialized before de-initializing
+                if (pCam->IsInitialized())
+                {
+                    // pCam->DeInit();
+                }
+            }
+            catch (Spinnaker::Exception &e)
+            {
+                std::cerr << "Error during DeInit: " << e.what() << std::endl;
+            }
+
             pCam = nullptr;
         }
 
@@ -353,7 +376,18 @@ bool CameraReceiver::_InitializeCamera()
         std::cout << "Error: " << e.what() << std::endl;
         if (pCam != nullptr)
         {
-            pCam->DeInit();
+            try
+            {
+                // Check if the camera is initialized before de-initializing
+                if (pCam->IsInitialized())
+                {
+                    pCam->DeInit();
+                }
+            }
+            catch (Spinnaker::Exception &e)
+            {
+                std::cerr << "Error during DeInit: " << e.what() << std::endl;
+            }
             pCam = nullptr;
         }
 
