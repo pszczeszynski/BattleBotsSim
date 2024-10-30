@@ -4,6 +4,7 @@
 #include "RobotController.h"
 #include "UIWidgets/ClockWidget.h"
 #include <opencv2/dnn/dnn.hpp>
+#include "RobotConfig.h"
 CVRotation* CVRotation::_instance = nullptr;
 
 CVRotation::CVRotation(ICameraReceiver* videoSource) : OdometryBase(videoSource)
@@ -25,6 +26,13 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
 {
     cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
     double rotation = ComputeRobotRotation(frame, robotPos);
+    double conf = GetLastConfidence();
+
+    if (conf < ANGLE_FUSE_CONF_THRESH)
+    {
+        return;
+    }
+
     _frameID++;
 
     std::unique_lock<std::mutex> lock(_updateMutex);
