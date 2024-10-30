@@ -17,6 +17,7 @@ public:
 
 private:
     void _UpdateData(IMUData &imuData, double timestamp);
+    double _lastGlobalOffset = 0; // our raw imu angle - the global robot angle at the last received packet time
     double _lastImuAngle = 0;
     Angle _lastAngle;
     int _lastRadioChannel = 0;

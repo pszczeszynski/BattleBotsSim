@@ -57,12 +57,16 @@ bool OdometryIMU::Run()
 float OdometryIMU::GetOffset()
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
-    return _lastImuAngle - _lastAngle;
+    return _lastGlobalOffset;
 }
 
 void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 {
-    CVRotation& cvRotation = RobotController::GetInstance().odometry.GetNeuralRotOdometry();
+    RobotOdometry& odometry = RobotController::GetInstance().odometry;
+    OdometryData globalOdometryData = odometry.Robot();
+    globalOdometryData.Extrapolate(timestamp); // extrapolate to current time
+
+    CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
     OdometryData cvRotData = cvRotation.GetData(false);
     cvRotData.Extrapolate(timestamp);
     double neuralRotConfidence = cvRotation.GetLastConfidence();
@@ -92,6 +96,8 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
     {
         _lastImuAngle = imuData.rotation;
     }
+
+    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData.robotAngle);
 
     // increment the robot angle
     _currDataRobot.robotAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);

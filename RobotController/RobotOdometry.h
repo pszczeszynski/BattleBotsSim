@@ -60,6 +60,7 @@ public:
     void ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool opponent);
     void ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool opponent);
 
+    OdometryIMU& GetIMUOdometry();
     HeuristicOdometry& GetHeuristicOdometry();
     CVPosition& GetNeuralOdometry();
     BlobDetection& GetBlobOdometry();

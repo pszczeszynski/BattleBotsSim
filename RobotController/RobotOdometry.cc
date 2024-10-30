@@ -829,6 +829,11 @@ HeuristicOdometry &RobotOdometry::GetHeuristicOdometry()
     return _odometry_Heuristic;
 }
 
+OdometryIMU &RobotOdometry::GetIMUOdometry()
+{
+    return _odometry_IMU;
+}
+
 CVPosition &RobotOdometry::GetNeuralOdometry()
 {
     return _odometry_Neural;
