@@ -54,7 +54,7 @@ void OdometryData::Extrapolate(double newtime)
 
     if (robotAngleValid)
     {
-        robotAngle = robotAngle + Angle(robotAngleVelocity * (newtime - time));
+        robotAngle = robotAngle + Angle(robotAngleVelocity * (newtime - time_angle));
     }
 
     time_angle = newtime;

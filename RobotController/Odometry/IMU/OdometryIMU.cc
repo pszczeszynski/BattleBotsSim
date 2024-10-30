@@ -74,6 +74,7 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 
     _currDataRobot.id++;                // Increment frame id
     _currDataRobot.time = timestamp;    // Set to new time
+    _currDataRobot.time_angle = timestamp;
     _currDataOpponent.id++;             // Increment frame id
     _currDataOpponent.time = timestamp; // Set to new time
 

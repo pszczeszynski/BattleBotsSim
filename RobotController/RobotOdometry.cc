@@ -164,15 +164,15 @@ void RobotOdometry::Update(void)
     std::unique_lock<std::mutex> locker(_updateMutex);
     FuseAndUpdatePositions();
 
-    // If IMU is running, then use IMU's angle information
-    if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
-    {
-        _dataRobot.robotAngleValid = true;
-        _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
-        _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
-    }
+    // // If IMU is running, then use IMU's angle information
+    // if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
+    // {
+    //     _dataRobot.robotAngleValid = true;
+    //     _dataRobot.robotAngle = _dataRobot_IMU.robotAngle;
+    //     _dataRobot.robotAngleVelocity = _dataRobot_IMU.robotAngleVelocity;
+    // }
 
-    _dataOpponent.robotAngle = Angle(opponentRotationSim);
+    // _dataOpponent.robotAngle = Angle(opponentRotationSim);
 
 
 
