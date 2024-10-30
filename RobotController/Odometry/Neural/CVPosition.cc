@@ -65,7 +65,7 @@ void CVPosition::_StartPython()
     const std::string venv_path = "venv";            // Path to the venv directory
     const std::string script_path = "CVPosition.py"; // Path to the Python script
     // Create command string for Windows
-    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path;// + " > NUL 2>&1\"";
+    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " > NUL 2>&1\"";
 
     _pythonThread = std::thread([command]() {
         // Run the command
