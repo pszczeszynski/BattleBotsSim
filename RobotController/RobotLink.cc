@@ -659,9 +659,9 @@ void RobotLinkSim::Drive(DriverStationMessage &msg)
     }
     else if (msg.type == AUTO_DRIVE)
     {
-        OdometryData odometry = RobotController::GetInstance().odometry.Robot();
-        float imu_rotation = odometry.robotAngle;
-        float imu_rotation_velocity = odometry.robotAngleVelocity;
+        float imu_rotation = RobotController::GetInstance().GetIMUData().rotation;
+        std::cout << "imu_rotation (deg): " << imu_rotation * TO_DEG << std::endl;
+        float imu_rotation_velocity = RobotController::GetInstance().GetIMUData().rotationVelocity;
 
         AutoDrive lastAutoCommand = msg.autoDrive;
 
