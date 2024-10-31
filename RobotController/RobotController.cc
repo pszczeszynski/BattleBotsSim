@@ -549,7 +549,6 @@ DriverStationMessage RobotController::RobotLogic()
     // start with just manual control
     DriverStationMessage ret = ManualMode();
     DriverStationMessage manual = ret;
-    DriverStationMessage orbit = orbitMode.Execute(gamepad);
 
     // if gamepad pressed left bumper, _orbiting = true
     if (gamepad.GetLeftStickY() > 0.7 || _guiOrbit)
@@ -601,12 +600,16 @@ DriverStationMessage RobotController::RobotLogic()
         ret = killMode.Execute(gamepad);
         _killing = true;
     }
-    // if driver wants to evade (left bumper)
-    else if (_orbiting)
+    else
     {
-        // orbit around them
-        ret = orbit;
-        _orbiting = true;
+        DriverStationMessage orbit = orbitMode.Execute(gamepad);
+        // if driver wants to evade (left bumper)
+        if (_orbiting)
+        {
+            // orbit around them
+            ret = orbit;
+            _orbiting = true;
+        }
     }
 
     if (ret.type == AUTO_DRIVE)
