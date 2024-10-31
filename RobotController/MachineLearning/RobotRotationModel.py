@@ -12,7 +12,7 @@ from Utilities import Augmentations, save_onnx_model, save_h5_model, custom_data
 from keras.callbacks import ReduceLROnPlateau
 
 # Constants
-MODEL_NAME = "rotationDetector.h5"
+MODEL_NAME = "rotationDetector_hoop.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
 IMG_SIZE = (128, 128)
@@ -134,7 +134,7 @@ def train_model():
 
 ##### VISUALIZATION #####
 train_model()
-save_onnx_model(model, "rotation_model.onnx")
+save_onnx_model(model, "rotation_model_hoop.onnx")
 
 # Call the visualization function after training:
 visualize_rotation_predictions(train_gen, model, 100, (10, 10), IMG_SIZE)
