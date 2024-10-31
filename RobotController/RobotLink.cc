@@ -539,6 +539,15 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
     //RADIO_CHANNEL = ChooseBestChannel(command);
     ChooseBestChannel(command);
     command.radioChannel = RADIO_CHANNEL;
+    if(RESET_IMU)
+    {
+        command.resetIMU = true;
+        RESET_IMU = false;
+        printf("resetting imu\n");
+    }
+
+    command.fuseIMU = FUSE_IMU;
+    printf("fuseIMU: %d\n", command.fuseIMU);
 
     // if we have sent a packet too recently, return
     if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)

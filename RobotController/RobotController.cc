@@ -124,6 +124,8 @@ void RobotController::Run()
     DriverStationMessage stopCommand;
     stopCommand.type = DriverStationMessageType::DRIVE_COMMAND;
     stopCommand.driveCommand = {0, 0, 0, 0, 0};
+    stopCommand.resetIMU = false;
+    stopCommand.fuseIMU = true;
     robotLink.Drive(stopCommand);
 #endif
 
@@ -416,6 +418,7 @@ DriverStationMessage RobotController::ManualMode()
     response.turn = Sign(response.turn) * pow(abs(response.turn), 2);
 
     DriverStationMessage ret;
+    ret.resetIMU = false;
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
     ret.driveCommand = response;
 

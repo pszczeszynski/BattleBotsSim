@@ -9,7 +9,7 @@
 #define SIDE_GYRO_SCALE_FACTOR -1.0055083
 #define SIDE_GYRO_AXIS gyrX
 
-#define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
+#define EXTERNAL_GYRO_MERGE_WEIGHT 0.05
 #define PI 3.14159
 
 IMU::IMU()
@@ -64,7 +64,7 @@ void IMU::Initialize(enum board_placement placement)
     // set dps
     ICM_20948_fss_t FSS;
     FSS.a = gpm4;   // (ICM_20948_ACCEL_CONFIG_FS_SEL_e)
-    FSS.g = dps500; // (ICM_20948_GYRO_CONFIG_1_FS_SEL_e)
+    FSS.g = dps2000; // (ICM_20948_GYRO_CONFIG_1_FS_SEL_e)
     ICM_20948_Status_e retval = myICM.setFullScale((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), FSS);
     if (retval != ICM_20948_Stat_Ok)
     {

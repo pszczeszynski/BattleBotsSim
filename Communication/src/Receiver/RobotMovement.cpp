@@ -117,8 +117,8 @@ DriveCommand DriveToAngle(double currAngle,
     }
 
 
-    Serial.println("auto movement: " + String(ret.movement));
-    Serial.println("auto turn: " + String(ret.turn));
+    //Serial.println("auto movement: " + String(ret.movement));
+    //Serial.println("auto turn: " + String(ret.turn));
 
     return ret;
 }

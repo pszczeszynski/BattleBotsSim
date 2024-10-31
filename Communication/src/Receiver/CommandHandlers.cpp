@@ -43,8 +43,8 @@ void Drive(DriveCommand &command)
     digitalWrite(STATUS_1_LED_PIN, HIGH);
 
     // apply powers
-    Serial.println("left: " + String(leftPower));
-    Serial.println("right: " + String(rightPower));
+    //Serial.println("left: " + String(leftPower));
+    //Serial.println("right: " + String(rightPower));
     vesc.Drive(leftPower, rightPower, command.selfRighterPower, command.selfRighterDuty);
 }
 

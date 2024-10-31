@@ -17,7 +17,7 @@
 // RECEIVER SPECIFIC BUILD OPTION DEFINES
 
 // allows driver station to tether to robot directly for testing
-//#define RECEIVER_USB
+#define RECEIVER_USB
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
@@ -64,6 +64,8 @@ volatile bool receivedPacketSinceBoot = false;
 volatile uint32_t lastAutoSendTime = 0;
 volatile bool shouldResendAuto = false;
 RobotMessage lastTelemetryMessage;
+volatile bool resetIMU = false;
+volatile bool fuseIMU = true;
 // RECEIVER COMPONENTS
 IMU imu;
 Radio<RobotMessage, DriverStationMessage> rxRadio;
@@ -80,7 +82,16 @@ RobotMessage GenerateTelemetryPacket();
 IntervalTimer imuTimer;
 void ServiceImu()
 {
-    imu.Update();
+    if (resetIMU)
+    {
+        imu.ForceCalibrate();
+        Serial.println("calibrating IMU");
+        resetIMU = false;
+    }
+    else
+    {
+        imu.Update();
+    }
 }
 
 IntervalTimer angleSyncTimer;
@@ -88,7 +99,7 @@ void ServiceAngleSync()
 {
     // Only send current angle after a set time
     // Ensures that if one board reboots it does not send incorrect values
-    if(millis() > BOOT_GYRO_MERGE_MS)
+    if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
     {
         CANMessage syncMessage;
         syncMessage.type = ANGLE_SYNC;
@@ -140,6 +151,8 @@ void HandlePacket()
     if (!rxRadio.Available()) return;
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
+    resetIMU |= msg.resetIMU;
+    fuseIMU = msg.fuseIMU;
     //imu.Update();
     digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
@@ -172,10 +185,12 @@ void HandlePacket()
     digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
 
-#ifdef RECEIVER_US
+#ifdef RECEIVER_USB
 void HandlePacket(DriverStationMessage msg)
 {
     RobotMessage return_msg = GenerateTelemetryPacket();
+    resetIMU |= msg.resetIMU;
+    fuseIMU = msg.fuseIMU;
     lastTelemetryMessage = return_msg;
     return_msg.timestamp = msg.timestamp;
     
@@ -325,7 +340,10 @@ void OnTeensyMessage(const CAN_message_t &msg)
     switch(message.type)
     {
         case ANGLE_SYNC:
-            imu.MergeExternalInput(message.angle);
+            if (fuseIMU)
+            {
+                imu.MergeExternalInput(message.angle);
+            }
             break;
         case PING_REQUEST:
             if (message.ping.pingID == CANBUS::GetCanID(placement)) {
@@ -460,4 +478,5 @@ void rx_loop()
         HandlePacket(command);
     }
 #endif
+    DownsampledPrintf("fusing: %d\n", fuseIMU);
 }

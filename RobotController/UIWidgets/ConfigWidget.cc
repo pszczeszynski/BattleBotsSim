@@ -413,6 +413,28 @@ void ConfigWidget::Draw()
         }
     }
 
+    if(ImGui::Button("Force IMU Calibration"))
+    {
+        RESET_IMU = true;
+    }
+
+    if(FUSE_IMU)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+    }
+
+    if(ImGui::Button("Fuse IMU"))
+    {
+        FUSE_IMU = !FUSE_IMU;
+    }
+
+    
+    ImGui::PopStyleColor();
+
     // add checkbox for auto switch channel
     ImGui::Checkbox("Auto Switch Channel", &AUTO_SWITCH_CHANNEL);
     // add edit number text box for MAX_AVERAGE_DELAY_MS.

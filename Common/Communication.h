@@ -242,7 +242,8 @@ struct DriverStationMessage
         DriveCommand driveCommand;
         AutoDrive autoDrive;
     };
-
+    bool resetIMU;
+    bool fuseIMU;
     bool valid; // should always be true, used to check for blank messages
 };
 
