@@ -11,9 +11,13 @@
 #include "PowerMonitor.h"
 #include "Radio.h"
 #include "Utils.h"
+#include <cstring> // for std::memcpy
 
 
 // RECEIVER SPECIFIC BUILD OPTION DEFINES
+
+// allows driver station to tether to robot directly for testing
+//#define RECEIVER_USB
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
@@ -167,6 +171,33 @@ void HandlePacket()
     digitalWriteFast(STATUS_3_LED_PIN, LOW);
     digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
+
+#ifdef RECEIVER_US
+void HandlePacket(DriverStationMessage msg)
+{
+    RobotMessage return_msg = GenerateTelemetryPacket();
+    lastTelemetryMessage = return_msg;
+    return_msg.timestamp = msg.timestamp;
+    
+    char sendBuffer[64];
+    std::memcpy(sendBuffer, &return_msg, sizeof(RobotMessage));
+    RawHID.send(sendBuffer, 1);
+    if(ErrorCheckMessage(msg))
+    {
+        DriveWithMessage(msg);
+        validMessageCount++;
+        maxReceiveIntervalMs = max(maxReceiveIntervalMs, millis() - lastReceiveTime);
+        lastReceiveTime = millis();
+        lastAutoSendTime = millis();
+    }
+    else
+    {
+        invalidMessageCount++;
+    }
+
+    noPacketWatchdogTrigger = false;
+}
+#endif
 
 // RECEIVER HELPER FUNCTIONS
 void DetermineChannel()
@@ -413,4 +444,20 @@ void rx_loop()
     logger.update();
 
     monitor.readSensors();
+
+#ifdef RECEIVER_USB
+    int n;
+    uint8_t recvBuffer[64];
+    n = RawHID.recv(recvBuffer, 0);
+
+    // if the message is a tx ping, send a response back
+    // forward to the robot otherwise
+    if (n > sizeof(DriverStationMessage))
+    {
+        DriverStationMessage command;
+        // reinterpret the buffer as a DriveCommand
+        std::memcpy(&command, recvBuffer, sizeof(command));
+        HandlePacket(command);
+    }
+#endif
 }
