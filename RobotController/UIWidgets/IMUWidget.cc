@@ -15,7 +15,7 @@
 
 IMUWidget::IMUWidget() : ImageWidget("IMU", false)
 {
-    addAdditionalUI([](){
+    AddAdditionalUI([](){
         // button
         if (ImGui::Button("Flip angle"))
         {

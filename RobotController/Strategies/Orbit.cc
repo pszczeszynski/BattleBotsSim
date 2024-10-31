@@ -636,26 +636,24 @@ double Orbit::_CalcSpiralAggressionPreset()
 
     const double PRESET_STEP_SIZE = 0.3333;
     Gamepad& gamepad1 = RobotController::GetInstance().gamepad;
-    bool l_trigger = gamepad1.GetLeftTrigger() > 0.5;
-    bool r_trigger = gamepad1.GetRightTrigger() > 0.5;
+    bool l_trigger = gamepad1.GetLeftBumper();
+    bool r_trigger = gamepad1.GetRightBumper();
 
 
     if (l_trigger && !l_trigger_last)
     {
         _spiralAggression -= PRESET_STEP_SIZE;
-        _spiralAggression = std::max(0, _spiralAggression);
+        _spiralAggression = std::max(0.0, _spiralAggression);
     }
 
     if (r_trigger && !r_trigger_last)
     {
         _spiralAggression += PRESET_STEP_SIZE;
-        _spiralAggression = std::min(1, _spiralAggression);
+        _spiralAggression = std::min(1.0, _spiralAggression);
     }
-
 
     l_trigger_last = l_trigger;
     r_trigger_last = r_trigger;
-
 
     return _spiralAggression;
 }
@@ -669,10 +667,11 @@ void Orbit::_CalcStartAndEndAngle()
     // calculate the aggrsesion preset
     double aggression = _CalcSpiralAggressionPreset();
 
-    // the minimum will be interpolated based on the aggression preset
-    const double MIN_START_ANGLE = Interpolate(OPPONENT_SPIRAL_START_DEG, OPPONENT_SPIRAL_END_DEG, aggression) * TO_RAD;     // most dangerous condition => end shrinking at 90, closer to the weapon
-    // the max will be set by 
-    const double MAX_START_ANGLE = OPPONENT_SPIRAL_END_DEG;
+    double MAX_START_ANGLE = 90 * TO_RAD;  // safest condition => start shrinking at 120, very close to their butt
+    double MIN_START_ANGLE = 60 * TO_RAD;     // most dangerous condition => end shrinking at 90, closer to the weapon
+
+    MAX_START_ANGLE = Interpolate(MAX_START_ANGLE, 160 * TO_RAD, (1.0 - aggression));
+    MIN_START_ANGLE = Interpolate(MIN_START_ANGLE, 160 * TO_RAD, (1.0 - aggression));
 
     const double FULL_AGRO_VEL = 300; // px/s
 
