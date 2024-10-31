@@ -15,7 +15,14 @@
 
 IMUWidget::IMUWidget() : ImageWidget("IMU", false)
 {
-
+    addAdditionalUI([](){
+        // button
+        if (ImGui::Button("Flip angle"))
+        {
+            RobotOdometry& odometry = RobotController::GetInstance().odometry;
+            odometry.UpdateForceSetAngle(odometry.Robot().robotAngle + M_PI, false);
+        }
+    });
 }
 
 void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scalar color, float radius, int thickness = 1)
