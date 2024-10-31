@@ -100,11 +100,15 @@ DriveCommand DriveToAngle(double currAngle,
     double deltaAngleVel = targetAngleVelocity - angularVelocity;
     ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
     // clip turn
-    ret.turn = std::max(-1.0f, std::min(1.0f, ret.turn));
+
+    float turnScaleFactor = std::abs(SCALE_DOWN_MOVEMENT_PERCENT/100.0);
+    ret.turn = std::max(-1.0f, std::min(1.0f, ret.turn*turnScaleFactor));
 
     // Slow down when far away from the target angle
     double drive_scale = std::max(0.0, 1.0 - abs(ret.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * (SCALE_DOWN_MOVEMENT_PERCENT / 100.0));
     ret.turn *= -1;
+
+    ret.movement *= drive_scale;
 
     return ret;
 }
