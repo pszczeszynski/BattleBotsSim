@@ -103,10 +103,9 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false)
                                                 lastAutoCommand.TURN_THRESH_2_DEG,
                                                 lastAutoCommand.MAX_TURN_POWER_PERCENT,
                                                 lastAutoCommand.MIN_TURN_POWER_PERCENT,
-                                                lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
+                                                lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT,
+                                                lastMessage.driveCommand.movement);
 
-            // apply the movement from the last drive command
-            command.movement = lastMessage.driveCommand.movement;
             command.frontWeaponPower = (float)lastAutoCommand.frontWeaponCurrent10 * 10.0;
             command.backWeaponPower = (float) lastAutoCommand.backWeaponCurrent10 * 10.0;
 

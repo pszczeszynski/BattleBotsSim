@@ -15,4 +15,5 @@ DriveCommand DriveToAngle(double currAngle,
                           short TURN_THRESH_2_DEG,
                           short MAX_TURN_POWER_PERCENT,
                           short MIN_TURN_POWER_PERCENT,
-                          short SCALE_DOWN_MOVEMENT_PERCENT);
+                          short SCALE_DOWN_MOVEMENT_PERCENT,
+                          float movement);

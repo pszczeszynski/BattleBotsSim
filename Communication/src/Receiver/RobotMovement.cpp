@@ -35,6 +35,11 @@ double DoubleThreshToTarget(double error,
         ret = (distance / threshold2) * minPower;
     }
 
+    if (distance > threshold1)
+    {
+        ret = maxPower;
+    }
+
     // invert if we need to
     if (error < 0)
     {
@@ -80,7 +85,8 @@ DriveCommand DriveToAngle(double currAngle,
                           short TURN_THRESH_2_DEG,
                           short MAX_TURN_POWER_PERCENT,
                           short MIN_TURN_POWER_PERCENT,
-                          short SCALE_DOWN_MOVEMENT_PERCENT)
+                          short SCALE_DOWN_MOVEMENT_PERCENT,
+                          float movement)
 {
     static double lastTime = millis();
     double currTime = millis();
@@ -99,16 +105,20 @@ DriveCommand DriveToAngle(double currAngle,
 
     double deltaAngleVel = targetAngleVelocity - angularVelocity;
     ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
+    ret.movement = movement;
     // clip turn
 
-    float turnScaleFactor = std::abs(SCALE_DOWN_MOVEMENT_PERCENT/100.0);
-    ret.turn = std::max(-1.0f, std::min(1.0f, ret.turn*turnScaleFactor));
 
-    // Slow down when far away from the target angle
-    double drive_scale = std::max(0.0, 1.0 - abs(ret.turn / (MAX_TURN_POWER_PERCENT / 100.0)) * (SCALE_DOWN_MOVEMENT_PERCENT / 100.0));
-    ret.turn *= -1;
+    float total = abs(ret.movement) + abs(ret.turn);
+    if (total > 1)
+    {
+        ret.movement /= total;
+        ret.turn /= total;
+    }
 
-    ret.movement *= drive_scale;
+
+    Serial.println("auto movement: " + String(ret.movement));
+    Serial.println("auto turn: " + String(ret.turn));
 
     return ret;
 }

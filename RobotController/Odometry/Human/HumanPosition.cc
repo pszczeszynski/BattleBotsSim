@@ -200,8 +200,8 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         _lastLoadSavedCount = load_saved_count;
         _lastSavedCount = save_count;
 
-        if (_sendHeuristicMat)
-        {
+        //if (_sendHeuristicMat)
+        //{
             // Only do if new data available
             if( new_slider_data > 0)
             {
@@ -209,7 +209,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
                 HEU_UNTRACKED_MOVING_BLOB_AVGING = background_heal_rate;
                 RobotController::GetInstance().odometry.GetHeuristicOdometry().force_background_averaging = (bool)force_heal_value;
             }
-        }
+        //}
 
         if (clickPosition == _lastReceivedPos && type == _lastReceivedType )
         {

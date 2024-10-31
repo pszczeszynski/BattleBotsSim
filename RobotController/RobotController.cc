@@ -373,8 +373,8 @@ DriverStationMessage RobotController::ManualMode()
 {
     // drive the robot with the gamepad
     DriveCommand response{0, 0};
-    response.movement = gamepad.GetRightStickY();
-    response.turn = -gamepad.GetLeftStickX();
+    response.movement = gamepad.GetRightStickY() + gamepad2.GetLeftStickY();
+    response.turn = -gamepad.GetLeftStickX() - gamepad2.GetRightStickX();
 
     // update the spinner powers
     Weapons& weapons = Weapons::GetInstance();
@@ -386,7 +386,7 @@ DriverStationMessage RobotController::ManualMode()
 
     float selfRighterPower = (int) gamepad.GetDpadDown() - (int) gamepad.GetDpadUp();
     selfRighterPower += InputState::GetInstance().IsKeyDown(ImGuiKey_J) - InputState::GetInstance().IsKeyDown(ImGuiKey_U);
-
+    selfRighterPower += (int) gamepad2.GetRightBumper() - (int) gamepad2.GetLeftBumper();
     // control with keyboard if enabled
     if (WASD_ENABLED)
     {
