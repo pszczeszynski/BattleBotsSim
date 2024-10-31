@@ -65,10 +65,10 @@ def on_foreground_min_delta_change(event):
     send_data_to_robot_controller()
 
 def on_background_heal_rate_change(event):
-    global ignore_callbacks
+    global ignore_callbacks, lastSliderTime
     if ignore_callbacks:
         return
-    global lastSliderTime
+
     lastSliderTime = time.time()
     try:
         bg_heal_rate.set(str(int(background_heal_rate_slider.get())))
@@ -203,13 +203,12 @@ def parse_server_data(
         # Collect GUI updates
         gui_updates = {}
         if (time.time() - lastSliderTime) > 0.5:
-            gui_updates['ignore_callbacks'] = True
             gui_updates['fg_min_delta'] = str(fg_min_ratio_int)
             gui_updates['foreground_min_delta_slider'] = fg_min_ratio_int
             gui_updates['bg_heal_rate'] = str(bg_heal_rate_int)
             gui_updates['background_heal_rate_slider'] = bg_heal_rate_int
             gui_updates['force_heal_var'] = int(parts[index])
-            gui_updates['ignore_callbacks_end'] = False
+
 
         index += 1
         image_size = int(parts[index])
@@ -842,8 +841,7 @@ def update_gui_elements(gui_updates: dict):
     if not gui_updates:
         return
 
-    if 'ignore_callbacks' in gui_updates:
-        ignore_callbacks = gui_updates['ignore_callbacks']
+    ignore_callbacks = True
 
     if 'fg_min_delta' in gui_updates:
         fg_min_delta.set(gui_updates['fg_min_delta'])
@@ -855,8 +853,8 @@ def update_gui_elements(gui_updates: dict):
         background_heal_rate_slider.set(gui_updates['background_heal_rate_slider'])
     if 'force_heal_var' in gui_updates:
         force_heal_var.set(gui_updates['force_heal_var'])
-    if 'ignore_callbacks_end' in gui_updates:
-        ignore_callbacks = gui_updates['ignore_callbacks_end']
+    ignore_callbacks = False
+    gui_updates.clear()
 
 # Start the image update loop
 update_image()

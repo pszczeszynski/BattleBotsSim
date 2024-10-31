@@ -147,6 +147,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     if( password_ok)
     {        
+        int datatype_index = i;
         DataType type = (DataType)data[i++];
         const int x = data[i++];
         const int y = data[i++];
@@ -263,7 +264,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
  
         _lastReceivedPos = clickPosition;
-        _lastReceivedType = (DataType)data[0];
+        _lastReceivedType = (DataType)data[datatype_index];
 
     }
 }
