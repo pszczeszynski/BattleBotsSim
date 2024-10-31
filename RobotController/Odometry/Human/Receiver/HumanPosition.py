@@ -23,6 +23,9 @@ MAX_BUFFER_SIZE = 65507  # Maximum UDP payload size
 # Display scaling factor
 DISPLAY_SCALE_FACTOR = 2  # Multiply the display size by 2
 
+HOST="192.168.8.224"
+PORT=11118
+
 class LastClickData:
     def __init__(self, position: Tuple[int, int] = (0, 0), data_type: int = POSITION):
         self.position: Tuple[int, int] = position
@@ -50,11 +53,15 @@ def on_auto_r_button_press():
     send_data_to_robot_controller()
 
 def on_foreground_min_delta_change(event):
-    global ignore_callbacks
+    global ignore_callbacks, lastSliderTime
     if ignore_callbacks:
         return;
-    global lastSliderTime
-    fg_min_delta.set(str(int(foreground_min_delta_slider.get())))
+    try:
+        fg_min_delta.set(str(int(foreground_min_delta_slider.get())))
+    except Exception as e:
+        print("Error converting slider min delta")
+        return None
+        
     lastSliderTime = time.time()
     send_data_to_robot_controller()
 
@@ -64,7 +71,12 @@ def on_background_heal_rate_change(event):
         return;
     global lastSliderTime
     lastSliderTime = time.time()
-    bg_heal_rate.set(str(int(background_heal_rate_slider.get())))
+    try:
+        bg_heal_rate.set(str(int(background_heal_rate_slider.get())))
+    except Exception as e:
+        print("Error converting background heal rate")
+        return None
+        
     send_data_to_robot_controller()
 
 def on_force_pos_change():
@@ -115,38 +127,41 @@ def send_data_to_robot_controller() -> None:
     global client_socket
     global auto_l_count, auto_r_count, hard_reboot_count, reboot_recovery_count
 
-    # Collect UI state
-    foreground_min_delta_value = int(foreground_min_delta_slider.get())
-    background_heal_rate_value = int(background_heal_rate_slider.get())
-    force_pos_value = int(force_pos_var.get())
-    force_heal_value = int(force_heal_var.get())
-    new_slider_data = int( (time.time() - lastSliderTime) < 0.5 )
+    try:
+        # Collect UI state
+        foreground_min_delta_value = int(fg_min_delta.get())
+        background_heal_rate_value = int(bg_heal_rate.get())
+        force_pos_value = int(force_pos_var.get())
+        force_heal_value = int(force_heal_var.get())
+        new_slider_data = int( (time.time() - lastSliderTime) < 0.5 )
+        password = 11115
 
+        # Prepare data to send
+        data = (
+            password.to_bytes(4, byteorder="little")
+            + last_click.data_type.to_bytes(4, byteorder="little")
+            + int(last_click.position[0] / SCALE_FACTOR).to_bytes(4, byteorder="little")
+            + int(last_click.position[1] / SCALE_FACTOR).to_bytes(4, byteorder="little")
+            + foreground_min_delta_value.to_bytes(4, byteorder="little")
+            + background_heal_rate_value.to_bytes(4, byteorder="little")
+            + force_pos_value.to_bytes(4, byteorder="little")
+            + force_heal_value.to_bytes(4, byteorder="little")
+            + auto_l_count.to_bytes(4, byteorder="little")
+            + auto_r_count.to_bytes(4, byteorder="little")
+            + hard_reboot_count.to_bytes(4, byteorder="little")
+            + reboot_recovery_count.to_bytes(4, byteorder="little")
+            + load_start_count.to_bytes(4, byteorder="little")
+            + load_saved_count.to_bytes(4, byteorder="little")
+            + save_count.to_bytes(4, byteorder="little")
+            + new_slider_data.to_bytes(4, byteorder="little")
+        )
 
-    # Prepare data to send
-    data = (
-        last_click.data_type.to_bytes(4, byteorder="little")
-        + int(last_click.position[0] / SCALE_FACTOR).to_bytes(4, byteorder="little")
-        + int(last_click.position[1] / SCALE_FACTOR).to_bytes(4, byteorder="little")
-        + foreground_min_delta_value.to_bytes(4, byteorder="little")
-        + background_heal_rate_value.to_bytes(4, byteorder="little")
-        + force_pos_value.to_bytes(4, byteorder="little")
-        + force_heal_value.to_bytes(4, byteorder="little")
-        + auto_l_count.to_bytes(4, byteorder="little")
-        + auto_r_count.to_bytes(4, byteorder="little")
-        + hard_reboot_count.to_bytes(4, byteorder="little")
-        + reboot_recovery_count.to_bytes(4, byteorder="little")
-        + load_start_count.to_bytes(4, byteorder="little")
-        + load_saved_count.to_bytes(4, byteorder="little")
-        + save_count.to_bytes(4, byteorder="little")
-        + new_slider_data.to_bytes(4, byteorder="little")
-    )
-
-    if client_socket is not None:
-        client_socket.sendto(data, (HOST, PORT))
-    else:
-        print("Not connected yet.")
-    
+        if client_socket is not None:
+            client_socket.sendto(data, (HOST, PORT))
+        else:
+            print("Not connected yet.")
+    except Exception as e:
+        print("Error sending data to robot", e)
 
 # Function to parse server data
 def parse_server_data(
@@ -170,9 +185,11 @@ def parse_server_data(
             print("Error: Not enough data parts to parse")
             return None
 
-
-
-        index=0;
+        index=0
+        password =  int(parts[index])
+        if password != 11115:
+            return None
+        index+=1    
         robot_pos_x = int(parts[index])
         index+=1
         robot_pos_y = int(parts[index])
@@ -189,7 +206,7 @@ def parse_server_data(
         index+=1
 
         # Only change if not currently being dragged
-        if (time.time() - lastSliderTime) > 0.5:
+        if (time.time() - lastSliderTime) > 0.5:           
             ignore_callbacks = True    
             fg_min_delta.set(str(fg_min_ratio_int))
             foreground_min_delta_slider.set(fg_min_ratio_int)
@@ -239,9 +256,12 @@ def draw_robot_position(
     # Sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
         return
-
-    cv2.circle(image, position, radius=radius, color=color, thickness=2)
-
+    
+    try:
+        cv2.circle(image, position, radius=radius, color=color, thickness=2)
+    except Exception as e:
+        print("Error drawing circle", e)
+        return None
 
 def draw_opponent_position(
     image: np.ndarray,
@@ -252,9 +272,12 @@ def draw_opponent_position(
     # Sanity check
     if position[0] < 0 or position[1] < 0 or position[0] >= image.shape[1] or position[1] >= image.shape[0]:
         return
-
-    cv2.circle(image, position, radius=radius, color=color, thickness=2)
-
+        
+    try:
+        cv2.circle(image, position, radius=radius, color=color, thickness=2)
+    except Exception as e:
+        print("Error drawing circle", e)
+        return
 
 def draw_opponent_rotation(
     image: np.ndarray,
@@ -270,12 +293,16 @@ def draw_opponent_rotation(
 
 
 def draw_last_click_marker(image: np.ndarray, last_click: LastClickData) -> None:
-    if last_click.data_type == POSITION:
-        x_draw, y_draw = map(int, last_click.position)
-        draw_x_marker(image, (x_draw, y_draw), color=(0, 0, 255))
-    elif last_click.data_type == OPPONENT_POSITION:
-        x_draw, y_draw = map(int, last_click.position)
-        cv2.circle(image, (x_draw, y_draw), radius=20, color=(255, 0, 0), thickness=2)
+    try:
+        if last_click.data_type == POSITION:
+            x_draw, y_draw = map(int, last_click.position)
+            draw_x_marker(image, (x_draw, y_draw), color=(0, 0, 255))
+        elif last_click.data_type == OPPONENT_POSITION:
+            x_draw, y_draw = map(int, last_click.position)
+            cv2.circle(image, (x_draw, y_draw), radius=20, color=(255, 0, 0), thickness=2)
+    except Exception as e:
+        print("Error drawing click marker", e)
+        return
 
 
 def draw_x_marker(
@@ -285,49 +312,58 @@ def draw_x_marker(
     size: int = 10,
     thickness: int = 2,
 ) -> None:
-    x, y = center
-    cv2.line(image, (x - size, y - size), (x + size, y + size), color, thickness)
-    cv2.line(image, (x - size, y + size), (x + size, y - size), color, thickness)
+    try:
+        x, y = center
+        cv2.line(image, (x - size, y - size), (x + size, y + size), color, thickness)
+        cv2.line(image, (x - size, y + size), (x + size, y - size), color, thickness)
+    except Exception as e:
+        print("Error drawing x marker", e)
+        return
 
 
 # Function to crop image around a point
 def crop_image_around_point(
     image: np.ndarray, center_pos: Tuple[int, int], crop_size: int
 ) -> np.ndarray:
-    x = center_pos[0] - crop_size // 2
-    y = center_pos[1] - crop_size // 2
+    try:
+        x = center_pos[0] - crop_size // 2
+        y = center_pos[1] - crop_size // 2
 
-    x1 = x
-    y1 = y
-    x2 = x + crop_size
-    y2 = y + crop_size
+        x1 = x
+        y1 = y
+        x2 = x + crop_size
+        y2 = y + crop_size
 
-    height, width = image.shape[:2]
+        height, width = image.shape[:2]
 
-    # Calculate necessary padding
-    pad_left = max(0, -x1)
-    pad_right = max(0, x2 - width)
-    pad_top = max(0, -y1)
-    pad_bottom = max(0, y2 - height)
+        # Calculate necessary padding
+        pad_left = max(0, -x1)
+        pad_right = max(0, x2 - width)
+        pad_top = max(0, -y1)
+        pad_bottom = max(0, y2 - height)
 
-    # Pad the image with black pixels if needed
-    image_padded = np.pad(
-        image,
-        ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
-        mode="constant",
-        constant_values=0,
-    )
+        # Pad the image with black pixels if needed
+        image_padded = np.pad(
+            image,
+            ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
 
-    # Adjust coordinates due to padding
-    x1_new = x1 + pad_left
-    y1_new = y1 + pad_top
+        # Adjust coordinates due to padding
+        x1_new = x1 + pad_left
+        y1_new = y1 + pad_top
 
-    # Crop the image
-    cropped_image = image_padded[
-        y1_new : y1_new + crop_size, x1_new : x1_new + crop_size
-    ]
+        # Crop the image
+        cropped_image = image_padded[
+            y1_new : y1_new + crop_size, x1_new : x1_new + crop_size
+        ]
 
-    return cropped_image
+        return cropped_image
+        
+    except Exception as e:
+        print("Error cropping image", e)
+        return image
 
 
 # Function to process 'pos_only' mode
@@ -337,15 +373,20 @@ def process_pos_only_mode(
     opponent_pos: Tuple[int, int],
     last_click: LastClickData,
 ) -> np.ndarray:
+    
     full_field_image = received_image.copy()  # No resizing
+    try:
+        screen_robot_pos = robot_pos
+        screen_opponent_pos = opponent_pos
 
-    screen_robot_pos = robot_pos
-    screen_opponent_pos = opponent_pos
+        draw_robot_position(full_field_image, screen_robot_pos)
+        draw_opponent_position(full_field_image, screen_opponent_pos)
+       
+    except Exception as e:
+        print("Error pos only mode", e)
+     
 
-    draw_robot_position(full_field_image, screen_robot_pos)
-    draw_opponent_position(full_field_image, screen_opponent_pos)
-
-    return full_field_image
+    return full_field_image        
 
 
 # Function to process 'pos_and_rot' mode
@@ -356,75 +397,80 @@ def process_pos_and_rot_mode(
     opponent_angle_deg: float,
     last_click: LastClickData,
 ) -> np.ndarray:
-    left_image = crop_image_around_point(received_image, opponent_pos, RAW_IMAGE_SIZE)
-    right_image = received_image.copy()
+    try:
+        left_image = crop_image_around_point(received_image, opponent_pos, RAW_IMAGE_SIZE)
+        right_image = received_image.copy()
 
-    # Ensure both images have the same height
-    if left_image.shape[0] != right_image.shape[0]:
-        desired_height = right_image.shape[0]
-        left_image = cv2.resize(left_image, (left_image.shape[1], desired_height))  # Only downscaling if needed
+        # Ensure both images have the same height
+        if left_image.shape[0] != right_image.shape[0]:
+            desired_height = right_image.shape[0]
+            left_image = cv2.resize(left_image, (left_image.shape[1], desired_height))  # Only downscaling if needed
 
-    combined_image = np.hstack((left_image, right_image))
+        combined_image = np.hstack((left_image, right_image))
 
-    # Adjust positions accordingly
-    rel_robot_pos_x = robot_pos[0] - opponent_pos[0]
-    rel_robot_pos_y = robot_pos[1] - opponent_pos[1]
+        # Adjust positions accordingly
+        rel_robot_pos_x = robot_pos[0] - opponent_pos[0]
+        rel_robot_pos_y = robot_pos[1] - opponent_pos[1]
 
-    screen_robot_pos_left = (
-        int(rel_robot_pos_x + left_image.shape[1] // 2),
-        int(rel_robot_pos_y + left_image.shape[0] // 2),
-    )
-    screen_opponent_pos_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
+        screen_robot_pos_left = (
+            int(rel_robot_pos_x + left_image.shape[1] // 2),
+            int(rel_robot_pos_y + left_image.shape[0] // 2),
+        )
+        screen_opponent_pos_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
 
-    draw_robot_position(combined_image[:, :left_image.shape[1]], screen_robot_pos_left)
-    draw_opponent_position(
-        combined_image[:, :left_image.shape[1]], screen_opponent_pos_left
-    )
-    draw_opponent_rotation(
-        combined_image[:, :left_image.shape[1]],
-        screen_opponent_pos_left,
-        opponent_angle_deg,
-    )
-
-    # For right_image
-    screen_robot_pos_right = robot_pos
-    screen_opponent_pos_right = opponent_pos
-
-    draw_robot_position(combined_image[:, left_image.shape[1]:], screen_robot_pos_right)
-    draw_opponent_position(
-        combined_image[:, left_image.shape[1]:], screen_opponent_pos_right
-    )
-    draw_opponent_rotation(
-        combined_image[:, left_image.shape[1]:],
-        screen_opponent_pos_right,
-        opponent_angle_deg,
-    )
-
-    # Handle last click events (adjust if necessary)
-    if last_click.data_type == POSITION or last_click.data_type == OPPONENT_POSITION:
-        x_draw, y_draw = map(int, last_click.position)
-        if last_click.data_type == POSITION:
-            draw_x_marker(combined_image[:, left_image.shape[1]:], (x_draw, y_draw))
-        else:
-            cv2.circle(
-                combined_image[:, left_image.shape[1]:],
-                (x_draw, y_draw),
-                radius=10,
-                color=(255, 0, 0),
-                thickness=2,
-            )
-    elif last_click.data_type == OPPONENT_ROTATION:
-        x_draw, y_draw = map(int, last_click.position)
-        center_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
-        cv2.arrowedLine(
+        draw_robot_position(combined_image[:, :left_image.shape[1]], screen_robot_pos_left)
+        draw_opponent_position(
+            combined_image[:, :left_image.shape[1]], screen_opponent_pos_left
+        )
+        draw_opponent_rotation(
             combined_image[:, :left_image.shape[1]],
-            center_left,
-            (x_draw, y_draw),
-            color=(0, 255, 0),
-            thickness=2,
+            screen_opponent_pos_left,
+            opponent_angle_deg,
         )
 
-    return combined_image
+        # For right_image
+        screen_robot_pos_right = robot_pos
+        screen_opponent_pos_right = opponent_pos
+
+        draw_robot_position(combined_image[:, left_image.shape[1]:], screen_robot_pos_right)
+        draw_opponent_position(
+            combined_image[:, left_image.shape[1]:], screen_opponent_pos_right
+        )
+        draw_opponent_rotation(
+            combined_image[:, left_image.shape[1]:],
+            screen_opponent_pos_right,
+            opponent_angle_deg,
+        )
+
+        # Handle last click events (adjust if necessary)
+        if last_click.data_type == POSITION or last_click.data_type == OPPONENT_POSITION:
+            x_draw, y_draw = map(int, last_click.position)
+            if last_click.data_type == POSITION:
+                draw_x_marker(combined_image[:, left_image.shape[1]:], (x_draw, y_draw))
+            else:
+                cv2.circle(
+                    combined_image[:, left_image.shape[1]:],
+                    (x_draw, y_draw),
+                    radius=10,
+                    color=(255, 0, 0),
+                    thickness=2,
+                )
+        elif last_click.data_type == OPPONENT_ROTATION:
+            x_draw, y_draw = map(int, last_click.position)
+            center_left = (left_image.shape[1] // 2, left_image.shape[0] // 2)
+            cv2.arrowedLine(
+                combined_image[:, :left_image.shape[1]],
+                center_left,
+                (x_draw, y_draw),
+                color=(0, 255, 0),
+                thickness=2,
+            )
+
+        return combined_image
+    
+    except Exception as e:
+        print("Error process pos and rot mode", e)
+        return received_image.copy()
 
 
 # Mouse event handlers
@@ -442,12 +488,13 @@ def on_right_click(event: tk.Event) -> None:
         handle_mouse_event(event, POSITION)
 
 def on_left_drag(event: tk.Event) -> None:
-    if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
-        handle_mouse_event(event, OPPONENT_ROTATION)
-    elif primary_click_action == 'robot':
-        handle_mouse_event(event, POSITION)
-    else:
-        handle_mouse_event(event, OPPONENT_POSITION)
+    with image_lock:
+        if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
+            handle_mouse_event(event, OPPONENT_ROTATION)
+        elif primary_click_action == 'robot':
+            handle_mouse_event(event, POSITION)
+        else:
+            handle_mouse_event(event, OPPONENT_POSITION)
 
 
 def on_right_drag(event: tk.Event) -> None:
@@ -458,13 +505,13 @@ def on_right_drag(event: tk.Event) -> None:
 
 
 def on_mouse_move(event: tk.Event) -> None:
-    #return
-    if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
-        handle_mouse_event(event, OPPONENT_ROTATION)
-    elif primary_click_action == 'robot':
-        handle_mouse_event(event, POSITION)
-    else:
-        handle_mouse_event(event, OPPONENT_POSITION)
+    with image_lock:
+        if current_mode == "pos_and_rot" and event.x < (latest_image.shape[1] * DISPLAY_SCALE_FACTOR) // 2:
+            handle_mouse_event(event, OPPONENT_ROTATION)
+        elif primary_click_action == 'robot':
+            handle_mouse_event(event, POSITION)
+        else:
+            handle_mouse_event(event, OPPONENT_POSITION)
 
 
 # IP address and port input fields
@@ -476,14 +523,14 @@ currRow = 0
 ip_label = tk.Label(side_panel, text="IP Address:")
 ip_label.grid(row=currRow, column=0, padx=5, pady=5)
 ip_entry = tk.Entry(side_panel)
-ip_entry.insert(0, "192.168.0.115")  # Default value
+ip_entry.insert(0, HOST)  # Default value
 ip_entry.grid(row=currRow, column=1, padx=5, pady=5)
 currRow += 1
 
 port_label = tk.Label(side_panel, text="Port:")
 port_label.grid(row=currRow, column=0, padx=5, pady=5)
 port_entry = tk.Entry(side_panel)
-port_entry.insert(0, "11118")  # Default value
+port_entry.insert(0, PORT)  # Default value
 port_entry.grid(row=currRow, column=1, padx=5, pady=5)
 currRow+=1
 
@@ -516,7 +563,9 @@ currRow+=1
 #currRow+=1
 
 current_mode_var = tk.StringVar(value="pos_and_rot")  # Default mode
-
+if PORT==11119:
+    current_mode_var = tk.StringVar(value="pos_only") 
+    current_mode = current_mode_var.get()
 
 def on_mode_change(*args) -> None:
     global current_mode
@@ -648,11 +697,21 @@ def toggle_primary_opponent_action():
     primary_click_opp_button.config( bg="red")
 
 
-primary_click_robot_button = tk.Button(side_panel, text="Robot", command=toggle_primary_robot_action, width=15, height=2)
-primary_click_robot_button.grid(row=currRow, column=0, columnspan=1, padx=5, pady=10)
+if PORT==11119:
+    primary_click_robot_button = tk.Button(side_panel, text="Robot", command=toggle_primary_robot_action, width=15, height=2)
+    primary_click_robot_button.grid(row=currRow, column=0, columnspan=1, padx=5, pady=10)
 
-primary_click_opp_button = tk.Button(side_panel, text="Opponent", command=toggle_primary_opponent_action, width=15, height=2)
-primary_click_opp_button.grid(row=currRow, column=1, columnspan=1, padx=5, pady=10)
+    primary_click_opp_button = tk.Button(side_panel, text="Opponent", command=toggle_primary_opponent_action, width=15, height=2)
+    primary_click_opp_button.grid(row=currRow, column=1, columnspan=1, padx=5, pady=10)
+else:
+    button_panel = tk.Frame(main_panel)
+    button_panel.grid(row=1, column=0)
+    
+    primary_click_robot_button = tk.Button(button_panel, text="Robot", command=toggle_primary_robot_action, width=15, height=2)
+    primary_click_robot_button.grid(row=0, column=0, columnspan=1, padx=5, pady=10)
+
+    primary_click_opp_button = tk.Button(button_panel, text="Opponent", command=toggle_primary_opponent_action, width=15, height=2)
+    primary_click_opp_button.grid(row=0, column=1, columnspan=1, padx=5, pady=10)
 
 currRow+=1
 
@@ -740,16 +799,44 @@ image_label.bind("<B1-Motion>", on_left_drag)
 image_label.bind("<B3-Motion>", on_right_drag)
 image_label.bind("<Motion>", on_mouse_move)
 
+def reconnect():
+    global client_socket, HOST, PORT
+    try:
+        client_socket.close()
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.connect((HOST, PORT))
+        
+        # Send a test message
+        client_socket.sendto(b"Init me", (HOST, PORT))  
+        
+    except Exception as e:
+        print("Failed to reconnect:", e)
+        # Optionally shutdown or alert user here
+        return False
+    return True
+    
 
 # Thread to receive data from the server
 def receive_thread() -> None:
-    global latest_image, combined_image
-
+    global latest_image, combined_image, client_socket
+    MAX_RETRY = 5
+    retry_count = 0
+    
     while True:
         try:
             data, _ = client_socket.recvfrom(MAX_BUFFER_SIZE)
+            retry_count = 0  # Reset retry count on success
         except Exception as e:
             print("Error receiving data:", e)
+            if retry_count < MAX_RETRY:
+                time.sleep(1)  # Wait before retrying
+                retry_count += 1
+                continue
+            else:
+                print("Max retries reached. Attempting to reconnect.")
+                reconnect()  # Assume a function to handle reconnection
+                retry_count = 0  # Reset retry count  
+                continue                
             send_data_to_robot_controller()
             continue
 
@@ -770,23 +857,28 @@ def receive_thread() -> None:
             opponent_angle_deg,
             image_array,
         ) = parsed_data
-        received_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        
+        try:
+            received_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-        robot_pos = (robot_pos_x, robot_pos_y)
-        opponent_pos = (opponent_pos_x, opponent_pos_y)
+            robot_pos = (robot_pos_x, robot_pos_y)
+            opponent_pos = (opponent_pos_x, opponent_pos_y)
 
-        if current_mode == "pos_only":
-            combined_image = process_pos_only_mode(
-                received_image, robot_pos, opponent_pos, last_click
-            )
-        elif current_mode == "pos_and_rot":
-            combined_image = process_pos_and_rot_mode(
-                received_image, robot_pos, opponent_pos, opponent_angle_deg, last_click
-            )
+            if current_mode == "pos_only":
+                combined_image = process_pos_only_mode(
+                    received_image, robot_pos, opponent_pos, last_click
+                )
+            elif current_mode == "pos_and_rot":
+                combined_image = process_pos_and_rot_mode(
+                    received_image, robot_pos, opponent_pos, opponent_angle_deg, last_click
+                )
 
-        # Update the latest_image
-        with image_lock:
-            latest_image = combined_image.copy()
+            # Update the latest_image
+            with image_lock:
+                latest_image = combined_image.copy()
+                
+        except Exception as e:
+            print("Error processing received data:", e)
         
         send_data_to_robot_controller()
 

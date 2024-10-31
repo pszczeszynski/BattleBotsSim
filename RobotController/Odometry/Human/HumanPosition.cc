@@ -14,13 +14,13 @@ HumanPosition::HumanPosition(ICameraReceiver *videoSource, std::string port, boo
     _socket = new ServerSocket(port);
 }
 
-const int NUMBER_OF_FIELDS = 15;
+const int NUMBER_OF_FIELDS = 16;
 std::vector<int> HumanPosition::_GetDataFromSocket()
 {
     std::vector<int> data = {};
 
     int error = 0;
-    // Receive 12 bytes from the socket
+    // Receive NUMBER_OF_FIELDS data
     std::string data_str = _socket->receive(&error);
     
 
@@ -86,9 +86,9 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     
     
     // Create a message buffer 
-    std::string message;
+    std::string message = std::to_string(11115) + MSG_FIELD_SEPERATOR;
 
-    int numOfFields = 0;
+    int numOfFields = 1;
 
     // Add robot and opponent stuff
     cv::Point2f robotPos = RobotController::GetInstance().odometry.Robot().robotPosition;
@@ -136,26 +136,36 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // **************************************
     // ******** RECEIVE DATA ****************
     std::vector<int> data = _GetDataFromSocket();
-
+    bool password_ok = false;
+    int i = 0;
     if (data.size() == NUMBER_OF_FIELDS)
     {
-        DataType type = (DataType)data[0];
-        cv::Point2f clickPosition(data[1], data[2]);
+        int password = data[i++];
+        if( password == 11115)
+        { password_ok = true;}
+    }
+
+    if( password_ok)
+    {        
+        DataType type = (DataType)data[i++];
+        const int x = data[i++];
+        const int y = data[i++];
+        cv::Point2f clickPosition(x, y);
         clickPosition *= 2; // since image is scaled down by 2  
 
 
-        const int foreground_min_delta = data[3];
-        const int background_heal_rate = data[4];
-        const int force_pos_bool = data[5];
-        const int force_heal_value = data[6];
-        const int auto_l_count = data[7];
-        const int auto_r_count = data[8];
-        const int hard_reboot_count = data[9];
-        const int reboot_recovery_count = data[10];
-        const int load_start_count = data[11];
-        const int load_saved_count = data[12];      
-        const int save_count = data[13];    
-        const int new_slider_data = data[14];
+        const int foreground_min_delta = data[i++];
+        const int background_heal_rate = data[i++];
+        const int force_pos_bool = data[i++];
+        const int force_heal_value = data[i++];
+        const int auto_l_count = data[i++];
+        const int auto_r_count = data[i++];
+        const int hard_reboot_count = data[i++];
+        const int reboot_recovery_count = data[i++];
+        const int load_start_count = data[i++];
+        const int load_saved_count = data[i++];      
+        const int save_count = data[i++];    
+        const int new_slider_data = data[i++];
 
         // *************************************
         // Do button presses

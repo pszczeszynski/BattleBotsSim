@@ -125,7 +125,7 @@ std::string ServerSocket::receive(int* outError)
  */
 void ServerSocket::reply_to_last_sender(std::string data)
 {
-    if( (listenSocket == INVALID_SOCKET) || (last_sender_addr_len == 0))
+    if((listenSocket == INVALID_SOCKET) || (last_sender_addr_len == 0) || (data.length() > 65400) ) // leave room for unknown overhead
     {
         return;
     }
