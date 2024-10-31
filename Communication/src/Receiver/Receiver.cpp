@@ -92,7 +92,7 @@ void ServiceImu()
     {
         imu.Update();
     }
-    static counter = 0;
+    static uint8_t counter = 0;
     counter++;
     if(counter >= 50)
     {
