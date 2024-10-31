@@ -19,8 +19,9 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     OdometryData ourData = RobotController::GetInstance().odometry.Robot();
     ourData.Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
 
+    
     // extrapolate the opponent's position into the future
-    OdometryData opponentData = ExtrapolateOpponentPos();
+    OdometryData opponentData = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS_KILL / 1000.0, MAX_OPP_EXTRAP_MS_KILL);
 
     // draw a crosshair on the opponent
     safe_circle(RobotController::GetInstance().GetDrawingImage(), opponentData.robotPosition, 10, cv::Scalar(0, 0, 255), 2);

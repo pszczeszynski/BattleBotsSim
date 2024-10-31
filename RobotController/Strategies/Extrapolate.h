@@ -7,4 +7,4 @@
 
 #define MAX_PREDICTION_TIME 0.8
 
-OdometryData ExtrapolateOpponentPos();
+OdometryData ExtrapolateOpponentPos(double seconds, double max_prediction_time = MAX_PREDICTION_TIME);

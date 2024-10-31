@@ -42,6 +42,7 @@ void ConfigWidget::Draw()
     ImGui::SliderFloat("PP Radius Vel Coef", &PP_RADIUS_VEL_SCALE, 0, 0.05);
     ImGui::SliderInt("Global Opp Pos Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
 
+
     // space
     ImGui::Spacing();
     ImGui::Spacing();
@@ -54,7 +55,11 @@ void ConfigWidget::Draw()
     EndSetMaxWidthWithMargin();
     ImGui::End();
 
-    
+    ImGui::Begin("Kill Config");
+    ImGui::SliderInt("Opponent pos extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS_KILL, 0, 1000);
+    ImGui::SliderInt("Max extrap time (ms)", &MAX_OPP_EXTRAP_MS_KILL, 0, 2000);
+    ImGui::End();
+
     ImGui::Begin("Vision Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG); 
     ImGui::SliderInt("Min Robot Blob Size", &MIN_ROBOT_BLOB_SIZE, 0, 1000);

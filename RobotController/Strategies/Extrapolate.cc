@@ -1,6 +1,6 @@
 #include "Extrapolate.h"
 
-OdometryData ExtrapolateOpponentPos()
+OdometryData ExtrapolateOpponentPos(double seconds, double max_prediction_time)
 {
     // extrapolate the opponent's position into the future
     OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
@@ -8,7 +8,7 @@ OdometryData ExtrapolateOpponentPos()
 
     double distanceToOpponent = cv::norm(ourData.robotPosition - opponentData.robotPosition);
 
-    double extrapolationTime = std::min(distanceToOpponent / 100.0 * (OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0), MAX_PREDICTION_TIME);
+    double extrapolationTime = std::min((distanceToOpponent / 100.0 * seconds), max_prediction_time);
     extrapolationTime += Clock::programClock.getElapsedTime();
 
     opponentData.Extrapolate(extrapolationTime);

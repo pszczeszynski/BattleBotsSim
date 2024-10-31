@@ -17,7 +17,7 @@ Orbit::Orbit()
 
 void Orbit::StartOrbit()
 {
-    OdometryData opponentData = ExtrapolateOpponentPos();
+    OdometryData opponentData = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0);
 
     // initialize orbit radius to the distance to the opponent
     _startingOrbitRadius = cv::norm(RobotController::GetInstance().odometry.Robot().robotPosition -
@@ -40,14 +40,33 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
     // simulates the movement of the robot
     RobotSimulator robotSimulator;
 
+
+    // remember if we had 0 seconds of pos extrap
+    bool zero_position_seconds = seconds_position <= 0;
+
+    // make sure seconds_position isn't exactly 0 so division doesn't blow up
+    if (zero_position_seconds)
+    {
+        seconds_position = 0.01;
+    }
+
+    // now it is safe to compute the angle velocity scale
+    double angle_vel_scale = seconds_angle / seconds_position;
+
     RobotSimState currentState;
     currentState.position = odoData.robotPosition;
     currentState.angle = odoData.robotAngle;
     currentState.velocity = odoData.robotVelocity;
-    currentState.angularVelocity = odoData.robotAngleVelocity * seconds_angle / seconds_position;
+    currentState.angularVelocity = odoData.robotAngleVelocity * angle_vel_scale;
 
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
+
+    // reset the position if it was originally 0.
+    if (zero_position_seconds)
+    {
+        exState.position = odoData.robotPosition;
+    }
 
     currentState.angularVelocity = 0;
     // project velocity onto angle
@@ -350,7 +369,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     // 2. Extrapolate our position
     RobotSimState exState = _ExtrapolateOurPos(POSITION_EXTRAPOLATE_MS / 1000.0, ORBIT_ANGLE_EXTRAPOLATE_MS / 1000.0);
     // 3. Extrapolate opponent position
-    OdometryData opponentExState = ExtrapolateOpponentPos();
+    OdometryData opponentExState = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS / 1000.0);
     // opponentExState.angle = Angle(opponentRotationSim); // TODO: don't just hardcode
     /////////////////////////////////////////////////////////
 
