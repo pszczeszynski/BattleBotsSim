@@ -63,6 +63,10 @@ public class VisionAITrainer : MonoBehaviour
 
     private void Start()
     {
+        // Enable post-processing on the captureCamera
+        var additionalCameraData = captureCamera.GetUniversalAdditionalCameraData();
+        additionalCameraData.renderPostProcessing = true;
+
         _imagesSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs");
         _labelsSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingKeys");
         if (!Directory.Exists(_imagesSavePath))
@@ -130,7 +134,7 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeLights();
             RandomizePostProcessingVolume();
             RandomizeOtherRobots();
-            RandomizeForks();
+            // RandomizeForks();
 
             CaptureAndSaveData();
         }
@@ -184,7 +188,7 @@ public class VisionAITrainer : MonoBehaviour
         Volume volume = postProcessingVolume.GetComponent<Volume>();
         volume.profile.TryGet<Bloom>(out Bloom bloom);
         // set bloom thresh
-        float bloomThresh = Random.Range(0.75f, 2.0f);
+        float bloomThresh = Random.Range(0.5f, 2.0f);
         bloom.threshold.value = bloomThresh;
 
         // randomize shadows midtones highlights
