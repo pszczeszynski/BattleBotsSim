@@ -9,6 +9,7 @@
 
 
 extern bool CAN_DRAW;
+extern bool RESET_IMU;
 
 extern bool EDITING_HEU;
 extern bool EDITING_BLOB;

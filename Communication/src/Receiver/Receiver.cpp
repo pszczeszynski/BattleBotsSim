@@ -92,22 +92,36 @@ void ServiceImu()
     {
         imu.Update();
     }
-}
-
-IntervalTimer angleSyncTimer;
-void ServiceAngleSync()
-{
-    // Only send current angle after a set time
-    // Ensures that if one board reboots it does not send incorrect values
-    if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
+    static counter = 0;
+    counter++;
+    if(counter >= 50)
     {
-        CANMessage syncMessage;
-        syncMessage.type = ANGLE_SYNC;
-        syncMessage.angle = float(imu.getRotation());
+        if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
+        {
+            CANMessage syncMessage;
+            syncMessage.type = ANGLE_SYNC;
+            syncMessage.angle = float(imu.getRotation());
 
-        can.SendTeensy(&syncMessage);
+            can.SendTeensy(&syncMessage);
+        }
+        counter = 0;
     }
 }
+
+// IntervalTimer angleSyncTimer;
+// void ServiceAngleSync()
+// {
+//     // Only send current angle after a set time
+//     // Ensures that if one board reboots it does not send incorrect values
+//     /*if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
+//     {
+//         CANMessage syncMessage;
+//         syncMessage.type = ANGLE_SYNC;
+//         syncMessage.angle = float(imu.getRotation());
+
+//         can.SendTeensy(&syncMessage);
+//     }*/
+// }
 
 IntervalTimer packetWatchdogTimer;
 void ServicePacketWatchdog()
@@ -398,8 +412,8 @@ void rx_setup()
     imuTimer.priority(IMU_PRIORITY);
     imuTimer.begin(ServiceImu, IMU_INTERVAL);
 
-    angleSyncTimer.priority(ANGLE_SYNC_PRIORITY);
-    angleSyncTimer.begin(ServiceAngleSync, ANGLE_SYNC_INTERVAL);
+    // angleSyncTimer.priority(ANGLE_SYNC_PRIORITY);
+    // angleSyncTimer.begin(ServiceAngleSync, ANGLE_SYNC_INTERVAL);
 
     CANEventsTimer.priority(CAN_EVENTS_PRIORITY);
     CANEventsTimer.begin(ServiceCANEvents, CAN_EVENTS_INTERVAL);

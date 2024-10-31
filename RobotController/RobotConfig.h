@@ -81,7 +81,6 @@ extern int HEU_VELOCITY_AVERAGING;
 extern int RADIO_CHANNEL;
 extern int SECONDARY_RADIO_CHANNEL;
 extern bool AUTO_SWITCH_CHANNEL;
-extern bool RESET_IMU;
 extern bool FUSE_IMU;
 extern int MAX_AVERAGE_DELAY_MS;
 extern int SWITCH_COOLDOWN_MS;
