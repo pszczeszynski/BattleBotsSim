@@ -547,7 +547,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
     }
 
     command.fuseIMU = FUSE_IMU;
-    printf("fuseIMU: %d\n", command.fuseIMU);
+    // printf("fuseIMU: %d\n", command.fuseIMU);
 
     // if we have sent a packet too recently, return
     if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS)
