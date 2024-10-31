@@ -17,7 +17,7 @@
 // RECEIVER SPECIFIC BUILD OPTION DEFINES
 
 // allows driver station to tether to robot directly for testing
-#define RECEIVER_USB
+//#define RECEIVER_USB
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
