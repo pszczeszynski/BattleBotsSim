@@ -629,14 +629,51 @@ void DecideDirectionWithTriggers()
     }
 }
 
+double Orbit::_CalcSpiralAggressionPreset()
+{
+    static bool l_trigger_last = false;
+    static bool r_trigger_last = false;
+
+    const double PRESET_STEP_SIZE = 0.3333;
+    Gamepad& gamepad1 = RobotController::GetInstance().gamepad;
+    bool l_trigger = gamepad1.GetLeftTrigger() > 0.5;
+    bool r_trigger = gamepad1.GetRightTrigger() > 0.5;
+
+
+    if (l_trigger && !l_trigger_last)
+    {
+        _spiralAggression -= PRESET_STEP_SIZE;
+        _spiralAggression = std::max(0, _spiralAggression);
+    }
+
+    if (r_trigger && !r_trigger_last)
+    {
+        _spiralAggression += PRESET_STEP_SIZE;
+        _spiralAggression = std::min(1, _spiralAggression);
+    }
+
+
+    l_trigger_last = l_trigger;
+    r_trigger_last = r_trigger;
+
+
+    return _spiralAggression;
+}
+
 void Orbit::_CalcStartAndEndAngle()
 {
     static double smooth_agro_amount = 0;
     static Clock agroClock;
     const double AGRO_AMOUNT_TIME_FILTER = 0.06;
 
-    const double MAX_START_ANGLE = 120 * TO_RAD;  // safest condition => start shrinking at 120, very close to their butt
-    const double MIN_START_ANGLE = 60 * TO_RAD;     // most dangerous condition => end shrinking at 90, closer to the weapon
+    // calculate the aggrsesion preset
+    double aggression = _CalcSpiralAggressionPreset();
+
+    // the minimum will be interpolated based on the aggression preset
+    const double MIN_START_ANGLE = Interpolate(OPPONENT_SPIRAL_START_DEG, OPPONENT_SPIRAL_END_DEG, aggression) * TO_RAD;     // most dangerous condition => end shrinking at 90, closer to the weapon
+    // the max will be set by 
+    const double MAX_START_ANGLE = OPPONENT_SPIRAL_END_DEG;
+
     const double FULL_AGRO_VEL = 300; // px/s
 
     double velocityTowardsOpponent = CalcVelocityTowardsOpponent();
@@ -657,7 +694,7 @@ void Orbit::_CalcStartAndEndAngle()
     // when past 90 degrees, the orbit radius shrinks. At 180, it is 0
     _START_ANGLE = MAX_START_ANGLE + (MIN_START_ANGLE - MAX_START_ANGLE) * smooth_agro_amount;
     // std::cout << "Start angle: " << _START_ANGLE << std::endl;
-    _END_ANGLE = 165.0 * TO_RAD;
+    _END_ANGLE = OPPONENT_SPIRAL_END_DEG * TO_RAD;
 }
 
 

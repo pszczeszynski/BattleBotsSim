@@ -83,6 +83,15 @@ Angle InterpolateAngles(Angle a1, Angle a2, double ratio)
     return Angle(a1 + diff * ratio);
 }
 
+double Interpolate(double start, double end, double ratio)
+{
+    double diff = end - start;
+    diff = std::min(1.0, diff);
+    diff = std::max(0.0, diff);
+
+    return diff * ratio + start;
+}
+
 std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Point2f center2, float r2)
 {
     std::vector<cv::Point2f> intersections;

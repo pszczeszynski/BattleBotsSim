@@ -66,5 +66,10 @@ private:
                                      double& outCost,
                                      bool draw = false);
 
+
+    double _CalcSpiralAggressionPreset();
+
     double _startingOrbitRadius = 0;
+
+    double _spiralAggression = 0; // 0 to 1, incremented with the triggers
 };
