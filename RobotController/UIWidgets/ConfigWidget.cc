@@ -61,7 +61,7 @@ void ConfigWidget::Draw()
     ImGui::End();
 
     ImGui::Begin("Vision Config");
-    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG); 
+    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     ImGui::SliderInt("Min Robot Blob Size", &MIN_ROBOT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Max Robot Blob Size", &MAX_ROBOT_BLOB_SIZE, 0, 1000);
     ImGui::SliderInt("Min Opponent Blob Size", &MIN_OPPONENT_BLOB_SIZE, 0, 1000);
