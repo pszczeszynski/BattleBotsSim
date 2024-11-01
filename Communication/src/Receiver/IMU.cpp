@@ -3,13 +3,15 @@
 
 #include <Arduino.h>
 
+#include <cmath>
+
 #define CENTER_GYRO_SCALE_FACTOR -1.0
 #define CENTER_GYRO_AXIS gyrZ
 
 #define SIDE_GYRO_SCALE_FACTOR -1.0055083
 #define SIDE_GYRO_AXIS gyrX
 
-#define EXTERNAL_GYRO_MERGE_WEIGHT 0.1
+#define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
 #define PI 3.14159
 
 IMU::IMU()
@@ -37,7 +39,7 @@ void IMU::Initialize(enum board_placement placement)
     Serial.println("Initializing IMU...");
 
     WIRE_PORT.begin();
-    WIRE_PORT.setClock(100000);
+    WIRE_PORT.setClock(400000);
 
     // attempt to initialize the imu in a loop until it works
     bool initialized = false;
@@ -71,6 +73,32 @@ void IMU::Initialize(enum board_placement placement)
         Serial.println("Failed to set max accel for the IMU");
     }
 
+    // Set up Digital Low-Pass Filter configuration
+    ICM_20948_dlpcfg_t myDLPcfg;    // Similar to FSS, this uses a configuration structure for the desired sensors
+
+    myDLPcfg.g = gyr_d119bw5_n154bw3; // (ICM_20948_GYRO_CONFIG_1_DLPCFG_e)
+                                        // gyr_d196bw6_n229bw8
+                                        // gyr_d151bw8_n187bw6
+                                        // gyr_d119bw5_n154bw3
+                                        // gyr_d51bw2_n73bw3
+                                        // gyr_d23bw9_n35bw9
+                                        // gyr_d11bw6_n17bw8
+                                        // gyr_d5bw7_n8bw9
+                                        // gyr_d361bw4_n376bw5
+
+    myICM.setDLPFcfg(ICM_20948_Internal_Gyr, myDLPcfg);
+    if (myICM.status != ICM_20948_Stat_Ok)
+    {
+        Serial.print(F("setDLPcfg returned: "));
+        Serial.println(myICM.statusString());
+    }
+
+    // Choose whether or not to use DLPF
+    // Here we're also showing another way to access the status values, and that it is OK to supply individual sensor masks to these functions
+    ICM_20948_Status_e gyrDLPEnableStat = myICM.enableDLPF(ICM_20948_Internal_Gyr, true);
+    Serial.print(F("Enable DLPF for Gyroscope returned: "));
+    Serial.println(myICM.statusString(gyrDLPEnableStat));
+
     // take an initial reading for the x velocity calibration
     _calibrationRotVelZ = 0;
 
@@ -102,9 +130,11 @@ void IMU::ForceCalibrate()
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
-#define GYRO_CALIBRATE_PERIOD_MS 5000
+#define GYRO_CALIBRATE_PERIOD_MS 1000
 // the threshold for the gyro to be considered "stationary"
-#define CALIBRATE_THRESH_RAD 20 * TO_RAD // 10 degrees/s
+#define CALIBRATE_THRESH_RAD 1000.0 * TO_RAD // 10 degrees/s
+
+#define GYRO_DRIFT_MAX 2 * TO_RAD // degrees/s^2
 
 #define LPF_BETA 1
 
@@ -123,11 +153,15 @@ void IMU::_updateGyro(double deltaTimeMS)
 
     double avgRotVelZ = (_smoothRotationVelocity + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
+    float gyroClamp = deltaTimeMS * GYRO_DRIFT_MAX / 1000;
 
     // if the gyro is stationary, calibrate it
     if (abs(avgRotVelZ) < CALIBRATE_THRESH_RAD)
     {
-        _calibrationRotVelZ = (1 - gyroNewWeight) * _calibrationRotVelZ + gyroNewWeight * avgRotVelZ;
+        float rotationOffset = (avgRotVelZ - _calibrationRotVelZ)*gyroNewWeight;
+        rotationOffset = std::max(-gyroClamp, std::min(gyroClamp, rotationOffset));
+        _calibrationRotVelZ += rotationOffset;
+        //_calibrationRotVelZ = (1 - gyroNewWeight) * _calibrationRotVelZ + gyroNewWeight * clampedRotVelZ;
     }
 
     // update the rotation
@@ -226,7 +260,7 @@ void IMU::Update()
     double deltaTimeMS = currTimeMS - _prevTimeMS;
 
     // if the time is too small, don't update
-    if (deltaTimeMS < 1)
+    if (deltaTimeMS < 0.3)
     {
         Serial.println("exiting update not enough time");
         return;
@@ -442,11 +476,11 @@ void IMU::MergeExternalInput(float rotation)
         double difference = rotation - _rotation;
 
         //fix wrap-around issues before merging
-        while(difference > 2*PI)
+        while(difference > PI)
         {
             difference -= 2*PI;
         }
-        while(difference < -2*PI)
+        while(difference < -PI)
         {
             difference += 2*PI;
         }

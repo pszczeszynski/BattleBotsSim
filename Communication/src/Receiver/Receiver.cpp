@@ -34,7 +34,7 @@
 // Place watchdog above radio and everything else below
 
 #define IMU_PRIORITY 0xFD
-#define IMU_INTERVAL 2000 // microseconds -> 2000us = 500hz
+#define IMU_INTERVAL 1000 // microseconds -> 2000us = 500hz
 
 #define ANGLE_SYNC_PRIORITY 0xFE
 #define ANGLE_SYNC_INTERVAL 100000 // 100,000us = 10hz
@@ -94,7 +94,7 @@ void ServiceImu()
     }
     static uint8_t counter = 0;
     counter++;
-    if(counter >= 20)
+    if(counter >= 50)
     {
         if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
         {
