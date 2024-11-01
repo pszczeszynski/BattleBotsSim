@@ -112,8 +112,13 @@ DriveCommand DriveToAngle(double currAngle,
     float total = abs(ret.movement) + abs(ret.turn);
     if (total > 1)
     {
-        ret.movement /= total;
-        ret.turn /= total;
+        ret.turn = min(1.0, ret.turn);
+        ret.turn = max(-1.0, ret.turn);
+
+        int positive_movement = ret.movement > 0 ? 1 : -1;
+        int positive_turn = ret.turn > 0 ? 1 : -1;
+
+        ret.movement = (1.0 - abs(ret.turn)) * positive_movement;
     }
 
 
