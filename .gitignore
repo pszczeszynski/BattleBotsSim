@@ -22,9 +22,5 @@ Communication/Transmitter/Communication.h
 Communication/Receiver/Communication.h
 RobotController/backgrounds/regularBackground.jpg
 .DS_store
-<<<<<<< Updated upstream
-=======
-FTC_Simulator
->>>>>>> Stashed changes
 RobotController/MachineLearning/venvrot
 RobotController/imgui.ini
