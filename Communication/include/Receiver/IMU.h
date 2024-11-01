@@ -59,5 +59,6 @@ private:
 
     double _gyro_scale_factor = 0;
     float (ICM_20948::*_gyro_axis)(void) = nullptr;
+    float _smoothRotationVelocity = 0;
 
 };
