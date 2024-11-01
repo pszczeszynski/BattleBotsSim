@@ -16,7 +16,7 @@ MODEL_NAME = "rotationDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
 IMG_SIZE = (128, 128)
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 7
 REDUCE_LR_PATIENCE = 3
@@ -27,6 +27,7 @@ img_files = sorted(glob.glob(os.path.join(
     DATA_PATH, "TrainingInputsProjected", "image_*.jpg")))
 json_files = sorted(glob.glob(os.path.join(
     DATA_PATH, "TrainingKeys", "image_*.json")))
+
 
 # Preload JSON Data
 labels_data = []
@@ -53,14 +54,14 @@ print("Found {} images and {} json files.".format(
 
 # add augmentations to make the model more robust
 augmentations = Augmentations(
-    zoom_range=0.3,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
+    zoom_range=0.1,
+    width_shift_range=0.3,
+    height_shift_range=0.3,
     rotation_range=0.0,
-    brightness_range=(0.75, 1.25),
+    brightness_range=(0.75, 1.0),
     max_overlay_objects=10,
     object_size=(10, 10),
-    blur_probability=0.3
+    blur_probability=0.1
 )
 
 train_gen = custom_data_gen(img_files, labels_data,
@@ -92,7 +93,7 @@ model = Sequential([
 ])
 
 # Now compile the model with this custom loss
-model.compile(optimizer=Adam(learning_rate=0.001), loss="mse", metrics=['mae'])
+model.compile(optimizer=Adam(learning_rate=0.0001), loss="mse", metrics=['mae'])
 
 # load weights
 try:
@@ -133,8 +134,8 @@ def train_model():
     print("Training completed and model saved!")
 
 ##### VISUALIZATION #####
-train_model()
-save_onnx_model(model, "rotation_model.onnx")
+# train_model()
+save_onnx_model(model, "rotation_model_hoop.onnx")
 
 # Call the visualization function after training:
 visualize_rotation_predictions(train_gen, model, 100, (10, 10), IMG_SIZE)

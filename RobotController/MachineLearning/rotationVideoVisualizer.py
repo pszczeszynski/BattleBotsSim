@@ -79,11 +79,11 @@ def warp_frame_fixed_size(frame, src_points):
 
 def main():
     # Load the video
-    video_path = '../Recordings/DisarrayFight2_clip.avi'  # Replace with your video path
+    video_path = "C:/Users/Peter/Downloads/orbitron_tombclone.mkv"#'../Recordings/DisarrayFight2_clip.avi'  # Replace with your video path
     cap = cv2.VideoCapture(video_path)
     
     # Load the model
-    model_path = 'rotationDetector.h5'  # Replace with your model path
+    model_path = 'rotationDetector_hoop.h5'  # Replace with your model path
     model = load_model(model_path)
     
     # Check if video opened successfully
@@ -97,8 +97,8 @@ def main():
         print("Failed to read video")
         return
 
-    frame = warp_frame_fixed_size(frame,
-     [(0, 0), (frame.shape[1], 0), (frame.shape[1], frame.shape[0]), (0, frame.shape[0])])
+    # frame = warp_frame_fixed_size(frame,
+    #  [(0, 0), (frame.shape[1], 0), (frame.shape[1], frame.shape[0]), (0, frame.shape[0])])
 
     # scale frame down 1.4
     # frame = cv2.resize(frame, (0, 0), fx=0.7, fy=0.7)
