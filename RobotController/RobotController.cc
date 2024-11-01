@@ -14,6 +14,7 @@
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
 #include "SafeDrawing.h"
+#define SAVE_VIDEO
 
 int main()
 {

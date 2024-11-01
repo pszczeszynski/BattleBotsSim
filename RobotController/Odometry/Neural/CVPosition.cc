@@ -113,7 +113,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     CVPositionData data = _GetDataFromPython();
 
     // make sure the data is newer than the last data
-    if (data.frameID <= _lastData.frameID || data.center.x < 0 || data.center.y < 0 || data.center.x > frame.cols || data.center.y > frame.rows ||
+    if (data.frameID <= _lastData.frameID || data.center.x <= 0 || data.center.y <= 0 || data.center.x >= frame.cols || data.center.y >= frame.rows ||
         std::isnan(data.center.x) || std::isnan(data.center.y) || std::isinf(data.center.x) || std::isinf(data.center.y))
     {
         return;
