@@ -376,7 +376,7 @@ DriverStationMessage RobotController::ManualMode()
     // drive the robot with the gamepad
     DriveCommand response{0, 0};
     response.movement = gamepad.GetRightStickY() + gamepad2.GetLeftStickY();
-    response.turn = -gamepad.GetLeftStickX() - gamepad2.GetRightStickX();
+    response.turn = gamepad.GetLeftStickX() + gamepad2.GetRightStickX();
 
     // update the spinner powers
     Weapons& weapons = Weapons::GetInstance();
