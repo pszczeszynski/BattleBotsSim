@@ -102,11 +102,11 @@ void IMU::ForceCalibrate()
 }
 
 // time until the gyro calibration weighted average is 1/2 of the way to the new value
-#define GYRO_CALIBRATE_PERIOD_MS 3000
+#define GYRO_CALIBRATE_PERIOD_MS 5000
 // the threshold for the gyro to be considered "stationary"
-#define CALIBRATE_THRESH_RAD 10 * TO_RAD // 10 degrees/s
+#define CALIBRATE_THRESH_RAD 20 * TO_RAD // 10 degrees/s
 
-#define LPF_BETA 0.1
+#define LPF_BETA 1
 
 // time until the accel calibration weighted average is 1/2 of the way to the new value
 #define IMU_CALIBRATE_PERIOD_MS 10000
@@ -119,7 +119,7 @@ void IMU::_updateGyro(double deltaTimeMS)
     _currRotVelZ *= _gyro_scale_factor;
     _currRotVelZ -= _calibrationRotVelZ;
 
-    _smoothRotationVelocity = _smoothRotationVelocity - (LPF_BETA * (_smoothRotationVelocity - _currRotVelZ));
+    _smoothRotationVelocity = _smoothRotationVelocity + (LPF_BETA * (_currRotVelZ - _smoothRotationVelocity));
 
     double avgRotVelZ = (_smoothRotationVelocity + _prevRotVelZ) / 2;
     double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
