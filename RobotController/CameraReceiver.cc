@@ -51,7 +51,7 @@ void ICameraReceiver::_StartCaptureThread()
         while (!_InitializeCamera())
         {
             std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-            Sleep(1000); // wait 1 second
+            Sleep(3000); // wait 1 second
         }
 
         std::cout << "Camera initialized" << std::endl;
@@ -70,7 +70,7 @@ void ICameraReceiver::_StartCaptureThread()
                 while (!_InitializeCamera())
                 {
                     std::cerr << "ERROR: failed to initialize camera!" << std::endl;
-                    Sleep(1000); // wait 1 second
+                    Sleep(3000); // wait 1 second
                 }
             }
         } });
@@ -255,11 +255,15 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
 
 bool CameraReceiver::_InitializeCamera()
 {
+    std::cout << "about to get system" << std::endl;
     // Retrieve singleton reference to system object
     _system = Spinnaker::System::GetInstance();
+    std::cout << "got system" << std::endl;
 
     // Retrieve list of cameras from the system
     Spinnaker::CameraList camList = _system->GetCameras();
+
+    std::cout << "got camera list" << std::endl;
 
     const unsigned int numCameras = camList.GetSize();
     std::cerr << "Number of cameras detected: " << numCameras << std::endl
@@ -326,7 +330,7 @@ bool CameraReceiver::_InitializeCamera()
                 // Check if the camera is initialized before de-initializing
                 if (pCam->IsInitialized())
                 {
-                    // pCam->DeInit();
+                    pCam->DeInit();
                 }
             }
             catch (Spinnaker::Exception &e)
