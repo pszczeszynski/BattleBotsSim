@@ -340,11 +340,11 @@ void TrackingWidget::_DrawAlgorithmData()
                 {
                     if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftCtrl))
                     {
-                        _odometry_Heuristic.ForcePosition(GetMousePos(), false);
+                        _odometry_Heuristic.SetPosition(GetMousePos(), false);
                     }
                     else
                     {
-                        _odometry_Heuristic.SetPosition(GetMousePos(), false);
+                        _odometry_Heuristic.ForcePosition(GetMousePos(), false);
                     }
 
                     _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), false);
@@ -353,11 +353,11 @@ void TrackingWidget::_DrawAlgorithmData()
                 {
                     if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightCtrl))
                     {
-                        _odometry_Heuristic.ForcePosition(GetMousePos(), true);
+                        _odometry_Heuristic.SetPosition(GetMousePos(), true);
                     }
                     else
                     {
-                        _odometry_Heuristic.SetPosition(GetMousePos(), true);
+                        _odometry_Heuristic.ForcePosition(GetMousePos(), true);
                     }
                     _odometry_Heuristic.SetVelocity(cv::Point2f(0,0), true);
                 }
