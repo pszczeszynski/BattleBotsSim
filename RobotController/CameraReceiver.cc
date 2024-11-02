@@ -162,17 +162,80 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
 
         std::cout << "Setting up camera" << std::endl;
 
-        // // Disable heartbeat (a GiGe standard requiring program to reconfirm periodically its alive)
-        // pCam->GevGVCPHeartbeatDisable();
-        // pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed); // set it to fixed time
-        // pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn off auto gain
-        // pCam->GammaEnable.SetValue(false);
-        // pCam->DeviceLinkThroughputLimit.SetValue(122000000);
-        // pCam->TriggerMode.SetValue(Spinnaker::TriggerMode_Off);
+        // Disable heartbeat (a GiGe standard requiring program to reconfirm periodically its alive)
+        pCam->GevGVCPHeartbeatDisable();
 
-        // Spinnaker::GenApi::INodeMap &sNodeMap = pCam->GetTLStreamNodeMap();
-        // Spinnaker::GenApi::CEnumerationPtr ptrHandlingMode = sNodeMap.GetNode("StreamBufferHandlingMode");
-        // ptrHandlingMode->SetIntValue(Spinnaker::StreamBufferHandlingMode_NewestOnly);
+        // ******** General Settings ***************
+        // Set exposure mode
+        // pCam->ExposureAuto.SetValue(ExposureAutoEnums::ExposureAuto_Once);  // turn off auto
+        pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed); // set it to fixed time
+        // pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
+
+        // Set Gain Mode
+        pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn off auto gain
+        // pCam->Gain.SetValue(8.0); // Set gain in dB (between 0 and 47.99)
+
+        // Turn off Gama correction
+        pCam->GammaEnable.SetValue(false);
+        // pCam->Gamma.SetValue(1.0f, false); // Gamma correction if enabled. 0 to 4 nominal range
+
+        // Turn off white balance
+        // pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
+
+        // Allocate all bandwidth to this one camera 125000000 is max, reduce to 122000000 for margin
+        pCam->DeviceLinkThroughputLimit.SetValue(122000000);
+
+        // Turn off trigger
+        pCam->TriggerMode.SetValue(Spinnaker::TriggerMode_Off);
+
+        // Turn off sequencer
+        // pCam->SequencerConfigurationMode.SetValue(Spinnaker::SequencerConfigurationMode_Off);
+        // pCam->SequencerFeatureEnable.SetValue(false);
+        // pCam->SequencerMode.SetValue( SequencerModeEnums::SequencerMode_Off);
+
+        // ******** Image Settings ***************
+        // Reducing image size saves bandwidth for faster refresh rate
+        // We need to reset offsets first before changing this
+        // pCam->OffsetX.SetValue(0);
+        // pCam->OffsetY.SetValue(0);
+
+        // Now setting width/height should cause issues
+        int my_width = 1440;
+        int my_height = 600;
+
+        // try
+        // {
+        //     pCam->Width.SetValue(my_width);   // Max 1440 for this camera
+        //     pCam->Height.SetValue(my_height); // Max 1080 for this camera
+        // }
+        // catch (Spinnaker::Exception &e)
+        // {
+        //     std::cout << "Error: " << e.what() << std::endl;
+        //     return -1;
+        // }
+
+        // pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
+        // pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
+
+        // pCam->IspEnable.SetValue(false);                         // Turn off image processing
+        // pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8); // Set to 8-bit color resolution
+
+        // ******* Output Data Settings *******
+
+        // pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_Mono8); // Only some of the formats work, this is one of them and is fast.
+
+        // Compression may be useful, but not tested for delay
+        // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
+
+        // Set Acquisition to continouse
+        // pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
+
+        //
+        // Make it always return latest image (This option is not available via the easy access mode)
+
+        Spinnaker::GenApi::INodeMap &sNodeMap = pCam->GetTLStreamNodeMap();
+        Spinnaker::GenApi::CEnumerationPtr ptrHandlingMode = sNodeMap.GetNode("StreamBufferHandlingMode");
+        ptrHandlingMode->SetIntValue(Spinnaker::StreamBufferHandlingMode_NewestOnly);
 
         // Save settings to user register 0
         // pCam->UserSetSelector = UserSetSelectorEnums::UserSetSelector_UserSet0;
