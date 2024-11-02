@@ -8,6 +8,7 @@
 #define HEIGHT 720
 
 
+
 extern bool CAN_DRAW;
 extern bool RESET_IMU;
 
@@ -48,3 +49,13 @@ extern cv::Point2f opponentPosSim;
     #define TIMER_START
     #define TIMER_PRINT(msg)
 #endif
+
+enum selfTest_e{
+    SELF_TEST_NOT_STARTED = 0,
+    SELF_TEST_START,
+    SELF_TEST_IN_PROGRESS,
+    SELF_TEST_FINISHED,
+    SELF_TEST_FAILED
+};  
+
+extern enum selfTest_e self_test_state;

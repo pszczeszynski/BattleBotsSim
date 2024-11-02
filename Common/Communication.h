@@ -95,12 +95,21 @@ struct CANChannelChange
     uint8_t newChannel;
 };
 
+struct CANAngleSync
+{
+    float angle;
+
+    // stores 24 bits of timestamp in
+    uint8_t timestamp_upper;
+    uint16_t timestamp_lower;
+};
+
 struct CANMessage
 {
     CANMessageType type;
     union
     {
-        float angle;
+        CANAngleSync angle;
         CANPingData ping;
         CANPacketHeader packetID;
         CANChannelChange channel;
@@ -228,6 +237,7 @@ enum DriverStationMessageType : char
     DRIVE_COMMAND,
     AUTO_DRIVE,
     LOCAL_PING_REQUEST,
+    TIME_SYNC
 };
 
 // For LOCAL_PING_REQUEST messages the union is ignored

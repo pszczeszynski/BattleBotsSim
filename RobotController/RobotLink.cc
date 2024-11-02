@@ -528,6 +528,48 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
     }
 }
 
+void HandleSelfTest(DriverStationMessage &command)
+{
+    static uint8_t self_test_implementation_state = 0;
+    static bool pre_self_test_auto_switch = false;
+    if(self_test_state == SELF_TEST_START)
+    {
+        self_test_state = SELF_TEST_IN_PROGRESS;
+        self_test_implementation_state = 0;
+        SECONDARY_RADIO_CHANNEL = 0; // disable secondary channel for self test
+        RADIO_CHANNEL = TEENSY_RADIO_1;
+        pre_self_test_auto_switch = AUTO_SWITCH_CHANNEL;
+        AUTO_SWITCH_CHANNEL = false;
+
+    }
+    else if (self_test_state == SELF_TEST_IN_PROGRESS)
+    {
+        if (self_test_implementation_state < 10)
+        {
+            command.type = TIME_SYNC;
+            command.radioChannel = TEENSY_RADIO_1;
+        }
+        else if (self_test_implementation_state < 20)
+        {
+            command.type = TIME_SYNC;
+            command.radioChannel = TEENSY_RADIO_2;
+        }
+        else if (self_test_implementation_state < 30)
+        {
+            command.type = TIME_SYNC;
+            command.radioChannel = TEENSY_RADIO_3;
+        }
+        else
+        {
+            AUTO_SWITCH_CHANNEL = pre_self_test_auto_switch;
+            RADIO_CHANNEL = TEENSY_RADIO_1;
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_2;
+            self_test_state = SELF_TEST_FINISHED;
+        }
+        self_test_implementation_state++;
+    }
+}
+
 void RobotLinkReal::Drive(DriverStationMessage &command)
 {
     static ClockWidget clockWidget{"Send drive command"};
@@ -575,8 +617,14 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
 
     clockWidget.markStart();
 
+    if((self_test_state != SELF_TEST_NOT_STARTED) && (self_test_state != SELF_TEST_FINISHED))
+    {
+        HandleSelfTest(command);
+    }
+
     auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
     command.timestamp = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+
 
     // set valid to true
     command.valid = true;

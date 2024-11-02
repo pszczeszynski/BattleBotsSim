@@ -435,6 +435,35 @@ void ConfigWidget::Draw()
     
     ImGui::PopStyleColor();
 
+    if(self_test_state == SELF_TEST_NOT_STARTED)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+    }
+    else if (self_test_state == SELF_TEST_START)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.7f, 1.0f));
+    }
+    else if (self_test_state == SELF_TEST_IN_PROGRESS)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.0f, 1.0f));
+    }
+    else if (self_test_state == SELF_TEST_FINISHED)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+    }
+    else if (self_test_state == SELF_TEST_FINISHED)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+    }
+
+    if(ImGui::Button("On-Boot Self Test"))
+    {
+        self_test_state = SELF_TEST_START;
+    }
+
+    
+    ImGui::PopStyleColor();
+
     // add checkbox for auto switch channel
     ImGui::Checkbox("Auto Switch Channel", &AUTO_SWITCH_CHANNEL);
     // add edit number text box for MAX_AVERAGE_DELAY_MS.

@@ -22,7 +22,7 @@ public:
     IMU();
     void Initialize(enum board_placement placement);
     void Update();
-    void MergeExternalInput(float rotation);
+    void MergeExternalInput(float rotation, uint32_t timestamp, int32_t timestampOffset);
     void ForceCalibrate();
     bool dataReady();
     Point getAccel();

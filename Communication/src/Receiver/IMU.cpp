@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include <cmath>
+#include "Utils.h"
 
 #define CENTER_GYRO_SCALE_FACTOR -1.0
 #define CENTER_GYRO_AXIS gyrZ
@@ -465,7 +466,7 @@ void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
     }
 }
 
-void IMU::MergeExternalInput(float rotation)
+void IMU::MergeExternalInput(float rotation, uint32_t timestamp, int32_t timestampOffset)
 {
     if (millis() < BOOT_GYRO_MERGE_MS)
     {
@@ -473,7 +474,15 @@ void IMU::MergeExternalInput(float rotation)
     }
     else
     {
+        
+
+        timestamp *= 1000;
+        timestamp -= timestampOffset;
+        float packet_latency_s = (micros() - timestamp)/1000000.0f;
+
         double difference = rotation - _rotation;
+        difference += _prevRotVelZ * packet_latency_s;
+        DownsampledPrintf("packet latency: f\n", packet_latency_s);
 
         //fix wrap-around issues before merging
         while(difference > PI)

@@ -17,7 +17,7 @@
 // RECEIVER SPECIFIC BUILD OPTION DEFINES
 
 // allows driver station to tether to robot directly for testing
-//#define RECEIVER_USB
+#define RECEIVER_USB
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
@@ -66,6 +66,7 @@ volatile bool shouldResendAuto = false;
 RobotMessage lastTelemetryMessage;
 volatile bool resetIMU = false;
 volatile bool fuseIMU = true;
+volatile int32_t timeSyncOffset = 0; // micros() + timeSyncOffset = packetID timestamp
 // RECEIVER COMPONENTS
 IMU imu;
 Radio<RobotMessage, DriverStationMessage> rxRadio;
@@ -96,11 +97,14 @@ void ServiceImu()
     counter++;
     if(counter >= 50)
     {
-        if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
+        if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU && (timeSyncOffset != 0))
         {
             CANMessage syncMessage;
             syncMessage.type = ANGLE_SYNC;
-            syncMessage.angle = float(imu.getRotation());
+            syncMessage.angle.angle = float(imu.getRotation());
+            uint32_t timestamp = (micros() + timeSyncOffset)/1000;
+            syncMessage.angle.timestamp_upper = ((timestamp >> 16) & 0xff);
+            syncMessage.angle.timestamp_lower = (timestamp & 0xffff);
 
             can.SendTeensy(&syncMessage);
         }
@@ -160,6 +164,19 @@ void ServiceCANEvents()
     can.Update();
 }
 
+void HandleTimesyncPacket(DriverStationMessage msg)
+{
+    static uint32_t timeSyncCounter = 0;
+    static int64_t timeSyncSum = 0;
+    if(msg.type == TIME_SYNC)
+    {
+        timeSyncCounter++;
+        timeSyncSum += int32_t(msg.timestamp) - int32_t(micros());
+        Serial.println("%d %d\n" + String(msg.timestamp) + " " + String(micros()));
+        timeSyncOffset = timeSyncSum / timeSyncCounter;
+    }
+}
+
 void HandlePacket()
 {
     if (!rxRadio.Available()) return;
@@ -177,7 +194,11 @@ void HandlePacket()
     SendOutput result = rxRadio.Send(return_msg);
     logger.updateRadioData((int)result, 0, 0, 0);
     digitalWriteFast(STATUS_4_LED_PIN, HIGH);
-    if(ErrorCheckMessage(msg))
+    if(msg.type == TIME_SYNC)
+    {
+        HandleTimesyncPacket(msg);
+    }
+    else if(ErrorCheckMessage(msg))
     {
         DriveWithMessage(msg);
         validMessageCount++;
@@ -197,6 +218,10 @@ void HandlePacket()
     digitalWriteFast(STATUS_2_LED_PIN, LOW);
     digitalWriteFast(STATUS_3_LED_PIN, LOW);
     digitalWriteFast(STATUS_4_LED_PIN, LOW);
+    if(msg.type == TIME_SYNC)
+    {
+        HandleTimesyncPacket(msg);
+    }
 }
 
 #ifdef RECEIVER_USB
@@ -211,7 +236,11 @@ void HandlePacket(DriverStationMessage msg)
     char sendBuffer[64];
     std::memcpy(sendBuffer, &return_msg, sizeof(RobotMessage));
     RawHID.send(sendBuffer, 1);
-    if(ErrorCheckMessage(msg))
+    if(msg.type == TIME_SYNC)
+    {
+        HandleTimesyncPacket(msg);
+    }
+    else if(ErrorCheckMessage(msg))
     {
         DriveWithMessage(msg);
         validMessageCount++;
@@ -350,14 +379,14 @@ void OnTeensyMessage(const CAN_message_t &msg)
 {
     CANMessage message;
     memcpy(&message, msg.buf, sizeof(CANMessage));
-
     switch(message.type)
     {
         case ANGLE_SYNC:
             if (fuseIMU)
             {
-                imu.MergeExternalInput(message.angle);
+                imu.MergeExternalInput(message.angle.angle, (uint32_t(message.angle.timestamp_upper) << 16 & message.angle.timestamp_lower), timeSyncOffset);
             }
+            Serial.println("angle packet");
             break;
         case PING_REQUEST:
             if (message.ping.pingID == CANBUS::GetCanID(placement)) {
@@ -492,4 +521,5 @@ void rx_loop()
         HandlePacket(command);
     }
 #endif
+    DownsampledPrintf("offset %d\n", timeSyncOffset);
 }

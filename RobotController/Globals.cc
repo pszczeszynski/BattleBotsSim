@@ -22,3 +22,5 @@ bool EDITING_BLOB = true;
 double opponentRotationSim = 0;
 cv::Point2f robotPosSim = cv::Point2f{};
 cv::Point2f opponentPosSim = cv::Point2f{};
+
+extern enum selfTest_e self_test_state = selfTest_e::SELF_TEST_NOT_STARTED;
