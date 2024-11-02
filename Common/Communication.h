@@ -95,12 +95,18 @@ struct CANChannelChange
     uint8_t newChannel;
 };
 
+struct CANAngleSync
+{
+    float angle;
+    uint16_t magic;
+};
+
 struct CANMessage
 {
     CANMessageType type;
     union
     {
-        float angle;
+        CANAngleSync angle;
         CANPingData ping;
         CANPacketHeader packetID;
         CANChannelChange channel;

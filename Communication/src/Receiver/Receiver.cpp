@@ -46,6 +46,8 @@
 #define RADIO_STATS_TELEMETRY_INITERVAL 20 // every 20 packets -> 10hz
 #define CAN_DATA_TELEMETRY_INTERVAL 10 // every 10 packets -> 20 
 
+#define ANGLE_SYNC_MAGIC 0xABCD
+
 // RECEIVER SPECIFIC GLOBAL VARIABLES
 extern enum board_placement placement;
 uint8_t radioChannel = 0;
@@ -100,8 +102,8 @@ void ServiceImu()
         {
             CANMessage syncMessage;
             syncMessage.type = ANGLE_SYNC;
-            syncMessage.angle = float(imu.getRotation());
-
+            syncMessage.angle.angle = float(imu.getRotation());
+            syncMessage.angle.magic = ANGLE_SYNC_MAGIC;
             can.SendTeensy(&syncMessage);
         }
         counter = 0;
@@ -354,9 +356,9 @@ void OnTeensyMessage(const CAN_message_t &msg)
     switch(message.type)
     {
         case ANGLE_SYNC:
-            if (fuseIMU)
+            if (fuseIMU && (message.angle.magic == ANGLE_SYNC_MAGIC))
             {
-                imu.MergeExternalInput(message.angle);
+                imu.MergeExternalInput(message.angle.angle);
             }
             break;
         case PING_REQUEST:
