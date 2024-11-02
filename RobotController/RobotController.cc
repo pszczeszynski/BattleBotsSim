@@ -110,7 +110,6 @@ void ClickOnHeuristic()
     }
 }
 
-#define SAVE_VIDEO
 long loopCount = 0;
 
 void RobotController::Run()
@@ -239,8 +238,10 @@ bool saving = true;
 std::mutex _videoWriterMutex;
 #endif
 
+
 void RobotController::DumpVideo()
 {
+#ifdef SAVE_VIDEO
     std::unique_lock<std::mutex> locker(_videoWriterMutex);
 
     saving = false;
@@ -255,6 +256,7 @@ void RobotController::DumpVideo()
     _videoWriter.open("Recordings/output" + std::to_string(video_index) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT));
 
     saving = true;
+#endif
 }
 
 /**
