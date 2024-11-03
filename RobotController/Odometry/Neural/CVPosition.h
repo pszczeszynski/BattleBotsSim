@@ -55,4 +55,6 @@ private:
 
     int _valid_frames_counter = 0;
     int _min_distance_threshold = 100;
+
+    bool _is_us = true;
 };

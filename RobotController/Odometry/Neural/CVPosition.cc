@@ -65,7 +65,8 @@ void CVPosition::_StartPython()
     const std::string venv_path = "venv";            // Path to the venv directory
     const std::string script_path = "CVPosition.py"; // Path to the Python script
     // Create command string for Windows
-    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " > NUL 2>&1\"";
+    std::string is_us = _is_us ? "1" : "0";
+    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " --is-us=" + is_us + " > NUL 2>&1\"";
 
     _pythonThread = std::thread([command]() {
         // Run the command
@@ -77,8 +78,10 @@ void CVPosition::_StartPython()
     });
 }
 
-CVPosition::CVPosition(ICameraReceiver *videoSource) : _pythonSocket("11116"), _lastData(CVPositionData()), OdometryBase(videoSource)
+CVPosition::CVPosition(ICameraReceiver *videoSource, bool is_us) : _lastData(CVPositionData()), OdometryBase(videoSource), _is_us(is_us)
 {
+    _pythonSocket("11116")
+    
     _InitSharedImage();
 
     _StartPython();

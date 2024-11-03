@@ -6,9 +6,22 @@ import socket
 import json
 import cv2
 
-SHARED_FILE_NAME = 'cv_pos_img'
+# read args
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--is-us', type=int, default=1, help='if the robot is us or the opponenet')
+args = parser.parse_args()
+is_us = args.is_us
+
+if is_us:
+    SHARED_FILE_NAME = 'cv_pos_img'
+else:
+    SHARED_FILE_NAME = 'cv_pos_img_opponent'
 SHAPE = (720, 720)
-PORT = 11116
+if is_us:
+    PORT = 11116
+else:
+    PORT = 11117
 SCALE_RATIO = 0.75
 
 print("Initializing socket")
@@ -73,7 +86,10 @@ def run_inference_batch(model, imgs: List[np.ndarray]):
 
 def main():
     print("Initializing YOLO model")
-    model = YOLO('train_yolo/model8_orbitron_preprocessed_hoop2.pt') #train_yolo/model_2.0_faceoffs.pt
+    if is_us:
+        model = YOLO('train_yolo/model8_orbitron_preprocessed_hoop2.pt') #train_yolo/model_2.0_faceoffs.pt
+    else:
+        model = YOLO('train_yolo/model_2.0_faceoffs.pt') # TODO: change to tombstone model
     model.to('cuda')  # Move model to GPU
     model.half()  # Use half-precision
 
