@@ -33,6 +33,9 @@ private:
     int _lastLoadSavedCount = 0;
     int _lastSavedCount = 0;
 
+    SOCKADDR last_sender_addr;
+    int last_sender_addr_len;
+
     DataType _lastReceivedType;
     ServerSocket* _socket;
     std::vector<int> _GetDataFromSocket();

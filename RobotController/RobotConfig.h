@@ -12,6 +12,7 @@ extern std::string SAVE_FILE_NAME;
         #name, save##name, load##name \
     }
 
+extern int NEURAL_BRIGHTNESS_ADJUST;
 extern int TURN_THRESH_1_DEG_ORBIT;
 extern int TURN_THRESH_2_DEG_ORBIT;
 extern int MAX_TURN_POWER_PERCENT_ORBIT;

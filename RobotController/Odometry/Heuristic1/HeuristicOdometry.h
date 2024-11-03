@@ -128,7 +128,7 @@ private:
 
     // *********  Functions
     void calcShakeRemoval(cv::Mat &image);
-    void correctBrightness(cv::Mat &image);
+    void correctBrightness(cv::Mat &image, bool no_averaging = false);
     double getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean);
     double correctionValues[4] = {0, 0, 0, 0};
     void healBackground(cv::Mat &currFrame);

@@ -122,19 +122,38 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         cv::cvtColor(currFrame, newFrame, cv::COLOR_BGRA2GRAY);
     }
 
-    // Correct Brightness (assumes shake doesn't significantly affect it on average)
-    correctBrightness(newFrame);
+    // Crop the image (not required if anti-shake not used)
+    cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
+    cv::Mat croppedFrame = newFrame(cropparea);
+
+    bool matchstart_was_run = false;
+
+    if( match_start_bg_init)
+    {
+        // First override all variables that matchstatbackground algorithm uses different
+        // OVerride fg_threshold, blurr size nad blur count
+        fg_threshold = HEU_FOREGROUND_THRESHOLD_INIT;
+        blurCount = HEU_BLUR_COUNT_INIT;
+        preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
+  
+        MatchStartBackgroundInit(croppedFrame);
+        
+        matchstart_was_run = true;
+    }
+    else
+    {
+        // Correct Brightness (assumes shake doesn't significantly affect it on average)
+        correctBrightness(croppedFrame);
+    }
 
     // Find the proper x_offset and y_offset for a shaky image using background
-    calcShakeRemoval(newFrame);
+    // calcShakeRemoval(newFrame);
 
     markTime("Brightness and shake: ");
 
 //  _imshow("corrected", newFrame);
 
-    // Crop the image (not required if anti-shake not used)
-    cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
-    cv::Mat croppedFrame = newFrame(cropparea);
+
 
     // ***********************************************
     // ******* SERVICE USER REQUESTS *****************
@@ -158,20 +177,9 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         ReinitBackground();
     }
 
-    bool matchstart_was_run = false;
 
-    if( match_start_bg_init)
-    {
-        // First override all variables that matchstatbackground algorithm uses different
-        // OVerride fg_threshold, blurr size nad blur count
-        fg_threshold = HEU_FOREGROUND_THRESHOLD_INIT;
-        blurCount = HEU_BLUR_COUNT_INIT;
-        preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
-  
-        MatchStartBackgroundInit(croppedFrame);
-        
-        matchstart_was_run = true;
-    }
+
+ 
 
     if (save_to_video_match_debug || save_to_video_output) // Remeber that we are saving video
     {
@@ -266,9 +274,8 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     DrawAllBBoxes(currFrameColor);
 
-      if( matchstart_was_run)
+    if( matchstart_was_run)
     {        
-
 
         if( HEU_HEAL_BG_INIT)
         {
@@ -1431,6 +1438,9 @@ void HeuristicOdometry::ReinitBackground()
 
 void HeuristicOdometry::MatchStartBackgroundInit(cv::Mat &currFrame)
 {
+    // First correct brightness of currframe
+    correctBrightness(currFrame, true);
+
     // Make currframe the background
     currFrame.copyTo(currBackground);
 
@@ -1448,6 +1458,8 @@ void HeuristicOdometry::MatchStartBackgroundInit(cv::Mat &currFrame)
     // Copy over the squares    
     leftsquare.copyTo(currBackground(leftrect));
     rightsquare.copyTo(currBackground(rightrect));
+
+    imshow("Match Start Background", currBackground);
 
     currBackground.convertTo(currBackground_16bit, CV_16U, 256);
 }
@@ -1559,7 +1571,7 @@ double lastTimeForBrightness = 0;
 float brightnessCorrection = 1.0f;
 
 
-void HeuristicOdometry::correctBrightness(cv::Mat &image)
+void HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
 {
     // If disabled, dont do anything
     if( (IMAGE_INTENSITY_TIME_CONSTANT < 0) ||
@@ -1597,8 +1609,8 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image)
 
     lastTimeForBrightness = currTime;
 
-    float scaler = 1.0;
-    if( deltaTime < IMAGE_INTENSITY_TIME_CONSTANT && deltaTime>0)
+    float scaler = 0.0;
+    if( !reset_averaging && (deltaTime < IMAGE_INTENSITY_TIME_CONSTANT && deltaTime>0))
     {
         scaler = 1.0 - deltaTime/IMAGE_INTENSITY_TIME_CONSTANT;
     }
@@ -1617,8 +1629,8 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image)
     double newcorrection = (corrections[1] + corrections[2]) / 2.0;
 
     // Limit newcorrection
-    newcorrection = (newcorrection < 0.05) ? 0.2 : newcorrection;
-    newcorrection = (newcorrection > 20.0) ? 5.0 : newcorrection;
+    newcorrection = (newcorrection < 0.02) ? 0.02 : newcorrection;
+    newcorrection = (newcorrection > 40.0) ? 40.0 : newcorrection;
     
     // Calculate the time averaged brightness correction
     brightnessCorrection = brightnessCorrection * scaler + (1.0 - scaler)*newcorrection;

@@ -12,7 +12,7 @@
 
 #define CROP_SIZE 128
 
-// #define POSITION
+#define POSITION
 #define OVERWRITE
 
 int main()
@@ -26,7 +26,7 @@ int main()
     #endif
     const std::string keysDir = "../TrainingData/TrainingKeys/";
 
-    loadGlobalVariablesFromFile("../../RobotConfigHCSim.txt");
+    loadGlobalVariablesFromFile("../../RobotConfigSim.txt");
 
     // Create an instance of VisionPreprocessor
     VisionPreprocessor preprocessor;

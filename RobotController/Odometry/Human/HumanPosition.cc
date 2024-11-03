@@ -20,6 +20,11 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
     std::vector<int> data = {};
 
     int error = 0;
+
+    // saved lastSenderAddr and length
+    _socket->last_sender_addr = last_sender_addr;
+    _socket->last_sender_addr_len = last_sender_addr_len;
+
     // Receive NUMBER_OF_FIELDS data
     std::string data_str = _socket->receive(&error);
     
@@ -147,6 +152,10 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     if( password_ok)
     {        
+        // save the last sender address
+        last_sender_addr = _socket->last_sender_addr;
+        last_sender_addr_len = _socket->last_sender_addr_len;
+        
         int datatype_index = i;
         DataType type = (DataType)data[i++];
         const int x = data[i++];

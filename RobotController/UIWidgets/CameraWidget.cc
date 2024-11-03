@@ -66,6 +66,7 @@ void CameraWidget::Draw()
         }
 
         ImGui::SliderFloat("Camera GAIN", &CAMERA_GAIN, 0, 40.0);
+        ImGui::SliderInt("Neural brightness adjust", &NEURAL_BRIGHTNESS_ADJUST, -40, 40);
 
         if (abs(LAST_CAMERA_GAIN - CAMERA_GAIN) > 0.001)
         {

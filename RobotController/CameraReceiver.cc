@@ -62,10 +62,25 @@ void ICameraReceiver::_StartCaptureThread()
             captureTimer.markEnd();
             captureTimer.markStart();
 
-            bool success = _CaptureFrame();
+            int failedCount = 0;
+            bool success = false;
+            while (failedCount < 5)
+            {
+                success = _CaptureFrame();
+                if (success)
+                {
+                    break;
+                }
+                else
+                {
+                    failedCount++;
+                    Sleep(100);
+                }
+            }
 
             if (!success)
             {
+                Sleep(1000);
                 // try to initialize camera
                 while (!_InitializeCamera())
                 {
@@ -168,7 +183,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         // ******** General Settings ***************
         // Set exposure mode
         // pCam->ExposureAuto.SetValue(ExposureAutoEnums::ExposureAuto_Once);  // turn off auto
-        pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed); // set it to fixed time
+        // pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed); // set it to fixed time
         // pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
 
         // Set Gain Mode
