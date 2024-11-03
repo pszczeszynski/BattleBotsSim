@@ -61,6 +61,7 @@ void CVPosition::_InitSharedImage()
 
 void CVPosition::_StartPython()
 {
+    return;
     // return;
     const std::string venv_path = "venv";            // Path to the venv directory
     const std::string script_path = "CVPosition.py"; // Path to the Python script
@@ -107,25 +108,26 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
         frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
     }
 
-    // if (NEURAL_BRIGHTNESS_ADJUST != 0)
-    // {
-    //     // brightness adjust +1
-    //     cv::Mat adjusted;
+    if (NEURAL_BRIGHTNESS_ADJUST != 0)
+    {
+        // brightness adjust +1
+        cv::Mat adjusted;
 
-    //     // Now adjust the new image
-    //     frame.convertTo(adjusted,  CV_16U, NEURAL_BRIGHTNESS_ADJUST / 20.0, 0); // Multiply by factor, no offset
+        // Now adjust the new imagexz
+        frame.convertTo(adjusted,  CV_16U, 1 + NEURAL_BRIGHTNESS_ADJUST / 10.0, 0); // Multiply by factor, no offset
 
-    //     // Ensure pixel values are within [0, 255]
-    //     cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC); // Cap at 255
+        // Ensure pixel values are within [0, 255]
+        cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC); // Cap at 255
 
-    //     // Set it back to 8 bit
-    //     adjusted.convertTo(frame, CV_8U);
+        // Set it back to 8 bit
+        adjusted.convertTo(frame, CV_8U);
 
 
-    //     // cv::imshow("adjusted", frame);
-    //     // cv::waitKey(1);
+        // cv::imshow("adjusted", frame);
+        // cv::waitKey(1);
 
-    // }
+    }
+
     // copy to shared memory
     frame.copyTo(sharedImage);
 
