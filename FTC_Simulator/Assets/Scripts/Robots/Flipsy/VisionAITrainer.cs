@@ -58,15 +58,15 @@ public class VisionAITrainer : MonoBehaviour
     private Vector3 _originalCameraPosition;
     private Quaternion _originalCameraRotation;
 
-    private Transform _orbitronForks;
+    // private Transform _orbitronForks;
     private bool _forksEnabledThisCapure = false;
+
+    private Transform _tombstoneSpinner;
+    Vector3 _currentSpinnerRotation;
+    private bool _spinnerEnabledThisCapture = true;
 
     private void Start()
     {
-        // Enable post-processing on the captureCamera
-        var additionalCameraData = captureCamera.GetUniversalAdditionalCameraData();
-        additionalCameraData.renderPostProcessing = true;
-
         _imagesSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingInputs");
         _labelsSavePath = Path.Combine(Application.dataPath, SAVE_PATH_RELATIVE, "TrainingKeys");
         if (!Directory.Exists(_imagesSavePath))
@@ -117,11 +117,11 @@ public class VisionAITrainer : MonoBehaviour
 
 
         // Find the "Body" object under orbitron
-        Transform _orbitronBody = robotTransform.Find("Body");
+        // Transform _orbitronBody = robotTransform.Find("Body");
 
         // Find the "Forks" object under the body
-        _orbitronForks = _orbitronBody.Find("Forks");
-
+        // _orbitronForks = _orbitronBody.Find("Forks");
+        _tombstoneSpinner = robotTransform.Find("Spinner").Find("spinner");
     }
 
     public void Update()
@@ -134,6 +134,7 @@ public class VisionAITrainer : MonoBehaviour
             RandomizeLights();
             RandomizePostProcessingVolume();
             RandomizeOtherRobots();
+            RandomizeSpinner();
             // RandomizeForks();
 
             CaptureAndSaveData();
@@ -188,7 +189,7 @@ public class VisionAITrainer : MonoBehaviour
         Volume volume = postProcessingVolume.GetComponent<Volume>();
         volume.profile.TryGet<Bloom>(out Bloom bloom);
         // set bloom thresh
-        float bloomThresh = Random.Range(0.5f, 2.0f);
+        float bloomThresh = Random.Range(0.75f, 2.0f);
         bloom.threshold.value = bloomThresh;
 
         // randomize shadows midtones highlights
@@ -222,6 +223,13 @@ public class VisionAITrainer : MonoBehaviour
         // (within movement bounds)
         foreach (Transform otherRobot in otherRobots)
         {
+            // check if it is a specific robot
+            Debug.Log($"{otherRobot.name}");
+            if (otherRobot.name == "Tombstoneexport")
+            {
+                Debug.Log("Skipping tombstone");
+                continue;
+            }
             // keep randomizing until the robot is far enough from the main robot
             float x;
             float y;
@@ -243,14 +251,25 @@ public class VisionAITrainer : MonoBehaviour
         }
     }
 
-    private void RandomizeForks()
+    // private void RandomizeForks()
+    // {
+    //     _forksEnabledThisCapure = Random.Range(0, 2) != 0;
+    //     // iterate through all transforms under forks, randomly enable them with 80% probability, disable with 20%
+    //     foreach (Transform fork in _orbitronForks)
+    //     {
+    //         fork.gameObject.SetActive((Random.Range(0, 5) != 0) && _forksEnabledThisCapure);
+    //     }
+    // }
+
+    private void RandomizeSpinner()
     {
-        _forksEnabledThisCapure = Random.Range(0, 2) != 0;
-        // iterate through all transforms under forks, randomly enable them with 80% probability, disable with 20%
-        foreach (Transform fork in _orbitronForks)
-        {
-            fork.gameObject.SetActive((Random.Range(0, 5) != 0) && _forksEnabledThisCapure);
-        }
+        _spinnerEnabledThisCapture = Random.Range(0, 5) > 1;
+        _tombstoneSpinner.gameObject.SetActive(_spinnerEnabledThisCapture);
+        if (_spinnerEnabledThisCapture)
+            _currentSpinnerRotation = _tombstoneSpinner.rotation.eulerAngles;
+            Debug.Log($"Current Rotation: {_currentSpinnerRotation}");
+            _tombstoneSpinner.rotation = Quaternion.Euler(_currentSpinnerRotation.x, _currentSpinnerRotation.y, Random.Range(0, 360));
+        Debug.Log($"New Rotation: {_tombstoneSpinner.rotation.eulerAngles}");
     }
 
     private void RandomizeRobotPosition()
