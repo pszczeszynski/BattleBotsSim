@@ -172,7 +172,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam)
         // pCam->ExposureTime.SetValue(10002.0); // Set to 2ms. Longer is less noisy
 
         // Set Gain Mode
-        pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn off auto gain
+        // pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn off auto gain
         // pCam->Gain.SetValue(8.0); // Set gain in dB (between 0 and 47.99)
 
         // Turn off Gama correction
