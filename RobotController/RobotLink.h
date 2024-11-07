@@ -5,6 +5,7 @@
 #include "ServerSocket.h"
 #include "../Common/Communication.h"
 #include "../Common/Communication.h"
+#include "RadioLog.h"
 #include <fstream>
 #include <functional>
 #include "Clock.h"
@@ -48,6 +49,7 @@ protected:
     Clock _sendClock; // for tracking the send rate information (so public)
     bool _transmitterConnected = false;
     bool _secondaryTransmitterConnected = false;
+    RadioLog _logger;
 };
 
 /**

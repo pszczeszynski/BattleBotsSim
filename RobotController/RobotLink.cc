@@ -325,6 +325,8 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
                             packetRoundTrip.AddData(float(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() - msg.timestamp)/1000);
 
                         }
+                        auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+                        _logger.UpdateRxLog(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count(), msg);
                         _outstandingPacketMutex.unlock();
 
                         radioStatsMutex->lock();
@@ -609,6 +611,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         _outstandingPacketMutex.lock();
         _outstandingPackets.insert(command.timestamp);
         _outstandingPacketMutex.unlock();
+        _logger.UpdateTxLog(command.timestamp, command);
     }
     catch (std::exception &e)
     {
