@@ -21,6 +21,8 @@ extern bool playback_restart;
 extern bool playback_pause;
 extern std::string playback_file;
 extern bool playback_file_changed;
+extern float playback_video_length_s;
+extern float playback_video_pos_s;
 
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window

@@ -141,6 +141,9 @@ void PlaybackWidget::Draw()
             }
             
         }
+
+        // video scrub
+        ImGui::SliderFloat("Video Slider", &playback_video_pos_s, 0.0f, playback_video_length_s);
     }
     ImGui::End();
 }
