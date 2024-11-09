@@ -8,7 +8,7 @@
             "name": "RobotController.exe",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/RobotController.exe",
+            "program": "${workspaceFolder}/build/Release/RobotController.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

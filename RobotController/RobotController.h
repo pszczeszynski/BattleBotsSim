@@ -15,6 +15,7 @@
 #include "Weapons.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/TrackingWidget.h"
+#include "DriverStationLog.h"
 
 class RobotController
 {
@@ -69,6 +70,14 @@ private:
 
     RobotMessage _lastCANMessage;
     std::mutex _lastCanMessageMutex;
+
+    
+    DriverStationLog _logger;
+    int _video_index = 0;
+    cv::VideoWriter _videoWriter;
+    bool _saving = true;
+    std::mutex _videoWriterMutex;
+    
 
 #ifdef SIMULATION
     CameraReceiverSim overheadCamL_sim;

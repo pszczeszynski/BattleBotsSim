@@ -326,7 +326,10 @@ void RobotLinkReal::RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMute
 
                         }
                         auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
-                        _logger.UpdateRxLog(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count(), msg);
+                        if (_logger != nullptr)
+                        {
+                            _logger->UpdateRxLog(std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count(), msg);
+                        }
                         _outstandingPacketMutex.unlock();
 
                         radioStatsMutex->lock();
@@ -410,6 +413,11 @@ RobotLinkReal::RobotLinkReal()
     memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
     _startTime = std::chrono::high_resolution_clock::now();
     _radioThread = std::thread(&RobotLinkReal::RadioThreadFunction, this);
+}
+
+void RobotLinkReal::RegisterLogger(DriverStationLog* logger)
+{
+    _logger = logger;
 }
 
 /**
@@ -611,7 +619,10 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         _outstandingPacketMutex.lock();
         _outstandingPackets.insert(command.timestamp);
         _outstandingPacketMutex.unlock();
-        _logger.UpdateTxLog(command.timestamp, command);
+        if (_logger != nullptr)
+        {
+            _logger->UpdateTxLog(command.timestamp, command);
+        }
     }
     catch (std::exception &e)
     {

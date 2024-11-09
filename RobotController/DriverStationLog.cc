@@ -1,4 +1,4 @@
-#include "RadioLog.h"
+#include "DriverStationLog.h"
 
 const std::string currentDateTime() {
     time_t     now = time(0);
@@ -9,27 +9,27 @@ const std::string currentDateTime() {
     return buf;
 }
 
-RadioLog::RadioLog()
+DriverStationLog::DriverStationLog()
 {
-    std::string logDirectory = "./Logs/" + currentDateTime();
-    std::filesystem::create_directories(logDirectory);
+    _logDirectory = "./Logs/" + currentDateTime();
+    std::filesystem::create_directories(_logDirectory);
 
-    std::string logFileTx = logDirectory + "/radio_sent.log";
-    std::string logFileBinTx = logDirectory + "/radio_sent.bin";
+    std::string logFileTx = _logDirectory + "/radio_sent.log";
+    std::string logFileBinTx = _logDirectory + "/radio_sent.bin";
     _outFileTx.open(logFileTx);
     _outFileBinTx.open(logFileBinTx);
     _outFileTx << _log_header << std::endl;
     _outFileBinTx << _log_header << std::endl;
 
-    std::string logFileRx = logDirectory + "/radio_recv.log";
-    std::string logFileBinRx = logDirectory + "/radio_recv.bin";
+    std::string logFileRx = _logDirectory + "/radio_recv.log";
+    std::string logFileBinRx = _logDirectory + "/radio_recv.bin";
     _outFileRx.open(logFileRx);
     _outFileBinRx.open(logFileBinRx);
     _outFileRx << _log_header << std::endl;
     _outFileBinRx << _log_header << std::endl;
 }
 
-void RadioLog::UpdateTxLog(uint32_t timestamp, DriverStationMessage command)
+void DriverStationLog::UpdateTxLog(uint32_t timestamp, DriverStationMessage command)
 {
     // store the message as raw bytes into a .bin file
     DSMessageLog log;
@@ -73,7 +73,7 @@ void RadioLog::UpdateTxLog(uint32_t timestamp, DriverStationMessage command)
     _outFileTx << line << std::endl;
 }
 
-void RadioLog::UpdateRxLog(uint32_t timestamp, RobotMessage message)
+void DriverStationLog::UpdateRxLog(uint32_t timestamp, RobotMessage message)
 {
     RobotMessageLog log;
     log.msg = message;
@@ -123,7 +123,12 @@ void RadioLog::UpdateRxLog(uint32_t timestamp, RobotMessage message)
     _outFileRx << line << std::endl;
 }
 
-void RadioLog::CloseLog()
+std::string DriverStationLog::GetLogDirectory()
+{
+    return _logDirectory;
+}
+
+void DriverStationLog::CloseLog()
 {
     _outFileTx.close();
     _outFileRx.close();
