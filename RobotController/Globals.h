@@ -13,6 +13,7 @@ extern bool RESET_IMU;
 
 extern bool EDITING_HEU;
 extern bool EDITING_BLOB;
+extern bool EDITING_OPENCV;
 
 extern float playback_speed;
 extern bool playback_play;

@@ -22,7 +22,8 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
                                                              _odometry_Neural(&videoSource),
                                                              _odometry_Human(&videoSource, "11118", false),
                                                              _odometry_Human_Heuristic(&videoSource, "11119", true),
-                                                             _odometry_NeuralRot(&videoSource)
+                                                             _odometry_NeuralRot(&videoSource),
+                                                             _odometry_opencv(&videoSource)
 {
 }
 
@@ -82,6 +83,23 @@ void RobotOdometry::Update(void)
         if (_odometry_Blob.NewDataValid(_dataOpponent_Blob.id, true))
         {
             _dataOpponent_Blob = _odometry_Blob.GetData(true);
+            newDataArrived = true;
+        }
+    }
+
+    if (_odometry_opencv.IsRunning())
+    {
+        // Update our data
+        if (_odometry_opencv.NewDataValid(_dataRobot_opencv.id, false))
+        {
+            _dataRobot_opencv = _odometry_opencv.GetData(false);
+            newDataArrived = true;
+        }
+
+        // Update opponent data
+        if (_odometry_opencv.NewDataValid(_dataOpponent_opencv.id, true))
+        {
+            _dataOpponent_opencv = _odometry_opencv.GetData(true);
             newDataArrived = true;
         }
     }
@@ -711,6 +729,8 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos, cv::Point2f newV
     _odometry_Heuristic.SetPosition(newPos, opponentRobot);
     _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
 
+    _odometry_opencv.SetPosition(newPos, opponentRobot);
+
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData &odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
@@ -760,6 +780,9 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
 
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Run();
+
+    case OdometryAlg::OpenCV:
+        return _odometry_opencv.Run();
     default:
         break;
     }
@@ -789,6 +812,9 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
     
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Stop();
+
+    case OdometryAlg::OpenCV:
+        return _odometry_opencv.Stop();
     }
 
     return false;
@@ -817,6 +843,8 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.IsRunning();
     
+    case OdometryAlg::OpenCV:
+        return _odometry_opencv.IsRunning();
     default:
         break;
     }
@@ -849,6 +877,11 @@ CVRotation &RobotOdometry::GetNeuralRotOdometry()
     return _odometry_NeuralRot;
 }
 
+OpenCVTracker &RobotOdometry::GetOpenCVOdometry()
+{
+    return _odometry_opencv;
+}
+
 
 
 /**
@@ -875,6 +908,10 @@ void RobotOdometry::ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool
     else if (alg == OdometryAlg::Neural)
     {
         _odometry_Neural.SetPosition(pos, opponent);
+    }
+    else if (alg == OdometryAlg::OpenCV)
+    {
+        _odometry_opencv.SetPosition(pos, opponent);
     }
 }
 
@@ -907,5 +944,9 @@ void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool
     else if (alg == OdometryAlg::NeuralRot)
     {
         std::cerr << "ERROR: Cannot set velocity for NeuralRot" << std::endl;
+    }
+    else if (alg == OdometryAlg::OpenCV)
+    {
+        std::cerr << "ERROR: Cannot set velocity for opencv" << std::endl;
     }
 }

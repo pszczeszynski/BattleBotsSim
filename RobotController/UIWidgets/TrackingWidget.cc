@@ -256,13 +256,29 @@ void TrackingWidget::_DrawAlgorithmData()
     // heursitic is yellow - orange
     cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
 
+    // opencv is red
+    cv::Scalar opencvColor = cv::Scalar(0, 0, 255);
+
     RobotOdometry &odometry = RobotController::GetInstance().odometry;
     BlobDetection &_odometry_Blob = odometry.GetBlobOdometry();
     HeuristicOdometry &_odometry_Heuristic = odometry.GetHeuristicOdometry();
     CVPosition& _odometry_Neural = odometry.GetNeuralOdometry();
+    OpenCVTracker& _odometry_opencv = odometry.GetOpenCVOdometry();
 
 
     // go through every odometry algorithm and draw the tracking results
+    if (_odometry_opencv.IsRunning())
+    {
+        OdometryData robot = _odometry_opencv.GetData(false);
+        robot.Extrapolate(Clock::programClock.getElapsedTime());
+        DrawX(_trackingMat, robot.robotPosition, opencvColor, 20);
+
+        OdometryData opponent = _odometry_opencv.GetData(true);
+        opponent.Extrapolate(Clock::programClock.getElapsedTime());
+
+        safe_circle(_trackingMat, opponent.robotPosition, 20, opencvColor, 2);
+    }
+
     if (_odometry_Blob.IsRunning())
     {
         OdometryData robot = _odometry_Blob.GetData(false);
@@ -320,6 +336,17 @@ void TrackingWidget::_DrawAlgorithmData()
         // if pressing not pressing shift
         if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
         {
+            if (EDITING_OPENCV)
+            {
+                if (InputState::GetInstance().IsMouseDown(0))
+                {
+                    _odometry_opencv.SetPosition(GetMousePos(), false);
+                }
+                else if (InputState::GetInstance().IsMouseDown(1))
+                {
+                    _odometry_opencv.SetPosition(GetMousePos(), true);
+                }
+            }
             if (EDITING_BLOB)
             {
                 if (InputState::GetInstance().IsMouseDown(0))

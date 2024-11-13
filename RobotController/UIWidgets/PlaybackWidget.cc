@@ -33,6 +33,7 @@ void PlaybackWidget::Draw()
         if (ImGui::Button("Play"))
         {
             playback_play = true;
+            playback_pause = false;
         }
 
         ImGui::SameLine();

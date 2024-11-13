@@ -18,10 +18,39 @@ void VariantsWidget::Draw()
     RobotOdometry &odometry = RobotController::GetInstance().odometry;
 
     // **********************
+    // OpenCV Tracker
+    CenterText("OpenCV Tracker");
+    bool isRunning = odometry.IsRunning(OdometryAlg::OpenCV);
+
+    if (ImGui::Button(ODO_OPENCV_ENABLED ? "Stop OpenCV Tracker" : "Run OpenCV Tracker"))
+    {
+        ODO_OPENCV_ENABLED = !ODO_OPENCV_ENABLED;
+    }
+
+    if (isRunning != ODO_OPENCV_ENABLED)
+    {
+        if (!ODO_OPENCV_ENABLED)
+        {
+            odometry.Stop(OdometryAlg::OpenCV);
+        }
+        else
+        {
+            odometry.Run(OdometryAlg::OpenCV);
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(isRunning ? "Running" : "Stopped");
+
+    // slider for min confidence
+    ImGui::SliderFloat("Min Confidence", &TRACKER_MIN_CONFIDENCE, 0.0f, 1.0f);
+
+
+    // **********************
     // Blob Detection
     CenterText("Blob");
 
-    bool isRunning = odometry.IsRunning(OdometryAlg::Blob);
+    isRunning = odometry.IsRunning(OdometryAlg::Blob);
 
     if (ImGui::Button(ODO_BLOB_ENABLED ? "Stop Blob" : "Run Blob"))
     {
@@ -181,6 +210,26 @@ void VariantsWidget::Draw()
     }
 
     ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+
+    if (EDITING_OPENCV)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+    }
+
+    if (ImGui::Button("OpenCV Tracker"))
+    {
+        EDITING_OPENCV = !EDITING_OPENCV;
+    }
+
+    ImGui::PopStyleColor();
+
 
 
 

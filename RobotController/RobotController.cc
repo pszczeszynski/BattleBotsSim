@@ -158,6 +158,9 @@ void RobotController::Run()
     // Do Neural Rotation
     odometry.Run(OdometryAlg::NeuralRot);
 
+    // Do OpenCV Tracking
+    odometry.Run(OdometryAlg::OpenCV);
+
 
     std::cout << "Starting GUI threads..." << std::endl;
 

@@ -19,6 +19,7 @@ float playback_video_pos_s = 0;
 
 bool EDITING_HEU = true;
 bool EDITING_BLOB = true;
+bool EDITING_OPENCV = true;
 
 // just for hacking around with
 double opponentRotationSim = 0;
