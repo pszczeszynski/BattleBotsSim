@@ -12,9 +12,11 @@
 #include "SelfRighter.h"
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
+#include "Strategies/AStarAttack.h"
 #include "Weapons.h"
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/TrackingWidget.h"
+
 
 class RobotController
 {
@@ -91,6 +93,7 @@ private:
     bool _guiKill = false;
 
     Orbit orbitMode;
+    AStarAttack aStarMode;
     Kill killMode;
 
 

@@ -532,6 +532,16 @@ void RobotOdometry::FuseAndUpdatePositions()
         _dataOpponent.robotAngleVelocity = dataOpponent_Heuristic.robotAngleVelocity;
     }
 
+
+    _dataRobot.robotPosValid = true;
+    _dataRobot.robotPosition = robotPosSim;
+    
+    _dataOpponent.robotPosValid = true;
+    _dataOpponent.robotPosition = opponentPosSim;
+    _dataOpponent.robotAngle = Angle(opponentRotationSim);
+
+
+
     // ******************************
     //  FINISHED
     // ******************************

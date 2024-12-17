@@ -588,7 +588,7 @@ DriverStationMessage RobotController::RobotLogic()
     // draw on drawing image if we are orbiting
     if (_orbiting)
     {
-        cv::putText(drawingImage, "Orbiting", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+        cv::putText(drawingImage, "A star", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
     }
     else if (_killing)
     {
@@ -605,7 +605,7 @@ DriverStationMessage RobotController::RobotLogic()
     }
     else
     {
-        DriverStationMessage orbit = orbitMode.Execute(gamepad);
+        DriverStationMessage orbit = aStarMode.Execute(gamepad);
         // if driver wants to evade (left bumper)
         if (_orbiting)
         {
