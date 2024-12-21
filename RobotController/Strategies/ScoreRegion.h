@@ -9,6 +9,7 @@
 class ScoreRegion {
 public:
     // Constructor
+    ScoreRegion();
     ScoreRegion(const std::vector<std::vector<float>>& region);
 
     // Get the value at the specified (x, y) coordinate in the grid
@@ -21,7 +22,7 @@ public:
     void setGrid(const std::vector<std::vector<float>>& rows);
 
     // Returns global tile values knowing the position of the region
-    std::vector<cv::Point> globalPoints(const cv::Point& position, const float& theta);
+    std::vector<cv::Point> globalPoints(const cv::Point2f& position, const float& theta);
 
     // String representation of the grid for easy printing
     std::string toString() const;
@@ -32,4 +33,4 @@ private:
     std::vector<std::vector<float>> grid;
 };
 
-#endif // SCOREREGION_H
+#endif

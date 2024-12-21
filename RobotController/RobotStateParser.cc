@@ -12,10 +12,11 @@ UnityRobotState RobotStateParser::parse(const std::string &json_string)
     double o = json["robot_rotation"];
     double rotational_velocity = json["robot_rotation_velocity"];
     double o2 = json["opponent_rotation"];
+    double opponent_rotational_velocity = json["opponent_rotation_velocity"];
 
     double spinner_1_RPM = json["spinner_1_RPM"];
     double spinner_2_RPM = json["spinner_2_RPM"];
-    return {p, o, rotational_velocity, p2, o2, spinner_1_RPM, spinner_2_RPM};
+    return {p, o, rotational_velocity, p2, o2, opponent_rotational_velocity, spinner_1_RPM, spinner_2_RPM};
 }
 
 std::string RobotStateParser::serialize(UnityDriveCommand message)

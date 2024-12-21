@@ -535,10 +535,15 @@ void RobotOdometry::FuseAndUpdatePositions()
 
     _dataRobot.robotPosValid = true;
     _dataRobot.robotPosition = robotPosSim;
+    _dataRobot.robotVelocity = robotVelSim;
+    _dataRobot.time = simReceiveLastTime;
     
     _dataOpponent.robotPosValid = true;
     _dataOpponent.robotPosition = opponentPosSim;
+    _dataOpponent.robotVelocity = opponentVelSim;
     _dataOpponent.robotAngle = Angle(opponentRotationSim);
+    _dataOpponent.robotAngleVelocity = Angle(opponentRotationVelSim);
+    _dataOpponent.time = simReceiveLastTime;
 
 
 
@@ -666,7 +671,7 @@ OdometryData RobotOdometry::Opponent(double currTime)
     locker.unlock();
 
     double extrapolateTime = min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
-    currData.Extrapolate(extrapolateTime + currData.time);
+    // currData.Extrapolate(extrapolateTime + currData.time);
 
     return currData;
 }

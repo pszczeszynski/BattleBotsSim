@@ -15,14 +15,15 @@ struct UnityRobotState
     // velocity of our robot
     Point robot_position;
     // orientation of our robot
-    double robot_orientation;
+    double robot_rotation;
     // the rotation velocity of our robot in radians per second
     double robot_rotation_velocity;
 
     // position of the opponent's robot
     Point opponent_position;
     // orientation of the opponent's robot
-    double opponent_orientation;
+    double opponent_rotation;
+    double opponent_rotation_velocity;
 
     // spinner rpms
     double spinner_1_RPM;

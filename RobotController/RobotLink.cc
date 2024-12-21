@@ -709,6 +709,10 @@ void RobotLinkSim::Drive(DriverStationMessage &msg)
 std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
 {
     static Clock lastCanDataClock;
+    static Clock lastReceiveClock;
+    static cv::Point2f lastRobotPosSim;
+    static cv::Point2f lastOpponentPosSim;
+
 
     RobotMessage ret{RobotMessageType::INVALID};
     // zero out ret
@@ -721,7 +725,7 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     }
     UnityRobotState message = RobotStateParser::parse(received);
     // set the global variable
-    opponentRotationSim = angle_wrap(message.opponent_orientation * TO_RAD + M_PI);
+    opponentRotationSim = angle_wrap(message.opponent_rotation * TO_RAD + M_PI);
     robotPosSim = cv::Point2f((float) message.robot_position.x, (float) message.robot_position.z);
     opponentPosSim = cv::Point2f{(float) message.opponent_position.x, (float) message.opponent_position.z};
 
@@ -746,7 +750,7 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     if (lastCanDataClock.getElapsedTime() < 0.5)
     {
         ret.type = RobotMessageType::IMU_DATA;
-        ret.imuData.rotation = Angle(message.robot_orientation + M_PI);
+        ret.imuData.rotation = Angle(message.robot_rotation + M_PI);
         ret.imuData.rotationVelocity = message.robot_rotation_velocity;
     }
     else
@@ -756,6 +760,14 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
         ret.canData.motorERPM[3] = (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR) * 9;
         lastCanDataClock.markStart();
     }
+
+    robotVelSim = (robotPosSim - lastRobotPosSim) / lastReceiveClock.getElapsedTime();
+    lastRobotPosSim = robotPosSim;
+    opponentVelSim = (opponentPosSim - lastOpponentPosSim) / lastReceiveClock.getElapsedTime();
+    lastOpponentPosSim = opponentPosSim;
+    opponentRotationVelSim = message.opponent_rotation_velocity;// * TO_RAD;
+    lastReceiveClock.markStart();
+    simReceiveLastTime = Clock::programClock.getElapsedTime();
 
     // return the message
     return {ret};

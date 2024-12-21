@@ -624,7 +624,6 @@ DriverStationMessage RobotController::RobotLogic()
         }
         else if (manual.type == DRIVE_COMMAND)
         {
-            ret.autoDrive.movement = manual.driveCommand.movement;
             // convert weapon powers 
             ret.autoDrive.frontWeaponCurrent10 = (unsigned char) (manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
             ret.autoDrive.backWeaponCurrent10 = (unsigned char) (manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);

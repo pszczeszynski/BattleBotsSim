@@ -4,8 +4,23 @@
 #include "../MathUtils.h"
 
 // Constructor: Initializes the grid with the given region
+ScoreRegion::ScoreRegion()
+{
+    return;
+}
+
 ScoreRegion::ScoreRegion(const std::vector<std::vector<float>>& region)
-    : width(region[0].size()), height(region.size()), grid(region) {}
+{
+    if( region.size() < 1)
+    {
+        std::cerr << "ScoreRegion constructor passed a 0 size region.";
+        return;
+    }
+
+    width = region[0].size();
+    height = region.size();
+    grid = region;
+}
 
 // Get the value at (x, y) in the grid
 float ScoreRegion::getValue(int x, int y) const {
@@ -33,8 +48,8 @@ void ScoreRegion::setGrid(const std::vector<std::vector<float>>& rows) {
     }
 }
 
-// Returns the global tiles knowing the position and orientation of the region
-std::vector<cv::Point> ScoreRegion::globalPoints(const cv::Point& position, const float& theta) {
+// Returns the global tiles knowing the position and orientation of the region, don't include the center so the target stays clear
+std::vector<cv::Point> ScoreRegion::globalPoints(const cv::Point2f& position, const float& theta) {
     std::vector<cv::Point> global_tiles;
 
     for (int x = 0; x < width; ++x) {
@@ -45,9 +60,17 @@ std::vector<cv::Point> ScoreRegion::globalPoints(const cv::Point& position, cons
             float exact_x = position.x + x_from_center * cos(theta - M_PI / 2) - y_from_center * sin(theta - M_PI / 2);
             float exact_y = position.y + x_from_center * sin(theta - M_PI / 2) + y_from_center * cos(theta - M_PI / 2);
 
+            int globalX = round(exact_x);
+            int globalY = round(exact_y);
+
+            // don't put a point on the center
+            if (globalX == round(position.x) && globalY == (round(position.y))) {
+                continue;
+            }
+
             // if a point is denoted there, add it to the global tiles list
             if (grid[y][x] == 1.0f) {
-                global_tiles.push_back(cv::Point(round(exact_x), round(exact_y)));
+                global_tiles.push_back(cv::Point(globalX, globalY));
             }
         }
     }

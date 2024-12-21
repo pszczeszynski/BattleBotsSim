@@ -16,6 +16,7 @@ public struct RobotControllerMessage
     // other robot
     public Vector3 opponent_position;
     public double opponent_rotation;
+    public double opponent_rotation_velocity;
 
     // spinner RPMs
     public double spinner_1_RPM;
@@ -106,6 +107,7 @@ public class Robot_BB_Orbitron : RobotInterface3D
     {
         // get the robot's rigidbody
         Rigidbody rb = robot_body.GetComponent<Rigidbody>();
+        Rigidbody rbo = opponent_body.GetComponent<Rigidbody>();
 
         double robot_rotation = robot_body.rotation.eulerAngles[1];
         double robot_rotation_velocity = rb.angularVelocity.y;
@@ -115,6 +117,8 @@ public class Robot_BB_Orbitron : RobotInterface3D
         double robotRotationWithNoise = Random.Range(1.0f - GYRO_NOISE_PERCENTAGE, 1.0f + GYRO_NOISE_PERCENTAGE) * robot_rotation_velocity;
         // integrate the gyro velocity to get the gyro rotation
         gyroRotationRad += Time.deltaTime * robotRotationWithNoise;
+
+        double opponent_rotation_velocity = rbo.angularVelocity.y;
 
 
 
@@ -130,6 +134,7 @@ public class Robot_BB_Orbitron : RobotInterface3D
             robot_rotation_velocity = robotRotationWithNoise,
             opponent_position = opponent_body.position,
             opponent_rotation = opponent_body.rotation.eulerAngles[1],
+            opponent_rotation_velocity = opponent_rotation_velocity,
             spinner_1_RPM = spinner_1_RPM,
             spinner_2_RPM = spinner_2_RPM
         };
