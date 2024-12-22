@@ -104,10 +104,11 @@ set(SOURCES
     Strategies/AStar.cc
     Strategies/Orbit.cc
     Strategies/RobotMovement.cc
+    Strategies/DriveToAngleSimulation.cc
+    Strategies/Line.cc
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc
-    Strategies/DriveToAngleSimulation.cc
     PurePursuit.cc
     Strategies/Extrapolate.cc
     SafeDrawing.cc

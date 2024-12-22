@@ -9,82 +9,40 @@ ScoreRegion::ScoreRegion()
     return;
 }
 
-ScoreRegion::ScoreRegion(const std::vector<std::vector<float>>& region)
+ScoreRegion::ScoreRegion(std::vector<Line> lines_)
 {
-    if( region.size() < 1)
-    {
-        std::cerr << "ScoreRegion constructor passed a 0 size region.";
-        return;
-    }
-
-    width = region[0].size();
-    height = region.size();
-    grid = region;
+    lines = lines_;
 }
 
-// Get the value at (x, y) in the grid
-float ScoreRegion::getValue(int x, int y) const {
-    return grid[y][x];
-}
 
-// Set the value at (x, y) in the grid
-void ScoreRegion::setValue(int x, int y, float value) {
-    grid[y][x] = value;
-}
+// translates lines to field coords and returns
+std::vector<Line> ScoreRegion::fieldLines(const cv::Point2f& position, const float& theta) {
 
-// Set the entire grid using a list of rows
-void ScoreRegion::setGrid(const std::vector<std::vector<float>>& rows) {
-    if (rows.size() != height) {
-        std::cerr << "Warning: The number of rows provided does not match the grid height (" << height << ")." << std::endl;
-        return;
+    // return vector to fill
+    std::vector<Line> fieldLines = {};
+
+    for (int i = 0; i < lines.size(); i++) {
+
+        // get line points, these are robot centric
+        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
+
+        cv::Point2f fieldPoint1 = pointRobotToField(linePoints.first, position, theta);
+        cv::Point2f fieldPoint2 = pointRobotToField(linePoints.second, position, theta);
+
+        // add the new line to the list
+        fieldLines.push_back(Line(fieldPoint1, fieldPoint2));
     }
 
-    for (size_t row_index = 0; row_index < rows.size(); ++row_index) {
-        if (rows[row_index].size() != width) {
-            std::cerr << "Warning: The number of columns in row " << row_index << " does not match the grid width (" << width << ")." << std::endl;
-            return;
-        }
-        grid[row_index] = rows[row_index];
-    }
+    return fieldLines;
 }
 
-// Returns the global tiles knowing the position and orientation of the region, don't include the center so the target stays clear
-std::vector<cv::Point> ScoreRegion::globalPoints(const cv::Point2f& position, const float& theta) {
-    std::vector<cv::Point> global_tiles;
 
-    for (int x = 0; x < width; ++x) {
-        for (int y = 0; y < height; ++y) {
-            float x_from_center = (-(width - 1) / 2 + x);
-            float y_from_center = ((height - 1) / 2 - y);
 
-            float exact_x = position.x + x_from_center * cos(theta - M_PI / 2) - y_from_center * sin(theta - M_PI / 2);
-            float exact_y = position.y + x_from_center * sin(theta - M_PI / 2) + y_from_center * cos(theta - M_PI / 2);
+// converts a robot centric point to a field centric point
+cv::Point2f ScoreRegion::pointRobotToField(const cv::Point2f& point, const cv::Point2f& robotPos, const float& robotAngle) {
 
-            int globalX = round(exact_x);
-            int globalY = round(exact_y);
+    float fieldX = robotPos.x + point.x * cos(robotAngle - M_PI / 2) - point.y * sin(robotAngle - M_PI / 2);
+    float fieldY = robotPos.y + point.x * sin(robotAngle - M_PI / 2) + point.y * cos(robotAngle - M_PI / 2);
 
-            // don't put a point on the center
-            if (globalX == round(position.x) && globalY == (round(position.y))) {
-                continue;
-            }
-
-            // if a point is denoted there, add it to the global tiles list
-            if (grid[y][x] == 1.0f) {
-                global_tiles.push_back(cv::Point(globalX, globalY));
-            }
-        }
-    }
-    return global_tiles;
-}
-
-// String representation of the grid for easy printing
-std::string ScoreRegion::toString() const {
-    std::string result;
-    for (const auto& row : grid) {
-        for (const auto& cell : row) {
-            result += std::to_string(cell) + " ";
-        }
-        result += "\n";
-    }
-    return result;
+    return cv::Point2f(fieldX, fieldY);
 }

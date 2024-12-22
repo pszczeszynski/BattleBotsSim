@@ -5,32 +5,22 @@
 #include <iostream>
 #include <cmath>
 #include <opencv2/core.hpp>
+#include "Line.h"
 
 class ScoreRegion {
 public:
-    // Constructor
+
     ScoreRegion();
-    ScoreRegion(const std::vector<std::vector<float>>& region);
+    ScoreRegion(std::vector<Line> lines_);
 
-    // Get the value at the specified (x, y) coordinate in the grid
-    float getValue(int x, int y) const;
-
-    // Set the value at the specified (x, y) coordinate in the grid
-    void setValue(int x, int y, float value);
-
-    // Set the entire grid with multiple row lists
-    void setGrid(const std::vector<std::vector<float>>& rows);
-
-    // Returns global tile values knowing the position of the region
-    std::vector<cv::Point> globalPoints(const cv::Point2f& position, const float& theta);
-
-    // String representation of the grid for easy printing
-    std::string toString() const;
+    std::vector<Line> fieldLines(const cv::Point2f& position, const float& theta);
 
 private:
-    int width;
-    int height;
-    std::vector<std::vector<float>> grid;
+
+    std::vector<Line> lines;
+
+    cv::Point2f pointRobotToField(const cv::Point2f& point, const cv::Point2f& robotPos, const float& robotAngle);
+
 };
 
 #endif

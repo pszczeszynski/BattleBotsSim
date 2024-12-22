@@ -7,6 +7,7 @@
 #include "../PurePursuit.h"
 #include <algorithm>
 #include <cmath>
+#include "Line.h"
 
 class AStarAttack : public Strategy
 {
@@ -32,12 +33,12 @@ private:
 
 
     cv::Point2f toGrid(cv::Point2f position);
-    cv::Point2f toField(cv::Point position);
+    cv::Point2f toField(cv::Point2f position);
     void displayPathPoints(std::vector<cv::Point>& path);
     void displayPathLines(std::vector<cv::Point>& path);
     void displayPathPointsDirect(std::vector<cv::Point2f>& path);
     void displayPathLinesDirect(std::vector<cv::Point2f>& path);
-    void displayBoundaryPoints();
+    void displayBoundaryLines();
     void displayOppWeapon();
 
 };

@@ -9,55 +9,37 @@
 #include <opencv2/core/core.hpp>
 
 AStarAttack::AStarAttack() :
-    tiles {21},
+    tiles {40},
     fieldMax {720},
-    fieldPad {20},
+    fieldPad {10}, //20
     pathSolver {tiles, tiles}
 {
-    // define shelf rectangle
+    // define field parameters
     float shelfWidth = 300;
-    float shelfHeight = 200;
+    float shelfHeight = 180;
+    float bottomDiagonalWidth = 105;
+    float bottomDiagonalHeight = 95;
 
-    // find grid points for the shelf corners, y from top
-    cv::Point shelfBottomLeft = toGrid(cv::Point2f(fieldMax/2 - shelfWidth/2, shelfHeight));
-    cv::Point shelfBottomRight = toGrid(cv::Point2f(fieldMax/2 + shelfWidth/2, shelfHeight));
+    // find grid points for the field points
+    cv::Point2f shelfBottomLeft = toGrid(cv::Point2f(fieldMax/2 - shelfWidth/2, shelfHeight));
+    cv::Point2f shelfBottomRight = toGrid(cv::Point2f(fieldMax/2 + shelfWidth/2, shelfHeight));
+    cv::Point2f diagonalCorner = toGrid(cv::Point2f(bottomDiagonalWidth, fieldMax - bottomDiagonalHeight));
 
-    // list of all boundary points
-    std::vector<cv::Point> boundaryPoints;
+    // list of all boundary lines
+    std::vector<Line> boundaryLines = {
+        Line(cv::Point2f(0.0f, 0.0f), cv::Point2f(0.0f, tiles-1)), // left
+        Line(cv::Point2f(0.0f, 0.0f), cv::Point2f(tiles-1, 0.0f)), // bottom
+        Line(cv::Point2f(0.0f, tiles-1), cv::Point(tiles-1, tiles-1)), // top
+        Line(cv::Point2f(tiles-1, 0.0f), cv::Point(tiles-1, tiles-1)), // right
+        Line(cv::Point2f(shelfBottomLeft.x, tiles-1), shelfBottomLeft), // shelf left
+        Line(cv::Point2f(shelfBottomRight.x, tiles-1), shelfBottomRight), // shelf right
+        Line(shelfBottomLeft, shelfBottomRight), // shelf bottom
+        Line(cv::Point2f(0.0f, diagonalCorner.y), cv::Point2f(diagonalCorner.x, 0.0f)), // left diagonal
+        Line(cv::Point2f(tiles-1, diagonalCorner.y), cv::Point2f(tiles-1-diagonalCorner.x, 0.0f)), // right diagonal
+    };
 
-    // generate outer rectangle
-    for (int y = 0; y < tiles; y++) {
-        for (int x = 0; x < tiles; x++) {
-            
-            // top row is filled in fully besides where the shelf is
-            if (y == tiles - 1 && (x < shelfBottomLeft.x || x > shelfBottomRight.x)) {
-                boundaryPoints.emplace_back(cv::Point(x, y));
-            }
-            // bottom row is fully filled in
-            else if (y == 0) {
-                boundaryPoints.emplace_back(cv::Point(x, y));
-            }
-            // otherwise just the first and last
-            else if (x == 0 || x == tiles - 1) {
-                boundaryPoints.emplace_back(cv::Point(x, y));
-            }
-        }
-    }
 
-    // generate shelf outline
-    for (int y = shelfBottomLeft.y; y < tiles; y++) {
-        for (int x = shelfBottomLeft.x; x <= shelfBottomRight.x; x++) {
-
-            // bottom is filled in
-            if(y == shelfBottomLeft.y) {
-                boundaryPoints.emplace_back(cv::Point(x, y));
-            }
-            else if (x == shelfBottomLeft.x || x == shelfBottomRight.x) {
-                boundaryPoints.emplace_back(cv::Point(x, y));
-            }
-        }
-    }
-    pathSolver.setBoundaryPoints(boundaryPoints);
+    pathSolver.setBoundaryLines(boundaryLines);
     orbMoveVelFilter = 0;
     oppMoveVelFilter = 0;
     oppTurnVelFilter = 0;
@@ -88,8 +70,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     oppTurnVelFilter += 0.1f * (opponentData.robotAngleVelocity - oppTurnVelFilter);
     orbMoveVelFilter += 0.3f * (cv::norm(ourData.robotVelocity) - orbMoveVelFilter);
 
-    //std::cout << "Turn filter = " << oppTurnVelFilter << std::endl;
-    
+
     // set start and goal and generate path
     pathSolver.setStartParams(toGrid(ourData.robotPosition),
                                 std::max(orbMoveVelFilter * 1.0f * (tiles / (fieldMax - 2*fieldPad)), 0.2f*tiles),
@@ -138,14 +119,14 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    displayBoundaryPoints();
+    displayBoundaryLines();
     displayPathPointsDirect(pathF);
     displayPathLinesDirect(pathF);
     displayOppWeapon();
 
 
 
-    float radius = std::min(60 + 0.05*orbMoveVelFilter, cv::norm(ourData.robotPosition - opponentData.robotPosition) - 20.0f);
+    float radius = std::min(50 + 0.08*orbMoveVelFilter, cv::norm(ourData.robotPosition - opponentData.robotPosition) - 20.0f);
     std::vector<cv::Point2f> circleIntersections = PurePursuit::followPath(ourData.robotPosition, pathF, radius);
 
     if(circleIntersections.size() == 0) {
@@ -164,6 +145,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     
 
     followPoint = circleIntersections[0];
+
+
     
 
     // hold angle to the opponent
@@ -177,7 +160,15 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
                                                         SCALE_DOWN_MOVEMENT_PERCENT_KILL,
                                                         direction);
 
-    float movement = gamepad.GetRightStickY();
+
+    float angleToFollowPoint = atan2(followPoint.y - ourData.robotPosition.y, followPoint.x - ourData.robotPosition.x);
+    float angleError = angleWrap(angleToFollowPoint - ourData.robotAngle);
+
+    float movePercent = std::max(1 - abs(angleError)/(200.0 * M_PI/180.0), 0.0);
+    float movement = gamepad.GetRightStickY() * movePercent;
+    // if (abs(angleError) > (45 * M_PI/180)) {
+    //     movement = 0.0f;
+    // }
     ret.autoDrive.movement = movement;
 
     // reset field
@@ -193,12 +184,12 @@ cv::Point2f AStarAttack::toGrid(cv::Point2f position) {
     xPercent = std::min(xPercent, 1.0f); xPercent = std::max(xPercent, 0.0f);
     yPercent = std::min(yPercent, 1.0f); yPercent = std::max(yPercent, 0.0f);
 
-    // return point rounded to nearest tile
+    // return point, not rounded
     return cv::Point2f(xPercent * (tiles-1), yPercent * (tiles-1));
 }
 
 // converts a grid point to field point
-cv::Point2f AStarAttack::toField(cv::Point position) {
+cv::Point2f AStarAttack::toField(cv::Point2f position) {
     float xPercent = (float) position.x / (tiles - 1);
     float yPercent = (float) position.y / (tiles - 1);
     float xPos = (xPercent * (fieldMax - 2*fieldPad)) + fieldPad;
@@ -212,16 +203,16 @@ void AStarAttack::displayPathPoints(std::vector<cv::Point>& path) {
     for (int i = 0; i < path.size(); i++) {
         //stsd::cout << "(" << path[i].x << ", " << path[i].y << "), ";
         safe_circle(RobotController::GetInstance().GetDrawingImage(), toField(path[i]), 5, cv::Scalar(0, 255, 0), 2);
-
     }
-    //std::cout << std::endl;
 }
 
+
 // displays the boundary points from AStar
-void AStarAttack::displayBoundaryPoints() {
-    std::vector<cv::Point> points = pathSolver.getBoundaryPoints();
-    for (int i = 0; i < points.size(); i++) {
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), toField(points[i]), 10, cv::Scalar(0, 0, 255), 2);
+void AStarAttack::displayBoundaryLines() {
+    std::vector<Line> lines = pathSolver.getBoundaryLines();
+    for (int i = 0; i < lines.size(); i++) {
+        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
+        cv::line(RobotController::GetInstance().GetDrawingImage(), toField(linePoints.first), toField(linePoints.second), cv::Scalar(0, 0, 255), 2);
     }
 }
 
@@ -256,9 +247,12 @@ void AStarAttack::displayPathLinesDirect(std::vector<cv::Point2f>& path) {
 
 // displays the field points that are weapon
 void AStarAttack::displayOppWeapon() {
-    std::vector<cv::Point> points = pathSolver.getWeaponPoints();
-    for (int i = 0; i < points.size(); i++) {
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), toField(points[i]), 10, cv::Scalar(0, 165, 255), 2);
+    std::vector<Line> lines = pathSolver.getWeaponLines();
+    for (int i = 0; i < lines.size(); i++) {
+        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
+        cv::Point2f fieldPoint1 = toField(linePoints.first);
+        cv::Point2f fieldPoint2 = toField(linePoints.second);
+        cv::line(RobotController::GetInstance().GetDrawingImage(), fieldPoint1, fieldPoint2, cv::Scalar(0, 255, 0), 2);
     }
 }
 
