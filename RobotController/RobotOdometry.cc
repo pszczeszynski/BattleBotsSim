@@ -542,7 +542,7 @@ void RobotOdometry::FuseAndUpdatePositions()
     _dataOpponent.robotPosition = opponentPosSim;
     _dataOpponent.robotVelocity = opponentVelSim;
     _dataOpponent.robotAngle = Angle(opponentRotationSim);
-    _dataOpponent.robotAngleVelocity = Angle(opponentRotationVelSim);
+    _dataOpponent.robotAngleVelocity = opponentRotationVelSim;
     _dataOpponent.time = simReceiveLastTime;
 
 
