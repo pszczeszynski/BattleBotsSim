@@ -9,7 +9,7 @@
 #include <opencv2/core/core.hpp>
 
 AStarAttack::AStarAttack() :
-    tiles {40},
+    tiles {19},
     fieldMax {720},
     fieldPad {10}, //20
     pathSolver {tiles, tiles}
@@ -69,6 +69,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     oppMoveVelFilter += 0.3f * (cv::norm(opponentData.robotVelocity) - oppMoveVelFilter);
     oppTurnVelFilter += 0.1f * (opponentData.robotAngleVelocity - oppTurnVelFilter);
     orbMoveVelFilter += 0.3f * (cv::norm(ourData.robotVelocity) - orbMoveVelFilter);
+
+    //std::cout << "orb move = " << orbMoveVelFilter << std::endl;
 
 
     // set start and goal and generate path
@@ -164,7 +166,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float angleToFollowPoint = atan2(followPoint.y - ourData.robotPosition.y, followPoint.x - ourData.robotPosition.x);
     float angleError = angleWrap(angleToFollowPoint - ourData.robotAngle);
 
-    float movePercent = std::max(1 - abs(angleError)/(200.0 * M_PI/180.0), 0.0);
+    float movePercent = std::max(1 - abs(angleError)/(160.0f * M_PI/180.0), 0.0);
     float movement = gamepad.GetRightStickY() * movePercent;
     // if (abs(angleError) > (45 * M_PI/180)) {
     //     movement = 0.0f;

@@ -1,41 +1,26 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <cmath>  // For std::hypot
+#include <cmath>
+#include <opencv2/core.hpp>
+#include "../MathUtils.h"
 
 class Node {
 private:
-    Node* parent;  // Pointer to the parent node
-
-    float x, y, theta; // location + angle if needed
-    float fScore;
 
 public:
-    // Constructor
-    Node(Node* parent = nullptr, float x = 0, float y = 0, float theta = 0, float fScore = 0);
+    Node();
+    void resetNode();
 
-    // Getter methods
-    Node* getParent() const;
-    float getX() const;
-    float getY() const;
-    float getTheta() const;
-    double getFScore() const;
+    cv::Point cameFrom; // which point precedes this point in the path order
+    std::pair<cv::Point2f, Angle> oppPosWhenHere; // where is the opponent when we're at this node
+    std::pair<float, float> oppVelWhenHere; // what is the opps move and turn velocity when we're at this node
+    float orbMoveVelWhenHere; // what is orbs velocity when we're at this node
+    float timeToTraverse; // how long does it take to get here from where we came from
 
-    // Setter methods
-    void setParent(Node* parent);
-    void setX(float x);
-    void setY(float y);
-    void setTheta(float theta);
-    void setFScore(double fScore);
-
-    // Comparison operator for priority queues (min-heap comparison)
-    bool operator<(const Node& other) const;
-
-    // Equality operator to compare positions
-    bool operator==(const Node& other) const;
-
-    // Calculate the Euclidean distance between this node and another node
-    float distanceTo(const Node& other) const;
+    // for A*
+    float gScore;
+    float fScore;
 };
 
 #endif // NODE_H

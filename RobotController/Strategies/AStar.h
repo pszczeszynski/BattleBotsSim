@@ -12,6 +12,7 @@
 #include <utility>
 #include <algorithm>
 #include "Line.h"
+#include "Node.h"
 
 
 class AStar {
@@ -29,7 +30,7 @@ private:
 
     cv::Point start;
     cv::Point2f oppPositionF;
-    float oppAngle;
+    float oppStartAngle;
     float oppMoveVelocity, oppTurnVelocity;
 
     int width, height; // size of grid
@@ -38,21 +39,14 @@ private:
 
 
     std::vector<Line> oppWeaponLines; // opponent weapon lines as they are on the field
+    std::vector<cv::Point2f> oppWeaponPoints; // opponent weapon points as they are on the field
     std::vector<Line> boundaryLines; // walls/shelf/screws, all line segments for zoom zoom compute
 
     std::vector<cv::Point> openSet; // unorganized list of open set points
     std::vector<cv::Point> closedSet; // unorganized lsit of closed set points
 
-    // lists of data associated with each node
-    std::vector<std::vector<cv::Point>> cameFrom;
-    std::vector<std::vector<std::pair<cv::Point2f, float>>> oppPosWhenHere;
-    std::vector<std::vector<std::pair<float, float>>> oppVelWhenHere;
-    std::vector<std::vector<float>> orbVelWhenHere;
-
-
-    // keeps track of g and f scores for every point
-    std::vector<std::vector<float>> gScore;
-    std::vector<std::vector<float>> fScore;
+    // stores all data associated with each node
+    std::vector<std::vector<Node>> nodeData;
 
 
     float heuristic(const cv::Point& current, const cv::Point& goal);
@@ -65,10 +59,11 @@ private:
     float closestFromList(const std::vector<cv::Point2f>& pointList, const cv::Point2f& point);
     float closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     float angle(const cv::Point& point1, const cv::Point& point2);
+    float angleF(const cv::Point2f& point1, const cv::Point2f& point2);
     std::vector<cv::Point> reconstructPath(const cv::Point& current);
     std::vector<cv::Point> difference(const std::vector<cv::Point>& list1, const std::vector<cv::Point>& list2);
     std::pair<int, cv::Point> getOpenSetLowestFScore();
-    void extrapolateOpp(cv::Point2f& position, float& angle, float& moveVelocity, float& turnVelocity, float time);
+    void extrapolateOpp(cv::Point2f& oppPosition, const cv::Point2f& orbPosition, float& angle, float& moveVelocity, float& turnVelocity, float time);
     void constantVelExtrapolate(cv::Point2f& position, float& angle, const float& moveVel, const float& turnVel, const float& time);
     cv::Point floatPointToInt(cv::Point2f point);
     float predictNeighborTime(const cv::Point& current, const cv::Point& neighbor, float& vel, const float& currentAngle);

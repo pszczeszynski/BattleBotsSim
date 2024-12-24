@@ -106,6 +106,7 @@ set(SOURCES
     Strategies/RobotMovement.cc
     Strategies/DriveToAngleSimulation.cc
     Strategies/Line.cc
+    Strategies/Node.cc
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc
