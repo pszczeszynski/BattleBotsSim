@@ -9,7 +9,7 @@
 #include <opencv2/core/core.hpp>
 
 AStarAttack::AStarAttack() :
-    tiles {19},
+    tiles {20},
     fieldMax {720},
     fieldPad {10}, //20
     pathSolver {tiles, tiles}
@@ -19,11 +19,17 @@ AStarAttack::AStarAttack() :
     float shelfHeight = 180;
     float bottomDiagonalWidth = 105;
     float bottomDiagonalHeight = 95;
+    float screwTotalWidth = 250;
+    float screwFrontWidth = 150;
+    float screwThick = 30;
+    float screwYOffset = -30;
 
     // find grid points for the field points
     cv::Point2f shelfBottomLeft = toGrid(cv::Point2f(fieldMax/2 - shelfWidth/2, shelfHeight));
     cv::Point2f shelfBottomRight = toGrid(cv::Point2f(fieldMax/2 + shelfWidth/2, shelfHeight));
     cv::Point2f diagonalCorner = toGrid(cv::Point2f(bottomDiagonalWidth, fieldMax - bottomDiagonalHeight));
+    cv::Point2f screwBottom = toGrid(cv::Point2f(fieldPad, fieldMax/2 - screwYOffset + screwTotalWidth/2));
+    cv::Point2f screwOuter = toGrid(cv::Point2f(fieldPad + screwThick, fieldMax/2 - screwYOffset + screwFrontWidth/2));
 
     // list of all boundary lines
     std::vector<Line> boundaryLines = {
@@ -36,6 +42,11 @@ AStarAttack::AStarAttack() :
         Line(shelfBottomLeft, shelfBottomRight), // shelf bottom
         Line(cv::Point2f(0.0f, diagonalCorner.y), cv::Point2f(diagonalCorner.x, 0.0f)), // left diagonal
         Line(cv::Point2f(tiles-1, diagonalCorner.y), cv::Point2f(tiles-1-diagonalCorner.x, 0.0f)), // right diagonal
+
+        // screws
+        Line(screwBottom, screwOuter),
+        Line(screwOuter, cv::Point2f(screwOuter.x, tiles - 1 - screwOuter.y/2)),
+
     };
 
 
@@ -44,7 +55,10 @@ AStarAttack::AStarAttack() :
     oppMoveVelFilter = 0;
     oppTurnVelFilter = 0;
 
+    followPoint = cv::Point(0, 0);
+
 }
+
 
 DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 {
@@ -107,17 +121,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
             fieldPoint = ourData.robotPosition;
         }
 
-        /**
         if (i == path.size() - 1) {
             fieldPoint = opponentData.robotPosition;
         }
-        */
 
         pathF.emplace_back(fieldPoint);
     }
 
-
-    cv::Point followPoint(0, 0);
 
 
 

@@ -29,6 +29,8 @@ private:
     float oppTurnVelFilter = 0.0f;
     float orbMoveVelFilter = 0.0f;
 
+    cv::Point followPoint; // pure pursuit follow point
+
 
 
 

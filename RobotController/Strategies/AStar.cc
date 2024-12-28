@@ -10,52 +10,45 @@ AStar::AStar(int width_, int height_)
     width = width_;
     height = height_; 
 
-    float weaponWidth = 0.16f * width; // 0.12
-    float weaponHeight = 0.01f * width; // 0.06
+    float weaponWidth = 0.09f * width; // 0.16
+    float weaponHeight = 0.02f * width; // 0.06
     float weaponForwardOffset = 0.04f * width; // 0.07
 
-    // opponent weapon shape
+    // // opponent weapon shape, triangle, CCW lines
+    // std::vector<Line> weaponLines = {
+    //     Line(cv::Point2f(-weaponWidth/2, weaponForwardOffset), cv::Point2f(weaponWidth/2, weaponForwardOffset)), // bottom
+    //     Line(cv::Point2f(0.0f, weaponForwardOffset + weaponHeight), cv::Point2f(-weaponWidth/2, weaponForwardOffset)), // left diagonal
+    //     Line(cv::Point2f(weaponWidth/2, weaponForwardOffset), cv::Point2f(0.0f, weaponForwardOffset + weaponHeight)) // right diagonal
+    // };
+
+    // // rectangle, CCW lines
+    // std::vector<Line> weaponLines = {
+    //     Line(cv::Point2f(-weaponWidth/2, weaponForwardOffset), cv::Point2f(weaponWidth/2, weaponForwardOffset)), // bottom
+    //     Line(cv::Point2f(weaponWidth/2, weaponForwardOffset), cv::Point2f(-weaponWidth/2, weaponForwardOffset)), // delete
+    //     //Line(cv::Point2f(weaponWidth/2, weaponForwardOffset + weaponHeight), cv::Point2f(-weaponWidth/2, weaponForwardOffset + weaponHeight)), // top
+    //     //Line(cv::Point2f(-weaponWidth/2, weaponForwardOffset + weaponHeight), cv::Point2f(-weaponWidth/2, weaponForwardOffset)), // left
+    //     //Line(cv::Point2f(weaponWidth/2, weaponForwardOffset), cv::Point2f(weaponWidth/2, weaponForwardOffset + weaponHeight)) // right
+    // }; 
+
+    // horseshoe
     std::vector<Line> weaponLines = {
         Line(cv::Point2f(-weaponWidth/2, weaponForwardOffset), cv::Point2f(weaponWidth/2, weaponForwardOffset)), // bottom
-        Line(cv::Point2f(0.0f, weaponForwardOffset + weaponHeight), cv::Point2f(-weaponWidth/2, weaponForwardOffset)), // left diagonal
-        Line(cv::Point2f(weaponWidth/2, weaponForwardOffset), cv::Point2f(0.0f, weaponForwardOffset + weaponHeight)) // right diagonal
-    };
+        Line(cv::Point2f(-weaponWidth/2, weaponForwardOffset - weaponHeight), cv::Point2f(-weaponWidth/2, weaponForwardOffset)), // left
+        Line(cv::Point2f(weaponWidth/2, weaponForwardOffset), cv::Point2f(weaponWidth/2, weaponForwardOffset - weaponHeight)) // right
+    }; 
 
     
 
     oppWeapon = ScoreRegion(weaponLines);
     
 
-    // build the vectors
+    // build the node data vector
     for (int y = 0; y < height; ++y) {
-        // gScore.push_back(std::vector<float>());
-        // fScore.push_back(std::vector<float>());
-        // cameFrom.push_back(std::vector<cv::Point>());
-        // oppPosWhenHere.push_back(std::vector<std::pair<cv::Point2f, float>>());
-        // oppVelWhenHere.push_back(std::vector<std::pair<float, float>>());
-        // orbVelWhenHere.push_back(std::vector<float>());
 
         nodeData.push_back(std::vector<Node>());
 
         // fill the arrays with default values
         for (int x = 0; x < width; ++x) {
-            // float score = std::numeric_limits<double>::infinity();
-            // gScore[y].push_back(score);
-            // fScore[y].push_back(score);
-
-            // // fill in came from list with arbitrary points, value doesn't matter
-            // cv::Point silly(-1, -1);
-            // cameFrom[y].push_back(silly);
-
-            // // fill in opponent pos list with arbitrary values, values don't matter
-            // std::pair<cv::Point2f, float> silly2(cv::Point2f(-1, -1), 0.0f);
-            // oppPosWhenHere[y].push_back(silly2);
-
-            // // fill in opponent vel list with arbitrary values, values don't matter
-            // std::pair<float, float> silly3(0.0f, 0.0f);
-            // oppVelWhenHere[y].push_back(silly3);
-            // orbVelWhenHere[y].push_back(0.0f);
-
             nodeData[y].push_back(Node());
         }
     }
@@ -128,6 +121,7 @@ void AStar::setWeaponLines(const cv::Point2f& center, const float& angle) {
     oppWeaponPoints = {};
     for (int i = 0; i < oppWeaponLines.size(); i++) {
         oppWeaponPoints.push_back(oppWeaponLines[i].getLinePoints().first);
+        oppWeaponPoints.push_back(oppWeaponLines[i].getLinePoints().second);
     }
 }
 
@@ -137,7 +131,8 @@ void AStar::setBoundaryLines(const std::vector<Line>& boundaryLineList) {
 }
 
 float AStar::heuristic(const cv::Point& current, const cv::Point& goal) {
-    return cv::norm(current - goal) / 3.0;
+    return 0.0f;
+    return 0.3 * pow(cv::norm(current - goal), 1.0);
 }
 
 float AStar::wrapAngle(const float& angle) {
@@ -294,8 +289,12 @@ std::vector<cv::Point> AStar::getNeighbors(const cv::Point& point) {
     for (const auto& delta : ring) {
         cv::Point neighbor(point.x + delta.x, point.y + delta.y);
 
+
+        bool intersectsWeapon = doesIntersectLineList(oppWeaponLines, Line(point, neighbor));
+        bool intersectsBoundaries = doesIntersectLineList(boundaryLines, Line(point, neighbor));
+
         // Check if the neighbor is within bounds and doesn't intersect weapon or boudaries when line connected
-        if (neighbor.x >= 0 && neighbor.x < width && neighbor.y >= 0 && neighbor.y < height && !doesIntersectLineList(oppWeaponLines, Line(point, neighbor)) && !doesIntersectLineList(boundaryLines, Line(point, neighbor))) {
+        if (neighbor.x >= 0 && neighbor.x < width && neighbor.y >= 0 && neighbor.y < height && !intersectsWeapon && !intersectsBoundaries) {
             neighbors.emplace_back(neighbor);
         }
     }
@@ -412,24 +411,15 @@ float AStar::predictNeighborTime(const cv::Point& current, const cv::Point& neig
 
     float angleToNeighbor = angle(current, neighbor);
     float turnAngle = abs(wrapAngle(angleToNeighbor - currentAngle));
-    if (current == start) {
-        turnAngle = std::min(turnAngle, 60.0f*(3.14159f/180.0f));
-    }
     float neighborDistance = cv::norm(neighbor - current);
 
-    float time = (neighborDistance / vel) * (1 + 2.5*std::min(pow(turnAngle/M_PI, 2), 1.0));
-
-    // basic proportional guess at turn radius
-    float radiusGuess = neighborDistance / turnAngle;
-
-    if (turnAngle < 30.0f * (M_PI/180.0f)) {
-        vel *= 1.0;
+    float time = neighborDistance / vel;
+    float timeIncreaseStartAngle = 90.0f * (M_PI/180.0f); // turn angle at which the time starts increasing
+    if (turnAngle > timeIncreaseStartAngle) {
+        time = (neighborDistance / vel) * (1 + 6.0*(turnAngle - timeIncreaseStartAngle)/(M_PI - timeIncreaseStartAngle));
     }
-    else {
-        vel *= 1.0f;
-    }
-    vel = std::min(vel, width*0.6f);
-
+    
+    vel = neighborDistance / time;
 
     return time;
 }
@@ -438,11 +428,11 @@ float AStar::predictNeighborTime(const cv::Point& current, const cv::Point& neig
 // updates opponent position assuming constant decel parameters by reference
 void AStar::extrapolateOpp(cv::Point2f& oppPosition, const cv::Point2f& orbPosition, float& oppAngle, float& moveVelocity, float& turnVelocity, float time) {
 
-    int timeSteps = 10;
+    int timeSteps = 1;
     float oppMoveAccelMag = 1.3f * width; // tiles/sec^2
     float oppTurnAccelMag = 50; // rad/sec^2
-    float pointShootMoveVel = 0.05f * width;
-    float pointShootTurnVel = 50.0f * (M_PI/180.0f); // rad/sec^2
+    float pointShootMoveVel = 0.0f * width; //0.03
+    float pointShootTurnVel = 0.0f * (M_PI/180.0f); // rad/sec^2, 30.0
     float maxExtropolateAngle = 100.0f * (M_PI/180.0f); // max point and shoot turn angle itll predict, lets the path solve
 
     cv::Point2f previousPosition;
@@ -546,16 +536,14 @@ std::vector<cv::Point> AStar::generatePath(float robotAngle) {
         cv::Point current = lowestFScore.second;
         openSet.erase(openSet.begin() + currentIndex); // remove point from open set since now we're exploring it
 
-        // set weapon for current node
-        setWeaponLines(nodeData[current.x][current.y].oppPosWhenHere.first, nodeData[current.x][current.y].oppPosWhenHere.second);
-
         // if we've found the goal then the path is done
         if (current == floatPointToInt(nodeData[current.x][current.y].oppPosWhenHere.first)) { 
             return reconstructPath(current);
         }
 
+        // set weapon for current node
+        setWeaponLines(nodeData[current.x][current.y].oppPosWhenHere.first, nodeData[current.x][current.y].oppPosWhenHere.second);
         
-
         // add current node to closed set to mark it as explored
         closedSet.emplace_back(current);
 
@@ -575,8 +563,15 @@ std::vector<cv::Point> AStar::generatePath(float robotAngle) {
                 float distance = neighborLine.howClosePoint(oppWeaponPoints[i]);
                 if (distance < closestWeapon) {
                     closestWeapon = distance;
-                }
+                }   
             }
+
+
+            float angleToOppFront = wrapAngle(angle(oppPositionF, neighbor) - oppStartAngle);
+
+
+            
+
 
 
             float angleChange = 0;
@@ -588,23 +583,19 @@ std::vector<cv::Point> AStar::generatePath(float robotAngle) {
                 angleChange = std::min(abs(wrapAngle(neighborAngle - previousAngle)), 45.0f*(3.14159f/180.0f));
             }
             else { // if it's not the start node, look back for previous angle
-                //cameFrom[current.x][current.y]
                 previousAngle = angle(nodeData[current.x][current.y].cameFrom, current); // angle of previous line
                 angleChange = abs(wrapAngle(neighborAngle - previousAngle));             
             }
 
 
-            angleWeight = 3.0f * angleChange * neighborDistance;
-
-
-
+            //float neighborOrbVel = nodeData[current.x][current.y].orbMoveVelWhenHere; //orbVelWhenHere[current.x][current.y]
             float neighborOrbVel = nodeData[current.x][current.y].orbMoveVelWhenHere; //orbVelWhenHere[current.x][current.y]
             float neighborTime = predictNeighborTime(current, neighbor, neighborOrbVel, previousAngle);
-            //float tentativeGScore = nodeData[current.x][current.y].gScore + (10 / pow(closestWeapon, 0.6)) * pow(neighborTime, 1.0);
-            float tentativeGScore = nodeData[current.x][current.y].gScore + neighborDistance + angleWeight;
+            //float tentativeGScore = nodeData[current.x][current.y].gScore + (10 * pow(closestWeapon, -1.0f)) * pow(neighborDistance, 1.0);
+            float tentativeGScore = nodeData[current.x][current.y].gScore + pow(abs(angleToOppFront), -1.0f)*pow(closestWeapon, -1.0f)*neighborTime;
 
 
-            // if the score is better than commit the node
+            // if the score is better then commit the node
             if (tentativeGScore < nodeData[neighbor.x][neighbor.y].gScore) {
 
                 nodeData[neighbor.x][neighbor.y].cameFrom = current;
@@ -613,15 +604,17 @@ std::vector<cv::Point> AStar::generatePath(float robotAngle) {
                 nodeData[neighbor.x][neighbor.y].timeToTraverse = neighborTime;
 
 
-                // save the predicted positions and velocities at this neighbor
-                cv::Point2f oppPredictedPosition = nodeData[current.x][current.y].oppPosWhenHere.first;
-                float oppPredictedAngle = nodeData[current.x][current.y].oppPosWhenHere.second;
-                float oppPredictedMoveVelocity = nodeData[current.x][current.y].oppVelWhenHere.first;
-                float oppPredictedTurnVelocity = nodeData[current.x][current.y].oppVelWhenHere.second;
-                extrapolateOpp(oppPredictedPosition, neighbor, oppPredictedAngle, oppPredictedMoveVelocity, oppPredictedTurnVelocity, neighborTime);
-                nodeData[neighbor.x][neighbor.y].oppPosWhenHere = std::pair<cv::Point2f, Angle>(oppPredictedPosition, oppPredictedAngle);
-                nodeData[neighbor.x][neighbor.y].oppVelWhenHere = std::pair<float, float>(oppPredictedMoveVelocity, oppPredictedTurnVelocity);
+                // // save the predicted positions and velocities at this neighbor
+                // cv::Point2f oppPredictedPosition = nodeData[current.x][current.y].oppPosWhenHere.first;
+                // float oppPredictedAngle = nodeData[current.x][current.y].oppPosWhenHere.second;
+                // float oppPredictedMoveVelocity = nodeData[current.x][current.y].oppVelWhenHere.first;
+                // float oppPredictedTurnVelocity = nodeData[current.x][current.y].oppVelWhenHere.second;
+                // extrapolateOpp(oppPredictedPosition, neighbor, oppPredictedAngle, oppPredictedMoveVelocity, oppPredictedTurnVelocity, neighborTime);
+                //nodeData[neighbor.x][neighbor.y].oppPosWhenHere = std::pair<cv::Point2f, Angle>(oppPredictedPosition, oppPredictedAngle);
+                // nodeData[neighbor.x][neighbor.y].oppVelWhenHere = std::pair<float, float>(oppPredictedMoveVelocity, oppPredictedTurnVelocity);
                 nodeData[neighbor.x][neighbor.y].orbMoveVelWhenHere = neighborOrbVel;
+                nodeData[neighbor.x][neighbor.y].oppPosWhenHere = std::pair<cv::Point2f, Angle>(oppPositionF, oppStartAngle);
+
 
                 // add neighbor to open set so it's explored later
                 openSet.emplace_back(neighbor);
