@@ -11,7 +11,6 @@
 
 AStarAttack::AStarAttack()
 {
-
 }
 
 
@@ -52,57 +51,138 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     previousDistanceToOpp = distanceToOpp;
 
 
+    orbPathSpacing = 5.0f;
+    orbPathLength = 300.0f;
+    int orbPathSize = round(orbPathLength / orbPathSpacing);
+
+    if(orbPath.size() == 0) { orbPath.emplace_back(ourData.robotPosition); }
+
+    if(cv::norm(ourData.robotPosition - orbPath[orbPath.size() - 1]) > orbPathSpacing) {
+        if(orbPath.size() < orbPathSize) { 
+            orbPath.emplace_back(ourData.robotPosition);
+        }
+
+        else {
+            for(int i = 0; i < orbPath.size() - 1; i++) {
+                orbPath[i] = orbPath[i + 1];
+            }
+            orbPath[orbPath.size() - 1] = ourData.robotPosition;
+        }
+    }
+
+    displayPathPoints(orbPath, cv::Scalar(255, 0, 0));
+    displayPathLines(orbPath, cv::Scalar(255, 0, 0));
+
+
 
     
     // generate the path
     float angleToOrb = angleWrapRad(angle(opponentData.robotPosition, ourData.robotPosition) - opponentData.robotAngle);
-    bool CW = angleToOrb > 0.0f;
 
     float vMax = 500.0f; // pixels/sec
     float wMax = 8.5*M_PI; // rad/sec
 
-    float radius = std::min(40 + 0.08*orbMoveVelFilter, cv::norm(ourData.robotPosition - opponentData.robotPosition) - 1.0f);
-    std::pair<std::vector<cv::Point2f>, float> pathTimeCW = generatePath(true, opponentData.robotPosition, opponentData.robotAngle, ourData.robotPosition, speedToOppFilter, radius, vMax, wMax);
-    std::pair<std::vector<cv::Point2f>, float> pathTimeCCW = generatePath(false, opponentData.robotPosition, opponentData.robotAngle, ourData.robotPosition, speedToOppFilter, radius, vMax, wMax);
+
+    float ETA = distanceToOpp/std::max(orbMoveVelFilter, 200.0f);
+    float maxMoveVel = 650.0f;
+    float maxETA = 0.8f; // seconds
+    float moveVelPercent = std::min(orbMoveVelFilter / maxMoveVel, 1.0f); // what percent of total speed we're at
+    float ETAPercent = std::min(ETA / maxETA, 1.0f); // what percent of ETA is left
+    float maxRadius = 200.0f;
+    float minRadius = ETAPercent * 55.0f;
+    float minStartAngle = 80.0f*TO_RAD;
+    float maxStartAngle = 110.0f*TO_RAD;
+    float minRadAngle = (minStartAngle - maxStartAngle) * moveVelPercent + maxStartAngle;
+    
+
+    float radius;
+    if(abs(angleToOrb) < minRadAngle) {
+        radius = (1.0f - std::min(abs(angleToOrb)/minRadAngle, 1.0f)) * (maxRadius - minRadius) + minRadius;
+    }
+    else {
+        radius = (1.0f - (abs(angleToOrb) - minRadAngle) / (M_PI - minRadAngle)) * minRadius;
+    }
+     
+    std::vector<cv::Point2f> circle;
+    transformList(circle, opponentData.robotPosition, 0.0f);
 
 
-    std::vector<cv::Point2f> circleIntersectionsCW = PurePursuit::followPath(ourData.robotPosition, pathTimeCW.first, radius);
-    std::vector<cv::Point2f> circleIntersectionsCCW = PurePursuit::followPath(ourData.robotPosition, pathTimeCCW.first, radius);
+
+    // std::cout << "angle = " << angleToOrb << std::endl;
+    
 
 
-    if(circleIntersectionsCW.size() == 0) { circleIntersectionsCW.emplace_back(pathTimeCW.first[0]); }
-    if(circleIntersectionsCCW.size() == 0) { circleIntersectionsCCW.emplace_back(pathTimeCCW.first[0]); }
 
 
-    cv::Point2f followPointCW = circleIntersectionsCW[0];
-    cv::Point2f followPointCCW = circleIntersectionsCCW[0];
 
 
-    float angleErrorCW = angleWrapRad(angle(ourData.robotPosition, followPointCW) - ourData.robotAngle);
-    float angleErrorCCW = angleWrapRad(angle(ourData.robotPosition, followPointCCW) - ourData.robotAngle);
+    bool CW = angleToOrb > 0;
+    cv::Point2f followPoint;
+    float ppRadius = std::min(90.0f + 0.0f*abs(orbMoveVelFilter), distanceToOpp - 5.0f); // minimum distance a follow point must be from the robot
+    bool outsideCircle = radius < distanceToOpp;
+    
+    // if we're outside the desired radius
+    if(outsideCircle) {
 
+        // circle is at the desired radius
+        circle = arcPointsFromCenter(radius, 2*M_PI, 5.0f);
+        transformList(circle, opponentData.robotPosition, 0.0f);
 
-    float wMultiplier = 999.0f; // cuz it's not gonna turn just at full speed, has to accel
-    float turnTimeCW = abs(angleErrorCW) / (wMax * wMultiplier);
-    float turnTimeCCW = abs(angleErrorCCW) / (wMax * wMultiplier);
+        // find the tangent point
+        int tangentIndex = 0;
+        
+        // check first index to set initial values
+        float mostTangentAngle = angle(ourData.robotPosition, circle[0]);
 
+        for(int i = 1; i < circle.size(); i++) {
+            float currentAngle = angle(ourData.robotPosition, circle[i]);
+            float angleDiff = angleWrapRad(currentAngle - mostTangentAngle);
+            if((angleDiff < 0 && CW) || (angleDiff > 0 && !CW)) {
+                mostTangentAngle = currentAngle;
+                tangentIndex = i;
+            }
+        }
 
-    float timeTotalCW = pathTimeCW.second + turnTimeCW;
-    float timeTotalCCW = pathTimeCCW.second + turnTimeCCW;
-
-
-    // choose the path with the lower completion time
-    std::vector<cv::Point2f> path = pathTimeCW.first;
-    cv::Point2f followPoint = followPointCW;
-    if(timeTotalCCW < timeTotalCW) { 
-        path = pathTimeCCW.first; 
-        followPoint = followPointCCW;
+        followPoint = circle[tangentIndex];
     }
 
+    // if we're inside the desired radius or the tangent point wasn't far enough
+    if(!outsideCircle || (outsideCircle && cv::norm(followPoint - ourData.robotPosition) < ppRadius)) {
+
+        float radiusOffset = ppRadius * sin(70.0f*TO_RAD); // controls rejoin angle when we're inside the desired radius
+        circle = arcPointsFromCenter(std::min(distanceToOpp + radiusOffset, radius), 2*M_PI, 5.0f);
+        transformList(circle, opponentData.robotPosition, 0.0f);
+
+        // find the greatest or least index point in the pp radius, thats the one to follow
+        int followIndex = -1;
+
+        for(int i = 0; i < circle.size(); i++) {
+            if(cv::norm(circle[i] - ourData.robotPosition) < ppRadius) {
+
+                int indexDistance = i - followIndex;
+                if(indexDistance > circle.size()/2.0f) { indexDistance -= circle.size(); }
+
+                if((indexDistance > 0 && CW) || (indexDistance < 0 && !CW) || followIndex == -1) {
+                    followIndex = i;
+                }
+            }
+        }
+
+        followPoint = circle[followIndex];
+
+        // draw pure pursuit radius
+        safe_circle(RobotController::GetInstance().GetDrawingImage(),
+                    ourData.robotPosition,
+                    ppRadius, cv::Scalar(255, 0, 0), 2);
+    }
+
+
+
+
     
     
-    displayPathPoints(path, cv::Scalar(0, 255, 0));
-    displayPathLines(path, cv::Scalar(0, 255, 0));
+    displayPathPoints(circle, cv::Scalar(0, 255, 0));
+    displayPathLines(circle, cv::Scalar(0, 255, 0));
 
 
     
@@ -113,10 +193,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // draw pure pursuit follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 0, 0), 2);
 
-    // draw pure pursuit radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                ourData.robotPosition,
-                radius, cv::Scalar(255, 0, 0), 2);
+    // // draw pure pursuit radius
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(),
+    //             ourData.robotPosition,
+    //             radius, cv::Scalar(255, 0, 0), 2);
 
     
 
@@ -135,13 +215,16 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     float angleToFollowPoint = atan2(followPoint.y - ourData.robotPosition.y, followPoint.x - ourData.robotPosition.x);
-    float angleError = angleWrap(angleToFollowPoint - ourData.robotAngle);
+    float angleError = angleWrapRad(angleToFollowPoint - ourData.robotAngle);
+
 
     float movePercent = std::max(1 - abs(angleError)/(20000.0f*TO_RAD), 0.0);
-    float movement = gamepad.GetRightStickY() * movePercent;
-    if (abs(angleError) > (70*TO_RAD)) {
-        movement = 0.0f;
+    if (abs(angleError) > (70.0f*TO_RAD)) {
+        movePercent = 0.0f;
     }
+    float movement = gamepad.GetRightStickY() * movePercent;
+
+
     ret.autoDrive.movement = movement;
 
     return ret;
@@ -191,6 +274,28 @@ std::vector<cv::Point2f> AStarAttack::arcPointsFromOrigin(float radius, float an
 }
 
 
+// generates a list of arc points from the center
+std::vector<cv::Point2f> AStarAttack::arcPointsFromCenter(float radius, float angle, float pointSpacing) {
+
+    float arcLength = radius * angle;
+    float thetaIncrement = pointSpacing / radius;
+    int increments = (int) (angle / thetaIncrement);
+
+    std::vector<cv::Point2f> points;
+
+    for (int i = 0; i < increments; i++) {
+        float currentAngle = i * thetaIncrement;
+        float currentX = radius*cos(currentAngle);
+        float currentY = radius*sin(currentAngle);
+        points.emplace_back(cv::Point2f(currentX, currentY));
+    }
+
+    // make sure the exact final point is added
+    points.emplace_back(cv::Point2f(radius*cos(angle), radius*sin(angle)));
+    return points;
+}
+
+
 // moves a list of points to the input point and angle, rewrites to the existing list
 void AStarAttack::transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle) {
 
@@ -201,7 +306,6 @@ void AStarAttack::transformList(std::vector<cv::Point2f>& list, cv::Point2f star
         float newY = startPoint.y + currentPoint.x*sin(angle) + currentPoint.y*cos(angle);
 
         list[i] = cv::Point2f(newX, newY);
-
     }
 }
 

@@ -25,12 +25,17 @@ private:
     float previousDistanceToOpp = 0.0f;
     float speedToOppFilter = 0.0f;
 
+    std::vector<cv::Point2f> orbPath; // tracks where orb is
+    float orbPathSpacing; // how far apart are the points in the orb path
+    float orbPathLength; // how long the total tracked path is
+
 
 
     void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
     void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
 
     std::vector<cv::Point2f> arcPointsFromOrigin(float radius, float angle, float pointSpacing);
+    std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     std::vector<cv::Point2f> angleLineFromPoint(cv::Point2f start, float length, float angle);
     std::vector<cv::Point2f> addPaths(std::vector<cv::Point2f> path1, std::vector<cv::Point2f> path2);
