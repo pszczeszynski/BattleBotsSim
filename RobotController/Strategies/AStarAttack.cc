@@ -7,61 +7,21 @@
 #include "../SafeDrawing.h"
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
+#include "../UIWidgets/ClockWidget.h"
 
-AStarAttack::AStarAttack() :
-    tiles {20},
-    fieldMax {720},
-    fieldPad {10}, //20
-    pathSolver {tiles, tiles}
+AStarAttack::AStarAttack()
 {
-    // define field parameters
-    float shelfWidth = 300;
-    float shelfHeight = 180;
-    float bottomDiagonalWidth = 105;
-    float bottomDiagonalHeight = 95;
-    float screwTotalWidth = 250;
-    float screwFrontWidth = 150;
-    float screwThick = 30;
-    float screwYOffset = -30;
-
-    // find grid points for the field points
-    cv::Point2f shelfBottomLeft = toGrid(cv::Point2f(fieldMax/2 - shelfWidth/2, shelfHeight));
-    cv::Point2f shelfBottomRight = toGrid(cv::Point2f(fieldMax/2 + shelfWidth/2, shelfHeight));
-    cv::Point2f diagonalCorner = toGrid(cv::Point2f(bottomDiagonalWidth, fieldMax - bottomDiagonalHeight));
-    cv::Point2f screwBottom = toGrid(cv::Point2f(fieldPad, fieldMax/2 - screwYOffset + screwTotalWidth/2));
-    cv::Point2f screwOuter = toGrid(cv::Point2f(fieldPad + screwThick, fieldMax/2 - screwYOffset + screwFrontWidth/2));
-
-    // list of all boundary lines
-    std::vector<Line> boundaryLines = {
-        Line(cv::Point2f(0.0f, 0.0f), cv::Point2f(0.0f, tiles-1)), // left
-        Line(cv::Point2f(0.0f, 0.0f), cv::Point2f(tiles-1, 0.0f)), // bottom
-        Line(cv::Point2f(0.0f, tiles-1), cv::Point(tiles-1, tiles-1)), // top
-        Line(cv::Point2f(tiles-1, 0.0f), cv::Point(tiles-1, tiles-1)), // right
-        Line(cv::Point2f(shelfBottomLeft.x, tiles-1), shelfBottomLeft), // shelf left
-        Line(cv::Point2f(shelfBottomRight.x, tiles-1), shelfBottomRight), // shelf right
-        Line(shelfBottomLeft, shelfBottomRight), // shelf bottom
-        Line(cv::Point2f(0.0f, diagonalCorner.y), cv::Point2f(diagonalCorner.x, 0.0f)), // left diagonal
-        Line(cv::Point2f(tiles-1, diagonalCorner.y), cv::Point2f(tiles-1-diagonalCorner.x, 0.0f)), // right diagonal
-
-        // screws
-        Line(screwBottom, screwOuter),
-        Line(screwOuter, cv::Point2f(screwOuter.x, tiles - 1 - screwOuter.y/2)),
-
-    };
-
-
-    pathSolver.setBoundaryLines(boundaryLines);
-    orbMoveVelFilter = 0;
-    oppMoveVelFilter = 0;
-    oppTurnVelFilter = 0;
-
-    followPoint = cv::Point(0, 0);
 
 }
 
 
 DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 {
+    static Clock updateClock; // used for loop timing
+    double deltaTime = updateClock.getElapsedTime();
+    if(deltaTime == 0) { deltaTime = 0.01; } // broski what
+    updateClock.markStart();
+
     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
 
     // extrapolate our position into the future
@@ -71,8 +31,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     // extrapolate the opponent's position into the future
     //OdometryData opponentData = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS_KILL / 1000.0, MAX_OPP_EXTRAP_MS_KILL);
-    OdometryData opponentData = ExtrapolateOpponentPos(0 / 1000.0, MAX_OPP_EXTRAP_MS_KILL);
-    opponentData =RobotController::GetInstance().odometry.Opponent();
+    OdometryData opponentData = ExtrapolateOpponentPos(500.0 / 1000.0, 9999999999.0f);
+    opponentData = RobotController::GetInstance().odometry.Opponent();
 
     // draw a crosshair on the opponent
     safe_circle(RobotController::GetInstance().GetDrawingImage(),
@@ -80,74 +40,78 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
                 10, cv::Scalar(0, 0, 255), 2);
 
 
-    oppMoveVelFilter += 0.3f * (cv::norm(opponentData.robotVelocity) - oppMoveVelFilter);
-    oppTurnVelFilter += 0.1f * (opponentData.robotAngleVelocity - oppTurnVelFilter);
-    orbMoveVelFilter += 0.3f * (cv::norm(ourData.robotVelocity) - orbMoveVelFilter);
-
-    //std::cout << "orb move = " << orbMoveVelFilter << std::endl;
+    oppMoveVelFilter += std::min(20.0f * deltaTime, 1.0) * (cv::norm(opponentData.robotVelocity) - oppMoveVelFilter);
+    oppTurnVelFilter += std::min(20.0f * deltaTime, 1.0)* (opponentData.robotAngleVelocity - oppTurnVelFilter);
+    orbMoveVelFilter += std::min(20.0f * deltaTime, 1.0) * (cv::norm(ourData.robotVelocity) - orbMoveVelFilter);
 
 
-    // set start and goal and generate path
-    pathSolver.setStartParams(toGrid(ourData.robotPosition),
-                                std::max(orbMoveVelFilter * 1.0f * (tiles / (fieldMax - 2*fieldPad)), 0.2f*tiles),
-                              toGrid(opponentData.robotPosition),
-                              -opponentData.robotAngle,
-                              std::min(oppMoveVelFilter * (tiles / (fieldMax - 2*fieldPad)), 99.0f),
-                              std::min(std::max(-oppTurnVelFilter, -99.0f), 99.0f));
 
-                        
+    float distanceToOpp = cv::norm(ourData.robotPosition - opponentData.robotPosition);
+    float speedToOpp = (distanceToOpp - previousDistanceToOpp) / deltaTime;
+    speedToOppFilter += std::min(10.0f * deltaTime, 1.0) * (speedToOpp - speedToOppFilter);
+    previousDistanceToOpp = distanceToOpp;
 
 
-    std::vector<cv::Point> path = pathSolver.generatePath(-ourData.robotAngle);
 
-    // if the path is empty or just 1 point, just use our position and opponent
-    if(path.size() < 2) {
-        path = {};
-        cv::Point2f ourPosition = toGrid(ourData.robotPosition);
-        cv::Point2f oppPosition = toGrid(opponentData.robotPosition);
-        path.emplace_back(cv::Point(round(ourPosition.x), round(ourPosition.y)));
-        path.emplace_back(cv::Point(round(oppPosition.x), round(oppPosition.y)));
+    
+    // generate the path
+    float angleToOrb = angleWrapRad(angle(opponentData.robotPosition, ourData.robotPosition) - opponentData.robotAngle);
+    bool CW = angleToOrb > 0.0f;
+
+    float vMax = 500.0f; // pixels/sec
+    float wMax = 8.5*M_PI; // rad/sec
+
+    float radius = std::min(40 + 0.08*orbMoveVelFilter, cv::norm(ourData.robotPosition - opponentData.robotPosition) - 1.0f);
+    std::pair<std::vector<cv::Point2f>, float> pathTimeCW = generatePath(true, opponentData.robotPosition, opponentData.robotAngle, ourData.robotPosition, speedToOppFilter, radius, vMax, wMax);
+    std::pair<std::vector<cv::Point2f>, float> pathTimeCCW = generatePath(false, opponentData.robotPosition, opponentData.robotAngle, ourData.robotPosition, speedToOppFilter, radius, vMax, wMax);
+
+
+    std::vector<cv::Point2f> circleIntersectionsCW = PurePursuit::followPath(ourData.robotPosition, pathTimeCW.first, radius);
+    std::vector<cv::Point2f> circleIntersectionsCCW = PurePursuit::followPath(ourData.robotPosition, pathTimeCCW.first, radius);
+
+
+    if(circleIntersectionsCW.size() == 0) { circleIntersectionsCW.emplace_back(pathTimeCW.first[0]); }
+    if(circleIntersectionsCCW.size() == 0) { circleIntersectionsCCW.emplace_back(pathTimeCCW.first[0]); }
+
+
+    cv::Point2f followPointCW = circleIntersectionsCW[0];
+    cv::Point2f followPointCCW = circleIntersectionsCCW[0];
+
+
+    float angleErrorCW = angleWrapRad(angle(ourData.robotPosition, followPointCW) - ourData.robotAngle);
+    float angleErrorCCW = angleWrapRad(angle(ourData.robotPosition, followPointCCW) - ourData.robotAngle);
+
+
+    float wMultiplier = 999.0f; // cuz it's not gonna turn just at full speed, has to accel
+    float turnTimeCW = abs(angleErrorCW) / (wMax * wMultiplier);
+    float turnTimeCCW = abs(angleErrorCCW) / (wMax * wMultiplier);
+
+
+    float timeTotalCW = pathTimeCW.second + turnTimeCW;
+    float timeTotalCCW = pathTimeCCW.second + turnTimeCCW;
+
+
+    // choose the path with the lower completion time
+    std::vector<cv::Point2f> path = pathTimeCW.first;
+    cv::Point2f followPoint = followPointCW;
+    if(timeTotalCCW < timeTotalCW) { 
+        path = pathTimeCCW.first; 
+        followPoint = followPointCCW;
     }
 
+    
+    
+    displayPathPoints(path, cv::Scalar(0, 255, 0));
+    displayPathLines(path, cv::Scalar(0, 255, 0));
 
 
-    // convert to a float path
-    std::vector<cv::Point2f> pathF = {};
-    for (int i = 0; i < path.size(); i++) {
-        cv::Point2f fieldPoint = toField(path[i]);
-
-        // sub in exact start and end locations
-        if (i == 0) {
-            fieldPoint = ourData.robotPosition;
-        }
-
-        if (i == path.size() - 1) {
-            fieldPoint = opponentData.robotPosition;
-        }
-
-        pathF.emplace_back(fieldPoint);
-    }
+    
 
 
-
-
-    displayBoundaryLines();
-    displayPathPointsDirect(pathF);
-    displayPathLinesDirect(pathF);
-    displayOppWeapon();
-
-
-
-    float radius = std::min(50 + 0.08*orbMoveVelFilter, cv::norm(ourData.robotPosition - opponentData.robotPosition) - 20.0f);
-    std::vector<cv::Point2f> circleIntersections = PurePursuit::followPath(ourData.robotPosition, pathF, radius);
-
-    if(circleIntersections.size() == 0) {
-        circleIntersections.emplace_back(opponentData.robotPosition);
-    }
-
+    
 
     // draw pure pursuit follow point
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), circleIntersections[0], 5, cv::Scalar(255, 0, 0), 2);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 0, 0), 2);
 
     // draw pure pursuit radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(),
@@ -156,12 +120,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     
 
-    followPoint = circleIntersections[0];
-
-
     
 
-    // hold angle to the opponent
+    // hold angle to the follow point
     DriverStationMessage ret = RobotMovement::HoldAngle(ourData.robotPosition,
                                                         followPoint,
                                                         KILL_KD_PERCENT,
@@ -176,96 +137,267 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float angleToFollowPoint = atan2(followPoint.y - ourData.robotPosition.y, followPoint.x - ourData.robotPosition.x);
     float angleError = angleWrap(angleToFollowPoint - ourData.robotAngle);
 
-    float movePercent = std::max(1 - abs(angleError)/(160.0f * M_PI/180.0), 0.0);
+    float movePercent = std::max(1 - abs(angleError)/(20000.0f*TO_RAD), 0.0);
     float movement = gamepad.GetRightStickY() * movePercent;
-    // if (abs(angleError) > (45 * M_PI/180)) {
-    //     movement = 0.0f;
-    // }
+    if (abs(angleError) > (70*TO_RAD)) {
+        movement = 0.0f;
+    }
     ret.autoDrive.movement = movement;
-
-    // reset field
-    //field.resetRegion(oppWeapon.globalTiles(oppData));
 
     return ret;
 }
 
-// converts a field float point to a grid point, no rounding
-cv::Point2f AStarAttack::toGrid(cv::Point2f position) {
-    float xPercent = (position.x - fieldPad) / (fieldMax - 2*fieldPad);
-    float yPercent = ((fieldMax - position.y) - fieldPad) / (fieldMax - 2*fieldPad); // inverted y scale
-    xPercent = std::min(xPercent, 1.0f); xPercent = std::max(xPercent, 0.0f);
-    yPercent = std::min(yPercent, 1.0f); yPercent = std::max(yPercent, 0.0f);
-
-    // return point, not rounded
-    return cv::Point2f(xPercent * (tiles-1), yPercent * (tiles-1));
-}
-
-// converts a grid point to field point
-cv::Point2f AStarAttack::toField(cv::Point2f position) {
-    float xPercent = (float) position.x / (tiles - 1);
-    float yPercent = (float) position.y / (tiles - 1);
-    float xPos = (xPercent * (fieldMax - 2*fieldPad)) + fieldPad;
-    float yPos = ((1.0f - yPercent) * (fieldMax - 2*fieldPad)) + fieldPad;
-    return cv::Point2f(xPos, yPos);
-}
-
-// displays the path
-void AStarAttack::displayPathPoints(std::vector<cv::Point>& path) {
-    //std::cout << "Path = ";
-    for (int i = 0; i < path.size(); i++) {
-        //stsd::cout << "(" << path[i].x << ", " << path[i].y << "), ";
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), toField(path[i]), 5, cv::Scalar(0, 255, 0), 2);
-    }
-}
 
 
-// displays the boundary points from AStar
-void AStarAttack::displayBoundaryLines() {
-    std::vector<Line> lines = pathSolver.getBoundaryLines();
-    for (int i = 0; i < lines.size(); i++) {
-        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
-        cv::line(RobotController::GetInstance().GetDrawingImage(), toField(linePoints.first), toField(linePoints.second), cv::Scalar(0, 0, 255), 2);
-    }
-}
 
 
-// displays the path with nice lines oooo
-void AStarAttack::displayPathLines(std::vector<cv::Point>& path) {
-    for (size_t i = 0; i < path.size() - 1; i++)
-    {
-        double progress = (double)i / path.size();
-        //cv::Scalar color = true ? cv::Scalar(0, progress * 255, (1.0 - progress) * 255) : cv::Scalar(progress * 255, (1.0 - progress) * 255, 0);
-        cv::Scalar color = true ? cv::Scalar(0, 255, 0) : cv::Scalar(progress * 255, (1.0 - progress) * 255, 0);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), toField(path[i]), toField(path[i + 1]), color, 2);
-    }
-}
-
-
-void AStarAttack::displayPathPointsDirect(std::vector<cv::Point2f>& path) {
+void AStarAttack::displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color) {
     for (int i = 0; i < path.size(); i++) {
         cv::Point centerInt(round(path[i].x), round(path[i].y));
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), centerInt, 5, cv::Scalar(0, 255, 0), 2);
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), centerInt, 3, color, 2);
     }
 }
-void AStarAttack::displayPathLinesDirect(std::vector<cv::Point2f>& path) {
+void AStarAttack::displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color) {
     for (size_t i = 0; i < path.size() - 1; i++)
     {
         cv::Point centerInt(round(path[i].x), round(path[i].y));
         cv::Point centerInt2(round(path[i + 1].x), round(path[i + 1].y));
         double progress = (double)i / path.size();
-        cv::line(RobotController::GetInstance().GetDrawingImage(), centerInt, centerInt2, cv::Scalar(0, 255, 0), 2);
-    }
-}
-
-// displays the field points that are weapon
-void AStarAttack::displayOppWeapon() {
-    std::vector<Line> lines = pathSolver.getWeaponLines();
-    for (int i = 0; i < lines.size(); i++) {
-        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
-        cv::Point2f fieldPoint1 = toField(linePoints.first);
-        cv::Point2f fieldPoint2 = toField(linePoints.second);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), fieldPoint1, fieldPoint2, cv::Scalar(0, 255, 0), 2);
+        cv::line(RobotController::GetInstance().GetDrawingImage(), centerInt, centerInt2, color, 2);
     }
 }
 
 
+// generates a list of points in order from the start point
+std::vector<cv::Point2f> AStarAttack::arcPointsFromOrigin(float radius, float angle, float pointSpacing) {
+
+    float arcLength = radius * angle;
+    float thetaIncrement = pointSpacing / radius;
+    int increments = (int) (angle / thetaIncrement);
+
+    std::vector<cv::Point2f> points;
+
+    for (int i = 0; i < increments; i++) {
+        float currentAngle = i * thetaIncrement;
+        float currentX = radius*cos(currentAngle) - radius;
+        float currentY = radius*sin(currentAngle);
+        points.emplace_back(cv::Point2f(currentX, currentY));
+    }
+
+    // make sure the exact final point is added
+    points.emplace_back(cv::Point2f(radius*cos(angle) - radius, radius*sin(angle)));
+
+    return points;
+}
+
+
+// moves a list of points to the input point and angle, rewrites to the existing list
+void AStarAttack::transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle) {
+
+    for(int i = 0; i < list.size(); i++) {
+
+        cv::Point2f currentPoint = list[i];
+        float newX = startPoint.x + currentPoint.x*cos(angle) - currentPoint.y*sin(angle);
+        float newY = startPoint.y + currentPoint.x*sin(angle) + currentPoint.y*cos(angle);
+
+        list[i] = cv::Point2f(newX, newY);
+
+    }
+}
+
+
+// gives back points for a line from a start point at an angle
+std::vector<cv::Point2f> AStarAttack::angleLineFromPoint(cv::Point2f start, float length, float angle) {
+
+    float xOffset = length * cos(angle);
+    float yOffset = length * sin(angle);
+    cv::Point2f secondPoint = cv::Point2f(start.x + xOffset, start.y + yOffset);
+
+    return std::vector<cv::Point2f> {start, secondPoint};
+}
+
+
+// adds 2 path vectors to make a bigger one
+std::vector<cv::Point2f> AStarAttack::addPaths(std::vector<cv::Point2f> path1, std::vector<cv::Point2f> path2) {
+
+    std::vector<cv::Point2f> newPath = {};
+
+    for(int i = 0; i < path1.size(); i++) {
+        newPath.emplace_back(path1[i]);
+    }
+
+    for(int i = 0; i < path2.size(); i++) {
+        newPath.emplace_back(path2[i]);
+    }
+
+    return newPath;
+}
+
+
+// reverses a list of points
+std::vector<cv::Point2f> AStarAttack::reversePath(std::vector<cv::Point2f> path) {
+
+    // create a list of the same size
+    std::vector<cv::Point2f> reversePath(path.size(), cv::Point2f(0, 0));
+
+    for(int i = 0; i < path.size(); i++) {
+        reversePath[reversePath.size() - 1 - i] = path[i];
+    }
+
+    return reversePath;
+}
+
+
+// absolute angle made by 2 points
+float AStarAttack::angle(cv::Point2f point1, cv::Point2f point2) {
+    return std::atan2(point2.y - point1.y, point2.x - point1.x);
+}
+
+
+// generates the path in a specified direction
+std::pair<std::vector<cv::Point2f>, float> AStarAttack::generatePath(bool clockwise, cv::Point2f oppPos, float oppAngle, cv::Point2f orbPos, float closingSpeed, float ppRadius, float vMax, float wMax) {
+
+    int direction = 1;
+    if(!clockwise) { direction = -1; }
+
+    float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
+
+    // opponent approach line
+    float fastLineAngleOffset = 80.0f*TO_RAD;
+    float slowLineAngleOffset = 120.0f*TO_RAD;
+    float maxClosingSpeed = 600.0f;
+    float absoluteOffset = std::max(std::min((-closingSpeed / maxClosingSpeed), 1.0f), 0.0f) * (fastLineAngleOffset - slowLineAngleOffset) + slowLineAngleOffset;   
+
+    float lineLength = 1.0f;
+    float lineAngleOffset = absoluteOffset*direction;
+    float lineAbsoluteAngle = oppAngle + lineAngleOffset;
+    std::vector<cv::Point2f> line = angleLineFromPoint(oppPos, lineLength, lineAbsoluteAngle);
+
+    // time for a straight line is just distance over speed
+    float lineTime = lineLength / vMax;
+
+
+    // if we're behind the opp beyond the line angle, just go right for them
+    if(abs(angleToOrb) < 180.0f*TO_RAD && abs(angleToOrb) > absoluteOffset) {
+        std::vector<cv::Point2f> path = {orbPos, oppPos};
+        float pathTime = cv::norm(oppPos - orbPos) / vMax;
+        return std::pair<std::vector<cv::Point2f>, float>(path, pathTime);
+    }
+    
+
+    // small cornering arc
+    float approachAngle = 55.0f*TO_RAD*direction; // from vertical, greater is more aggressive
+    float firstArcAngle = (lineAngleOffset - 90.0f*TO_RAD*direction) + approachAngle;
+    float firstArcRadius = 85.0f;
+    std::vector<cv::Point2f> firstArc = arcPointsFromOrigin(-firstArcRadius*direction, -firstArcAngle, 10.0f);
+    transformList(firstArc, line[1], lineAbsoluteAngle - 90.0f*TO_RAD);
+
+    // use arc time function to find traversal time
+    float firstArcTime = arcTime(firstArcRadius, abs(firstArcAngle), vMax, wMax);
+
+
+    // find the tangent point, if that's not the last point of the arc then we can draw a tangent line
+    // also save the first point that's in the pure pursuit radius in case we want to clip to that
+    int tangentIndex = 0;
+    int firstRadiusIndex = -1;
+    
+    // check first index to set initial values
+    float mostTangentAngle = angle(orbPos, firstArc[0]);
+    if(cv::norm(firstArc[0] - orbPos) < ppRadius) { firstRadiusIndex = 0; }
+
+    for(int i = 1; i < firstArc.size(); i++) {
+        float currentAngle = angle(orbPos, firstArc[i]);
+        float angleDiff = angleWrapRad(currentAngle - mostTangentAngle);
+        if((angleDiff < 0 && clockwise) || (angleDiff > 0 && !clockwise)) {
+            mostTangentAngle = currentAngle;
+            tangentIndex = i;
+        }
+
+        // if this is the first point that's closer than the pp radius
+        if(cv::norm(firstArc[i] - orbPos) < ppRadius && firstRadiusIndex == -1) {
+            firstRadiusIndex = i;
+        }
+    }
+
+    // if a tangent line can be drawn
+    if(tangentIndex != firstArc.size() - 1 && angleToOrb*direction > 0) {
+
+        // clip the arc up to the tangent point
+        std::vector<cv::Point2f> clippedArc(tangentIndex + 1, cv::Point2f(0, 0));
+        for(int i = 0; i <= tangentIndex; i++) { clippedArc[i] = firstArc[i]; }
+
+        std::vector<cv::Point2f> path = addPaths(line, clippedArc);
+        path.emplace_back(orbPos);
+
+        float clippedArcTime = (firstArcTime * tangentIndex) / firstArc.size(); // proportional to full arc
+        float tangentLineTime = cv::norm(orbPos - clippedArc[clippedArc.size() - 1]) / vMax;
+        float pathTime = lineTime + clippedArcTime + tangentLineTime;
+
+        return std::pair<std::vector<cv::Point2f>, float>(reversePath(path), pathTime);
+    }
+
+    // if no tangent line can be drawn but a point is closer than the pp radius, then clip to that
+    if(firstRadiusIndex != -1) {
+
+        // clip the arc up to the tangent point
+        std::vector<cv::Point2f> clippedArc(firstRadiusIndex + 1, cv::Point2f(0, 0));
+        for(int i = 0; i <= firstRadiusIndex; i++) {
+            clippedArc[i] = firstArc[i];
+        }
+        std::vector<cv::Point2f> path = addPaths(line, clippedArc);
+        path.emplace_back(orbPos);
+
+        float clippedArcTime = (firstArcTime * tangentIndex) / firstArc.size(); // proportional to full arc
+        float tangentLineTime = cv::norm(orbPos - clippedArc[clippedArc.size() - 1]) / vMax;
+        float pathTime = lineTime + clippedArcTime + tangentLineTime;
+        return std::pair<std::vector<cv::Point2f>, float>(reversePath(path), pathTime);
+    }
+
+
+    // big approach arc
+    float slope = tan(90.0f*TO_RAD*direction - approachAngle + oppAngle);
+    float slopePerp = -1.0f / slope;
+    cv::Point2f arcStart = firstArc[firstArc.size() - 1];
+    cv::Point2f arcEnd = orbPos;
+    float xIntersect = (slope*arcStart.x - arcStart.y - slopePerp*arcEnd.x + arcEnd.y) / (slope - slopePerp);
+    float yIntersect = slope*(xIntersect - arcStart.x) + arcStart.y;
+    cv::Point2f intersect(xIntersect, yIntersect);
+
+    float xOffset = cv::norm(arcEnd - intersect);
+    float yOffset = cv::norm(arcStart - intersect);
+
+
+    float secondArcRadius = (pow(xOffset, 2) + pow(yOffset, 2)) / (2 * xOffset);
+    float secondArcAngle = acos(1 - xOffset/secondArcRadius);
+
+
+    float angleOffset = 0.0f;
+    if(direction == -1) { angleOffset = 180.0f*TO_RAD; }
+
+    if (angleWrapRad(angleToOrb + approachAngle - angleOffset) < 0.0f) {
+        secondArcAngle = 360.0f*TO_RAD - secondArcAngle;
+    }
+    
+    std::vector<cv::Point2f> secondArc = arcPointsFromOrigin(-secondArcRadius*direction, -secondArcAngle*direction, 10.0f);
+    transformList(secondArc, firstArc[firstArc.size() - 1], oppAngle - approachAngle + angleOffset);
+
+
+    // complete path is the sum of all the individual ones
+    std::vector<cv::Point2f> path = addPaths(line, firstArc);
+    path = addPaths(path, secondArc);
+    path = reversePath(path);
+
+    float secondArcTime = arcTime(secondArcRadius, secondArcAngle, vMax, wMax);
+    float pathTime = lineTime + firstArcTime + secondArcTime;
+
+    return std::pair<std::vector<cv::Point2f>, float>(path, pathTime);
+}
+
+
+// returns an estimated time to traverse an arc path
+float AStarAttack::arcTime(float radius, float theta, float vMax, float wMax) {
+
+    // epic math time
+    float travelVel = vMax / (1.0f + vMax / (radius * wMax));
+    return (radius * theta) / travelVel;
+}

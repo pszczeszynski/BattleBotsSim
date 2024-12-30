@@ -19,28 +19,24 @@ public:
 
 private:
 
-    int tiles; // how many tiles in the AStar grid
-    float fieldMax; // maximum coordinate of a robot on the field
-    float fieldPad; // how far in the grid starts
-
-    AStar pathSolver; // AStar solver
-
     float oppMoveVelFilter = 0.0f;
     float oppTurnVelFilter = 0.0f;
     float orbMoveVelFilter = 0.0f;
-
-    cv::Point followPoint; // pure pursuit follow point
-
-
+    float previousDistanceToOpp = 0.0f;
+    float speedToOppFilter = 0.0f;
 
 
-    cv::Point2f toGrid(cv::Point2f position);
-    cv::Point2f toField(cv::Point2f position);
-    void displayPathPoints(std::vector<cv::Point>& path);
-    void displayPathLines(std::vector<cv::Point>& path);
-    void displayPathPointsDirect(std::vector<cv::Point2f>& path);
-    void displayPathLinesDirect(std::vector<cv::Point2f>& path);
-    void displayBoundaryLines();
-    void displayOppWeapon();
+
+    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+
+    std::vector<cv::Point2f> arcPointsFromOrigin(float radius, float angle, float pointSpacing);
+    void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
+    std::vector<cv::Point2f> angleLineFromPoint(cv::Point2f start, float length, float angle);
+    std::vector<cv::Point2f> addPaths(std::vector<cv::Point2f> path1, std::vector<cv::Point2f> path2);
+    std::vector<cv::Point2f> reversePath(std::vector<cv::Point2f> path);
+    float angle(cv::Point2f point1, cv::Point2f point2);
+    std::pair<std::vector<cv::Point2f>, float> generatePath(bool clockwise, cv::Point2f oppPos, float oppAngle, cv::Point2f orbPos, float closingSpeed, float ppRadius, float vMax, float wMax);
+    float arcTime(float radius, float theta, float vMax, float wMax);
 
 };

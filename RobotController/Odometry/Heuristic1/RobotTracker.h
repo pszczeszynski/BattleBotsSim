@@ -20,6 +20,10 @@
 #define angleWrap(degree) ((degree < -180.0) ? fmod(degree + 180.0, 360.0) + 180.0 : fmod(degree + 180.0, 360.0) - 180.0)
 #endif
 
+#ifndef angleWrapRad
+#define angleWrapRad(rad) ((rad < -M_PI) ? fmod(rad + M_PI, 2*M_PI) + M_PI : fmod(rad + M_PI, 2*M_PI) - M_PI)
+#endif
+
 class Vector2;
 class myRect;
 
