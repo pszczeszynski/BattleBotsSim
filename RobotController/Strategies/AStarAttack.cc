@@ -76,32 +76,33 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     
-    // generate the path
     float angleToOrb = angleWrapRad(angle(opponentData.robotPosition, ourData.robotPosition) - opponentData.robotAngle);
 
-    float vMax = 500.0f; // pixels/sec
-    float wMax = 8.5*M_PI; // rad/sec
 
-
-    float ETA = distanceToOpp/std::max(orbMoveVelFilter, 200.0f);
-    float maxMoveVel = 650.0f;
-    float maxETA = 0.8f; // seconds
+    float ETA = distanceToOpp/std::max(std::max(speedToOppFilter, 0.0f), 200.0f);
+    float maxMoveVel = 500.0f;
+    float maxETA = 0.3f; // seconds
     float moveVelPercent = std::min(orbMoveVelFilter / maxMoveVel, 1.0f); // what percent of total speed we're at
     float ETAPercent = std::min(ETA / maxETA, 1.0f); // what percent of ETA is left
-    float maxRadius = 200.0f;
+    float maxRadius = 180.0f;
     float minRadius = ETAPercent * 55.0f;
-    float minStartAngle = 80.0f*TO_RAD;
-    float maxStartAngle = 110.0f*TO_RAD;
+    float minStartAngle = 70.0f*TO_RAD;
+    float maxStartAngle = 90.0f*TO_RAD;
     float minRadAngle = (minStartAngle - maxStartAngle) * moveVelPercent + maxStartAngle;
     
 
     float radius;
     if(abs(angleToOrb) < minRadAngle) {
-        radius = (1.0f - std::min(abs(angleToOrb)/minRadAngle, 1.0f)) * (maxRadius - minRadius) + minRadius;
+        radius = pow(1.0f - std::min(abs(angleToOrb)/minRadAngle, 1.0f), 0.6f) * (maxRadius - minRadius) + minRadius;
     }
     else {
         radius = (1.0f - (abs(angleToOrb) - minRadAngle) / (M_PI - minRadAngle)) * minRadius;
     }
+
+    float minExpo = 2.0f;
+    float maxExpo = 5.0f;
+    float expo = (maxExpo - minExpo)*moveVelPercent + minExpo;
+    radius = pow(1.0f - std::min(abs(angleToOrb)/M_PI, 1.0), expo) * maxRadius;
      
     std::vector<cv::Point2f> circle;
     transformList(circle, opponentData.robotPosition, 0.0f);

@@ -16988,7 +16988,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 150
+    force: 75
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -25007,7 +25007,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 150
+    force: 75
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -25754,7 +25754,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 150
+    force: 75
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
@@ -37371,7 +37371,7 @@ HingeJoint:
   m_UseMotor: 1
   m_Motor:
     targetVelocity: 0
-    force: 150
+    force: 75
     freeSpin: 0
   m_UseLimits: 0
   m_Limits:
