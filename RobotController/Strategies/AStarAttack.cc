@@ -29,7 +29,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     ourData.Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
 
     // extrapolate the opponent's position into the future
-    //OdometryData opponentData = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS_KILL / 1000.0, MAX_OPP_EXTRAP_MS_KILL);
+    // OdometryData opponentData = ExtrapolateOpponentPos(OPPONENT_POSITION_EXTRAPOLATE_MS_KILL / 1000.0, MAX_OPP_EXTRAP_MS_KILL);
     OdometryData opponentData = ExtrapolateOpponentPos(500.0 / 1000.0, 9999999999.0f);
     opponentData = RobotController::GetInstance().odometry.Opponent();
 
@@ -79,47 +79,42 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float angleToOrb = angleWrapRad(angle(opponentData.robotPosition, ourData.robotPosition) - opponentData.robotAngle);
 
 
-    float ETA = distanceToOpp/std::max(std::max(speedToOppFilter, 0.0f), 200.0f);
-    float maxMoveVel = 500.0f;
-    float maxETA = 0.3f; // seconds
-    float moveVelPercent = std::min(orbMoveVelFilter / maxMoveVel, 1.0f); // what percent of total speed we're at
-    float ETAPercent = std::min(ETA / maxETA, 1.0f); // what percent of ETA is left
-    float maxRadius = 180.0f;
-    float minRadius = ETAPercent * 55.0f;
-    float minStartAngle = 70.0f*TO_RAD;
-    float maxStartAngle = 90.0f*TO_RAD;
-    float minRadAngle = (minStartAngle - maxStartAngle) * moveVelPercent + maxStartAngle;
+    float collisionRadius = 50.0f;
+    float ETA = std::max((distanceToOpp - collisionRadius), 0.0f) / std::max(orbMoveVelFilter, 150.0f);
+    float maxRadius = 190.0f;
+    float minRadius = 0.0f;
+
+
     
 
-    float radius;
-    if(abs(angleToOrb) < minRadAngle) {
-        radius = pow(1.0f - std::min(abs(angleToOrb)/minRadAngle, 1.0f), 0.6f) * (maxRadius - minRadius) + minRadius;
-    }
-    else {
-        radius = (1.0f - (abs(angleToOrb) - minRadAngle) / (M_PI - minRadAngle)) * minRadius;
-    }
 
-    float minExpo = 2.0f;
-    float maxExpo = 5.0f;
-    float expo = (maxExpo - minExpo)*moveVelPercent + minExpo;
-    radius = pow(1.0f - std::min(abs(angleToOrb)/M_PI, 1.0), expo) * maxRadius;
+
+    float minRadiusAngle = 90.0f*TO_RAD + ETA*120.0f*TO_RAD; // 80, 120
+
+    
+    float radius = (1.0f - std::min((abs(angleToOrb)/minRadiusAngle), 1.0f)) * (maxRadius - minRadius) + minRadius;
+
+
+
+    // collision radius circle
+    safe_circle(RobotController::GetInstance().GetDrawingImage(),
+                opponentData.robotPosition,
+                collisionRadius, cv::Scalar(255, 100, 100), 1);
+
+
      
     std::vector<cv::Point2f> circle;
     transformList(circle, opponentData.robotPosition, 0.0f);
 
 
 
-    // std::cout << "angle = " << angleToOrb << std::endl;
-    
 
 
 
 
-
-
-    bool CW = angleToOrb > 0;
+    bool CW = angleToOrb > 0; // choose to go CW or CCW based on what side of opponent we're on
     cv::Point2f followPoint;
-    float ppRadius = std::min(90.0f + 0.0f*abs(orbMoveVelFilter), distanceToOpp - 5.0f); // minimum distance a follow point must be from the robot
+    float ppRadius = std::min(80.0f + 0.0f*abs(orbMoveVelFilter), distanceToOpp - 1.0f); // minimum distance a follow point must be from the robot
     bool outsideCircle = radius < distanceToOpp;
     
     // if we're outside the desired radius
@@ -149,6 +144,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     // if we're inside the desired radius or the tangent point wasn't far enough
     if(!outsideCircle || (outsideCircle && cv::norm(followPoint - ourData.robotPosition) < ppRadius)) {
+    // if(!outsideCircle) {
 
         float radiusOffset = ppRadius * sin(70.0f*TO_RAD); // controls rejoin angle when we're inside the desired radius
         circle = arcPointsFromCenter(std::min(distanceToOpp + radiusOffset, radius), 2*M_PI, 5.0f);
@@ -179,14 +175,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-
     
-    
-    displayPathPoints(circle, cv::Scalar(0, 255, 0));
+    //displayPathPoints(circle, cv::Scalar(0, 255, 0));
     displayPathLines(circle, cv::Scalar(0, 255, 0));
 
-
-    
 
 
     
@@ -194,12 +186,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // draw pure pursuit follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 0, 0), 2);
 
-    // // draw pure pursuit radius
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(),
-    //             ourData.robotPosition,
-    //             radius, cv::Scalar(255, 0, 0), 2);
 
-    
 
     
 
@@ -223,6 +210,14 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     if (abs(angleError) > (70.0f*TO_RAD)) {
         movePercent = 0.0f;
     }
+
+    // clip the move percent if we're really far out
+    // float maxMove = 1.0f;
+    // if(distanceToOpp > maxRadius * 1.8f) {
+    //     maxMove = 0.7f;
+    // }
+    // if(movePercent > maxMove) { movePercent = maxMove; }
+
     float movement = gamepad.GetRightStickY() * movePercent;
 
 
