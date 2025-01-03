@@ -30,11 +30,14 @@ private:
     float orbPathLength; // how long the total tracked path is
 
     std::vector<Line> fieldBounds; // list of lines that defines the outline of the field
+    std::vector<cv::Point2f> convexPoints; // list of field bound convex points we could hit while driving
 
 
 
-    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
-    void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayLineList(std::vector<Line>& lines, cv::Scalar color);
+    void displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color);
     void displayFieldBounds();
 
     std::vector<cv::Point2f> arcPointsFromOrigin(float radius, float angle, float pointSpacing);
@@ -53,5 +56,7 @@ private:
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     cv::Point2f closestBoundPoint(cv::Point2f point);
     bool insideFieldBounds(cv::Point2f point);
+    bool intersectsAnyBound(Line testLine);
+    int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
 
 };
