@@ -17,8 +17,8 @@ Line::Line(const cv::Point2f& point1_, const cv::Point2f& point2_) {
 }
 
 
-// how close does the inputted point get
-float Line::howClosePoint(const cv::Point2f& testPoint) {
+// calculates closest point on the line segment to the input point, true if that point is between the start and end
+cv::Point2f Line::closestLinePoint(cv::Point2f testPoint) {
     
     // Initialize intersection coordinates
     cv::Point2f intersect(0, 0);
@@ -45,18 +45,22 @@ float Line::howClosePoint(const cv::Point2f& testPoint) {
 
         // if it's more vertical, use the y coord, otherwise use x coord
         if (slope > 1.0f) { onLine = intersect.y > minY && intersect.y < maxY; }
-        else { intersect.x > minX && intersect.x < maxX; }
+        else { onLine = intersect.x > minX && intersect.x < maxX; }
     }
 
-    // Distance from point to intersection
-    float pointDistance;
-    
-    // if it's not on the line, distance is the distance to the closest start/end point
-    if (onLine) { pointDistance = cv::norm(intersect - testPoint); }
-    else { pointDistance = std::min(cv::norm(testPoint - point1), cv::norm(testPoint - point2)); }
-    
-    return pointDistance;
+    if(onLine) { return intersect; }
+    else if(cv::norm(testPoint - point1) < cv::norm(testPoint - point2)) { return point1; }
+    return point2;
 }
+
+
+// how close does the inputted point get
+float Line::howClosePoint(const cv::Point2f& testPoint) {
+
+    cv::Point2f closestPoint = closestLinePoint(testPoint);
+    return cv::norm(testPoint - closestPoint);
+}
+
 
 
 // get length for easier calc

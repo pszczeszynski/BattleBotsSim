@@ -29,10 +29,13 @@ private:
     float orbPathSpacing; // how far apart are the points in the orb path
     float orbPathLength; // how long the total tracked path is
 
+    std::vector<Line> fieldBounds; // list of lines that defines the outline of the field
+
 
 
     void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
     void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayFieldBounds();
 
     std::vector<cv::Point2f> arcPointsFromOrigin(float radius, float angle, float pointSpacing);
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
@@ -43,5 +46,12 @@ private:
     float angle(cv::Point2f point1, cv::Point2f point2);
     std::pair<std::vector<cv::Point2f>, float> generatePath(bool clockwise, cv::Point2f oppPos, float oppAngle, cv::Point2f orbPos, float closingSpeed, float ppRadius, float vMax, float wMax);
     float arcTime(float radius, float theta, float vMax, float wMax);
+
+    cv::Point2f tangentPoint(float radius, cv::Point2f oppPos, cv::Point2f orbPos, bool CW);
+    cv::Point2f ppPoint(float radius, cv::Point2f oppPos, cv::Point2f orbPos, bool CW, float ppRadius, float rejoinAngle, float distanceToOpp);
+    cv::Point2f clipInBounds(cv::Point2f point, float xMin, float xMax, float yMin, float yMax);
+    std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
+    cv::Point2f closestBoundPoint(cv::Point2f point);
+    bool insideFieldBounds(cv::Point2f point);
 
 };

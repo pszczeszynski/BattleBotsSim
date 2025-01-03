@@ -17,6 +17,8 @@ public:
     bool doesIntersectLine(const Line& otherLine);
     std::pair<cv::Point2f, cv::Point2f> getLinePoints();
 
+    cv::Point2f closestLinePoint(cv::Point2f testPoint);
+
 
 private:
 
