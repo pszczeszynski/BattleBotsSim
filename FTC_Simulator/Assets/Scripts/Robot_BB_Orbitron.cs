@@ -233,11 +233,11 @@ public class Robot_BB_Orbitron : RobotInterface3D
             UnityEngine.Debug.Log("spinner 1 power: " + input.Value.front_weapon_power);
             UnityEngine.Debug.Log("spinner 2 power: " + input.Value.back_weapon_power);
             JointMotor motor1 = spinner1.motor;
-            motor1.targetVelocity = (float)input.Value.front_weapon_power * SPINNER_SPEED;
+            motor1.targetVelocity = (float)input.Value.front_weapon_power / 300.0f * SPINNER_SPEED;
             spinner1.motor = motor1;
             
             JointMotor motor2 = spinner2.motor;
-            motor2.targetVelocity = (float)input.Value.back_weapon_power * SPINNER_SPEED;
+            motor2.targetVelocity = (float)input.Value.back_weapon_power / 300.0f * SPINNER_SPEED;
             spinner2.motor = motor2;
         }
 
