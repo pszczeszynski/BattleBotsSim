@@ -29,7 +29,8 @@ private:
     float orbPathSpacing; // how far apart are the points in the orb path
     float orbPathLength; // how long the total tracked path is
 
-    std::vector<Line> fieldBounds; // list of lines that defines the outline of the field
+    std::vector<cv::Point2f> fieldBoundPoints; // list of points that define the field bound lines
+    std::vector<Line> fieldBoundLines; // list of lines that defines the outline of the field
     std::vector<cv::Point2f> convexPoints; // list of field bound convex points we could hit while driving
 
 

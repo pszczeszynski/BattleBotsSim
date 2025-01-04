@@ -15,10 +15,10 @@ AStarAttack::AStarAttack()
     float minX = 65.0f;
     float maxX = 675.0f;
     float minY = 55.0f;
-    float maxY = 660.0f;
+    float maxY = 655.0f;
     float shelfStartX = 210.0f;
     float shelfEndX = 525.0f;
-    float shelfY = 200.0f;
+    float shelfY = 215.0f;
     float screwX1 = 110.0f;
     float screwX2 = 620.0f;
     float screwY1 = 140.0f;
@@ -28,7 +28,7 @@ AStarAttack::AStarAttack()
     float gateY = 615.0f;
     float gateX1 = 115.0f;
     float gateX2 = 620.0f;
-    std::vector<cv::Point2f> pointSequence = {
+    fieldBoundPoints = {
         cv::Point(minX, minY),
         cv::Point2f(shelfStartX, minY),
         cv::Point2f(shelfStartX, shelfY),
@@ -51,9 +51,9 @@ AStarAttack::AStarAttack()
     };
 
     // lines are defined by connected adjacent points
-    for(int i = 0; i < pointSequence.size() - 1; i++) {
-        Line addLine = Line(pointSequence[i], pointSequence[i + 1]);
-        fieldBounds.emplace_back(addLine);
+    for(int i = 0; i < fieldBoundPoints.size() - 1; i++) {
+        Line addLine = Line(fieldBoundPoints[i], fieldBoundPoints[i + 1]);
+        fieldBoundLines.emplace_back(addLine);
     }
 
 
@@ -206,11 +206,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         followPointCW = ppPoint(radius, opponentData.robotPosition, ourData.robotPosition, true, ppRadius, rejoinAngle, distanceToOpp);
         followPointCCW = ppPoint(radius, opponentData.robotPosition, ourData.robotPosition, false, ppRadius, rejoinAngle, distanceToOpp);
 
-        // draw pure pursuit radius
-        safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                    ourData.robotPosition,
-                    ppRadius, cv::Scalar(255, 0, 0), 2);
+        
     }
+
+    // draw pure pursuit radius
+    safe_circle(RobotController::GetInstance().GetDrawingImage(),
+                ourData.robotPosition,
+                ppRadius, cv::Scalar(255, 0, 0), 2);
 
 
     float angleToCW = angleWrapRad(angle(ourData.robotPosition, followPointCW) - ourData.robotAngle);
@@ -232,15 +234,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    // if the follow point is out of the field, clip it in
-    if(!insideFieldBounds(followPoint)) {
-        followPoint = closestBoundPoint(followPoint);
-    } 
-
-
-
-
-
 
 
     // check if the line to the follow point intersects boundary lines
@@ -252,15 +245,16 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     Line travelLine(travelStart, followPoint);
     std::vector<int> boundaryHits = {}; // indices of lines that intersect travel line
 
-    for(int i = 0; i < fieldBounds.size(); i++) {
-        float howCloseFirstPoint = fieldBounds[i].howClosePoint(travelLine.getLinePoints().first);
-        float howCloseSecondPoint = fieldBounds[i].howClosePoint(travelLine.getLinePoints().second);
-        if(fieldBounds[i].doesIntersectLine(travelLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
+    // find all the convex points that are possibly in the way, the ones that belong to lines that are being collided with
+    for(int i = 0; i < fieldBoundLines.size(); i++) {
+        float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().first);
+        float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().second);
+        if(fieldBoundLines[i].doesIntersectLine(travelLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
             boundaryHits.emplace_back(i);
         }
     }
 
-    // checks for lines that are less than a certain amount apart
+    // checks for lines that are less than a certain amount apart (fills in gaps)
     for(int i = 0; i < boundaryHits.size(); i++) {
         if(boundaryHits.size() - 1 - i > 0) {
             if(boundaryHits[i + 1] - boundaryHits[i] <= 3) {
@@ -274,13 +268,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     }
 
     //displayLineList(boundaryHits, cv::Scalar(255, 255, 255));
-    displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255));
+    displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
+
 
 
     std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
-
     for(int i = 0; i < boundaryHits.size(); i++) {
-        std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBounds[boundaryHits[i]].getLinePoints();
+        std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBoundLines[boundaryHits[i]].getLinePoints();
         float point1Distance = cv::norm(linePoints.first - ourData.robotPosition);
         float point2Distance = cv::norm(linePoints.second - ourData.robotPosition);
         
@@ -292,6 +286,21 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         if(point2Index != -1) { convexCount[point2Index]++; }
     }
 
+
+
+    // use a different radius for walls, has to be smaller to not clip walls
+    float ppRadiusForWalls = 70.0f;
+    std::vector<cv::Point2f> ppWallPointsForWalls = PurePursuit::followPath(ourData.robotPosition, fieldBoundPoints, ppRadiusForWalls);
+
+    // draw wall pure pursuit radius
+    safe_circle(RobotController::GetInstance().GetDrawingImage(),
+                ourData.robotPosition,
+                ppRadiusForWalls, cv::Scalar(255, 0, 0), 1.5);
+
+
+    // if we're using a convex point as the follow point, don't check for clipping later if we are
+    bool usingConvexPoint = false;
+
     // search for closest convex points with 2 collision lines associated with it
     float closestConvex = 999999.9f;
     for(int i = 0; i < convexCount.size(); i++) {
@@ -299,10 +308,69 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         if(convexCount[i] == 2 && convexDistance < closestConvex) {
             followPoint = convexPoints[i];
             closestConvex = convexDistance;
+            usingConvexPoint = true;
+
+            // if this convex point is too close and we have wall intersections to use
+            if(cv::norm(followPoint - ourData.robotPosition) < ppRadiusForWalls && ppWallPointsForWalls.size() > 0) {
+
+                // use the pp point that's closest to opponent
+                float closestPP = cv::norm(ppWallPointsForWalls[0] - opponentData.robotPosition);
+                followPoint = ppWallPointsForWalls[0];
+                for(int i = 1; i < ppWallPointsForWalls.size(); i++) {
+                    float newPPDistance = cv::norm(ppWallPointsForWalls[i] - opponentData.robotPosition);
+                    if(newPPDistance < closestPP) {
+                        closestPP = newPPDistance;
+                        followPoint = ppWallPointsForWalls[i];
+
+                        // std::cout << insideFieldBounds(followPoint) << std::endl;
+                    }
+                }
+            }
         }
     }
 
 
+    // find pp circle intersections with the wall
+    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(ourData.robotPosition, fieldBoundPoints, ppRadius);
+
+    // if the follow point is out of the field, clip it in
+    if(!insideFieldBounds(followPoint) && !usingConvexPoint) {
+
+        // display pp points
+        for(int i = 0; i < ppWallPoints.size(); i++) {
+            safe_circle(RobotController::GetInstance().GetDrawingImage(),
+                ppWallPoints[i],
+                5.0f, cv::Scalar(255, 50, 50), 2);
+        }
+
+        if(ppWallPoints.size() > 0) {
+            int bestPointIndex = 0;
+            float bestPointAngle = angleWrapRad(angle(opponentData.robotPosition, ppWallPoints[0]) - opponentData.robotAngle);
+
+            // find the most CW or CCW points, that's the one to follow
+            for(int i = 1; i < ppWallPoints.size(); i++) {
+                float testAngle = angleWrapRad(angle(opponentData.robotPosition, ppWallPoints[i]) - opponentData.robotAngle);
+                if((testAngle < bestPointAngle && !CW) || (testAngle > bestPointAngle && CW)) {
+                    bestPointAngle = testAngle;
+                    bestPointIndex = i;
+                }
+            }
+
+            // set the follow point to the best index if it's more in the correct direction and if it's in the main radius
+            float deltaAnglePP = angleWrapRad(angle(ourData.robotPosition, ppWallPoints[bestPointIndex]) - angle(ourData.robotPosition, followPoint));
+            float distanceOppToPoint = cv::norm(opponentData.robotPosition - ppWallPoints[bestPointIndex]);
+            if(((deltaAnglePP < 0 && !CW) || (deltaAnglePP > 0 && CW)) && distanceOppToPoint < radius) {
+                followPoint = ppWallPoints[bestPointIndex];
+            }
+            
+        }
+    } 
+
+    
+
+    
+    
+
 
 
 
@@ -311,7 +379,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     
     
 
-    // draw circle
+    // draw main radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(),
                     opponentData.robotPosition,
                     radius, cv::Scalar(0, 255, 0), 2);
@@ -320,8 +388,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     
 
-    // draw pure pursuit follow point
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 0, 0), 2);
+    // draw follow point
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3);
 
 
 
@@ -431,10 +499,10 @@ cv::Point2f AStarAttack::ppPoint(float radius, cv::Point2f oppPos, cv::Point2f o
 
 // does a test line intersect any boundary line
 bool AStarAttack::intersectsAnyBound(Line testLine) {
-    for(int i = 0; i < fieldBounds.size(); i++) {
-        float howCloseFirstPoint = fieldBounds[i].howClosePoint(testLine.getLinePoints().first);
-        float howCloseSecondPoint = fieldBounds[i].howClosePoint(testLine.getLinePoints().second);
-        if(fieldBounds[i].doesIntersectLine(testLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
+    for(int i = 0; i < fieldBoundLines.size(); i++) {
+        float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(testLine.getLinePoints().first);
+        float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(testLine.getLinePoints().second);
+        if(fieldBoundLines[i].doesIntersectLine(testLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
             return true;
         }
     }
@@ -733,9 +801,9 @@ float AStarAttack::arcTime(float radius, float theta, float vMax, float wMax) {
 
 // displays the field bounds list
 void AStarAttack::displayFieldBounds() {
-    for(int i = 0; i < fieldBounds.size(); i++) {
-        cv::Point2f point1 = fieldBounds[i].getLinePoints().first;
-        cv::Point2f point2 = fieldBounds[i].getLinePoints().second;
+    for(int i = 0; i < fieldBoundLines.size(); i++) {
+        cv::Point2f point1 = fieldBoundLines[i].getLinePoints().first;
+        cv::Point2f point2 = fieldBoundLines[i].getLinePoints().second;
         cv::line(RobotController::GetInstance().GetDrawingImage(), point1, point2, cv::Scalar(0, 0, 255), 2);
     }
 }
@@ -744,8 +812,8 @@ void AStarAttack::displayFieldBounds() {
 // displays a specific set of field bounds
 void AStarAttack::displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color) {
     for(int i = 0; i < indices.size(); i++) {
-        cv::Point2f point1 = fieldBounds[indices[i]].getLinePoints().first;
-        cv::Point2f point2 = fieldBounds[indices[i]].getLinePoints().second;
+        cv::Point2f point1 = fieldBoundLines[indices[i]].getLinePoints().first;
+        cv::Point2f point2 = fieldBoundLines[indices[i]].getLinePoints().second;
         cv::line(RobotController::GetInstance().GetDrawingImage(), point1, point2, color, 2);
     }
 }
@@ -781,13 +849,13 @@ std::pair<float, int> AStarAttack::closestFromLineList(std::vector<Line> lineLis
 // finds the closest point that's on a boundary line
 cv::Point2f AStarAttack::closestBoundPoint(cv::Point2f point) {
 
-    std::pair<float, int> closestFieldBound = closestFromLineList(fieldBounds, point);
-    std::pair<cv::Point2f, cv::Point2f> closestLinePoints = fieldBounds[closestFieldBound.second].getLinePoints();
+    std::pair<float, int> closestFieldBound = closestFromLineList(fieldBoundLines, point);
+    std::pair<cv::Point2f, cv::Point2f> closestLinePoints = fieldBoundLines[closestFieldBound.second].getLinePoints();
 
     // highlight closest line
     cv::line(RobotController::GetInstance().GetDrawingImage(), closestLinePoints.first, closestLinePoints.second, cv::Scalar(200, 200, 255), 2);
     
-    cv::Point2f closestWallPoint = fieldBounds[closestFieldBound.second].closestLinePoint(point);
+    cv::Point2f closestWallPoint = fieldBoundLines[closestFieldBound.second].closestLinePoint(point);
     return closestWallPoint;
 }
 
@@ -800,11 +868,9 @@ bool AStarAttack::insideFieldBounds(cv::Point2f point) {
 
     // count the number of intersections with the bounds
     int intersections = 0;
-    for(int i = 0; i < fieldBounds.size(); i++) {
-        if(testLine.doesIntersectLine(fieldBounds[i])) { intersections++; }
+    for(int i = 0; i < fieldBoundLines.size(); i++) {
+        if(testLine.doesIntersectLine(fieldBoundLines[i])) { intersections++; }
     }
-
-    //std::cout << "intersections = " << intersections << std::endl;
 
     // point is in the field if there's an odd number of intersections
     return intersections % 2 != 0;

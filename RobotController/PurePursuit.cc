@@ -20,12 +20,12 @@ std::vector<cv::Point2f> PurePursuit::followPath(cv::Point2f robotPos, const std
         cv::Point2f segmentStart = pathPoints[i];
         cv::Point2f segmentEnd = pathPoints[i + 1];
 
-        // if segmentEnd is closer to the robot than segmentStart, continue
-        // This prevents the robot from following the path backwards
-        if (cv::norm(segmentEnd - robotPos) < cv::norm(segmentStart - robotPos))
-        {
-            continue;
-        }
+        // // if segmentEnd is closer to the robot than segmentStart, continue
+        // // This prevents the robot from following the path backwards
+        // if (cv::norm(segmentEnd - robotPos) < cv::norm(segmentStart - robotPos))
+        // {
+        //     continue;
+        // }
 
         // Compute intersections of the circle with current path segment
         std::vector<cv::Point2f> segmentIntersections =
@@ -35,18 +35,18 @@ std::vector<cv::Point2f> PurePursuit::followPath(cv::Point2f robotPos, const std
         intersections.insert(intersections.end(), segmentIntersections.begin(), segmentIntersections.end());
     }
 
-    // if there are more than 2 intersections, keep only the 2 closest ones
-    if (intersections.size() > 2)
-    {
-        std::cerr << "Warning followPath: More than 2 intersections found" << std::endl;
-        // Sort the intersections by distance to the robot
-        std::sort(intersections.begin(), intersections.end(), [robotPos](const cv::Point2f &a, const cv::Point2f &b) {
-            return cv::norm(a - robotPos) < cv::norm(b - robotPos);
-        });
+    // // if there are more than 2 intersections, keep only the 2 closest ones
+    // if (intersections.size() > 2)
+    // {
+    //     std::cerr << "Warning followPath: More than 2 intersections found" << std::endl;
+    //     // Sort the intersections by distance to the robot
+    //     std::sort(intersections.begin(), intersections.end(), [robotPos](const cv::Point2f &a, const cv::Point2f &b) {
+    //         return cv::norm(a - robotPos) < cv::norm(b - robotPos);
+    //     });
 
-        // Keep only the two closest intersections
-        intersections.resize(2);
-    }
+    //     // Keep only the two closest intersections
+    //     intersections.resize(2);
+    // }
 
     // // if there are no intersections, find the closest point on the paths
     // if (intersections.size() == 0)
