@@ -1,7 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Animations;
 using UnityEngine;
+using TMPro;
+using UnityEngine.SceneManagement;
 
 public class BBLightManager : MonoBehaviour
 {
@@ -23,12 +24,16 @@ public class BBLightManager : MonoBehaviour
 
     public Animator lightsAnimator;
 
+    public TMP_Dropdown quality;
+
+    float lightMultiplier = 1.0f;
+
 
     // Start is called before the first frame update
     void Start()
     {
         // Find all the lights
-        foreach(Light currLight in bottomLightsLeftParent.GetComponentsInChildren<Light>())
+        foreach (Light currLight in bottomLightsLeftParent.GetComponentsInChildren<Light>())
         {
             bottomLightsLeft.Add(currLight);
         }
@@ -48,7 +53,28 @@ public class BBLightManager : MonoBehaviour
             spotLights.Add(currLight);
         }
 
+        if (quality != null)
+        {
+            QualitySettings.SetQualityLevel(quality.value);
+        }
+
         lightsAnimator = GetComponent<Animator>();
+    }
+
+    public void UpdateQuality(int newsetting)
+    {
+        QualitySettings.SetQualityLevel(newsetting);
+
+        GameObject[] allroot = SceneManager.GetActiveScene().GetRootGameObjects();
+        foreach (GameObject root in allroot)
+        {
+            foreach (MinQualityLevel child in root.GetComponentsInChildren<MinQualityLevel>(true))
+            {
+                child.Enforce();
+            }
+
+        }
+
     }
 
     // Update is called once per frame
@@ -59,26 +85,37 @@ public class BBLightManager : MonoBehaviour
     }
 
     public void UpdateLights()
-    {
+    { 
+
+        if(QualitySettings.GetQualityLevel() <= 1)
+        {
+            lightMultiplier = 2.0f; ;
+        }
+        else
+        {
+            lightMultiplier = 1.0f;
+        }
+
+    
         // Update all Lights
         foreach (Light currLight in bottomLightsLeftParent.GetComponentsInChildren<Light>())
         {
-            currLight.intensity = bottomLightLeftIntensity;
+            currLight.intensity = lightMultiplier * bottomLightLeftIntensity;
         }
 
         foreach (Light currLight in bottomLightsRightParent.GetComponentsInChildren<Light>())
         {
-            currLight.intensity = bottomLightRightIntensity;
+            currLight.intensity = lightMultiplier * bottomLightRightIntensity;
         }
 
         foreach (Light currLight in topLightsParent.GetComponentsInChildren<Light>())
         {
-            currLight.intensity = topLightIntensity;
+            currLight.intensity = lightMultiplier * topLightIntensity;
         }
 
         foreach (Light currLight in spotLightsParent.GetComponentsInChildren<Light>())
         {
-            currLight.intensity = spotLightIntensity;
+            currLight.intensity = lightMultiplier * spotLightIntensity;
         }
     }
 
@@ -86,7 +123,14 @@ public class BBLightManager : MonoBehaviour
     {
         if(lightsAnimator)
         {
+            lightsAnimator.enabled = true;
+
             lightsAnimator.Play("Start");
         }
+    }
+
+    public void DisableAnimator()
+    {
+        lightsAnimator.enabled = false;
     }
 }

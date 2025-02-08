@@ -10,6 +10,7 @@ public class CameraCapture : MonoBehaviour
 {
     public Camera cameraToCapture; // Assign the camera you want to capture in the Inspector
     public string fileName;
+    public int targetFrameRate = 100;
 
 
 
@@ -36,14 +37,33 @@ public class CameraCapture : MonoBehaviour
         // Create a memory-mapped view accessor to write to the memory-mapped file
         accessor = mmf.CreateViewAccessor();
 
+        // Make sure vSync is off since it can interfere with physics engines and maximum refresh rate
+        QualitySettings.vSyncCount = 0;
+
+        // Make sure our displayed frame rate is at least our targetFrameRate
+        //if (Application.targetFrameRate < targetFrameRate)
+        //{
+        //    Application.targetFrameRate = targetFrameRate;
+        //
+        //}
+
+        // Make sure to enforce our min frame rate
+        if( Time.maximumDeltaTime > 1.0f/((float) targetFrameRate))
+        {
+            Time.maximumDeltaTime = 1.0f /((float)targetFrameRate);
+        }
+
         stopwatch.Start();
     }
+
 
 
     Stopwatch stopwatch = new Stopwatch();
     void Update()
     {
-        if (stopwatch.ElapsedMilliseconds < 10)
+
+
+        if (stopwatch.ElapsedMilliseconds < 1000/targetFrameRate)
         {
             return;
         }
@@ -65,6 +85,8 @@ public class CameraCapture : MonoBehaviour
 
         // Copy the pixel data to a NativeArray
         NativeArray<Color32> pixels = tex.GetRawTextureData<Color32>();
+
+
 
         // the following code is necessary to avoid stuttering due to the garbage collector.
         unsafe
