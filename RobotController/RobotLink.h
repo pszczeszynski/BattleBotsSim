@@ -5,6 +5,7 @@
 #include "ServerSocket.h"
 #include "../Common/Communication.h"
 #include "../Common/Communication.h"
+#include "DriverStationLog.h"
 #include <fstream>
 #include <functional>
 #include "Clock.h"
@@ -75,6 +76,7 @@ public:
     RobotLinkReal();
     virtual void Drive(DriverStationMessage &command) override;
     virtual std::vector<RobotMessage> _ReceiveImpl() override;
+    void RegisterLogger(DriverStationLog* logger);
 
     ~RobotLinkReal();
 
@@ -124,6 +126,7 @@ private:
     std::mutex _comPortMutex;
 
     Clock _lastRadioSwitchClock;
+    DriverStationLog *_logger;
 };
 
 #endif

@@ -14,6 +14,7 @@
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
 #include "SafeDrawing.h"
+#include "DriverStationLog.h"
 #define SAVE_VIDEO
 
 int main()
@@ -29,6 +30,7 @@ int main()
 
 RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
                                      gamepad2{1},
+                                     _logger{},
 #ifdef SIMULATION
                                      overheadCamL_sim{"overheadCamL"},
                                      odometry{overheadCamL_sim},
@@ -49,10 +51,16 @@ RobotController::RobotController() : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Sc
     std::cout << "Running in video file mode" << std::endl;
 #else
     std::cout << "Running in real robot mode" << std::endl;
+    robotLink.RegisterLogger(&_logger);
 #endif
 
     // memset last can message
     memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
+
+#ifdef SAVE_VIDEO
+    std::string _logDirectory = _logger.GetLogDirectory();
+    _videoWriter = cv::VideoWriter{_logDirectory + "/output0.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
+#endif
 }
 
 RobotController &RobotController::GetInstance()
@@ -150,6 +158,9 @@ void RobotController::Run()
     // Do Neural Rotation
     odometry.Run(OdometryAlg::NeuralRot);
 
+    // Do OpenCV Tracking
+    odometry.Run(OdometryAlg::OpenCV);
+
 
     std::cout << "Starting GUI threads..." << std::endl;
 
@@ -231,12 +242,7 @@ void RobotController::Run()
     }
 }
 
-#ifdef SAVE_VIDEO
-int video_index = 0;
-cv::VideoWriter _videoWriter{"Recordings/output0.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT)};
-bool saving = true;
-std::mutex _videoWriterMutex;
-#endif
+
 
 
 void RobotController::DumpVideo()
@@ -244,18 +250,18 @@ void RobotController::DumpVideo()
 #ifdef SAVE_VIDEO
     std::unique_lock<std::mutex> locker(_videoWriterMutex);
 
-    saving = false;
+    _saving = false;
 
     // if we are saving, stop saving
     _videoWriter.release();
 
     // increment the video index
-    video_index ++;
+    _video_index ++;
 
     // re-initialize the video writer
-    _videoWriter.open("Recordings/output" + std::to_string(video_index) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT));
+    _videoWriter.open(_logger.GetLogDirectory() + "/output" + std::to_string(_video_index) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(WIDTH, HEIGHT));
 
-    saving = true;
+    _saving = true;
 #endif
 }
 
@@ -291,7 +297,7 @@ int RobotController::UpdateDrawingImage()
     }
     // if save video is enabled, save the frame
 #ifdef SAVE_VIDEO
-    if (videoWriteClock.getElapsedTime() > 1.0 / 60.0 && saving)
+    if (videoWriteClock.getElapsedTime() > 1.0 / 60.0 && _saving)
     {
         std::unique_lock<std::mutex> locker(_videoWriterMutex);
 
