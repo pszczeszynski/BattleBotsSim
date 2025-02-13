@@ -139,8 +139,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // raw follow points in each direction
-    cv::Point2f followPointCW = followPointDirection(orbFiltered.pos(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true);
-    cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false);
+    cv::Point2f followPointCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true);
+    cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false);
     
 
 
@@ -380,58 +380,109 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 // calculates raw follow point in a given direction
-cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW) {
+cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW) {
+
+    // CW = false;
 
     // determine radius
     float radius = radiusEquation(orbPos, oppPos, oppAngle, CW);
     float distanceToOpp = cv::norm(orbPos - oppPos);
     float collisionRadius = 70.0f; // radius at which we collide with opp
+    bool outsideCircle = radius < distanceToOpp;
 
-    float angleToOpp = angleWrapRad(angle(orbPos, oppPos) - orbFiltered.angle());
+    float angleToOpp = angleWrapRad(angle(orbPos, oppPos) - orbAngle);
     float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
-    if(!CW) { angleToOrb *= -1; }
+
+
+    // std::cout << "opp angle = " << oppAngle << std::endl;
+    // std::cout << "distance to opp = " << distanceToOpp << ", radius = " << radius << std::endl;
 
 
     
     // assume we're out of the circle by default
     cv::Point2f followPoint = tangentPoint(radius, oppPos, orbPos, CW);
 
-    // if we're inside the desired radius or the tangent point wasn't far enough
-    bool outsideCircle = radius < distanceToOpp;
 
-
+    
     // if we're outside the circle but the tangent point is too close
     if(outsideCircle && cv::norm(followPoint - orbPos) < ppRadius) {
         followPoint = ppPoint(radius, oppPos, orbPos, CW, ppRadius, 80.0f*TO_RAD);
     }
 
-    // if we're inside the circle or the tangent point is too close
+    // decides if we win or not
     if(!outsideCircle) {
 
-        float fullCommitAngle = 160.0f*TO_RAD; // angle around opp at which minimum radius rejoin angle is -90 (commit)
-        float driveAngleChangeStart = 40.0f*TO_RAD; // angle at which drive angle starts to change
-        float maxRejoin = 88.0f*TO_RAD;
-        float startRejoin = 60.0f*TO_RAD;
-        float endRejoin = -90.0f*TO_RAD;
+        float direction = 1.0f;
+        if(CW) { direction = -1.0f; }
 
-        float percentOfAngle = std::max(std::min((angleToOrb - driveAngleChangeStart) / (fullCommitAngle - driveAngleChangeStart), 1.0f), 0.0f);
-        float angleAtCollision = percentOfAngle*(endRejoin - startRejoin) + startRejoin; // angle the robot should drive at when at the collision radius, based on it's current angle around the opp
-        float percentOfRadius = std::max(distanceToOpp - collisionRadius, 0.0f) / (radius - collisionRadius); // percent of the way between inner and outer radii
+
+        // first define parameters at collision radius
+        float minAngleFront = -50.0f*TO_RAD;
+        float maxAngleFront = 50.0f*TO_RAD;
+
+        float minAngleSide = -180.0f*TO_RAD;
+        float maxAngleSide = -10.0f*TO_RAD;
+
+        float sideAngle = -120.0f*TO_RAD;
+
+
+
+
+        // linearly interpolate min and max angles at collision radius based on the current angle to orb
+        float anglePercent = std::clamp((angleToOrb * direction) / sideAngle, 0.0f, 1.0f);
+
+        // std::cout << "angle percent = " << anglePercent << std::endl;
+
+        float minAngleClose = anglePercent * (minAngleSide - minAngleFront) + minAngleFront;
+        float maxAngleClose = anglePercent * (maxAngleSide - maxAngleFront) + maxAngleFront;
+
+
         
-        // determine drive angle
-        float currFacingRejoinAngle = angleWrapRad((!CW - CW)*orbFiltered.angle() + angleToOrb + 90.0f*TO_RAD);
-        if(currFacingRejoinAngle > maxRejoin || currFacingRejoinAngle < -maxRejoin) { currFacingRejoinAngle = maxRejoin; }
+        // both angles are linearly interpolated to -90 degrees at the outer radius
+        float angleAtRadius = -90.0f*TO_RAD;
+        float radiusPercent = std::max((distanceToOpp - collisionRadius), 0.0f) / std::max((radius - collisionRadius), 0.01f);
+        float minAngle = radiusPercent * (angleAtRadius - minAngleClose) + minAngleClose;
+        float maxAngle = radiusPercent * (angleAtRadius - maxAngleClose) + maxAngleClose;
 
-        float rejoinAngle = percentOfRadius*(maxRejoin - angleAtCollision) + angleAtCollision;
-        float angleDiff = angleWrapRad(rejoinAngle - currFacingRejoinAngle);
-        if(angleDiff < 0.0f) {
-            rejoinAngle = currFacingRejoinAngle;
-        }
 
-        if(CW) { std::cout << currFacingRejoinAngle*TO_DEG << std::endl; }
-        
+        // std::cout << "min angle = " << minAngle*TO_DEG << ", max angle = " << maxAngle*TO_DEG << std::endl;
 
-        followPoint = ppPoint(radius, oppPos, orbPos, CW, ppRadius, rejoinAngle);
+        // std::cout << "angle to orb = " << angleToOrb << std::endl;
+
+        // convert to world angle
+        float minWorldAngle = angleWrapRad(minAngle*direction + angleToOrb + oppAngle);
+        float maxWorldAngle = angleWrapRad(maxAngle*direction + angleToOrb + oppAngle);
+
+
+        // std::cout << "minWorldAngle = " << minWorldAngle*TO_DEG << ", maxWorldAngle = " << maxWorldAngle*TO_DEG << std::endl;
+
+
+        // angle to follow
+        float angleRange = angleWrapRad(maxWorldAngle - minWorldAngle) * direction;
+        float midAngle = minWorldAngle + (angleRange / 2) * direction;
+        float angleError = angleWrapRad(orbAngle - midAngle) * direction;
+
+        std::cout << "angle range = " << angleRange*TO_DEG << std::endl;
+
+        // default: assume we're in the angle range so just go forward
+        float followAngle = orbAngle;
+        if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
+        if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
+
+
+        // std::cout << "midAngle = " << midAngle*TO_DEG << ", angleError = " << angleError*TO_DEG << std::endl;
+
+
+        cv::Point2f minAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(minWorldAngle), orbPos.y + ppRadius*sin(minWorldAngle));
+        cv::Point2f maxAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(maxWorldAngle), orbPos.y + ppRadius*sin(maxWorldAngle));
+        cv::Point2f midAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(midAngle), orbPos.y + ppRadius*sin(midAngle));
+        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, minAnglePoint, cv::Scalar(255, 50, 50), 2);
+        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, maxAnglePoint, cv::Scalar(255, 50, 50), 2);
+        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, midAnglePoint, cv::Scalar(255, 80, 80), 2);
+
+
+        // follow point is pp radius away at the calculated angle
+        followPoint = cv::Point2f(orbPos.x + ppRadius*cos(followAngle), orbPos.y + ppRadius*sin(followAngle));
     }
 
     // commit to the shot if you're there and lined up
