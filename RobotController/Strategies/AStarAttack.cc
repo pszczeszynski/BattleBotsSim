@@ -139,8 +139,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // raw follow points in each direction
-    cv::Point2f followPointCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true);
-    cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false);
+    cv::Point2f followPointCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true, false);
+    cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false, false);
     
 
 
@@ -159,8 +159,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float orbMoveDirectionRelative = atan2(orbFiltered.moveVel().y, orbFiltered.moveVel().x) - oppFiltered.angle();
     float perpMoveVel = pow(orbMoveSpeed, 2) * sin(orbMoveDirectionRelative);
 
-    // std::cout << "perp move vel = " << perpMoveVel << std::endl;
-
 
 
     // float angleGain = 0.02f; // 0.2
@@ -168,6 +166,14 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     float velGain = 0.000008f;
     bool CW = goAroundAngleCW - velGain*perpMoveVel < goAroundAngleCCW + velGain*perpMoveVel;
+
+    if(CW) {
+        cv::Point2f dummy = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true, true);
+    }
+    else {
+        cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false, true);
+    }
+    
 
     // set the follow point to the follow point of the better direction
     cv::Point2f followPoint = followPointCW;
@@ -380,7 +386,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 // calculates raw follow point in a given direction
-cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW) {
+cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW, bool display) {
 
     // CW = false;
 
@@ -462,7 +468,7 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         float midAngle = minWorldAngle + (angleRange / 2) * direction;
         float angleError = angleWrapRad(orbAngle - midAngle) * direction;
 
-        std::cout << "angle range = " << angleRange*TO_DEG << std::endl;
+        // std::cout << "angle range = " << angleRange*TO_DEG << std::endl;
 
         // default: assume we're in the angle range so just go forward
         float followAngle = orbAngle;
@@ -473,12 +479,15 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         // std::cout << "midAngle = " << midAngle*TO_DEG << ", angleError = " << angleError*TO_DEG << std::endl;
 
 
-        cv::Point2f minAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(minWorldAngle), orbPos.y + ppRadius*sin(minWorldAngle));
-        cv::Point2f maxAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(maxWorldAngle), orbPos.y + ppRadius*sin(maxWorldAngle));
-        cv::Point2f midAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(midAngle), orbPos.y + ppRadius*sin(midAngle));
-        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, minAnglePoint, cv::Scalar(255, 50, 50), 2);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, maxAnglePoint, cv::Scalar(255, 50, 50), 2);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, midAnglePoint, cv::Scalar(255, 80, 80), 2);
+        if(display) {
+            cv::Point2f minAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(minWorldAngle), orbPos.y + ppRadius*sin(minWorldAngle));
+            cv::Point2f maxAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(maxWorldAngle), orbPos.y + ppRadius*sin(maxWorldAngle));
+            cv::Point2f midAnglePoint = cv::Point2f(orbPos.x + ppRadius*cos(midAngle), orbPos.y + ppRadius*sin(midAngle));
+            cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, minAnglePoint, cv::Scalar(255, 50, 50), 2);
+            cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, maxAnglePoint, cv::Scalar(255, 50, 50), 2);
+            cv::line(RobotController::GetInstance().GetDrawingImage(), orbPos, midAnglePoint, cv::Scalar(255, 80, 80), 2);
+        }
+        
 
 
         // follow point is pp radius away at the calculated angle
