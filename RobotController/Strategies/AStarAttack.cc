@@ -135,7 +135,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    float ppRadius = std::min(90.0f, distanceToOpp - 1.0f); // minimum distance a follow point must be from the robot
+    float ppRadius = std::min(100.0f, distanceToOpp - 1.0f); // minimum distance a follow point must be from the robot
+    ppRadius = 100.0f;
 
 
     // raw follow points in each direction
@@ -164,14 +165,14 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // float angleGain = 0.02f; // 0.2
     // bool CW = goAroundAngleCW + angleGain*abs(angleToCW) < goAroundAngleCCW + angleGain*abs(angleToCCW);
 
-    float velGain = 0.000008f;
+    float velGain = 0.000030f; //0.000008
     bool CW = goAroundAngleCW - velGain*perpMoveVel < goAroundAngleCCW + velGain*perpMoveVel;
 
     if(CW) {
         cv::Point2f dummy = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true, true);
     }
     else {
-        cv::Point2f followPointCCW = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false, true);
+        cv::Point2f dummy = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, false, true);
     }
     
 
@@ -194,34 +195,40 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     // check if the line to the follow point intersects boundary lines
 
-    // start point is clipped into field, just used as a comparison point for collisions
-    cv::Point2f travelStart = orbFiltered.pos();
-    if(!insideFieldBounds(travelStart)) { travelStart = closestBoundPoint(travelStart); }
+    // clipped into field, just used as a comparison point for collisions
+    cv::Point2f travelStart = clipPointInBounds(orbFiltered.pos());
+    cv::Point2f travelEnd = clipPointInBounds(followPoint);
 
-    Line travelLine(travelStart, followPoint);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 230, 230), 3);
+
+
+    // std::cout << "in bounds = " << insideFieldBounds(travelStart) << std::endl;
+
+    Line travelLine(travelStart, travelEnd);
     std::vector<int> boundaryHits = {}; // indices of lines that intersect travel line
 
     // find all the convex points that are possibly in the way, the ones that belong to lines that are being collided with
     for(int i = 0; i < fieldBoundLines.size(); i++) {
-        float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().first);
-        float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().second);
-        if(fieldBoundLines[i].doesIntersectLine(travelLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
+        // float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().first);
+        // float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().second);
+        // if(fieldBoundLines[i].doesIntersectLine(travelLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
+        if(fieldBoundLines[i].doesIntersectLine(travelLine)) { 
             boundaryHits.emplace_back(i);
         }
     }
 
-    // checks for lines that are less than a certain amount apart (fills in gaps)
-    for(int i = 0; i < boundaryHits.size(); i++) {
-        if(boundaryHits.size() - 1 - i > 0) {
-            if(boundaryHits[i + 1] - boundaryHits[i] <= 3) {
-                int insertLineIndex = boundaryHits[i + 1] - 1;
-                while(insertLineIndex > boundaryHits[i]) {
-                    boundaryHits.insert(boundaryHits.begin() + i + 1, insertLineIndex);
-                    insertLineIndex--;
-                }
-            }
-        }
-    }
+    // // checks for lines that are less than a certain amount apart (fills in gaps)
+    // for(int i = 0; i < boundaryHits.size(); i++) {
+    //     if(boundaryHits.size() - 1 - i > 0) {
+    //         if(boundaryHits[i + 1] - boundaryHits[i] <= 3) {
+    //             int insertLineIndex = boundaryHits[i + 1] - 1;
+    //             while(insertLineIndex > boundaryHits[i]) {
+    //                 boundaryHits.insert(boundaryHits.begin() + i + 1, insertLineIndex);
+    //                 insertLineIndex--;
+    //             }
+    //         }
+    //     }
+    // }
 
     displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
 
@@ -229,9 +236,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
     for(int i = 0; i < boundaryHits.size(); i++) {
+        if(boundaryHits[i] == 2 || boundaryHits[i] == 7 || boundaryHits[i] == 15) { continue; }
+
         std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBoundLines[boundaryHits[i]].getLinePoints();
-        float point1Distance = cv::norm(linePoints.first - orbFiltered.pos());
-        float point2Distance = cv::norm(linePoints.second - orbFiltered.pos());
+        // float point1Distance = cv::norm(linePoints.first - orbFiltered.pos());
+        // float point2Distance = cv::norm(linePoints.second - orbFiltered.pos());
         
         // find indices in convex list, if they exist
         int point1Index = vectorPointIndex(convexPoints, linePoints.first);
@@ -247,10 +256,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float ppRadiusForWalls = 70.0f;
     std::vector<cv::Point2f> ppWallPointsForWalls = PurePursuit::followPath(orbFiltered.pos(), fieldBoundPoints, ppRadiusForWalls);
 
-    // draw wall pure pursuit radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                orbFiltered.pos(),
-                ppRadiusForWalls, cv::Scalar(255, 0, 0), 1.5);
+    // // draw wall pure pursuit radius
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(),
+    //             orbFiltered.pos(),
+    //             ppRadiusForWalls, cv::Scalar(255, 0, 0), 1.5);
 
 
     // if we're using a convex point as the follow point, don't check for clipping later if we are
@@ -260,7 +269,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float closestConvex = 999999.9f;
     for(int i = 0; i < convexCount.size(); i++) {
         float convexDistance = cv::norm(convexPoints[i] - orbFiltered.pos());
-        if(convexCount[i] == 2 && convexDistance < closestConvex) {
+        // if(convexCount[i] == 2 && convexDistance < closestConvex) {
+        if(convexCount[i] > 0 && convexDistance < closestConvex) {
             followPoint = convexPoints[i];
             closestConvex = convexDistance;
             usingConvexPoint = true;
@@ -361,8 +371,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // scale movement based on angle error
-    float movement = gamepad.GetRightStickY() * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 80.0F*TO_RAD, leadingWithBar);
-    // float movement = 1.0f * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 80.0F*TO_RAD, leadingWithBar);
+    // float movement = gamepad.GetRightStickY() * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 80.0F*TO_RAD, leadingWithBar);
+    float movement = 1.0f * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 60.0f*TO_RAD, 90.0F*TO_RAD, leadingWithBar);
     ret.autoDrive.movement = movement;
     
 
@@ -423,13 +433,13 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
 
 
         // first define parameters at collision radius
-        float minAngleFront = -50.0f*TO_RAD;
-        float maxAngleFront = 50.0f*TO_RAD;
+        float minAngleFront = -80.0f*TO_RAD;
+        float maxAngleFront = 80.0f*TO_RAD;
 
-        float minAngleSide = -180.0f*TO_RAD;
-        float maxAngleSide = -10.0f*TO_RAD;
+        float minAngleSide = -210.0f*TO_RAD;
+        float maxAngleSide = -200.0f*TO_RAD;
 
-        float sideAngle = -120.0f*TO_RAD;
+        float sideAngle = -100.0f*TO_RAD;
 
 
 
@@ -448,6 +458,7 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         float angleAtRadius = -90.0f*TO_RAD;
         float radiusPercent = std::max((distanceToOpp - collisionRadius), 0.0f) / std::max((radius - collisionRadius), 0.01f);
         float minAngle = radiusPercent * (angleAtRadius - minAngleClose) + minAngleClose;
+        minAngle = minAngleClose;
         float maxAngle = radiusPercent * (angleAtRadius - maxAngleClose) + maxAngleClose;
 
 
@@ -455,9 +466,27 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
 
         // std::cout << "angle to orb = " << angleToOrb << std::endl;
 
+
+
         // convert to world angle
         float minWorldAngle = angleWrapRad(minAngle*direction + angleToOrb + oppAngle);
         float maxWorldAngle = angleWrapRad(maxAngle*direction + angleToOrb + oppAngle);
+
+
+        // if the pure pursuit point might be usable, check
+        if(distanceToOpp > radius - ppRadius) {
+            cv::Point2f ppFollow = ppPoint(radius, oppPos, orbPos, CW, ppRadius, 80.0f*TO_RAD);
+            float angleToPP = angle(orbPos, ppFollow);
+            float maxAngleDifference = angleWrapRad(maxWorldAngle - angleToPP);
+
+            // std::cout << "angle to pp = " << angleToPP*TO_DEG << std::endl;
+            // safe_circle(RobotController::GetInstance().GetDrawingImage(),
+            //     ppFollow,
+            //     2, cv::Scalar(255, 0, 0), 5);
+            
+            if(CW && maxAngleDifference < 0) { maxWorldAngle = angleToPP; }
+            if(!CW && maxAngleDifference > 0) { maxWorldAngle = angleToPP; }
+        }
 
 
         // std::cout << "minWorldAngle = " << minWorldAngle*TO_DEG << ", maxWorldAngle = " << maxWorldAngle*TO_DEG << std::endl;
@@ -472,8 +501,9 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
 
         // default: assume we're in the angle range so just go forward
         float followAngle = orbAngle;
-        if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
-        if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
+        if(abs(angleError) > angleRange/2) { followAngle = midAngle; }
+        // if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
+        // if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
 
 
         // std::cout << "midAngle = " << midAngle*TO_DEG << ", angleError = " << angleError*TO_DEG << std::endl;
@@ -515,17 +545,12 @@ float AStarAttack::radiusEquation(cv::Point2f orbPos, cv::Point2f oppPos, float 
     float distanceToOpp = cv::norm(orbPos - oppPos);
     float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
     if(!CW) { angleToOrb *= -1; }
+    float velAdvantage = cv::norm(orbFiltered.moveVel()) - cv::norm(oppFiltered.moveVel());
 
-    // float collisionRadius = 70.0f;
+
     float maxRadius = 200.0f;
     float minRadius = 0.0f;
-    float minRadiusAngle = 120.0f*TO_RAD - 0.03f*(cv::norm(orbFiltered.moveVel()))*TO_RAD; // 0.18
-
-
-    // // collision radius circle
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(),
-    //             oppPos,
-    //             collisionRadius, cv::Scalar(255, 100, 100), 1.5);
+    float minRadiusAngle = std::max(240.0f*TO_RAD - 0.5f*velAdvantage*TO_RAD, 90.0f*TO_RAD); // 0.18
 
     
     
@@ -779,3 +804,21 @@ int AStarAttack::vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2
     return -1;
 }
 
+
+// clips a point to be fully in bounds if needed
+cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
+
+    cv::Point2f returnPoint = testPoint; 
+    if(!insideFieldBounds(returnPoint)) { 
+        cv::Point2f onBoundStart = closestBoundPoint(testPoint); 
+
+        // 8 surrounding points
+        double increment = 0.1f;
+        std::vector<cv::Point2f> increments = {cv::Point2f(increment, increment), cv::Point2f(increment, 0), cv::Point2f(increment, -increment), cv::Point2f(0, -increment), cv::Point2f(-increment, -increment), cv::Point2f(-increment, 0.0), cv::Point2f(-increment, increment), cv::Point2f(0.0, increment)};
+        for(int i = 0; i < increments.size(); i++) {
+            cv::Point2f inBound = cv::Point2f(onBoundStart.x + increments[i].x, onBoundStart.y + increments[i].y);
+            if(insideFieldBounds(inBound)) { returnPoint = inBound; }
+        }
+    }
+    return returnPoint;
+}

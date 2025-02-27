@@ -54,4 +54,5 @@ private:
     float calculateMovePercent(cv::Point2f orbPos, float orbAngle, cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool leadingWithBar);
     float radiusEquation(cv::Point2f orbPos, cv::Point2f oppPos, float oppAngle, bool CW);
     cv::Point2f followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW, bool display);
+    cv::Point2f clipPointInBounds(cv::Point2f testPoint);
 };
