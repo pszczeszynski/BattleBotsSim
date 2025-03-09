@@ -19,10 +19,6 @@ public:
 
 private:
 
-    // for tracking closing speed to opp
-    float previousDistanceToOpp = 0.0f;
-
-
     // filtered data for orb and opp
     FilteredRobot orbFiltered;
     FilteredRobot oppFiltered;
@@ -55,4 +51,5 @@ private:
     float radiusEquation(cv::Point2f orbPos, cv::Point2f oppPos, float oppAngle, bool CW);
     cv::Point2f followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW, bool display);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
+    float ETAAdvantage();
 };

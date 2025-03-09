@@ -76,6 +76,9 @@ AStarAttack::AStarAttack()
 }
 
 
+
+
+
 DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 {
     static Clock updateClock; // for loop timing
@@ -96,27 +99,21 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     oppFiltered.updateFilters(deltaTime, opponentData.robotPosition, opponentData.robotAngle);
 
 
-    // std::cout << "orb vel x = " << orbFiltered.moveVel().x << ", y = " << orbFiltered.moveVel().y << std::endl;
-
 
 
     // draw a crosshair on the opponent
-    safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                oppFiltered.pos(),
-                10, cv::Scalar(0, 0, 255), 2);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.pos(), 10, cv::Scalar(0, 0, 255), 2);
 
     // draw field bounds and convex points
     displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255));
     displayPoints(convexPoints, cv::Scalar(0, 0, 255));
 
 
-    //std::cout << "orb x vel = " << orbFiltered.getMoveVel().x << ", y vel = " << orbFiltered.getMoveVel().y << ", theta vel = " << orbFiltered.getTurnVel() << std::endl;
 
 
     // update distance/speed to opponent
     float distanceToOpp = cv::norm(orbFiltered.pos() - oppFiltered.pos());
-    float speedToOpp = (distanceToOpp - previousDistanceToOpp) / deltaTime;
-    previousDistanceToOpp = distanceToOpp;
+    float ppRadius = 100.0f;
 
     
 
@@ -127,6 +124,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     displayLines(oppFiltered.getPath(), cv::Scalar(255, 200, 200));
 
 
+    std::cout << "advantage = " << ETAAdvantage() << ", orb speed = " << cv::norm(orbFiltered.moveVel()) << std::endl;
+
     
     // angle each robot has to turn to face the other
     float angleToOrb = angleWrapRad(angle(oppFiltered.pos(), orbFiltered.pos()) - oppFiltered.angle());
@@ -134,9 +133,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-
-    float ppRadius = std::min(100.0f, distanceToOpp - 1.0f); // minimum distance a follow point must be from the robot
-    ppRadius = 100.0f;
 
 
     // raw follow points in each direction
@@ -146,9 +142,21 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
+    // if we want automatic direction reversing
+    bool autoSwitching = false;
+    float autoSwitchThresh = 150.0f*TO_RAD;
+
 
     float angleToCW = angleWrapRad(angle(orbFiltered.pos(), followPointCW) - orbFiltered.angle());
     float angleToCCW = angleWrapRad(angle(orbFiltered.pos(), followPointCCW) - orbFiltered.angle());
+
+    float CWWeight = angleToCW;
+    float CCWWeight = angleToCCW;
+
+    if(autoSwitching) {
+        if(abs(CWWeight) > autoSwitchThresh) { CWWeight = angleWrapRad(2*CWWeight) / 2; }
+        if(abs(CCWWeight) > autoSwitchThresh) { CCWWeight = angleWrapRad(2*CCWWeight) / 2; }
+    }
 
     // how far around the circle we have to go for each direction
     float goAroundAngleCW = M_PI - angleToOrb;
@@ -165,9 +173,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // float angleGain = 0.02f; // 0.2
     // bool CW = goAroundAngleCW + angleGain*abs(angleToCW) < goAroundAngleCCW + angleGain*abs(angleToCCW);
 
-    float velGain = 0.000030f; //0.000008
-    bool CW = goAroundAngleCW - velGain*perpMoveVel < goAroundAngleCCW + velGain*perpMoveVel;
+    float velGain = 0.000000f; //0.000030
+    float turnGain = 0.9; // 1.6
+    bool CW = goAroundAngleCW + abs(CWWeight)*turnGain - velGain*perpMoveVel < goAroundAngleCCW + abs(CCWWeight)*turnGain + velGain*perpMoveVel;
 
+    // draw the stuff that's actually used
     if(CW) {
         cv::Point2f dummy = followPointDirection(orbFiltered.pos(), orbFiltered.angle(), oppFiltered.pos(), oppFiltered.angle(), ppRadius, true, true);
     }
@@ -187,6 +197,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     }
 
 
+    // std::cout << "angle to CW = " << angleToCW*TO_DEG << ", angle to CCW = " << angleToCCW*TO_DEG << std::endl;
     
 
 
@@ -199,7 +210,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     cv::Point2f travelStart = clipPointInBounds(orbFiltered.pos());
     cv::Point2f travelEnd = clipPointInBounds(followPoint);
 
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 230, 230), 3);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 255, 255), 3);
 
 
     // std::cout << "in bounds = " << insideFieldBounds(travelStart) << std::endl;
@@ -329,12 +340,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         }
     } 
 
+    followPoint = clipPointInBounds(followPoint);
     
 
-
-    // draw main radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                    oppFiltered.pos(), radius, cv::Scalar(0, 255, 0), 2);
 
     // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3);
@@ -343,11 +351,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    // if we want automatic direction reversing
-    bool autoSwitching = false;
+    
 
     if(!leadingWithBar) { angleToFollowPoint = angleWrapRad(angleToFollowPoint + M_PI); }
-    if(abs(angleToFollowPoint) > 90.0f*TO_RAD && autoSwitching) {
+    if(abs(angleToFollowPoint) > autoSwitchThresh && autoSwitching) {
         leadingWithBar = !leadingWithBar;
     }
 
@@ -371,8 +378,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // scale movement based on angle error
-    // float movement = gamepad.GetRightStickY() * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 80.0F*TO_RAD, leadingWithBar);
-    float movement = 1.0f * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 60.0f*TO_RAD, 90.0F*TO_RAD, leadingWithBar);
+    float movement = gamepad.GetRightStickY() * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 80.0F*TO_RAD, leadingWithBar);
+    // float movement = 1.0f * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 60.0f*TO_RAD, 90.0F*TO_RAD, leadingWithBar);
     ret.autoDrive.movement = movement;
     
 
@@ -398,21 +405,15 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 // calculates raw follow point in a given direction
 cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW, bool display) {
 
-    // CW = false;
+    float angleToOpp = angleWrapRad(angle(orbPos, oppPos) - orbAngle);
+    float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
+
 
     // determine radius
     float radius = radiusEquation(orbPos, oppPos, oppAngle, CW);
     float distanceToOpp = cv::norm(orbPos - oppPos);
     float collisionRadius = 70.0f; // radius at which we collide with opp
     bool outsideCircle = radius < distanceToOpp;
-
-    float angleToOpp = angleWrapRad(angle(orbPos, oppPos) - orbAngle);
-    float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
-
-
-    // std::cout << "opp angle = " << oppAngle << std::endl;
-    // std::cout << "distance to opp = " << distanceToOpp << ", radius = " << radius << std::endl;
-
 
     
     // assume we're out of the circle by default
@@ -430,25 +431,22 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
 
         float direction = 1.0f;
         if(CW) { direction = -1.0f; }
+        float velAdvantage = cv::norm(orbFiltered.moveVel()) - cv::norm(oppFiltered.moveVel());
 
 
         // first define parameters at collision radius
-        float minAngleFront = -80.0f*TO_RAD;
-        float maxAngleFront = 80.0f*TO_RAD;
+        float minAngleFront = -65.0f*TO_RAD;
+        float maxAngleFront = -10.0f*TO_RAD;
 
-        float minAngleSide = -210.0f*TO_RAD;
-        float maxAngleSide = -200.0f*TO_RAD;
+        float minAngleSide = -181.0f*TO_RAD;
+        float maxAngleSide = -90.0f*TO_RAD;
 
-        float sideAngle = -100.0f*TO_RAD;
-
+        float sideAngle = -std::clamp(130.0f*TO_RAD - velAdvantage*0.15*TO_RAD, 80.0f*TO_RAD, 180.0f*TO_RAD);
 
 
 
         // linearly interpolate min and max angles at collision radius based on the current angle to orb
-        float anglePercent = std::clamp((angleToOrb * direction) / sideAngle, 0.0f, 1.0f);
-
-        // std::cout << "angle percent = " << anglePercent << std::endl;
-
+        float anglePercent = std::clamp((angleToOrb * direction) / sideAngle, -0.3f, 1.0f);
         float minAngleClose = anglePercent * (minAngleSide - minAngleFront) + minAngleFront;
         float maxAngleClose = anglePercent * (maxAngleSide - maxAngleFront) + maxAngleFront;
 
@@ -462,11 +460,6 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         float maxAngle = radiusPercent * (angleAtRadius - maxAngleClose) + maxAngleClose;
 
 
-        // std::cout << "min angle = " << minAngle*TO_DEG << ", max angle = " << maxAngle*TO_DEG << std::endl;
-
-        // std::cout << "angle to orb = " << angleToOrb << std::endl;
-
-
 
         // convert to world angle
         float minWorldAngle = angleWrapRad(minAngle*direction + angleToOrb + oppAngle);
@@ -478,18 +471,14 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
             cv::Point2f ppFollow = ppPoint(radius, oppPos, orbPos, CW, ppRadius, 80.0f*TO_RAD);
             float angleToPP = angle(orbPos, ppFollow);
             float maxAngleDifference = angleWrapRad(maxWorldAngle - angleToPP);
+            float minAngleDifference = angleWrapRad(minWorldAngle - angleToPP);
 
-            // std::cout << "angle to pp = " << angleToPP*TO_DEG << std::endl;
-            // safe_circle(RobotController::GetInstance().GetDrawingImage(),
-            //     ppFollow,
-            //     2, cv::Scalar(255, 0, 0), 5);
             
             if(CW && maxAngleDifference < 0) { maxWorldAngle = angleToPP; }
+            if(CW && minAngleDifference < 0) { minWorldAngle = angleToPP; }
             if(!CW && maxAngleDifference > 0) { maxWorldAngle = angleToPP; }
+            if(!CW && minAngleDifference > 0) { minWorldAngle = angleToPP; }
         }
-
-
-        // std::cout << "minWorldAngle = " << minWorldAngle*TO_DEG << ", maxWorldAngle = " << maxWorldAngle*TO_DEG << std::endl;
 
 
         // angle to follow
@@ -497,16 +486,12 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         float midAngle = minWorldAngle + (angleRange / 2) * direction;
         float angleError = angleWrapRad(orbAngle - midAngle) * direction;
 
-        // std::cout << "angle range = " << angleRange*TO_DEG << std::endl;
 
         // default: assume we're in the angle range so just go forward
         float followAngle = orbAngle;
-        if(abs(angleError) > angleRange/2) { followAngle = midAngle; }
-        // if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
-        // if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
-
-
-        // std::cout << "midAngle = " << midAngle*TO_DEG << ", angleError = " << angleError*TO_DEG << std::endl;
+        // if(abs(angleError) > angleRange/2) { followAngle = midAngle; }
+        if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
+        if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
 
 
         if(display) {
@@ -524,15 +509,24 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
         followPoint = cv::Point2f(orbPos.x + ppRadius*cos(followAngle), orbPos.y + ppRadius*sin(followAngle));
     }
 
-    // commit to the shot if you're there and lined up
-    float angleToOppThresh = 30.0f*TO_RAD;
-    bool facingOpp = abs(angleToOpp) < angleToOppThresh || abs(angleToOpp) > M_PI - angleToOppThresh;
-    if(distanceToOpp < collisionRadius && abs(angleToOrb) > 40.0f * TO_RAD &&  facingOpp) { followPoint = oppPos; }
+    // if follow point would take you the other way around, target the opp directly
+    float angleToFollowPoint = angleWrapRad(angle(oppPos, followPoint) - oppAngle);
+    if(!CW) { angleToFollowPoint *= -1; }
+    if(angleToFollowPoint < -100.0f*TO_RAD) { followPoint = oppPos; }
 
-    // draw pure pursuit radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                orbPos,
-                ppRadius, cv::Scalar(255, 0, 0), 2);
+
+    // commit to the shot if we have positive advantage
+    if(ETAAdvantage() > 0.1f) { followPoint = oppPos; }
+
+
+    if(display) {
+        // draw main radius
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.pos(), radius, cv::Scalar(0, 255, 0), 2);
+
+        // draw pure pursuit radius
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), orbPos, ppRadius, cv::Scalar(255, 0, 0), 2);
+    }
+    
 
     return followPoint;
 }
@@ -542,22 +536,29 @@ cv::Point2f AStarAttack::followPointDirection(cv::Point2f orbPos, float orbAngle
 // equation for determining size of tangent circle
 float AStarAttack::radiusEquation(cv::Point2f orbPos, cv::Point2f oppPos, float oppAngle, bool CW) {
 
-    float distanceToOpp = cv::norm(orbPos - oppPos);
     float angleToOrb = angleWrapRad(angle(oppPos, orbPos) - oppAngle);
     if(!CW) { angleToOrb *= -1; }
     float velAdvantage = cv::norm(orbFiltered.moveVel()) - cv::norm(oppFiltered.moveVel());
 
 
-    float maxRadius = 200.0f;
-    float minRadius = 0.0f;
-    float minRadiusAngle = std::max(240.0f*TO_RAD - 0.5f*velAdvantage*TO_RAD, 90.0f*TO_RAD); // 0.18
+    float maxRadius = std::clamp(180.0f - velAdvantage*0.1f, 160.0f, 220.0f);
+    float minRadius = std::clamp(60.0f - velAdvantage*0.25f, -100.0f, maxRadius);
+    float minRadiusAngle = 180.0f*TO_RAD;
 
     
     
-    float radius = (1.0f - std::min(abs(angleToOrb)/minRadiusAngle, 1.0f)) * (maxRadius - minRadius) + minRadius;
+    // interpolation to find radius at our angle
+    float radius = std::max((1.0f - std::min(abs(angleToOrb)/minRadiusAngle, 1.0f)) * (maxRadius - minRadius) + minRadius, 0.0f);
     // float radius = (0.5f*cos(M_PI * std::min(angleToOrb/minRadiusAngle, 1.0f)) + 0.5f) * (maxRadius - minRadius) + minRadius;
     if(angleToOrb < 0.0f) { radius = maxRadius; }
-    //if(distanceToOpp < collisionRadius && angleToOrb > 50.0f*TO_RAD) { radius = 0.0f; }
+
+
+    // only go towards a smaller radius at a certain rate to not over commit
+    double ogRadius = radius;
+    float distanceToOpp = cv::norm(orbPos - oppPos);
+
+    if(radius < distanceToOpp) { radius = distanceToOpp - 5.0f - 0.2 * (distanceToOpp - radius); }
+    if(radius < ogRadius) { radius = ogRadius; }
     return radius;
 }
 
@@ -821,4 +822,49 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
         }
     }
     return returnPoint;
+}
+
+
+
+float AStarAttack::ETAAdvantage() {
+
+    float collisionRadius = 65.0f;
+    float distanceToCollision = std::max(cv::norm(orbFiltered.pos() - oppFiltered.pos()) - collisionRadius, 1.0);
+    float angleToOrb = angleWrapRad(angle(oppFiltered.pos(), orbFiltered.pos()) - oppFiltered.angle());
+    float angleToOpp = angleWrapRad(angle(orbFiltered.pos(), oppFiltered.pos()) - orbFiltered.angle());
+
+    
+    float angleThresh1 = 45.0f*TO_RAD;
+    float angleThresh2 = 90.0f*TO_RAD;
+
+    // std::cout << "angleToOpp = " << angleToOpp*TO_DEG << ", ";
+
+    float velFactor = 1.0f;
+    if(abs(angleToOpp) > angleThresh1) { 
+        velFactor = 1.0f - (abs(angleToOpp) - angleThresh1) / (angleThresh2 - angleThresh1);
+        velFactor = std::max(velFactor, 0.0f);
+    }
+
+    // std::cout << "vel factor = " << velFactor << ", ";
+    
+    float orbUsableSpeed = cv::norm(orbFiltered.moveVel()) * velFactor;
+
+    float oppSpeed = cv::norm(oppFiltered.moveVel());
+    float oppSpeedAngle = atan2(oppFiltered.moveVel().y, oppFiltered.moveVel().x);
+    float angleToOrbAbs = angle(oppFiltered.pos(), orbFiltered.pos());
+    float oppSpeedTowards = oppSpeed * cos(angleToOrbAbs - oppSpeedAngle);
+
+    float collisionSpeed = oppSpeedTowards + orbUsableSpeed;
+
+    // std::cout << "collisioin speed = " << collisionSpeed << std::endl;
+
+    // positive advantage when we're gonna get there sooner
+    float ETAOrb = distanceToCollision / std::max(collisionSpeed, 0.001f);
+    float ETAOpp = abs(angleToOrb) / (0.7f*360.0f*TO_RAD);
+
+    // if we're literally hitting him just hit him
+    float advantage = ETAOpp - ETAOrb;
+    if(distanceToCollision == 0.0f && abs(angleToOpp) < 50.0f*TO_RAD) { advantage = 99999999.0f; }
+
+    return advantage;
 }
