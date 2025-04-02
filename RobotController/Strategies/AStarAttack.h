@@ -23,6 +23,20 @@ private:
     FilteredRobot orbFiltered;
     FilteredRobot oppFiltered;
 
+    // for simulating drift
+    float oppAngleDrift;
+    float oppAnglePreviousPerfect;
+
+    // tracking stats
+    float maxOppTurnAccel;
+    float maxOppTurnSpeed;
+
+
+    // bruh
+    float previousMetricCW = 0.0f;
+    float previousMetricCCW = 0.0f;
+    float previousAngleToOrb = 0.0f;
+
 
     std::vector<cv::Point2f> fieldBoundPoints; // list of points that define the field bound lines
     std::vector<Line> fieldBoundLines; // list of lines that defines the outline of the field
@@ -48,8 +62,9 @@ private:
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     float calculateMovePercent(cv::Point2f orbPos, float orbAngle, cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool leadingWithBar);
-    float radiusEquation(cv::Point2f orbPos, cv::Point2f oppPos, float oppAngle, bool CW);
-    cv::Point2f followPointDirection(cv::Point2f orbPos, float orbAngle, cv::Point2f oppPos, float oppAngle, float ppRadius, bool CW, bool display);
+    float radiusEquation(float deltaTime, bool CW);
+    cv::Point2f followPointDirection(float deltaTime, float ppRadius, bool CW, bool display);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
-    float ETAAdvantage();
+    float closestWallDistance(bool CW);
+    float metric(bool CW);
 };

@@ -10610,13 +10610,18 @@ PrefabInstance:
     - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
       propertyPath: DOWN_FORCE
-      value: 600
+      value: 2000
       objectReference: {fileID: 0}
     - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
       propertyPath: robot_body
       value: 
       objectReference: {fileID: 878290083}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: turn_scale
+      value: 0.01
+      objectReference: {fileID: 0}
     - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
       propertyPath: total_weight
@@ -10627,6 +10632,11 @@ PrefabInstance:
       propertyPath: max_speed_corr
       value: 280
       objectReference: {fileID: 0}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: turning_scaler
+      value: 0.01
+      objectReference: {fileID: 0}
     - target: {fileID: 6264555468510757384, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
       propertyPath: m_Enabled
@@ -10636,6 +10646,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalPosition.y
       value: 0.17
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313640550682892352, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: SPEED
+      value: 3500
       objectReference: {fileID: 0}
     - target: {fileID: 7969983078744347143, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
