@@ -156,25 +156,32 @@ float FilteredRobot::collideETA(FilteredRobot opp) {
 
     float TO_RAD = 3.14159f / 180.0f;
 
-    float collisionRadius = 65.0f; // radius at which the robots basically collide
+    float collisionRadius = 70.0f; // radius at which the robots basically collide
     float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionRadius, 0.0);
 
    
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 50.0f*TO_RAD;
+    float angleThresh1 = 70.0f*TO_RAD;
     float angleThresh2 = 160.0f*TO_RAD;
     float velFactor = 1.0f - std::clamp((abs(angleTo(opp.position())) - angleThresh1) / (angleThresh2 - angleThresh1), 0.0f, 1.0f);
 
     
-    float orbUsableSpeed = std::max(cv::norm(moveVel()), 300.0) * velFactor;
+    float assumedMinSpeed = 250.0f;
+    float orbUsableSpeed = std::max(cv::norm(moveVel()), (double) assumedMinSpeed) * velFactor;
     float oppSpeed = cv::norm(opp.moveVel());
     float oppSpeedAngle = atan2(opp.moveVel().y, opp.moveVel().x);
     float angleToOrbAbs = atan2(position().y - opp.position().y, position().x - opp.position().x);
     float oppSpeedTowards = oppSpeed * cos(angleToOrbAbs - oppSpeedAngle);
-    float collisionSpeed = oppSpeedTowards + orbUsableSpeed; // float collisionSpeed = std::min(oppSpeedTowards, 0.0f) + orbUsableSpeed;
+    // float collisionSpeed = oppSpeedTowards + orbUsableSpeed;
+    float collisionSpeed = std::min(oppSpeedTowards, 0.0f) + orbUsableSpeed;
 
 
-    float turnTime = std::max(abs(angleTo(opp.position())) - 30.0f*TO_RAD, 0.0f) / maxTurnSpeed;
+    float angleMargin = 20.0f*TO_RAD;
+    // float turnTime = std::max(abs(angleTo(opp.position())) - 30.0f*TO_RAD, 0.0f) / maxTurnSpeed;
+    float turnTime = pointETA(opp.position(), angleMargin, angleMargin, true);
+    float turnTimeCCW = pointETA(opp.position(), angleMargin, angleMargin, false);
+    if(turnTimeCCW < turnTime) { turnTime = turnTimeCCW; }
+
     float travelTime = distanceToCollision / std::max(collisionSpeed, 100.0f);
 
 
@@ -184,22 +191,39 @@ float FilteredRobot::collideETA(FilteredRobot opp) {
 
 
 // how long to turn towards the point using the assumed speed
-float FilteredRobot::pointETA(cv::Point2f point, float angleMargin, bool CW) {
+// angleMargin1 is the margin in the direction of orbit rotation, so it should be smaller than angleMargin2
+float FilteredRobot::pointETA(cv::Point2f point, float angleMargin1, float angleMargin2, bool CW) {
 
-    float angle = atan2(point.y - posFiltered[1], point.x - posFiltered[0]);
-    if(CW) { angle -= angleMargin; }
-    else { angle += angleMargin; }
+    float TO_RAD = 3.14159f / 180.0f;
+    float angle = atan2(point.y - posFiltered[1], point.x - posFiltered[0]); // absolute angle the opp has to face to face us directly
 
-    float turnDistance = wrapAngle(angle - posFiltered[2]); // how far we have to turn to point
-    if(!CW) { turnDistance *= -1.0f; }
-    if(turnDistance < 0) { return 0; }
+    float averageAngleMargin = 0.5f * (angleMargin1 + angleMargin2);
+
+    if(!CW) {
+        angleMargin1 *= -1.0f;
+        angleMargin2 *= -1.0f;
+    }
+
+    float angleOffset = 0.5f * (angleMargin1 - angleMargin2);
 
 
-    float time = timeToTurnToAngle(angle, true);
-    float timeCCW = timeToTurnToAngle(angle, false);
-    if(timeCCW < time) { time = timeCCW; }
+    // cutoff angles for where we don't want to hit
+    float angle1 = wrapAngle(angle - angleMargin1);
+    float angle2 = wrapAngle(angle + angleMargin2);
 
-    return time;
+
+    // how far we have to turn to the point exactly
+    float turnDistance = wrapAngle(angle - (posFiltered[2] + angleOffset)); 
+
+    
+
+    // std::cout << "turn distance = " << turnDistance*(180.0f / 3.14f) << "   ";
+
+    if(abs(turnDistance) < averageAngleMargin) { return 0; } // if opp is already facing us within the margin
+
+
+    // otherwise return the shortest time required to get us into the angle margin
+    return std::min(timeToTurnToAngle(angle1, true), std::min(timeToTurnToAngle(angle1, false), std::min(timeToTurnToAngle(angle2, true), timeToTurnToAngle(angle2, false))));
 }
 
 

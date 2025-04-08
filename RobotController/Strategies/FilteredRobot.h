@@ -16,7 +16,7 @@ public:
 
 
     float collideETA(FilteredRobot opp); // estimated time to collide with a robot
-    float pointETA(cv::Point2f point, float angleMargin, bool CW); // estimated time to face towards a point
+    float pointETA(cv::Point2f point, float angleMargin1, float angleMargin2, bool CW); // estimated time to face towards a point
     float timeToTurnToAngle(float angle, bool turnCW); // estimated time to turn to an angle given a certain turn direction
 
 

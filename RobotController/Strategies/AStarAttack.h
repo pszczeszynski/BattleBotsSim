@@ -62,9 +62,10 @@ private:
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     float calculateMovePercent(cv::Point2f orbPos, float orbAngle, cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool leadingWithBar);
-    float radiusEquation(float deltaTime, bool CW);
+    float radiusEquation(float deltaTime, float ppRadius, bool CW);
     cv::Point2f followPointDirection(float deltaTime, float ppRadius, bool CW, bool display);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float closestWallDistance(bool CW);
-    float metric(bool CW);
+    float metric(bool CW, bool draw);
+    cv::Point2f turnCorrectWay(cv::Point2f followPoint);
 };
