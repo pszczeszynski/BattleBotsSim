@@ -59,6 +59,7 @@ extern int MIN_OPPONENT_BLOB_SIZE;
 extern int MAX_OPPONENT_BLOB_SIZE;
 extern int MOTION_LOW_THRESHOLD;
 extern float BLOBS_MIN_FPS;
+extern bool POSITION_NET_ENABLED;
 extern bool ROTATION_NET_ENABLED;
 extern bool GYRO_ENABLED;
 extern int HEU_FOREGROUND_RATIO;

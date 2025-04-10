@@ -27,7 +27,8 @@ enum OdometryAlg
     Neural,
     Human,
     NeuralRot,
-    OpenCV
+    OpenCV,
+    Gyro
 };
 
 

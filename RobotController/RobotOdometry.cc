@@ -551,6 +551,7 @@ void RobotOdometry::FuseAndUpdatePositions()
     }
 
 
+#ifdef FORCE_SIM_DATA
     _dataRobot.robotPosValid = true;
     _dataRobot.robotPosition = robotPosSim;
     _dataRobot.robotVelocity = robotVelSim;
@@ -562,7 +563,7 @@ void RobotOdometry::FuseAndUpdatePositions()
     _dataOpponent.robotAngle = Angle(opponentRotationSim);
     _dataOpponent.robotAngleVelocity = opponentRotationVelSim;
     _dataOpponent.time = simReceiveLastTime;
-
+#endif
 
 
     // ******************************

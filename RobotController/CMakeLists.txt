@@ -21,12 +21,14 @@ if(VIDEO_FILES)
     add_definitions(-DVIDEO_FILES)
 endif()
 
-
-# add define for XBOX if XBOX is an arg
-option(XBOX "Build for xbox controller" OFF)
-if(XBOX)
-    add_definitions(-DXBOX)
+# add define for FORCE_SIM_DATA
+option(FORCE_SIM_DATA "Force simulation data" OFF)
+if(FORCE_SIM_DATA)
+    # debug print
+    message(STATUS "FORCE_SIM_DATA is ON")
+    add_definitions(-DFORCE_SIM_DATA)
 endif()
+
 
 find_package( OpenCV REQUIRED )
 add_definitions(-D_MBCS)
