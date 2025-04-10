@@ -541,8 +541,6 @@ void RobotController::StopForceKill()
  * RobotLogic
  * The main logic for the robot
  */
-// sets the resolution of the extrapolation
-#define NUM_PREDICTION_ITERS 50
 DriverStationMessage RobotController::RobotLogic()
 {
     // draw arrow in the direction of the robot
@@ -623,16 +621,16 @@ DriverStationMessage RobotController::RobotLogic()
 
     if (ret.type == AUTO_DRIVE)
     {
-        if(manual.type == AUTO_DRIVE)
+        if (manual.type == AUTO_DRIVE)
         {
             ret.autoDrive.frontWeaponCurrent10 = manual.autoDrive.frontWeaponCurrent10;
             ret.autoDrive.backWeaponCurrent10 = manual.autoDrive.backWeaponCurrent10;
         }
         else if (manual.type == DRIVE_COMMAND)
         {
-            // convert weapon powers 
-            ret.autoDrive.frontWeaponCurrent10 = (unsigned char) (manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
-            ret.autoDrive.backWeaponCurrent10 = (unsigned char) (manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
+            // convert weapon powers
+            ret.autoDrive.frontWeaponCurrent10 = (unsigned char)(manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
+            ret.autoDrive.backWeaponCurrent10 = (unsigned char)(manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
         }
     }
 
