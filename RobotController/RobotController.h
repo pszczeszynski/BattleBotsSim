@@ -101,7 +101,6 @@ private:
     bool _guiOrbit = false;
     bool _guiKill = false;
 
-    Orbit orbitMode;
     AStarAttack aStarMode;
     Kill killMode;
 

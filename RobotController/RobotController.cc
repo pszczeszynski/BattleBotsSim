@@ -574,21 +574,6 @@ DriverStationMessage RobotController::RobotLogic()
         _orbiting = false;
     }
 
-    static bool _orbitingLast = false;
-    // start an orbit if we just started orbiting
-    if (_orbiting != _orbitingLast)
-    {
-        if (_orbiting)
-        {
-            orbitMode.StartOrbit();
-        }
-        else
-        {
-            orbitMode.StopOrbit();
-        }
-    }
-    _orbitingLast = _orbiting;
-
     // draw on drawing image if we are orbiting
     if (_orbiting)
     {
