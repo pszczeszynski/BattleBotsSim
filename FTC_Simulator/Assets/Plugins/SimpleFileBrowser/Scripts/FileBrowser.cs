@@ -111,7 +111,10 @@ namespace SimpleFileBrowser
 		public static string[] Result { get; private set; }
 		public static bool AutoSave { get; private set; } = false;
 
+		public static bool compress { get; private set; } = false;
+
 		private static bool m_askPermissions = true;
+
 		public static bool AskPermissions
 		{
 			get { return m_askPermissions; }
@@ -378,6 +381,9 @@ namespace SimpleFileBrowser
 		private Toggle saveAllMatchesToggle;
 
 		[SerializeField]
+		private Toggle compressToggle;
+
+		[SerializeField]
 		private Text submitButtonText;
 
 		[SerializeField]
@@ -595,6 +601,11 @@ namespace SimpleFileBrowser
 		public bool getAutoSave()
 		{
 			return saveAllMatchesToggle.isOn;
+		}
+
+		public bool getCompress()
+		{
+			return compressToggle.isOn;
 		}
 		#endregion
 
@@ -1122,6 +1133,7 @@ namespace SimpleFileBrowser
 			Success = true;
 			Result = paths;
 			AutoSave = getAutoSave();
+			compress = getCompress();
 
 			Hide();
 
@@ -1138,6 +1150,7 @@ namespace SimpleFileBrowser
 			Success = false;
 			Result = null;
 			AutoSave = getAutoSave();
+			compress = getCompress();
 
 			Hide();
 
@@ -1407,6 +1420,7 @@ namespace SimpleFileBrowser
 			Success = false;
 			Result = null;
 			AutoSave = getAutoSave();
+			compress = getCompress();
 
 			gameObject.SetActive( true );
 
@@ -1734,6 +1748,8 @@ namespace SimpleFileBrowser
 				pendingFileEntrySelection.Add( validFileEntries[selectedFileEntries[i]].Name );
 		}
 
+	
+
 		private bool AddQuickLink( Sprite icon, string name, string path, ref Vector2 anchoredPos )
 		{
 			if( string.IsNullOrEmpty( path ) )
@@ -1742,7 +1758,7 @@ namespace SimpleFileBrowser
 #if !UNITY_EDITOR && UNITY_ANDROID
 			if( !FileBrowserHelpers.ShouldUseSAF )
 #endif
-			if( !Directory.Exists( path ) )
+			if( !Directory.Exists( path ))
 				return false;
 
 			// Don't add quick link if it already exists
@@ -2081,7 +2097,7 @@ namespace SimpleFileBrowser
 										   string initialPath = null, string initialFilename = null,
 										   string title = "Save", string saveButtonText = "Save" )
 		{
-			return ShowDialogInternal( onSuccess, onCancel, pickMode, allowMultiSelection, pickMode != PickMode.Folders, initialPath, initialFilename, title, saveButtonText, true );
+			return ShowDialogInternal( onSuccess, onCancel, pickMode, allowMultiSelection, pickMode != PickMode.Folders, initialPath, initialFilename, title, saveButtonText, false );
 		}
 
 		public static bool ShowLoadDialog( OnSuccess onSuccess, OnCancel onCancel,
