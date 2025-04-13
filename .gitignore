@@ -24,3 +24,4 @@ RobotController/backgrounds/regularBackground.jpg
 .DS_store
 RobotController/MachineLearning/venvrot
 RobotController/imgui.ini
+Logs/

@@ -1,4 +1,5 @@
 #pragma once
+#include "../RobotOdometry.h"
 
 // A widget to select what algorithms of the robot are enabled at a time. Includes:
 // 1. Rotation
@@ -17,6 +18,9 @@ class VariantsWidget
 public:
     VariantsWidget();
 
+
     void Draw();
+private:
+    void _DrawStartStopButton(const char* label, bool& enabledFlag, OdometryAlg algorithm);
 
 };

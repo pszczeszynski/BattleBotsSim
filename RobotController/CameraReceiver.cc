@@ -652,6 +652,7 @@ CameraType CameraReceiverVideo::GetType()
 
 bool CameraReceiverVideo::_CaptureFrame()
 {
+    static float prev_video_pos = playback_video_pos_s;
     if (playback_file_changed)
     {
         _InitializeCamera();
@@ -685,6 +686,19 @@ bool CameraReceiverVideo::_CaptureFrame()
     float deltaTimeLeft = min(_prevFrameTimer.getElapsedTime() - videoFramePeriod,videoFramePeriod); 
 
     _prevFrameTimer.markStart(deltaTimeLeft);
+
+    if (std::abs(playback_video_pos_s - prev_video_pos) > 0.01)
+    {
+        _videoFrame = int((playback_video_pos_s / playback_video_length_s) * _cap.get(cv::CAP_PROP_FRAME_COUNT));
+        _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
+    }
+    else
+    {
+        playback_video_pos_s = float(_videoFrame) / _cap.get(cv::CAP_PROP_FRAME_COUNT) * playback_video_length_s;
+    }
+    
+    prev_video_pos = playback_video_pos_s;
+    
 
     // read the next frame
     if (playback_goback || playback_restart || playback_pause)
@@ -741,7 +755,7 @@ bool CameraReceiverVideo::_CaptureFrame()
 #else
     finalImage = _rawFrame;
 #endif
-    std::cout << "size: " << finalImage.size() << std::endl;
+    //std::cout << "size: " << finalImage.size() << std::endl;
 
     // convert to gray if it is not
     if (_rawFrame.channels() == 3)
@@ -757,7 +771,7 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     // Copy it over
     finalImage.copyTo(_frame);
-    std::cout << "frame size: " << _frame.size() << std::endl;
+    //std::cout << "frame size: " << _frame.size() << std::endl;
 
     // increase _frameID
     _frameID++;
@@ -797,6 +811,8 @@ bool CameraReceiverVideo::_InitializeCamera()
 
     // Set the frame rate
     MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
+    playback_video_length_s = float(_cap.get(cv::CAP_PROP_FRAME_COUNT)) / MAX_CAP_FPS;
+    
 
     // If the property didn't exit properly, set MAX_CAP_FPS to default value
     if (MAX_CAP_FPS > 500.0)

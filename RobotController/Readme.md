@@ -1,6 +1,20 @@
 *** Always use git bash for windows
 
 
+# Build for Real robot:
+`./buildRelease.bat`
+
+# Build for Simulation (use vision processing as if real robot):
+`./buildRelease.bat SIMULATION`
+
+# Build for Simulation (but force the robot positions / rotations to the sim)
+`./buildRelease.bat SIMULATION FORCE_SIM_DATA`
+
+
+# Configuration Options
+`FORCE_SIM_DATA` Enables forcing of the robot position using the received data. Shouldn't be used in real mode
+
+
 Required tools:
 
 cmake

@@ -21,12 +21,14 @@ if(VIDEO_FILES)
     add_definitions(-DVIDEO_FILES)
 endif()
 
-
-# add define for XBOX if XBOX is an arg
-option(XBOX "Build for xbox controller" OFF)
-if(XBOX)
-    add_definitions(-DXBOX)
+# add define for FORCE_SIM_DATA
+option(FORCE_SIM_DATA "Force simulation data" OFF)
+if(FORCE_SIM_DATA)
+    # debug print
+    message(STATUS "FORCE_SIM_DATA is ON")
+    add_definitions(-DFORCE_SIM_DATA)
 endif()
+
 
 find_package( OpenCV REQUIRED )
 add_definitions(-D_MBCS)
@@ -51,6 +53,7 @@ set(LIBS hid setupapi)
 # Define the sources and headers
 set(SOURCES 
     RobotController.cc
+    DriverStationLog.cc
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
     UIWidgets/FieldWidget.cc
@@ -79,6 +82,7 @@ set(SOURCES
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
     Odometry/IMU/OdometryIMU.cc
+    Odometry/OpenCVTracker/OpenCVTracker.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc
@@ -107,6 +111,7 @@ set(SOURCES
     Strategies/DriveToAngleSimulation.cc
     Strategies/Line.cc
     Strategies/Node.cc
+    Strategies/FilteredRobot.cc
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc

@@ -1,17 +1,30 @@
 @echo off
-setlocal EnableDelayedExpansion
 set "cmakeParams="
 set "cleanBuild="
+setlocal EnableDelayedExpansion
+
+set "SIMULATION=OFF"
 
 for %%a in (%*) do (
     echo "%%a"
-    if "%%a"=="SIMULATION" set "cmakeParams=!cmakeParams! -DSIMULATION=ON"
-    if "%%a"=="SIM" set "cmakeParams=!cmakeParams! -DSIMULATION=ON"
+    if "%%a"=="SIMULATION" set SIMULATION=ON
+    if "%%a"=="SIM" set SIMULATION=ON
     if "%%a"=="VIDEO_FILES" set "cmakeParams=!cmakeParams! -DVIDEO_FILES=ON"
     if "%%a"=="VIDEO" set "cmakeParams=!cmakeParams! -DVIDEO_FILES=ON"
-    if "%%a"=="XBOX" set "cmakeParams=!cmakeParams! -DXBOX=ON"
-	if "%%a"=="CLEAN" set "cleanBuild=YES"
+    if "%%a"=="FORCE_SIM_DATA" (
+        if "!SIMULATION!" neq "ON" (
+            echo "FORCE_SIM_DATA can only be used in SIMULATION mode"
+            exit /b 1
+        )
+        set "cmakeParams=!cmakeParams! -DFORCE_SIM_DATA=ON"
+    )
+    if "%%a"=="CLEAN" set "cleanBuild=YES"
 )
+
+if "%SIMULATION%"=="ON" (
+    set "cmakeParams=!cmakeParams! -DSIMULATION=ON"
+)
+
 
 if "%cleanBuild%"=="YES" (
 	echo "Cleaning directories..."
