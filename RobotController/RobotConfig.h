@@ -125,6 +125,8 @@ extern int STARTING_RIGHT_TL_x;
 extern int STARTING_RIGHT_TL_y;
 extern int STARTING_RIGHT_BR_x;
 extern int STARTING_RIGHT_BR_y;
+extern bool LOG_ODOMETRY_DATA;
+extern bool PLAYBACK_PREPROCESS;
 
 
 template <typename T>

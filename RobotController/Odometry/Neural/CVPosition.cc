@@ -93,6 +93,7 @@ CVPosition::~CVPosition()
 // Returns false if already running
 void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
 {
+
     // writ the id to the frame
     for (int i = 0; i < 4; i++)
     {
@@ -205,6 +206,7 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataRobot.isUs = true; // Make sure this is set
     _currDataRobot.robotPosValid = data.valid;
     _currDataRobot.id = data.frameID;             // Set id based on the frame
+    _currDataRobot.frameID = frameID; 
     _currDataRobot.time = data.time_millis / 1000.0;    // Set to new time
     _currDataRobot.robotPosition = data.center; // Set new position
     _currDataRobot.robotVelocity = velocity;

@@ -120,6 +120,7 @@ private:
     virtual bool _InitializeCamera() override;
     virtual bool _CaptureFrame() override;
     long _videoFrame = 0;
+    long _maxFrameCount = 1;
 
     Clock _prevFrameTimer;
 };

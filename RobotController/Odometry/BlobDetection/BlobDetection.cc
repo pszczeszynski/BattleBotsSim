@@ -19,6 +19,7 @@ BlobDetection::BlobDetection(ICameraReceiver *videoSource) : OdometryBase(videoS
 // Run the main blob detection algorithm
 void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
+
     // If previous image is empty, then initialize it to the current frame
     if (_previousImage.empty())
     {
@@ -219,6 +220,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         _prevDataRobot = _currDataRobot;
 
         _currDataRobot.id++;             // Increment frame id
+        _currDataRobot.frameID = frameID; 
         _currDataRobot.time = timestamp; // Set to new time
 
         // Clear curr data
@@ -236,20 +238,23 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     else
     {
         // increase invalid count + mark as invalid
+        double invalidCount = _currDataRobot.userDataDouble["invalidCount"];
         _currDataRobot.robotPosValid = _currDataRobot.userDataDouble["invalidCount"] < 10;
         _currDataRobot.userDataDouble["invalidCount"]++;
+        
     }
 
 #ifndef HARDCODE_SIM
     if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent))
 #else
-    if (true)
+    if (true) 
 #endif
     {
         // Make a copy of currData for velocity calls
         _prevDataOpponent = _currDataOpponent;
 
         _currDataOpponent.id++;             // Increment frame id
+        _currDataOpponent.frameID = frameID; 
         _currDataOpponent.time = timestamp; // Set to new time
 
         // Clear curr data

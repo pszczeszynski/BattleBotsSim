@@ -1,13 +1,17 @@
 #pragma once
 
+#include "../../Globals.h"
+#include "../OdometryBase.h"
+
+#ifdef _OPENCV_TRACKING
+
 #include <iostream>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/tracking.hpp>
+#include <opencv2/video/tracking.hpp>
 
-#include "../../Globals.h"
-#include "../OdometryBase.h"
+
 
 enum TrackerState
 {
@@ -43,3 +47,14 @@ private:
 
 
 };
+#else // Dummy class for when OpenCV tracking is not available
+
+class OpenCVTracker : public OdometryBase
+{
+public:
+    OpenCVTracker(ICameraReceiver *videoSource) {};
+}
+
+
+#endif // _OPENCV_TRACKING
+;
