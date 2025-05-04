@@ -27,6 +27,16 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
 {
 }
 
+RobotOdometry::~RobotOdometry()
+{
+    // If log file open, close it
+    if (_logOdometryFileOpen)
+    {
+        _logOdometryFile.close();
+        _logOdometryFileOpen = false;
+    }
+}
+
 void RobotOdometry::_AdjustAngleWithArrowKeys()
 {
     static Clock updateClock;
@@ -63,7 +73,7 @@ void RobotOdometry::_AdjustAngleWithArrowKeys()
 }
 
 // Updates internal Odometry data
-void RobotOdometry::Update(void)
+void RobotOdometry::Update(int videoID)
 {
     // ******************************
     // Retrieve new data if available
@@ -180,7 +190,7 @@ void RobotOdometry::Update(void)
 
     // At this time use only a priority set for all inputs
     std::unique_lock<std::mutex> locker(_updateMutex);
-    FuseAndUpdatePositions();
+    FuseAndUpdatePositions(videoID);
 
     // // If IMU is running, then use IMU's angle information
     // if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
@@ -197,7 +207,7 @@ void RobotOdometry::Update(void)
     // locker will get unlocked here automatically
 }
 
-void RobotOdometry::FuseAndUpdatePositions()
+void RobotOdometry::FuseAndUpdatePositions(int videoID)
 {
     // Clear robot/opponent valid flags
     _dataRobot.robotPosValid = false;
@@ -261,16 +271,16 @@ void RobotOdometry::FuseAndUpdatePositions()
     //
 
     double currTime = Clock::programClock.getElapsedTime();
-    OdometryData dataRobot_Blob = _dataRobot_Blob;
-    OdometryData dataRobot_Heuristic = _dataRobot_Heuristic;
-    OdometryData dataRobot_Neural = _dataRobot_Neural;
-    OdometryData dataRobot_NeuralRot = _dataRobot_NeuralRot;
-    OdometryData dataRobot_IMU = _dataRobot_IMU;
-    OdometryData dataRobot_Human = _dataRobot_Human;
+    dataRobot_Blob = _dataRobot_Blob;
+    dataRobot_Heuristic = _dataRobot_Heuristic;
+    dataRobot_Neural = _dataRobot_Neural;
+    dataRobot_NeuralRot = _dataRobot_NeuralRot;
+    dataRobot_IMU = _dataRobot_IMU;
+    dataRobot_Human = _dataRobot_Human;
 
-    OdometryData dataOpponent_Blob = _dataOpponent_Blob;
-    OdometryData dataOpponent_Heuristic = _dataOpponent_Heuristic;
-    OdometryData dataOpponent_Human = _dataOpponent_Human;
+    dataOpponent_Blob = _dataOpponent_Blob;
+    dataOpponent_Heuristic = _dataOpponent_Heuristic;
+    dataOpponent_Human = _dataOpponent_Human;
 
     dataRobot_Blob.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
     dataRobot_Heuristic.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
@@ -282,6 +292,7 @@ void RobotOdometry::FuseAndUpdatePositions()
 
     dataOpponent_Blob.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
     dataOpponent_Heuristic.ExtrapolateBounded(currTime, MAX_EXTRAPOLATION_TIME_S);
+
 
     // ******************************
     // HUMAN OVERRIDES
@@ -335,6 +346,10 @@ void RobotOdometry::FuseAndUpdatePositions()
     debugROStringForVideo_tmp += "Neu " + std::to_string(neuralUsPos_valid)    + "\n";
     debugROStringForVideo_tmp += "NeR " + std::string("   ")                   + "   " +    std::string("   ")                + "   " +  std::to_string(neuralRot_valid) + "\n";
     debugROStringForVideo_tmp += "IMU " + std::string("   ")                   + "   " +    std::string("   ")                + "   " +  std::to_string(imuUsRot_valid)  + "\n" ;
+
+    // Log the odometry data to file
+    LogOdometryToFile();
+
 
     // ******************************
     // Prechecks
@@ -898,6 +913,103 @@ OpenCVTracker &RobotOdometry::GetOpenCVOdometry()
     return _odometry_opencv;
 }
 
+
+std::string getCurrentDateTime() {
+    std::time_t now = std::time(nullptr);
+    char time_str[20];
+    std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    return std::string(time_str);
+}
+
+void RobotOdometry::LogOdometryToFile()
+{
+    if( !LOG_ODOMETRY_DATA  )
+    {
+        if( _logOdometryFile.is_open() )
+        {
+            // Close the file
+            _logOdometryFileOpen = false;
+            _logOdometryFile.close();
+        }
+        
+        return;
+    }
+
+
+    if( LOG_ODOMETRY_DATA && !_logOdometryFileOpen )
+    {
+        // Open the file in append mode
+        _logOdometryFileOpen = true;
+        _logOdometryFile.open(_logOdometryFileName, std::ios::app);
+
+        // Add header
+        if( _logOdometryFile.is_open() )
+        {
+            _logOdometryFile << std::endl << "[" << getCurrentDateTime() << "]" << std::endl 
+            << GetOdometryLog("UsHeu", dataRobot_Heuristic,true).str() << ","
+            << GetOdometryLog("UsBlob", dataRobot_Blob,true).str() << ","
+            << GetOdometryLog("UsNeural", dataRobot_Neural,true).str() << ","
+            << GetOdometryLog("UsNeuralRot", dataRobot_NeuralRot,true).str() << ","
+            << GetOdometryLog("UsIMU", dataRobot_IMU,true).str() << ","
+            << GetOdometryLog("UsHuman", dataRobot_Human,true).str() << ","   
+            << GetOdometryLog("ThemHeu", dataOpponent_Heuristic,true).str() << ","
+            << GetOdometryLog("ThemBlob", dataOpponent_Blob,true).str() << ","
+            << GetOdometryLog("ThemHuman", dataOpponent_Human,true).str()           
+            << std::endl;
+        }
+    }
+
+
+
+
+    // Add current Data to the file 
+    if( _logOdometryFile.is_open() )
+    {
+     
+        // Write the data to the file
+        _logOdometryFile 
+        << GetOdometryLog("UsHeu", dataRobot_Heuristic).str() << ","
+        << GetOdometryLog("UsBlob", dataRobot_Blob).str() << ","
+        << GetOdometryLog("UsNeural", dataRobot_Neural).str() << ","
+        << GetOdometryLog("UsNeuralRot", dataRobot_NeuralRot).str() << ","
+        << GetOdometryLog("UsIMU", dataRobot_IMU).str() << ","
+        << GetOdometryLog("UsHuman", dataRobot_Human).str() << ","   
+        << GetOdometryLog("ThemHeu", dataOpponent_Heuristic).str() << ","
+        << GetOdometryLog("ThemBlob", dataOpponent_Blob).str() << ","
+        << GetOdometryLog("ThemHuman", dataOpponent_Human).str()         
+        << std::endl;
+    }
+
+}
+
+std::stringstream RobotOdometry::GetOdometryLog( const std::string& name, OdometryData& odometry, bool doheader)
+{
+    std::stringstream ss;
+    if( doheader )
+    {
+        ss << name << ",PosValid,AngleValid,frameID,frameTime,PosX,PosY,Angle,VelX,VelY,VelMag,VelAng,AVel";
+    }
+    else
+    {
+
+    ss << std::fixed << std::setprecision(2)
+       << name << ","
+       << ((odometry.robotPosValid) ? "1" : "0") << ","
+       << ((odometry.robotAngleValid) ? "1" : "0") << ","
+       << odometry.frameID << ","
+       << odometry.time << ","
+       << odometry.robotPosition.x << ","
+       << odometry.robotPosition.y << ","
+       << odometry.robotAngle << ","
+       << odometry.robotVelocity.x << ","
+       << odometry.robotVelocity.y << ","
+       << std::sqrt(odometry.robotVelocity.x * odometry.robotVelocity.x + odometry.robotVelocity.y * odometry.robotVelocity.y) << ","
+       << std::atan2(odometry.robotVelocity.y, odometry.robotVelocity.x) << ","
+       << odometry.robotAngleVelocity;
+    }
+
+    return ss;
+}
 
 
 /**

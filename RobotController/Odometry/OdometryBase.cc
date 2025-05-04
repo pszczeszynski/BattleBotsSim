@@ -104,6 +104,12 @@ bool OdometryBase::Run(void)
         return false;
     }
 
+    if( _videoSource == nullptr )
+    {
+        // No video source, cannot run
+        return false;
+    }
+
     // Start the new thread
     processingThread = std::thread([&]()
                                    {

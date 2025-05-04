@@ -801,6 +801,10 @@ cv::Point2f AStarAttack::ppPoint(float radius, cv::Point2f oppPos, cv::Point2f o
                     distanceToOpp + radiusOffset, cv::Scalar(0, 255, 0), 1.5);
     }
     
+    if( followIndex < 0) {
+        return oppPos;
+    }
+
     return circle[followIndex];
 }
 

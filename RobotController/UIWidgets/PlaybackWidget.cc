@@ -137,6 +137,7 @@ void PlaybackWidget::Draw()
             {
                 playback_file = selectedFile;
                 playback_file_changed = true;
+                playback_video_pos_s = 0;
                 std::cout << "Selected video file: " << selectedFile << std::endl;
 
             }
@@ -145,6 +146,9 @@ void PlaybackWidget::Draw()
 
         // video scrub
         ImGui::SliderFloat("Video Slider", &playback_video_pos_s, 0.0f, playback_video_length_s);
+
+        // Allow preprocessing
+        ImGui::Checkbox(":Preprocess Image", &PLAYBACK_PREPROCESS);
     }
     ImGui::End();
 }

@@ -56,6 +56,7 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
 #define IMG_SCALE 2
 void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
+
     // convert mat to std::string
     // Encode the image
     std::vector<uchar> buf;
@@ -285,6 +286,7 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
     if (isUs)
     {
         _currDataRobot.id++;
+        _currDataRobot.frameID = frameID;
         _currDataRobot.time = time;
         _currDataRobot.time_angle = time;
         _currDataRobot.Clear(); // doesn't clear id or time
@@ -312,6 +314,7 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
     else
     {
         _currDataOpponent.id++;
+        _currDataOpponent.frameID = frameID;
         _currDataOpponent.time = time;
         _currDataOpponent.time_angle = time;
         _currDataOpponent.Clear(); // doesn't clear id or time

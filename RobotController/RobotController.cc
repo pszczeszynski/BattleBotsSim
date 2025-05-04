@@ -220,7 +220,7 @@ void RobotController::Run()
         }
 
         // Update all our odometry data
-        odometry.Update();
+        odometry.Update(videoID);
 
 
         // run our robot controller loop

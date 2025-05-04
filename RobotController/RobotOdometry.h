@@ -1,5 +1,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
+#include <iostream>
+#include <fstream>
 #include "Clock.h"
 #include "MathUtils.h"
 #include "Globals.h"
@@ -36,6 +38,7 @@ class RobotOdometry
 {
 public: 
     RobotOdometry(ICameraReceiver &videoSource);
+    ~RobotOdometry();
 
     bool Run(OdometryAlg algorithm); // Runs the algorithm specified
     bool Stop(OdometryAlg algorithm); // Stops the algorithm specified
@@ -48,9 +51,9 @@ public:
 
     float GetIMUOffset();
 
-    void Update(); // Updates the odometry based on current data
+    void Update(int videoID); // Updates the odometry based on current data
 
-    void FuseAndUpdatePositions();
+    void FuseAndUpdatePositions(int videoID);
 
     bool IsTrackingGoodQuality();
 
@@ -69,6 +72,7 @@ public:
     BlobDetection& GetBlobOdometry();
     CVRotation& GetNeuralRotOdometry();
     OpenCVTracker& GetOpenCVOdometry();
+
     void _AdjustAngleWithArrowKeys();
 
 private:
@@ -125,4 +129,21 @@ private:
 
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
+
+    // Odometry monitoring
+    OdometryData dataRobot_Blob;
+    OdometryData dataRobot_Heuristic;
+    OdometryData dataRobot_Neural;
+    OdometryData dataRobot_NeuralRot;
+    OdometryData dataRobot_IMU;
+    OdometryData dataRobot_Human;
+    OdometryData dataOpponent_Blob;
+    OdometryData dataOpponent_Heuristic;
+    OdometryData dataOpponent_Human;
+
+    void LogOdometryToFile( );
+    std::stringstream GetOdometryLog( const std::string& name, OdometryData& odometry, bool doheader = false);
+    bool _logOdometryFileOpen = false;
+    std::string _logOdometryFileName = "./Logs/odometry_log.csv";
+    std::ofstream _logOdometryFile; 
 };

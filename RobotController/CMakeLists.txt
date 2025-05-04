@@ -30,7 +30,7 @@ if(FORCE_SIM_DATA)
 endif()
 
 
-find_package( OpenCV REQUIRED )
+find_package( OpenCV REQUIRED COMPONENTS core)
 add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
@@ -82,7 +82,6 @@ set(SOURCES
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
     Odometry/IMU/OdometryIMU.cc
-    Odometry/OpenCVTracker/OpenCVTracker.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc
@@ -119,6 +118,19 @@ set(SOURCES
     Strategies/Extrapolate.cc
     SafeDrawing.cc
 )
+
+# Check for opencv_tracking module
+find_package(OpenCV COMPONENTS tracking QUIET)
+if(OpenCV_tracking_FOUND)
+    message(STATUS "OpenCV tracking module found. Including OpenCVTracker.cc")
+    list(APPEND SOURCES Odometry/OpenCVTracker/OpenCVTracker.cc)
+    add_definitions(-D_OPENCV_TRACKING)
+else()
+    message(WARNING "OpenCV tracking module not found. Excluding OpenCVTracker.cc")
+endif()
+
+
+
 
 # Create the object files
 # cuda_add_library(objects ${SOURCES})
