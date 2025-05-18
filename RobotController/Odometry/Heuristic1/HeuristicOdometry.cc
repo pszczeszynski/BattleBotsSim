@@ -95,6 +95,8 @@ void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos
 // Called in CameraDecoder thread to process the new frame
 void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
+    
+
     timing_list.clear();
     timing_text.clear();
     timing_clock.markStart();
@@ -412,9 +414,11 @@ void HeuristicOdometry::_UpdateData(double timestamp)
     OdometryData _prevDataOpponent = _currDataOpponent;
 
     _currDataRobot.id++;                // Increment frame id
+    _currDataRobot.frameID = frameID; // Set to new frame id
     _currDataRobot.time = timestamp;    // Set to new time
     _currDataRobot.time_angle = timestamp;    // Set to new time
     _currDataOpponent.id++;             // Increment frame id
+    _currDataOpponent.frameID = frameID; // Set to new frame id
     _currDataOpponent.time = timestamp; // Set to new time
     _currDataOpponent.time_angle = timestamp; // Set to new time
 

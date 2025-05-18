@@ -21,14 +21,16 @@ if(VIDEO_FILES)
     add_definitions(-DVIDEO_FILES)
 endif()
 
-
-# add define for XBOX if XBOX is an arg
-option(XBOX "Build for xbox controller" OFF)
-if(XBOX)
-    add_definitions(-DXBOX)
+# add define for FORCE_SIM_DATA
+option(FORCE_SIM_DATA "Force simulation data" OFF)
+if(FORCE_SIM_DATA)
+    # debug print
+    message(STATUS "FORCE_SIM_DATA is ON")
+    add_definitions(-DFORCE_SIM_DATA)
 endif()
 
-find_package( OpenCV REQUIRED )
+
+find_package( OpenCV REQUIRED COMPONENTS core)
 add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
@@ -51,6 +53,7 @@ set(LIBS hid setupapi)
 # Define the sources and headers
 set(SOURCES 
     RobotController.cc
+    DriverStationLog.cc
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
     UIWidgets/FieldWidget.cc
@@ -115,6 +118,19 @@ set(SOURCES
     Strategies/Extrapolate.cc
     SafeDrawing.cc
 )
+
+# Check for opencv_tracking module
+find_package(OpenCV COMPONENTS tracking QUIET)
+if(OpenCV_tracking_FOUND)
+    message(STATUS "OpenCV tracking module found. Including OpenCVTracker.cc")
+    list(APPEND SOURCES Odometry/OpenCVTracker/OpenCVTracker.cc)
+    add_definitions(-D_OPENCV_TRACKING)
+else()
+    message(WARNING "OpenCV tracking module not found. Excluding OpenCVTracker.cc")
+endif()
+
+
+
 
 # Create the object files
 # cuda_add_library(objects ${SOURCES})

@@ -182,14 +182,14 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // draw the stuff that's actually used
     if(CW) {
         cv::Point2f dummy = followPointDirection(deltaTime, ppRadius, true, true);
-        std::cout << "Going CW";;
+        // std::cout << "Going CW";;
     }
     else {
         cv::Point2f dummy = followPointDirection(deltaTime, ppRadius, false, true);
-        std::cout << "Going CCW";
+        // std::cout << "Going CCW";
     }
 
-    std::cout << ", Orb speed = " << cv::norm(orbFiltered.moveVel()) << std::endl;
+    // std::cout << ", Orb speed = " << cv::norm(orbFiltered.moveVel()) << std::endl;
     
 
     // set the follow point to the follow point of the better direction
@@ -475,6 +475,10 @@ cv::Point2f AStarAttack::ppPoint(float radius, cv::Point2f oppPos, cv::Point2f o
                     distanceToOpp + radiusOffset, cv::Scalar(0, 255, 0), 1.5);
     }
     
+    if( followIndex < 0) {
+        return oppPos;
+    }
+
     return circle[followIndex];
 }
 

@@ -14,6 +14,7 @@
 #include "UIWidgets/FieldWidget.h"
 #include "UIWidgets/TrackingWidget.h"
 #include "UIWidgets/ClockWidget.h"
+#include "RobotConfig.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -652,6 +653,7 @@ CameraType CameraReceiverVideo::GetType()
 
 bool CameraReceiverVideo::_CaptureFrame()
 {
+    static float prev_video_pos = playback_video_pos_s;
     if (playback_file_changed)
     {
         _InitializeCamera();
@@ -686,6 +688,19 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     _prevFrameTimer.markStart(deltaTimeLeft);
 
+    if (std::abs(playback_video_pos_s - prev_video_pos) > 0.01)
+    {
+        _videoFrame = int((playback_video_pos_s / playback_video_length_s) * _maxFrameCount);
+        _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
+    }
+    else
+    {
+        playback_video_pos_s = float(_videoFrame) / _maxFrameCount * playback_video_length_s;
+    }
+    
+    prev_video_pos = playback_video_pos_s;
+    
+
     // read the next frame
     if (playback_goback || playback_restart || playback_pause)
     {
@@ -719,7 +734,12 @@ bool CameraReceiverVideo::_CaptureFrame()
    
     // read in the frame
     cv::Mat _rawFrame;
-    _cap.read(_rawFrame);
+    if(! _cap.read(_rawFrame))
+    {
+        // Silently exit
+        return false;
+    }
+    
 
     // Convert to gray scale 
     if (_rawFrame.channels() == 1) {
@@ -735,13 +755,40 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     // Apply processing to it
     cv::Mat finalImage;
-// #define PREPROCESS
-#ifdef PREPROCESS
-    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
-#else
-    finalImage = _rawFrame;
-#endif
-    std::cout << "size: " << finalImage.size() << std::endl;
+    
+    bool isImageCorrectSize = false;
+
+    // If we dont want preprocessing, then do a few checks to make sure its possible
+    if( !PLAYBACK_PREPROCESS)
+    {
+        // The file can have the image smaller than the expected size but not larger
+        if( _rawFrame.size().width <= WIDTH && _rawFrame.size().height <= HEIGHT )
+        {
+            isImageCorrectSize = true; 
+
+            // Create a black background image of size WIDTH x HEIGHT
+            finalImage = cv::Mat::zeros(HEIGHT, WIDTH, _rawFrame.type());
+
+            // Calculate the offsets to center the original image
+            int xOffset = (WIDTH - _rawFrame.size().width) / 2;
+            int yOffset = (HEIGHT - _rawFrame.size().height) / 2;
+
+            // Copy the original image to the center of the new image
+            cv::Rect roi(xOffset, yOffset, _rawFrame.size().width, _rawFrame.size().height);
+            _rawFrame.copyTo(finalImage(roi));
+
+        }       
+    }
+
+    if( !isImageCorrectSize || PLAYBACK_PREPROCESS )
+    {
+        PLAYBACK_PREPROCESS = true;
+        birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+    }
+
+
+
+    //std::cout << "size: " << finalImage.size() << std::endl;
 
     // convert to gray if it is not
     if (_rawFrame.channels() == 3)
@@ -757,7 +804,7 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     // Copy it over
     finalImage.copyTo(_frame);
-    std::cout << "frame size: " << _frame.size() << std::endl;
+    //std::cout << "frame size: " << _frame.size() << std::endl;
 
     // increase _frameID
     _frameID++;
@@ -795,8 +842,33 @@ bool CameraReceiverVideo::_InitializeCamera()
         return false;
     }
 
+    // Read first frame to initialize backend
+    cv::Mat frame;
+    _cap >> frame;
+
+    // Reset to start if needed
+    _cap.set(cv::CAP_PROP_POS_FRAMES, 0);
+
     // Set the frame rate
     MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
+    _maxFrameCount = _cap.get(cv::CAP_PROP_FRAME_COUNT);
+    if (_maxFrameCount <= 0)
+    {
+        // Alternative: Seek to end to estimate duration (backend-dependent)
+        _cap.set(cv::CAP_PROP_POS_MSEC, 1e9); // Seek to far future
+        double durationMs = _cap.get(cv::CAP_PROP_POS_MSEC);
+        _cap.set(cv::CAP_PROP_POS_FRAMES, 0); // Reset
+        playback_video_length_s = durationMs / 1000.0 ;
+
+        _maxFrameCount = long(playback_video_length_s * MAX_CAP_FPS);
+
+    }
+    else
+    {
+        playback_video_length_s = float(_maxFrameCount) / MAX_CAP_FPS;
+    }
+
+
 
     // If the property didn't exit properly, set MAX_CAP_FPS to default value
     if (MAX_CAP_FPS > 500.0)

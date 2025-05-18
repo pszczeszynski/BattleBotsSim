@@ -13,10 +13,13 @@ bool playback_goback = false;
 bool playback_restart = false;
 std::string playback_file = "./Recordings/OrbitronVsDisarray.avi";
 bool playback_file_changed = true;
+float playback_video_length_s = 0;
+float playback_video_pos_s = 0;
 
 
 bool EDITING_HEU = true;
 bool EDITING_BLOB = true;
+bool EDITING_OPENCV = true;
 
 // just for hacking around with
 double opponentRotationSim = 0;

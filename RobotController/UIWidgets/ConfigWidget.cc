@@ -223,6 +223,8 @@ void ConfigWidget::Draw()
     ImGui::Checkbox(":Save Video Debug", &heuristic.save_to_video_match_debug);
     ImGui::SameLine();
     ImGui::Checkbox(":Save Video Track", &heuristic.save_to_video_output);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Log Odometry Data", &LOG_ODOMETRY_DATA);
     ImGui::End();
 
 

@@ -13,6 +13,7 @@ extern bool RESET_IMU;
 
 extern bool EDITING_HEU;
 extern bool EDITING_BLOB;
+extern bool EDITING_OPENCV;
 
 extern float playback_speed;
 extern bool playback_play;
@@ -21,6 +22,8 @@ extern bool playback_restart;
 extern bool playback_pause;
 extern std::string playback_file;
 extern bool playback_file_changed;
+extern float playback_video_length_s;
+extern float playback_video_pos_s;
 
 // the drawing image is the main image that is displayed on the screen
 // it is set in the vision code and displayed in the main window

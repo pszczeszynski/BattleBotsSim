@@ -22,6 +22,8 @@ public:
     OdometryData();
 
     int id = 0; // Increment ID whenever data changes. A value of 0 means it hasn't been initialized yet
+    int frameID = -1; // The ID of the last video frame this data is based off. A value of -1 means it hasn't been initialized yet
+
 
     double time = 0; // The time of the last video frame this data is based off since the start of this program in seconds.
                      // A value of 0 means it hasn't been initialized yet
@@ -83,13 +85,16 @@ public:
     virtual void SetAngle(double newAngle, bool opponentRobot);
     virtual void SetAngularVelocity(double newVel, bool opponentRobot);
 
+    
+
 protected:
     // If not overriding Start/Stop/IsRunning, then you can tie into this:
     virtual void _StartCalled(void){};                                    // Run when a new thread is started
-    virtual void _ProcessNewFrame(cv::Mat currFrame, double frameTime){}; // Run every time a new frame is available. currFrame is a copy.
+    virtual void _ProcessNewFrame(cv::Mat currFrame, double frameTime){ }; // Run every time a new frame is available. currFrame is a copy.
     virtual void _StopCalled(){};                                         // Run when stop is initiated
 
     ICameraReceiver *_videoSource = nullptr;
+
     long frameID = -1;
 
     // Core thread
