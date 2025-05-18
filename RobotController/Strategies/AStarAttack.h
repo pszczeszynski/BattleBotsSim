@@ -27,15 +27,6 @@ private:
     float oppAngleDrift;
     float oppAnglePreviousPerfect;
 
-    // tracking stats
-    float maxOppTurnAccel;
-    float maxOppTurnSpeed;
-
-
-    // bruh
-    float previousMetricCW = 0.0f;
-    float previousMetricCCW = 0.0f;
-    float previousAngleToOrb = 0.0f;
 
 
     std::vector<cv::Point2f> fieldBoundPoints; // list of points that define the field bound lines
@@ -50,6 +41,7 @@ private:
     void displayLines(std::vector<cv::Point2f>& path, cv::Scalar color);
     void displayLineList(std::vector<Line>& lines, cv::Scalar color);
     void displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color);
+    void displayPathTangency(FilteredRobot robot, cv::Scalar color);
 
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
@@ -66,6 +58,7 @@ private:
     cv::Point2f followPointDirection(float deltaTime, float ppRadius, bool CW, bool display);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float closestWallDistance(bool CW);
-    float metric(bool CW, bool draw);
     cv::Point2f turnCorrectWay(cv::Point2f followPoint);
+    float ppRad(float radSlow, float radFast, float speedFast, float currSpeed);
+    cv::Point2f avoidBounds(cv::Point2f rawFollowPoint, float ppRadius, float radius, bool CW);
 };

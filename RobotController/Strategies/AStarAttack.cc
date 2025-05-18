@@ -53,14 +53,8 @@ AStarAttack::AStarAttack()
 
     // no shelf corners
     fieldBoundPoints = {
-        cv::Point(minX, shelfY),
-        cv::Point2f(shelfStartX - 1, shelfY),
-        cv::Point2f(shelfStartX, shelfY),
-        cv::Point2f(shelfEndX, shelfY),
-        cv::Point2f(shelfEndX + 1, shelfY),
-        cv::Point2f(maxX, shelfY),
-        cv::Point2f(maxX, screwY1),
-        cv::Point2f(screwX2, screwY2),
+        cv::Point(screwX1, shelfY),
+        cv::Point2f(screwX2, shelfY),
         cv::Point2f(screwX2, screwY3),
         cv::Point2f(maxX, screwY4),
         cv::Point2f(maxX, gateY),
@@ -69,9 +63,7 @@ AStarAttack::AStarAttack()
         cv::Point2f(minX, gateY),
         cv::Point2f(minX, screwY4),
         cv::Point2f(screwX1, screwY3),
-        cv::Point2f(screwX1, screwY2),
-        cv::Point2f(minX, screwY1),
-        cv::Point2f(minX, shelfY), // include first point again to complete last line
+        cv::Point2f(screwX1, shelfY), // include first point again to complete last line
     };
 
     // lines are defined by connected adjacent points
@@ -84,9 +76,9 @@ AStarAttack::AStarAttack()
     // points that stick out
     // convexPoints.emplace_back(cv::Point2f(shelfStartX, shelfY));
     // convexPoints.emplace_back(cv::Point2f(shelfEndX, shelfY));
-    convexPoints.emplace_back(cv::Point2f(screwX2, screwY2));
+    // convexPoints.emplace_back(cv::Point2f(screwX2, screwY2));
+    // convexPoints.emplace_back(cv::Point2f(screwX1, screwY2));
     convexPoints.emplace_back(cv::Point2f(screwX2, screwY3));
-    convexPoints.emplace_back(cv::Point2f(screwX1, screwY2));
     convexPoints.emplace_back(cv::Point2f(screwX1, screwY3));
 
 
@@ -95,25 +87,12 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 100.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD);
+    orbFiltered = FilteredRobot(1.0f, 100.0f, 2.0f*360.0f*TO_RAD, 40.0f*360.0f*TO_RAD);
     oppFiltered = FilteredRobot(1.0f, 100.0f, 3.0f*360.0f*TO_RAD, 120.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
 
     oppAngleDrift = 0.0f;
     oppAnglePreviousPerfect = 0.0f;
 
-    maxOppTurnAccel = 0.0f;
-    maxOppTurnSpeed = 0.0f;
-
-
-    // OdometryData ourData = RobotController::GetInstance().odometry.Robot();
-    // OdometryData opponentData = ExtrapolateOpponentPos(0.0 / 1000.0, 9999999999.0f);
-    // opponentData = RobotController::GetInstance().odometry.Opponent();
-
-    // std::vector<float> orbPos = {ourData.robotPosition.x, ourData.robotPosition.y, (float) ourData.robotAngle};
-    // std::vector<float> oppPos = {opponentData.robotPosition.x, opponentData.robotPosition.y, (float) opponentData.robotAngle};
-
-    // orbFiltered.setPos(orbPos);
-    // oppFiltered.setPos(oppPos);
 }
 
 
@@ -127,61 +106,26 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     if(deltaTime == 0) { deltaTime = 0.001; } // broski what
     updateClock.markStart(); // reset for next loop
 
-    // extrapolate our position into the future
-    OdometryData ourData = RobotController::GetInstance().odometry.Robot();
-    //ourData.Extrapolate(Clock::programClock.getElapsedTime() + (50.0 / 1000.0));
-
-    // extrapolate the opponent's position into the future
-    OdometryData opponentData = ExtrapolateOpponentPos(0.0 / 1000.0, 9999999999.0f);
-    opponentData = RobotController::GetInstance().odometry.Opponent();
+    OdometryData orbData = RobotController::GetInstance().odometry.Robot(); // get our data
+    OdometryData oppData = RobotController::GetInstance().odometry.Opponent(); // get opp data
 
 
 
     // simulate some drift on opp theta
-    float randomValue = static_cast<float>(rand()) / RAND_MAX;
-    float oppAngleIncrement = angleWrapRad(opponentData.robotAngle - oppAnglePreviousPerfect);
-    oppAngleDrift += (1.07f * oppAngleIncrement) + (0.005f * 2.0f * (randomValue - 0.5f));
-    oppAnglePreviousPerfect = opponentData.robotAngle;
+    // float randomValue = static_cast<float>(rand()) / RAND_MAX;
+    // float oppAngleIncrement = angleWrapRad(opponentData.robotAngle - oppAnglePreviousPerfect);
+    // oppAngleDrift += (1.07f * oppAngleIncrement) + (0.005f * 2.0f * (randomValue - 0.5f));
+    // oppAnglePreviousPerfect = opponentData.robotAngle;
 
     // update filtered positions/velocities
-    orbFiltered.updateFilters(deltaTime, ourData.robotPosition, ourData.robotAngle);
-    oppFiltered.updateFilters(deltaTime, opponentData.robotPosition, opponentData.robotAngle); // oppFiltered.updateFiltersOpp(deltaTime, opponentData.robotPosition, oppAngleDrift);
+    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.robotAngle);
+    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.robotAngle); // oppFiltered.updateFiltersOpp(deltaTime, opponentData.robotPosition, oppAngleDrift);
 
+    displayPathTangency(oppFiltered, cv::Scalar{255, 255, 255}); // display opp path tangency
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, cv::Scalar(0, 0, 255), 2); // draw a circle on the opponent
+    displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
+    displayPoints(convexPoints, cv::Scalar(0, 0, 255)); // draw field bound points
 
-    if(abs(oppFiltered.turnAccel()) > maxOppTurnAccel) { maxOppTurnAccel = abs(oppFiltered.turnAccel()); }
-    if(abs(oppFiltered.turnVel()) > maxOppTurnSpeed) { maxOppTurnSpeed = abs(oppFiltered.turnVel()); }
-    if(orbFiltered.angle() < 0) { maxOppTurnAccel = 0.0f; maxOppTurnSpeed = 0.0f; }
-    // std::cout << "   time to turn = " << oppFiltered.timeToTurnToAngle(0.0f, false) << "    ";
-
-
-    // show opp path tangency
-    float oppAngle = oppFiltered.angle();
-    float testRadius = 50.0f;
-    cv::Point2f secondPoint = cv::Point2f(oppFiltered.position().x + testRadius*cos(oppAngle), oppFiltered.position().y + testRadius*sin(oppAngle));
-    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), secondPoint, cv::Scalar{255, 255, 255}, 2);
-
-
-
-
-
-    // draw a crosshair on the opponent
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, cv::Scalar(0, 0, 255), 2);
-
-    // draw field bounds and convex points
-    displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255));
-    displayPoints(convexPoints, cv::Scalar(0, 0, 255));
-
-
-
-
-    // update distance/speed to opponent
-    float distanceToOpp = cv::norm(orbFiltered.position() - oppFiltered.position());
-    float ppRadZero = 60.0f;
-    float ppRadFast = 100.0f;
-    float fast = 400.0f;
-    float ppRadius = ppRadZero + ((ppRadFast - ppRadZero) / fast) * cv::norm(orbFiltered.moveVel());
-
-    
 
     // track paths and display
     orbFiltered.updatePath();
@@ -190,16 +134,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     displayLines(oppFiltered.getPath(), cv::Scalar(255, 200, 200));
 
 
-    // std::cout << "advantage CW = " << ETAAdvantage(true) << ", orb speed = " << cv::norm(orbFiltered.moveVel()) << std::endl;
-
     
-    // angle each robot has to turn to face the other
-    float angleToOrb = angleWrapRad(angle(oppFiltered.position(), orbFiltered.position()) - oppFiltered.angle());
-    float angleToOpp = angleWrapRad(angle(orbFiltered.position(), oppFiltered.position()) - orbFiltered.angle());
 
-
-
-
+    float ppRadius = ppRad(60.0f, 100.0f, 400.0f, cv::norm(orbFiltered.moveVel())); // calculate pp radius based on move speed
 
     // raw follow points in each direction
     cv::Point2f followPointCW = followPointDirection(deltaTime, ppRadius, true, false);
@@ -213,14 +150,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     float autoSwitchThresh = 150.0f*TO_RAD;
 
 
-    // std::cout << "closest wall = " << closestWallDistance(true) << std::endl;
-
 
     float angleToCW = orbFiltered.angleTo(followPointCW);
     float angleToCCW = orbFiltered.angleTo(followPointCCW);
 
     float CWWeight = angleToCW;
     float CCWWeight = angleToCCW;
+    float turnGain = 40.0; // 60.0
 
     if(autoSwitching) {
         if(abs(CWWeight) > autoSwitchThresh) { CWWeight = angleWrapRad(2*CWWeight) / 2; }
@@ -228,37 +164,20 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     }
 
     // how far around the circle we have to go for each direction
-    float goAroundAngleCW = M_PI - angleToOrb;
-    float goAroundAngleCCW = M_PI + angleToOrb;
+    float goAroundAngleCW = M_PI - oppFiltered.angleTo(orbFiltered.position());
+    float goAroundAngleCCW = M_PI + oppFiltered.angleTo(orbFiltered.position());
+    float goAroundGain = 5.0f;
 
 
-    // how much velocity is perpendicular to the center of the opp
-    float orbMoveSpeed = cv::norm(orbFiltered.moveVel());
-    float orbMoveDirectionRelative = atan2(orbFiltered.moveVel().y, orbFiltered.moveVel().x) - oppFiltered.angle();
-    float perpMoveVel = pow(orbMoveSpeed, 2) * sin(orbMoveDirectionRelative);
-
-
-    float wallGain = 0.8f; // 0.035
-    // float wallThresh = 300.0f;
-    // float wallWeightCW = std::max(wallThresh - closestWallDistance(true), 0.0f) * wallGain;
-    // float wallWeightCCW = std::max(wallThresh - closestWallDistance(false), 0.0f) * wallGain;
+    float wallGain = 0.8f; // 0.8
     float wallWeightCW = -closestWallDistance(true) * wallGain;
     float wallWeightCCW = -closestWallDistance(false) * wallGain;
 
+    
 
+    // which way around the opp to circle
+    bool CW = radiusEquation(deltaTime, ppRadius, true) + abs(CWWeight)*turnGain + wallWeightCW + goAroundAngleCW*goAroundGain < radiusEquation(deltaTime, ppRadius, false) + abs(CCWWeight)*turnGain + wallWeightCCW + goAroundAngleCCW*goAroundGain;
 
-    float velGain = 0.000000f; //0.000030
-    float turnGain = 60.0; // 1.0
-    // bool CW = goAroundAngleCW + abs(CWWeight)*turnGain - velGain*perpMoveVel + wallWeightCW < goAroundAngleCCW + abs(CCWWeight)*turnGain + velGain*perpMoveVel + wallWeightCCW;
-    // bool CW = abs(CWWeight)*turnGain - velGain*perpMoveVel + wallWeightCW < abs(CCWWeight)*turnGain + velGain*perpMoveVel + wallWeightCCW;
-    bool CW = radiusEquation(deltaTime, ppRadius, true) + abs(CWWeight)*turnGain + wallWeightCW < radiusEquation(deltaTime, ppRadius, false) + abs(CCWWeight)*turnGain + wallWeightCCW;
-
-    // CW = true;
-
-    // float oppETA = oppFiltered.pointETA(orbFiltered.position(), 10.0f*TO_RAD, 90.0f*TO_RAD, CW);
-    // float orbETA = orbFiltered.collideETA(oppFiltered);
-
-    // std::cout << "oppETA = " << oppETA << ", orbETA = " << orbETA << "    ";
 
     // draw the stuff that's actually used
     if(CW) {
@@ -275,189 +194,27 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     // set the follow point to the follow point of the better direction
     cv::Point2f followPoint = followPointCW;
-    float angleToFollowPoint = angleToCW;
     float radius = radiusEquation(deltaTime, ppRadius, true);
     if(!CW) { 
         followPoint = followPointCCW; 
-        angleToFollowPoint = angleToCCW;
         radius = radiusEquation(deltaTime, ppRadius, false);
     }
 
 
-    // std::cout << "angle to CW = " << angleToCW*TO_DEG << ", angle to CCW = " << angleToCCW*TO_DEG << std::endl;
-    
+    followPoint = avoidBounds(followPoint, ppRadius, radius, CW); // make sure we don't hit any walls
 
 
-
-
-
-    // check if the line to the follow point intersects boundary lines
-
-    // clipped into field, just used as a comparison point for collisions
-    cv::Point2f travelStart = clipPointInBounds(orbFiltered.position());
-    cv::Point2f travelEnd = clipPointInBounds(followPoint);
-
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 255, 255), 3);
-
-
-    // std::cout << "in bounds = " << insideFieldBounds(travelStart) << std::endl;
-
-    Line travelLine(travelStart, travelEnd);
-    std::vector<int> boundaryHits = {}; // indices of lines that intersect travel line
-
-    // find all the convex points that are possibly in the way, the ones that belong to lines that are being collided with
-    for(int i = 0; i < fieldBoundLines.size(); i++) {
-        // float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().first);
-        // float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(travelLine.getLinePoints().second);
-        // if(fieldBoundLines[i].doesIntersectLine(travelLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
-        if(fieldBoundLines[i].doesIntersectLine(travelLine)) { 
-            boundaryHits.emplace_back(i);
-        }
-    }
-
-    // // checks for lines that are less than a certain amount apart (fills in gaps)
-    // for(int i = 0; i < boundaryHits.size(); i++) {
-    //     if(boundaryHits.size() - 1 - i > 0) {
-    //         if(boundaryHits[i + 1] - boundaryHits[i] <= 3) {
-    //             int insertLineIndex = boundaryHits[i + 1] - 1;
-    //             while(insertLineIndex > boundaryHits[i]) {
-    //                 boundaryHits.insert(boundaryHits.begin() + i + 1, insertLineIndex);
-    //                 insertLineIndex--;
-    //             }
-    //         }
-    //     }
-    // }
-
-    displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
-
-
-
-    std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
-    for(int i = 0; i < boundaryHits.size(); i++) {
-        if(boundaryHits[i] == 2 || boundaryHits[i] == 7 || boundaryHits[i] == 15) { continue; }
-
-        std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBoundLines[boundaryHits[i]].getLinePoints();
-        // float point1Distance = cv::norm(linePoints.first - orbFiltered.pos());
-        // float point2Distance = cv::norm(linePoints.second - orbFiltered.pos());
-        
-        // find indices in convex list, if they exist
-        int point1Index = vectorPointIndex(convexPoints, linePoints.first);
-        int point2Index = vectorPointIndex(convexPoints, linePoints.second);
-
-        if(point1Index != -1) { convexCount[point1Index]++; }
-        if(point2Index != -1) { convexCount[point2Index]++; }
-    }
-
-
-
-    // use a different radius for walls, has to be smaller to not clip walls
-    float ppRadiusForWalls = 90.0f;
-    std::vector<cv::Point2f> ppWallPointsForWalls = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadiusForWalls);
-
-    // // draw wall pure pursuit radius
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(),
-    //             orbFiltered.pos(),
-    //             ppRadiusForWalls, cv::Scalar(255, 0, 0), 1.5);
-
-
-    // if we're using a convex point as the follow point, don't check for clipping later if we are
-    bool usingConvexPoint = false;
-
-    // search for closest convex points with 2 collision lines associated with it
-    float closestConvex = 999999.9f;
-    for(int i = 0; i < convexCount.size(); i++) {
-        float convexDistance = cv::norm(convexPoints[i] - orbFiltered.position());
-        // if(convexCount[i] == 2 && convexDistance < closestConvex) {
-        if(convexCount[i] > 0 && convexDistance < closestConvex) {
-            followPoint = convexPoints[i];
-            closestConvex = convexDistance;
-            usingConvexPoint = true;
-
-            // if this convex point is too close and we have wall intersections to use
-            if(cv::norm(followPoint - orbFiltered.position()) < ppRadiusForWalls && ppWallPointsForWalls.size() > 0) {
-
-                // use the pp point that's closest to opponent
-                float closestPP = cv::norm(ppWallPointsForWalls[0] - oppFiltered.position());
-                followPoint = ppWallPointsForWalls[0];
-                for(int i = 1; i < ppWallPointsForWalls.size(); i++) {
-                    float newPPDistance = cv::norm(ppWallPointsForWalls[i] - oppFiltered.position());
-                    if(newPPDistance < closestPP) {
-                        closestPP = newPPDistance;
-                        followPoint = ppWallPointsForWalls[i];
-                    }
-                }
-            }
-        }
-    }
-
-
-    // find pp circle intersections with the wall
-    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadius);
-
-    // if the follow point is out of the field, clip it in
-    if(!insideFieldBounds(followPoint) && !usingConvexPoint) {
-
-        // display pp points
-        for(int i = 0; i < ppWallPoints.size(); i++) {
-            safe_circle(RobotController::GetInstance().GetDrawingImage(),
-                ppWallPoints[i],
-                5.0f, cv::Scalar(255, 50, 50), 2);
-        }
-
-        if(ppWallPoints.size() > 0) {
-            int bestPointIndex = 0;
-            float bestPointAngle = angleWrapRad(angle(oppFiltered.position(), ppWallPoints[0]) - oppFiltered.angle());
-
-            // find the most CW or CCW points, that's the one to follow
-            for(int i = 1; i < ppWallPoints.size(); i++) {
-                float testAngle = angleWrapRad(angle(oppFiltered.position(), ppWallPoints[i]) - oppFiltered.angle());
-                if((testAngle < bestPointAngle && !CW) || (testAngle > bestPointAngle && CW)) {
-                    bestPointAngle = testAngle;
-                    bestPointIndex = i;
-                }
-            }
-
-            // set the follow point to the best index if it's more in the correct direction and if it's in the main radius
-            float deltaAnglePP = angleWrapRad(angle(orbFiltered.position(), ppWallPoints[bestPointIndex]) - angle(orbFiltered.position(), followPoint));
-            float distanceOppToPoint = cv::norm(oppFiltered.position() - ppWallPoints[bestPointIndex]);
-            if(((deltaAnglePP < 0 && !CW) || (deltaAnglePP > 0 && CW)) && distanceOppToPoint < radius) {
-                followPoint = ppWallPoints[bestPointIndex];
-            }
-            
-        }
-    } 
-
-    
-    followPoint = clipPointInBounds(followPoint); // make sure it's in bounds
-    cv::Point2f followPointCorrectWay = turnCorrectWay(followPoint); // force that we turn away from the if needed
+    cv::Point2f followPointCorrectWay = turnCorrectWay(followPoint); // force that we turn away from the opp if needed
     if(insideFieldBounds(followPointCorrectWay)) { followPoint = followPointCorrectWay; } // don't switch to a follow point thats out of bounds
     
 
     // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3);
-    metric(true, true); // draw angle marign
 
 
-    
-
-
-
-    // save for later
-    previousMetricCW = metric(true, false);
-    previousMetricCCW = metric(false, false);
-    previousAngleToOrb = angleToOrb;
-
-
-    
-
-    if(!leadingWithBar) { angleToFollowPoint = angleWrapRad(angleToFollowPoint + M_PI); }
-    if(abs(angleToFollowPoint) > autoSwitchThresh && autoSwitching) {
-        leadingWithBar = !leadingWithBar;
-    }
 
     RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Forward;
     if(!leadingWithBar) { direction = RobotMovement::DriveDirection::Backward; }
-
 
 
 
@@ -476,7 +233,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
     // scale movement based on angle error
     float movement = gamepad.GetRightStickY() * calculateMovePercent(orbFiltered.position(), orbFiltered.angle(), followPoint, 40.0f*TO_RAD, 70.0F*TO_RAD, leadingWithBar);
-    // float movement = 1.0f * calculateMovePercent(orbFiltered.pos(), orbFiltered.angle(), followPoint, 60.0f*TO_RAD, 90.0F*TO_RAD, leadingWithBar);
     ret.autoDrive.movement = movement;
     
 
@@ -523,7 +279,7 @@ cv::Point2f AStarAttack::followPointDirection(float deltaTime, float ppRadius, b
         followPoint = ppPoint(radius, oppFiltered.position(), orbFiltered.position(), CW, ppRadius, 80.0f*TO_RAD);
     }
 
-    // decides if we win or not
+    // if we're inside the circle
     if(!outsideCircle) {
 
         float direction = 1.0f;
@@ -532,7 +288,7 @@ cv::Point2f AStarAttack::followPointDirection(float deltaTime, float ppRadius, b
 
 
         // first define parameters at collision radius
-        float minAngleFront = -70.0f*TO_RAD; // -70
+        float minAngleFront = -40.0f*TO_RAD; // -70
         float maxAngleFront = 10.0f*TO_RAD;
 
         float minAngleSide = -185.0f*TO_RAD; // -185
@@ -607,14 +363,6 @@ cv::Point2f AStarAttack::followPointDirection(float deltaTime, float ppRadius, b
         followPoint = cv::Point2f(orbFiltered.position().x + ppRadius*cos(followAngle), orbFiltered.position().y + ppRadius*sin(followAngle));
     }
 
-    // // if follow point would take you the other way around, target the opp directly
-    // float angleToFollowPoint = angleWrapRad(angle(oppPos, followPoint) - oppAngle);
-    // if(!CW) { angleToFollowPoint *= -1; }
-    // if(angleToFollowPoint < -100.0f*TO_RAD) { followPoint = oppPos; }
-
-
-    // // commit to the shot if we have positive advantage
-    // if(ETAAdvantage() > 0.1f) { followPoint = oppPos; }
 
 
     if(display) {
@@ -631,91 +379,17 @@ cv::Point2f AStarAttack::followPointDirection(float deltaTime, float ppRadius, b
 
 
 
-// used for determining radius equation
-float AStarAttack::metric(bool CW, bool draw) {
-
-    // float collisionRadius = 70.0f;
-    // float distanceAway = std::max(cv::norm(orbFiltered.position() - oppFiltered.position()) - collisionRadius, 0.0);
-    // float orbETA = orbFiltered.collideETA(oppFiltered);
-
-    // // float angleMargin = std::min(60.0f*TO_RAD + 20.0f*TO_RAD*orbETA, 180.0f*TO_RAD);
-    // float angleMargin = 40.0f * TO_RAD;
-    // float angleMargin1 = angleWrap(angleMargin - 0.0f*TO_RAD);
-    // float angleMargin2 = angleWrap(angleMargin + 25.0f*TO_RAD);
-
-    
-
-    // // std::cout << "   margin = " << angleMargin*TO_DEG;
-
-    // float oppETA = oppFiltered.pointETA(orbFiltered.position(), angleMargin1, angleMargin2, CW);
-    
-    // float ratio = orbETA * 40.0f + 1.0f;
-
-
-    // // if(draw) {
-    // //     float radius = 60.0f;
-    // //     cv::Point2f point1 = cv::Point2f(oppFiltered.position().x + cos(oppFiltered.angle() + angleMargin)*radius, oppFiltered.position().y + sin(oppFiltered.angle() + angleMargin)*radius);
-    // //     cv::Point2f point2 = cv::Point2f(oppFiltered.position().x + cos(oppFiltered.angle() - angleMargin)*radius, oppFiltered.position().y + sin(oppFiltered.angle() - angleMargin)*radius);
-    // //     cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), point1, cv::Scalar(0, 255, 0), 1);
-    // //     cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), point2, cv::Scalar(0, 255, 0), 1);
-
-    // //     std::cout << "  ratio = " << ratio << "  ";
-    // // }
-
-    // float value = log((1.0f / ratio) * (orbETA / oppETA));
-    // if(orbETA == 0) { value = -9999999.0f; }
-    // if(oppETA == 0) { value = 9999999.0f; }
-
-    float orbETA = orbFiltered.collideETA(oppFiltered);
-
-    float angleMargin = std::min(40.0f*TO_RAD + 50.0f*TO_RAD*orbETA, 180.0f*TO_RAD);
-    float angleMargin1 = angleWrap(angleMargin - 0.0f*TO_RAD);
-    float angleMargin2 = angleWrap(angleMargin + 20.0f*TO_RAD);
-
-    float oppETA = oppFiltered.pointETA(orbFiltered.position(), angleMargin1, angleMargin2, CW);
-
-    float value = std::clamp(pow((orbETA / oppETA) - 1.0f, 1.0f), 0.0f, 999999999.0f);
-    return value;
-}
-
-
 // equation for determining size of tangent circle
 float AStarAttack::radiusEquation(float deltaTime, float ppRadius, bool CW) {
 
-
-    // float radiusChange = 0.6f * ppRadius * metric(CW, false);
-    // float radius = std::clamp(distanceToOpp + radiusChange, 0.0f, 150.0f);
-
-    
     float orbETA = orbFiltered.collideETA(oppFiltered);
 
-    float angleMargin = std::min(40.0f*TO_RAD + 50.0f*TO_RAD*orbETA, 180.0f*TO_RAD);
-    float angleMargin1 = angleWrap(angleMargin - 0.0f*TO_RAD);
-    float angleMargin2 = angleWrap(angleMargin + 20.0f*TO_RAD);
-
-    float oppETA = oppFiltered.pointETA(orbFiltered.position(), angleMargin1, angleMargin2, CW);
+    float angleMargin = 30.0f*TO_RAD;
+    float humanLag = 0.13f; // 0.150
+    float oppETA = std::min(oppFiltered.pointETASim(orbFiltered.position(), humanLag, true, angleMargin), oppFiltered.pointETASim(orbFiltered.position(), humanLag, false, angleMargin));
 
 
-
-    // calculate rate of change
-    float metricChangeRate = (metric(true, false) - previousMetricCW) / deltaTime;
-    if(!CW) { metricChangeRate = (metric(false, false) - previousMetricCCW) / deltaTime; }
-
-    
-
-    float radius = std::clamp(8.0f * metric(CW, false) + 0.05f * metricChangeRate, 0.0f, 150.0f);
-
-
-    if(true) {
-        float radius = 60.0f;
-        cv::Point2f point1 = cv::Point2f(oppFiltered.position().x + cos(oppFiltered.angle() + angleMargin)*radius, oppFiltered.position().y + sin(oppFiltered.angle() + angleMargin)*radius);
-        cv::Point2f point2 = cv::Point2f(oppFiltered.position().x + cos(oppFiltered.angle() - angleMargin)*radius, oppFiltered.position().y + sin(oppFiltered.angle() - angleMargin)*radius);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), point1, cv::Scalar(0, 255, 0), 1);
-        cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), point2, cv::Scalar(0, 255, 0), 1);
-    }
-
-
-    return radius;
+    return std::clamp(21.0f * ((orbETA - oppETA) / oppETA), 0.0f, 160.0f);
 }
 
 
@@ -1048,8 +722,8 @@ cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPoint) {
 
     // if the point is basically the same time in both directions, enforce that we turn away from opp
     float angleToPointABS = angle(orbFiltered.position(), followPoint);
-    float timePos = orbFiltered.timeToTurnToAngle(angleToPointABS, true);
-    float timeNeg = orbFiltered.timeToTurnToAngle(angleToPointABS, false);
+    float timePos = orbFiltered.timeToTurnToAngle(orbFiltered.getPosFiltered(), orbFiltered.getVelFiltered(), angleToPointABS, true);
+    float timeNeg = orbFiltered.timeToTurnToAngle(oppFiltered.getPosFiltered(), oppFiltered.getVelFiltered(), angleToPointABS, false);
     float timeDif = signPoint*timePos - signPoint*timeNeg;
 
     if(timeDif > -0.15f) { 
@@ -1059,4 +733,130 @@ cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPoint) {
     }
 
     return followPoint;
+}
+
+
+// displays the path tangency data for inputted robot
+void AStarAttack::displayPathTangency(FilteredRobot robot, cv::Scalar color) {
+
+    float angle = robot.angle();
+    cv::Point2f position = robot.position();
+
+    float radius = 50.0f;
+    cv::Point2f secondPoint = cv::Point2f(position.x + radius*cos(angle), position.y + radius*sin(angle));
+    cv::line(RobotController::GetInstance().GetDrawingImage(), position, secondPoint, color, 2);
+}
+
+
+// calculates pure pursuit radius based on speeds
+float AStarAttack::ppRad(float radSlow, float radFast, float speedFast, float currSpeed) {
+    return radSlow + ((radFast - radSlow) / speedFast) * currSpeed;
+}
+
+
+
+// accounts for all bound stuff, including collisions with wall segments that jut into the field
+cv::Point2f AStarAttack::avoidBounds(cv::Point2f rawFollowPoint, float ppRadius, float radius, bool CW) {
+
+    // start with a check if the line to the follow point intersects boundary lines
+    // clipped into field, just used as a comparison point for collisions
+    cv::Point2f travelStart = clipPointInBounds(orbFiltered.position());
+    cv::Point2f travelEnd = clipPointInBounds(rawFollowPoint);
+
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 255, 255), 3); // display start point
+
+
+    Line travelLine(travelStart, travelEnd); // line connecting orb pos and follow point
+    std::vector<int> boundaryHits = {}; // indices of lines that intersect travel line
+
+    // find all the convex points that are possibly in the way, the ones that belong to lines that are being collided with
+    for(int i = 0; i < fieldBoundLines.size(); i++) {
+        if(fieldBoundLines[i].doesIntersectLine(travelLine)) { 
+            boundaryHits.emplace_back(i);
+        }
+    }
+
+    displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
+
+
+    std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
+    for(int i = 0; i < boundaryHits.size(); i++) {
+        // if(boundaryHits[i] == 2 || boundaryHits[i] == 7 || boundaryHits[i] == 15) { continue; } // full field
+        if(boundaryHits[i] == 1 || boundaryHits[i] == 9) { continue; } // no upper corners
+
+        std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBoundLines[boundaryHits[i]].getLinePoints();
+        
+        // find indices in convex list, if they exist
+        int point1Index = vectorPointIndex(convexPoints, linePoints.first);
+        int point2Index = vectorPointIndex(convexPoints, linePoints.second);
+
+        if(point1Index != -1) { convexCount[point1Index]++; }
+        if(point2Index != -1) { convexCount[point2Index]++; }
+    }
+
+
+    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadius);
+
+
+    bool usingConvexPoint = false; // if we're using a convex point as the follow point, don't check for clipping later if we are
+
+    // search for closest convex points with any collision lines associated with it
+    float closestConvex = 999999.9f;
+    for(int i = 0; i < convexCount.size(); i++) {
+        float convexDistance = cv::norm(convexPoints[i] - orbFiltered.position());
+        if(convexCount[i] > 0 && convexDistance < closestConvex) {
+            rawFollowPoint = convexPoints[i];
+            closestConvex = convexDistance;
+            usingConvexPoint = true;
+
+            // if this convex point is too close and we have wall intersections to use
+            if(cv::norm(rawFollowPoint - orbFiltered.position()) < ppRadius && ppWallPoints.size() > 0) {
+
+                // use the pp point that's closest to opponent. this is cope but works most of the time
+                float closestPP = cv::norm(ppWallPoints[0] - oppFiltered.position());
+                rawFollowPoint = ppWallPoints[0];
+                for(int i = 1; i < ppWallPoints.size(); i++) {
+                    float newPPDistance = cv::norm(ppWallPoints[i] - oppFiltered.position());
+                    if(newPPDistance < closestPP) {
+                        closestPP = newPPDistance;
+                        rawFollowPoint = ppWallPoints[i];
+                    }
+                }
+            }
+        }
+    }
+
+    // if the follow point is out of the field, clip it in
+    if(!insideFieldBounds(rawFollowPoint) && !usingConvexPoint) {
+
+        // display pp points
+        // for(int i = 0; i < ppWallPoints.size(); i++) {
+        //     safe_circle(RobotController::GetInstance().GetDrawingImage(),
+        //         ppWallPoints[i],
+        //         5.0f, cv::Scalar(255, 50, 50), 2);
+        // }
+
+        if(ppWallPoints.size() > 0) {
+            int bestPointIndex = 0;
+            float bestPointAngle = oppFiltered.angleTo(ppWallPoints[0]);
+
+            // find the most CW or CCW points relative to opp's angle, that's the one to follow
+            for(int i = 1; i < ppWallPoints.size(); i++) {
+                float testAngle = oppFiltered.angleTo(ppWallPoints[i]);
+                if((testAngle < bestPointAngle && !CW) || (testAngle > bestPointAngle && CW)) {
+                    bestPointAngle = testAngle;
+                    bestPointIndex = i;
+                }
+            }
+
+            // set the follow point to the best index if it's more in the correct direction and if it's in the main radius
+            float deltaAnglePP = angleWrapRad(angle(orbFiltered.position(), ppWallPoints[bestPointIndex]) - angle(orbFiltered.position(), rawFollowPoint));
+            float distanceOppToPoint = cv::norm(oppFiltered.position() - ppWallPoints[bestPointIndex]);
+            if(((deltaAnglePP < 0 && !CW) || (deltaAnglePP > 0 && CW)) && distanceOppToPoint < radius) {
+                rawFollowPoint = ppWallPoints[bestPointIndex];
+            }
+        }
+    } 
+
+    return clipPointInBounds(rawFollowPoint); // make sure it's in bounds one more time
 }

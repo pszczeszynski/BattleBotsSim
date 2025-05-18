@@ -16,18 +16,23 @@ public:
 
 
     float collideETA(FilteredRobot opp); // estimated time to collide with a robot
-    float pointETA(cv::Point2f point, float angleMargin1, float angleMargin2, bool CW); // estimated time to face towards a point
-    float timeToTurnToAngle(float angle, bool turnCW); // estimated time to turn to an angle given a certain turn direction
+    float pointETA(cv::Point2f point, float lagTime, float angleMargin1, float angleMargin2, bool CW); // estimated time to face towards a point
+    float pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin); // simulate estimated turn time to point
+    float timeToTurnToAngle(std::vector<float> pos, std::vector<float> vel, float angle, bool turnCW); // estimated time to turn to an angle given a certain turn direction
 
 
     void updatePath();
     void setPos(std::vector<float> pos);
     std::vector<std::vector<float>> constAccExtrap(float time);
+    std::vector<std::vector<float>> constVelExtrap(float time);
     float angleTo(cv::Point2f point);
 
     // get robot data
     cv::Point2f position();
     cv::Point2f moveVel();
+    std::vector<float> getPosFiltered();
+    std::vector<float> getVelFiltered();
+    std::vector<float> getAccFiltered();
     float angle();
     float turnVel();
     float turnAccel();
@@ -66,5 +71,6 @@ private:
 
 
     float wrapAngle(float angle);
+    int sign(float num);
     cv::Point2f clipInBounds(cv::Point2f point);
 };
