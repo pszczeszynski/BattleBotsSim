@@ -141,7 +141,7 @@ private:
     OdometryData dataOpponent_Heuristic;
     OdometryData dataOpponent_Human;
 
-    void LogOdometryToFile( );
+    void LogOdometryToFile(std::string& extraHeader, std::string& extraData);
     std::stringstream GetOdometryLog( const std::string& name, OdometryData& odometry, bool doheader = false);
     bool _logOdometryFileOpen = false;
     std::string _logOdometryFileName = "./Logs/odometry_log.csv";

@@ -283,12 +283,12 @@ void TrackingWidget::_DrawAlgorithmData()
     {
         OdometryData robot = _odometry_Blob.GetData(false);
         robot.Extrapolate(Clock::programClock.getElapsedTime());
-        DrawX(_trackingMat, robot.robotPosition, blobColor, 20);
+        DrawX(_trackingMat, robot.robotPosition, blobColor, (robot.robotPosValid) ? 20 : 5);
 
         OdometryData opponent = _odometry_Blob.GetData(true);
         opponent.Extrapolate(Clock::programClock.getElapsedTime());
 
-        safe_circle(_trackingMat, opponent.robotPosition, 20, blobColor, 2);
+        safe_circle(_trackingMat, opponent.robotPosition, (opponent.robotPosValid) ? 20 : 5, blobColor, 2);
     }
 
     if (_odometry_Heuristic.IsRunning())
@@ -298,7 +298,7 @@ void TrackingWidget::_DrawAlgorithmData()
 
         if (robot.robotPosValid)
         {
-            DrawX(_trackingMat, robot.robotPosition, heuristicColor, 20);
+            DrawX(_trackingMat, robot.robotPosition, heuristicColor, (robot.robotPosValid) ? 20 : 5);
         }
 
 
@@ -313,7 +313,7 @@ void TrackingWidget::_DrawAlgorithmData()
 
         if (opponent.robotPosValid)
         {
-            safe_circle(_trackingMat, opponent.robotPosition, 20, heuristicColor, 2);
+            safe_circle(_trackingMat, opponent.robotPosition, (opponent.robotPosValid) ? 20 : 5, heuristicColor, 2);
         }
     }
 
