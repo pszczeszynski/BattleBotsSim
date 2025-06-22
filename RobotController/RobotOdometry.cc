@@ -340,6 +340,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     bool imuValid = _odometry_IMU.IsRunning() && (_dataRobot_IMU.GetAge() < _dataAgeThreshold);
     bool imuUsRot_valid = imuValid && _dataRobot_IMU.robotAngleValid;
 
+
     debugROStringForVideo_tmp += "ALG U_P U_V U_R UAV T_P T_V T_R TAV\n";
     debugROStringForVideo_tmp += "Heu " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemAngle_valid) + "\n";
     debugROStringForVideo_tmp += "Blb " + std::to_string(blobUsPos_valid)      + "   " + std::to_string(blobUsPos_valid)      + "   " +  std::string("   ")                    + "   " + std::string("   ")                     + "   " + std::to_string(blobThemPos_valid)      + "   " + std::to_string(blobThemPos_valid) + "\n";
@@ -348,7 +349,13 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     debugROStringForVideo_tmp += "IMU " + std::string("   ")                   + "   " +    std::string("   ")                + "   " +  std::to_string(imuUsRot_valid)  + "\n" ;
 
     // Log the odometry data to file
-    LogOdometryToFile();
+    std::string logAlgHeader =  "ALG UP UR TP TR";   
+    std::string logAlgData = "Heu:" + std::to_string(heuristicUsPos_valid)  + std::to_string(heuristicUsAngle_valid) + std::to_string(heuristicThemPos_valid) + std::to_string(heuristicThemAngle_valid);
+    logAlgData += " Blb:"   + std::to_string(blobUsPos_valid) + "_" + std::to_string(blobThemPos_valid) + "_";
+    logAlgData += " Neu:"   + std::to_string(neuralUsPos_valid);
+    logAlgData += " NeR:"   + std::string("_") + std::to_string(neuralRot_valid);
+    logAlgData += " IMU:"   + std::string("_") + std::to_string(imuUsRot_valid);
+    LogOdometryToFile(logAlgHeader, logAlgData);
 
 
     // ******************************
@@ -921,7 +928,7 @@ std::string getCurrentDateTime() {
     return std::string(time_str);
 }
 
-void RobotOdometry::LogOdometryToFile()
+void RobotOdometry::LogOdometryToFile(std::string& extraHeader, std::string& extraData)
 {
     if( !LOG_ODOMETRY_DATA  )
     {
@@ -946,6 +953,7 @@ void RobotOdometry::LogOdometryToFile()
         if( _logOdometryFile.is_open() )
         {
             _logOdometryFile << std::endl << "[" << getCurrentDateTime() << "]" << std::endl 
+            << extraHeader << "," 
             << GetOdometryLog("UsHeu", dataRobot_Heuristic,true).str() << ","
             << GetOdometryLog("UsBlob", dataRobot_Blob,true).str() << ","
             << GetOdometryLog("UsNeural", dataRobot_Neural,true).str() << ","
@@ -968,6 +976,7 @@ void RobotOdometry::LogOdometryToFile()
      
         // Write the data to the file
         _logOdometryFile 
+        << extraData << ","
         << GetOdometryLog("UsHeu", dataRobot_Heuristic).str() << ","
         << GetOdometryLog("UsBlob", dataRobot_Blob).str() << ","
         << GetOdometryLog("UsNeural", dataRobot_Neural).str() << ","

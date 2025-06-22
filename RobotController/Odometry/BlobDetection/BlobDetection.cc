@@ -4,6 +4,12 @@
 #include "../../RobotController.h"
 #include "../../SafeDrawing.h"
 
+// *********************************************************************
+// NOTE:
+// Blob detection is used for position and velocity of us and them.
+// It does do path tangent calculation here, but it is not used for anything yet.
+// **********************************************************************
+
 // Ctor
 BlobDetection::BlobDetection(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
@@ -210,6 +216,12 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     opponent.center = opponentPosSim;
 #endif
 
+    // Increment frame id whether we have a valid blob or not to tell
+    // odometry algorithm to consider to result (whether positive or negative)
+    _currDataRobot.id++;             // Increment frame id
+    _currDataRobot.frameID = frameID; 
+    _currDataRobot.time = timestamp; // Set to new time
+
 #ifndef HARDCODE_SIM
     if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot))
 #else
@@ -218,10 +230,6 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     {
         // Make a copy of currData for velocity calls
         _prevDataRobot = _currDataRobot;
-
-        _currDataRobot.id++;             // Increment frame id
-        _currDataRobot.frameID = frameID; 
-        _currDataRobot.time = timestamp; // Set to new time
 
         // Clear curr data
         _currDataRobot.Clear();
@@ -237,12 +245,24 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     }
     else
     {
+
         // increase invalid count + mark as invalid
         double invalidCount = _currDataRobot.userDataDouble["invalidCount"];
-        _currDataRobot.robotPosValid = _currDataRobot.userDataDouble["invalidCount"] < 10;
-        _currDataRobot.userDataDouble["invalidCount"]++;
+
+        if( invalidCount >= 10 )
+        {
+            _currDataRobot.robotPosValid = false;
+            _currDataRobot.robotAngleValid = false;
+            _prevDataRobot = _currDataRobot; // Invalidate old data
+        }
         
+        _currDataRobot.userDataDouble["invalidCount"]++;
     }
+
+    // Increment id and frame 
+    _currDataOpponent.id++;             // Increment frame id
+    _currDataOpponent.frameID = frameID; 
+    _currDataOpponent.time = timestamp; // Set to new time
 
 #ifndef HARDCODE_SIM
     if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent))
@@ -252,10 +272,6 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     {
         // Make a copy of currData for velocity calls
         _prevDataOpponent = _currDataOpponent;
-
-        _currDataOpponent.id++;             // Increment frame id
-        _currDataOpponent.frameID = frameID; 
-        _currDataOpponent.time = timestamp; // Set to new time
 
         // Clear curr data
         _currDataOpponent.Clear();
@@ -272,8 +288,17 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     }
     else
     {
-        _currDataOpponent.robotPosValid = _currDataOpponent.userDataDouble["invalidCount"] < 10;
+        double invalidCount = _currDataOpponent.userDataDouble["invalidCount"];
+
+        if( invalidCount >= 10 )
+        {
+            _currDataOpponent.robotPosValid = false;
+            _currDataOpponent.robotAngleValid = false;
+            _prevDataOpponent = _currDataOpponent; // Invalidate old data
+        }
+
         _currDataOpponent.userDataDouble["invalidCount"]++;
+          
     }
 }
 
@@ -334,6 +359,12 @@ void BlobDetection::SetData(MotionBlob *blob, OdometryData &currData, OdometryDa
 #define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
 void BlobDetection::_GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData)
 {
+    if( prevData.robotPosValid == false )
+    {
+        // Don't update velocity incase it was set by a setData call
+        return;
+    }
+
     // If the previous or current position isnt valid or the total elapsed time is too long, then restart velocity
     double elapsedVelTime = currData.time - prevData.userDataDouble["lastVelTime"];
 
