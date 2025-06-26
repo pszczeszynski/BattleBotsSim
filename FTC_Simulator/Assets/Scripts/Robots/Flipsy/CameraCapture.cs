@@ -8,12 +8,15 @@ using System.Diagnostics;
 using FFmpeg.AutoGen;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+
+
 
 public unsafe class CameraCapture : MonoBehaviour
 {
     public Camera cameraToCapture; // Assign the camera you want to capture in the Inspector
     public string fileName;
-    public int targetFrameRate = 100;
+    public int targetFrameRate = 150;
 
     Stopwatch stopwatch = new Stopwatch();
     private RenderTexture rt;
@@ -27,6 +30,9 @@ public unsafe class CameraCapture : MonoBehaviour
 
     private MemoryMappedFile mmf;
     private MemoryMappedViewAccessor accessor;
+    //private static int width = 1280;
+    //private static int height = 720;
+    private static int frameNumber = 1;
     private static int width = 1440;
     private static int height = 768;
     private static long bitrate = 15000000;
@@ -36,6 +42,13 @@ public unsafe class CameraCapture : MonoBehaviour
     private byte[] yLUT, uLUT, vLUT;
     private bool useCompression = false;
     public bool forceGrayscale = true;
+    private EventWaitHandle frameReadyEvent; // Event to signal new frame
+
+    private Material blurMaterial; // Material for blur effect
+    private RenderTexture tempRT; // Temporary RenderTexture for blur
+    public float blurSize = 0.01f; // Blur size parameter
+
+
 
     void Start()
     {
@@ -46,12 +59,38 @@ public unsafe class CameraCapture : MonoBehaviour
         // Create a Texture2D to store the camera's render texture
         tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
 
+        // Create a temporary RenderTexture for blur processing
+        tempRT = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32);
+        tempRT.Create();
+
+        // Create the blur material
+        Shader blurShader = Shader.Find("Custom/GaussianBlur");
+        if (blurShader == null)
+        {
+            UnityEngine.Debug.LogError("GaussianBlur shader not found. Ensure the shader is in the project.");
+            return;
+        }
+        blurMaterial = new Material(blurShader);
+        blurMaterial.SetFloat("_BlurSize", blurSize);
+
+
         int size = width * height * 4 * 4;
         // Create a memory-mapped file with a specified size
-        mmf = MemoryMappedFile.CreateNew(fileName, size);
+        mmf = MemoryMappedFile.CreateNew(fileName, size + 3 * sizeof(int));
 
         // Create a memory-mapped view accessor to write to the memory-mapped file
         accessor = mmf.CreateViewAccessor();
+
+        // Create the named event for signaling new frames
+        try
+        {
+            frameReadyEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "FrameReadyEvent");
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"Failed to create EventWaitHandle: {ex.Message}");
+            return;
+        }
 
         // Make sure vSync is off since it can interfere with physics engines and maximum refresh rate
         QualitySettings.vSyncCount = 0;
@@ -409,7 +448,8 @@ public unsafe class CameraCapture : MonoBehaviour
         {
             return;
         }
-        // stopwatch.Restart();
+        stopwatch.Restart();
+        
         // UnityEngine.Debug.Log("Streaming FPS:" + 1.0f / Time.deltaTime);
         // ApplicationManager applicationManager = FindObjectOfType<ApplicationManager>();
         // // move MainCamera to this location
@@ -423,7 +463,17 @@ public unsafe class CameraCapture : MonoBehaviour
         RenderTexture.active = rt;
         cameraToCapture.targetTexture = rt;
         tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply();
         RenderTexture.active = null;
+
+
+        // Apply blur effect
+        blurMaterial.SetFloat("_BlurSize", blurSize);
+        Graphics.Blit(tex, tempRT, blurMaterial); // Apply blur to tempRT
+        RenderTexture.active = tempRT; // Set tempRT as active to read the blurred result
+        tex.ReadPixels(new Rect(0, 0, tempRT.width, tempRT.height), 0, 0); // Copy blurred result to tex
+        tex.Apply(); // Update the Texture2D
+        RenderTexture.active = null; // Clear active RenderTexture
 
         // Copy the pixel data to a NativeArray
         NativeArray<Color32> pixels = tex.GetRawTextureData<Color32>();
@@ -434,6 +484,8 @@ public unsafe class CameraCapture : MonoBehaviour
             AddFrameToVideo(pixels);
         }
 
+        frameNumber++;
+
         // the following code is necessary to avoid stuttering due to the garbage collector.
         unsafe
         {
@@ -443,18 +495,36 @@ public unsafe class CameraCapture : MonoBehaviour
             accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
             try
             {
+                // Write width, height, and frameNumber at the start
+                int* intPointer = (int*)pointer;
+                intPointer[0] = width;        // Write width
+                intPointer[1] = height;       // Write height
+                intPointer[2] = frameNumber;  // Write frame number
+
                 // compute total size to write
                 int numBytes = pixels.Length * sizeof(Color32);
+                // Get pointer to the image data (after 3 integers)
+                byte* imagePointer = pointer + 3 * sizeof(int);
                 // get pointer to the native array which we will copy from
                 void* pixelsPtr = NativeArrayUnsafeUtility.GetUnsafePtr(pixels);
                 // Copy the pixel data directly to the shared memory buffer
-                Buffer.MemoryCopy(pixelsPtr, pointer, numBytes, numBytes);
+                Buffer.MemoryCopy(pixelsPtr, imagePointer, numBytes, numBytes);
             }
             finally
             {
                 // Unlock the shared memory buffer
                 accessor.SafeMemoryMappedViewHandle.ReleasePointer();
             }
+        }
+
+        // Signal the consumer that a new frame is ready
+        try
+        {
+            frameReadyEvent.Set();
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"Failed to signal EventWaitHandle: {ex.Message}");
         }
 
         // below is the old code that stuttered
@@ -472,6 +542,16 @@ public unsafe class CameraCapture : MonoBehaviour
         {
             CloseFile();
         }
+        // Clean up resources
+        if (accessor != null)
+        {
+            accessor.Dispose();
+        }
+        if (frameReadyEvent != null)
+        {
+            frameReadyEvent.Dispose();
+        }
+
     }
 
     void OnApplicationQuit()

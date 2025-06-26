@@ -30850,6 +30850,26 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
+      propertyPath: wheelBL
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: wheelBR
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: wheelTL
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: wheelTR
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899045977854665609, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
       propertyPath: DOWN_FORCE
       value: 600
       objectReference: {fileID: 0}
@@ -39506,8 +39526,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cameraToCapture: {fileID: 1820725278}
   fileName: overheadCamL
-  targetFrameRate: 100
+  targetFrameRate: 150
   forceGrayscale: 1
+  blurSize: 1
 --- !u!114 &1820725276
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -19,7 +19,7 @@
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
 
-double MAX_CAP_FPS = 100.0;
+double MAX_CAP_FPS = 160.0;
 
 // TODO: add a way to save video with the UI
 ICameraReceiver* _instance = nullptr;
@@ -514,8 +514,8 @@ CameraReceiver::~CameraReceiver()
 
 
 ///////////////////////////////////////// SIMULATION //////////////////////////////////////////
-CameraReceiverSim::CameraReceiverSim(std::string sharedFileName, int width, int height)
-    : ICameraReceiver(), _sharedFileName(sharedFileName), _width(width), _height(height)
+CameraReceiverSim::CameraReceiverSim(std::string sharedFileName)
+    : ICameraReceiver(), _sharedFileName(sharedFileName)
 {
     _StartCaptureThread();
 }
@@ -557,9 +557,15 @@ bool CameraReceiverSim::_InitializeCamera()
         return false;
     }
 
-    // Create an OpenCV Mat to hold the image data (this points to the shared memory region)
-    _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, _lpMapAddress);
-    std::cout << "done openning shared file: " << _sharedFileName << std::endl;
+    // Extract width and height from the start of the shared memory
+    int* dimensions = static_cast<int*>(_lpMapAddress);
+    _width = dimensions[0];  // First integer is width
+    _height = dimensions[1]; // Second integer is height
+
+    void* imageData = static_cast<char*>(_lpMapAddress) + 2 * sizeof(int);
+    _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, imageData);
+    std::cout << "Opened shared file: " << _sharedFileName << " with size " << _width << "x" << _height << std::endl;
+
 
     // return success
     return true;
@@ -575,6 +581,11 @@ bool CameraReceiverSim::_CaptureFrame()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
+    // Update image 
+    while (!UpdateImageFromSharedMemory())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 
     _prevFrameTimer.markStart(_prevFrameTimer.getElapsedTime() - 1.0 / MAX_CAP_FPS);
 
@@ -627,6 +638,68 @@ bool CameraReceiverSim::_CaptureFrame()
     _frameCV.notify_all();
 
     // return success
+    return true;
+}
+
+// Ensure UpdateImageFromSharedMemory accounts for the third integer
+bool CameraReceiverSim::UpdateImageFromSharedMemory()
+{
+    // Open the named event
+    HANDLE frameReadyEvent = OpenEventW(EVENT_ALL_ACCESS, FALSE, L"FrameReadyEvent");
+    if (frameReadyEvent == NULL)
+    {
+        std::cerr << "Could not open FrameReadyEvent: " << GetLastError() << std::endl;
+        return false;
+    }
+    
+    // Wait for the event to be signaled (new frame available)
+    DWORD waitResult = WaitForSingleObject(frameReadyEvent, 1000); // Timeout after 1 second
+    CloseHandle(frameReadyEvent); // Close handle after use
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        std::cerr << "Wait for FrameReadyEvent failed or timed out: " << waitResult << std::endl;
+        return false;
+    }
+
+
+    if (_lpMapAddress == NULL)
+    {
+        std::cerr << "Shared memory not mapped" << std::endl;
+        return false;
+    }
+
+    // Extract width, height, and frame number from the start of the shared memory
+    int* dimensions = static_cast<int*>(_lpMapAddress);
+    int newWidth = dimensions[0];  // First integer is width
+    int newHeight = dimensions[1]; // Second integer is height
+
+    // Validate dimensions
+    if (newWidth <= 0 || newHeight <= 0)
+    {
+        std::cerr << "Invalid dimensions in shared memory: " << newWidth << "x" << newHeight << std::endl;
+        return false;
+    }
+
+    // Update only if dimensions have changed
+    if (newWidth != _width || newHeight != _height)
+    {
+        _width = newWidth;
+        _height = newHeight;
+        // Update cv::Mat with new dimensions and data pointer (skip three integers)
+        void* imageData = static_cast<char*>(_lpMapAddress) + 3 * sizeof(int);
+        _image = cv::Mat(cv::Size(_width, _height), CV_8UC4, imageData);
+        std::cout << "Updated image dimensions to: " << _width << "x" << _height << std::endl;
+    }
+
+    // Check if the frame number has changed (indicating a new frame)
+    int currentFrameNumber = dimensions[2]; // Third integer is frame number
+    if (currentFrameNumber == _lastFrameNumber)
+    {
+        // No new frame available
+        return false;
+    }
+    _lastFrameNumber = currentFrameNumber;
+
     return true;
 }
 

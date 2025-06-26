@@ -422,14 +422,17 @@ public class RobotInterface3D : MonoBehaviour {
         else
         {
             // Macanum type wheel control: all angle movements are ok
-            wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
-            wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
-            wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
-            wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
-            wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
-            wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
-            wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
-            wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+            if (wheelBL && wheelBR && wheelTL && wheelTR)
+            {
+                wheelBL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelBL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelBR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelBR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelTL.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelTL.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+                wheelTR.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                wheelTR.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+            }
         }
 
 

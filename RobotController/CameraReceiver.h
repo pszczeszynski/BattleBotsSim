@@ -54,17 +54,19 @@ protected:
 class CameraReceiverSim : public ICameraReceiver
 {
 public:
-    CameraReceiverSim(std::string fileName, int width = 1280, int height = 720);
+    CameraReceiverSim(std::string fileName);
     ~CameraReceiverSim();
     CameraType GetType() override;
 
 private:
     bool _InitializeCamera() override;
     bool _CaptureFrame() override;
+    bool UpdateImageFromSharedMemory();
 
     std::string _sharedFileName;
     int _width;
     int _height;
+    int _lastFrameNumber; // Track the last frame number
 
     cv::Mat _image; // the memory mapped image
     HANDLE _hMapFile;
