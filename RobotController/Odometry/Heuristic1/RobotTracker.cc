@@ -93,16 +93,42 @@ float FindClosestBBox(const std::vector<myRect> &allBBoxes, const cv::Point2f &p
 }
 
 // Generic function to print text on the image for debugging
-void printText(std::string text, cv::Mat &image, int yoffset, int xoffset)
+void printText(std::string text, cv::Mat& image, int yoffset, int xoffset) 
 {
-    cv::Point org(xoffset, yoffset); // bottom-left corner of the text string in the image
-    int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-    double fontScale = 0.5;
-    cv::Scalar color(255, 255, 255); // white color
+    // Text properties
+    //int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+    int fontFace = cv::FONT_HERSHEY_PLAIN;
 
-    // Add the text to the image
-    cv::putText(image, text, org, fontFace, fontScale, color);
+
+    // double fontScale = 0.4;
+    double fontScale = 0.8;
+    cv::Scalar color(255, 255, 255); // White color
+    int lineSpacing = static_cast<int>(fontScale * 15); // Adjust based on font scale (e.g., 30 pixels for scale=1)
+
+    // Split text into lines based on '\n'
+    std::stringstream ss(text);
+    std::string line;
+    int currentY = yoffset; // Start at the specified yoffset
+
+    // Render each line
+    while (std::getline(ss, line, '\n')) {
+        cv::putText(image, line, cv::Point(xoffset, currentY), fontFace, fontScale, color);
+        currentY += lineSpacing; // Move down for the next line
+    }
 }
+
+// Generic function to print text on the image for debugging
+//void printText(std::string text, cv::Mat &image, int yoffset, int xoffset)
+//{
+//    cv::Point org(xoffset, yoffset); // bottom-left corner of the text string in the image
+//    int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+//    double fontScale = 0.4;
+//    cv::Scalar color(255, 255, 255); // white color
+    // Add the text to the image
+//    cv::putText(image, text, org, fontFace, fontScale, color);
+//}
+
+
 
 std::mutex mutexMarkTime;
 Clock timing_clock;

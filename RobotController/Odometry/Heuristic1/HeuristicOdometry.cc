@@ -124,10 +124,37 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         cv::cvtColor(currFrame, newFrame, cv::COLOR_BGRA2GRAY);
     }
 
+
+    int crop_x = 0;
+    int crop_y = 0;
+
+    // By Default we don't use anti-shake
+    if( enable_camera_antishake)
+    {
+        // If anti-shake is enabled, we need to crop the image
+        // We will crop the image to remove the edges that are not stable
+        // This is done by cropping the image by 10% on each side
+        crop_x = newFrame.cols / 10;
+        crop_y = newFrame.rows / 10;
+
+        // Calculate offsets
+        x_offset = crop_x;
+        y_offset = crop_y;
+
+        // Crop the image
+        cv::Rect cropArea(crop_x, crop_y, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
+        newFrame = newFrame(cropArea);
+    }
+    else
+    {
+        x_offset = 0;
+        y_offset = 0;
+    }
+
     // Crop the image (not required if anti-shake not used)
     cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
-    cv::Mat croppedFrame = newFrame(cropparea);
-
+    cv::Mat correctedFrame = (enable_camera_antishake) ?  newFrame(cropparea) : newFrame;
+    
     bool matchstart_was_run = false;
 
     if( match_start_bg_init)
@@ -138,18 +165,22 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         blurCount = HEU_BLUR_COUNT_INIT;
         preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
   
-        MatchStartBackgroundInit(croppedFrame);
+        MatchStartBackgroundInit(correctedFrame);
         
         matchstart_was_run = true;
     }
     else
     {
         // Correct Brightness (assumes shake doesn't significantly affect it on average)
-        correctBrightness(croppedFrame);
+        correctBrightness(correctedFrame);
     }
 
     // Find the proper x_offset and y_offset for a shaky image using background
-    // calcShakeRemoval(newFrame);
+    if(enable_camera_antishake)
+    { 
+        calcShakeRemoval(newFrame); 
+    }
+
 
     markTime("Brightness and shake: ");
 
@@ -175,7 +206,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     if( set_currFrame_to_bg)
     {
         set_currFrame_to_bg = false;
-        croppedFrame.copyTo(regularBackground);
+        correctedFrame.copyTo(regularBackground);
         ReinitBackground();
     }
 
@@ -222,10 +253,13 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // FOREGROUND and BBOX EXTRACTION
 
     // Extract foreground
-    ExtractForeground(croppedFrame);
+    ExtractForeground(correctedFrame);
 
     // Create a color version of the frame to display stats on
-    cv::cvtColor(croppedFrame, currFrameColor, cv::COLOR_GRAY2BGR);
+    // cv::cvtColor(correctedFrame, currFrameColor, cv::COLOR_GRAY2BGR);
+
+    currFrameColor = cv::Mat::zeros(correctedFrame.size(), CV_8UC3); // Create a black image for color display
+    
 
     markTime("Extract Foreground: ");
 
@@ -235,10 +269,10 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::Mat frameToDisplay = newFrame;
 
     // Lock all RobotTrackers from being access
-    TrackRobots(croppedFrame, currFrameColor);
+    TrackRobots(correctedFrame, currFrameColor);
 
     // Heal background
-    healBackground(croppedFrame);
+    healBackground(correctedFrame);
 
     markTime("Heal bg: ");
 
@@ -281,7 +315,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         if( HEU_HEAL_BG_INIT)
         {
-            recreateBackgroundOnMatchStart(croppedFrame);
+            recreateBackgroundOnMatchStart(correctedFrame);
         }
      
         cv::Mat cleanedup = foreground.clone();
@@ -301,12 +335,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     _UpdateData(frameTime);
     locker.unlock();
 
-    // Add the debug string
-    if( show_track_mat || save_video_enabled && save_to_video_output)
-    {
-        std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
-        AddDebugStringToFrame(currFrameColor, debugROStringForVideo);
-    }
+
 
     // Add foreground onto the color frame
     cv::Mat fg_color;
@@ -329,8 +358,30 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         safe_circle(currFrameColor, opponentData.robotPosition, 10, cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
     }
 
+    // Copy over to debug
+    std::unique_lock<std::mutex> debuglock(_mutexDebugImage); // Locks the mutex
+    cv::cvtColor(currFrameColor, _debugImage, cv::COLOR_BGR2GRAY); // Convert to RGB for debug image
+    debuglock.unlock(); // Unlock the mutex
+
+
+
+    //  cv::cvtColor(correctedFrame, currFrameColor, cv::COLOR_GRAY2BGR);
+
+    // Add correctedFrame to currFrameColor
+    cv::Mat correctedFrameColor;
+    cv::cvtColor(correctedFrame, correctedFrameColor, cv::COLOR_GRAY2BGR);
+     cv::add(currFrameColor, correctedFrameColor, currFrameColor);
+
 
     currFrameColor.copyTo(prevFrameColor);
+
+
+    // Add the debug string for video purposes
+    if( show_track_mat || save_video_enabled && save_to_video_output)
+    {
+        std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
+        AddDebugStringToFrame(currFrameColor, debugROStringForVideo);
+    }
 
     if (show_track_mat)
     {
@@ -340,6 +391,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     {
         _imunshow("HeuristicData");
     };
+
 
     if (show_fg_mat)
     {
@@ -460,7 +512,7 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     double deltaTime = data.time - oldData.time;
     if ((deltaTime > 0) && (deltaTime < angleVelocityTimeConstant) )
     {
-        data.robotAngleVelocity = data.robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + angleVelocityTimeConstant * (data.robotAngle - oldData.robotAngle);
+        data.robotAngleVelocity = data.robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data.robotAngle - oldData.robotAngle);
     }
 }
 
@@ -817,21 +869,34 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDispl
             cv::line(frameToDisplay, centerBBox, centerBBox + rotationdir, cv::Scalar(0, 50, 250), 2);
 
             int line = 0;
-            printText("Bbox w,h=" + std::to_string((*currIter)->bbox.width) + "," + std::to_string((*currIter)->bbox.height),
-                      frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
-            printText("Velocity=" + std::to_string((*currIter)->avgVelocity.mag()),
-                      frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
-            printText("velForMove=" + std::to_string((*currIter)->velForMovementDetection.mag()),
-                      frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
-            // printText("noMoving=" + std::to_string((*currIter)->timeNotMoving),
-            //     frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
-            // printText("noTracking=" + std::to_string((*currIter)->numFramesNotTracked),
-            //     frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
-            printText("delta=(" + std::to_string((*currIter)->delta.x) + "," + std::to_string((*currIter)->delta.y) + ")",
-                      frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+               
+            std::stringstream ss;
+            // Format each line with fixed-point notation and 2 decimal places
+            ss << std::fixed << std::setprecision(2);
+            ss << "Bbox w,h=" << (*currIter)->bbox.width << "," << (*currIter)->bbox.height;
+            ss << "\n" << "Velocity=" << (*currIter)->avgVelocity.mag();
+            ss << "\n" << "velForMove=" << (*currIter)->velForMovementDetection.mag();
+            ss << "\n" << "delta=(" << (*currIter)->delta.x << "," << (*currIter)->delta.y << ")";
             double angle = rad2deg(atan2((*currIter)->rotation.y, (*currIter)->rotation.x));
-            printText("Rotation=" + std::to_string(angle),
-                      frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+            ss << "\n" << "Rotation=" << angle;
+        
+            printText(ss.str(), frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+
+            //printText("Bbox w,h=" + std::to_string((*currIter)->bbox.width) + "," + std::to_string((*currIter)->bbox.height),
+            //          frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+            //printText("Velocity=" + std::to_string((*currIter)->avgVelocity.mag()),
+            //          frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+            //printText("velForMove=" + std::to_string((*currIter)->velForMovementDetection.mag()),
+            //          frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+             // printText("noMoving=" + std::to_string((*currIter)->timeNotMoving),
+             //     frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
+             // printText("noTracking=" + std::to_string((*currIter)->numFramesNotTracked),
+             //     frameToDisplay, (*currIter)->bbox.y+20*line++, (*currIter)->bbox.x+ (*currIter)->bbox.width);
+            //printText("delta=(" + std::to_string((*currIter)->delta.x) + "," + std::to_string((*currIter)->delta.y) + ")",
+            //          frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
+            //double angle = rad2deg(atan2((*currIter)->rotation.y, (*currIter)->rotation.x));
+            //printText("Rotation=" + std::to_string(angle),
+            //          frameToDisplay, (*currIter)->bbox.y + 20 * line++, (*currIter)->bbox.x + (*currIter)->bbox.width);
 
             ++currIter;
         }
@@ -885,7 +950,7 @@ RobotTracker *HeuristicOdometry::AddTrackedItem(cv::Rect bbox)
 
 void HeuristicOdometry::_allRobotTrackersClear()
 {
-    for (auto currIter = _allRobotTrackers.begin(); currIter != _allRobotTrackers.end();)
+    for (auto currIter = _allRobotTrackers.begin(); currIter != _allRobotTrackers.end();++currIter)
     {
         _deleteTracker(*currIter);
     }
@@ -903,8 +968,19 @@ bool HeuristicOdometry::SaveBackground()
 void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_name)
 {
     // Center anti-shake cropping
-    x_offset = crop_x;
-    y_offset = crop_y;
+    if( !enable_camera_antishake)
+    {
+        // If anti-shake is not enabled, we don't need to crop the image
+        x_offset = 0;
+        y_offset = 0;
+        crop_x = 0;
+        crop_y = 0;
+    }
+    else
+    {
+        x_offset = crop_x;
+        y_offset = crop_y;
+    }
 
     // First load the regular Background. This should be an 8-bit image ideally
     // This should also be cropped already
@@ -1066,12 +1142,30 @@ void HeuristicOdometry::DumpRobotTrackerInfo(cv::Mat &channel, std::string title
             x_pos += 150;
         }
 
-        printText("Loc =" + std::to_string(currRobot->position.x) + "," + std::to_string(currRobot->position.y), channel, 20 * i++, x_pos);
-        printText("Rot =" + std::to_string(currRobot->rotation.angle()), channel, 20 * i++, x_pos);
-        printText("Conf =" + std::to_string(currRobot->delta_confidence), channel, 20 * i++, x_pos);
-        printText("Delta Loc = (" + std::to_string(currRobot->delta.x) + "," + std::to_string(currRobot->delta.y) + ")", channel, 20 * i++, x_pos);
-        printText("Delta Rot =" + std::to_string(currRobot->delta_angle), channel, 20 * i++, x_pos);
-        printText(currRobot->debugLine, channel, 20 * i++, x_pos);
+        std::stringstream ss;
+        // Format each line with fixed-point notation and 2 decimal places
+        ss << std::fixed << std::setprecision(2);
+        ss << "Loc = " << currRobot->position.x << "," << currRobot->position.y;
+        ss << "\n";
+        ss << "Rot = " << currRobot->rotation.angle();
+        ss << "\n";
+        ss << "Conf = " << currRobot->delta_confidence;
+        ss << "\n";
+        ss << "Delta Loc = (" << currRobot->delta.x << "," << currRobot->delta.y << ")";
+        ss << "\n";
+        ss << "Delta Rot = " << currRobot->delta_angle;
+        ss << "\n";
+        ss << currRobot->debugLine;
+ 
+        printText(ss.str(), channel, 12 * i++, x_pos);
+
+        //
+        //printText("Loc =" + std::to_string(currRobot->position.x) + "," + std::to_string(currRobot->position.y), channel, 12 * i++, x_pos);
+        //printText("Rot =" + std::to_string(currRobot->rotation.angle()), channel, 12 * i++, x_pos);
+        //printText("Conf =" + std::to_string(currRobot->delta_confidence), channel, 12 * i++, x_pos);
+        //printText("Delta Loc = (" + std::to_string(currRobot->delta.x) + "," + std::to_string(currRobot->delta.y) + ")", channel, 12 * i++, x_pos);
+        //printText("Delta Rot =" + std::to_string(currRobot->delta_angle), channel, 12 * i++, x_pos);
+        //printText(currRobot->debugLine, channel, 12 * i++, x_pos);
 
         offset += 250;
 
@@ -1720,3 +1814,23 @@ void HeuristicOdometry::calcShakeRemoval(cv::Mat &image)
         x_offset = maxLoc.x;
     }
 }
+
+
+void HeuristicOdometry::GetDebugImage(cv::Mat &debugImage,  cv::Point offset)
+{
+    OdometryBase::GetDebugImage(debugImage, offset); // Call base class to add the odometry data
+
+
+    // Get unique access to _debugImage
+    std::unique_lock<std::mutex> locker(_mutexDebugImage);
+    if (_debugImage.empty() || _debugImage.size() != debugImage.size() || _debugImage.type() != debugImage.type()) {
+        locker.unlock();
+        return; // No valid _debugImage to merge
+    }
+
+    // Add _debugImage to debugImage
+    cv::add(debugImage, _debugImage, debugImage); // Add images, store result in debugImage
+
+    locker.unlock(); // Unlock mutex after operation
+}
+

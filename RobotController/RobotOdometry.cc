@@ -79,14 +79,19 @@ void RobotOdometry::Update(int videoID)
     // Retrieve new data if available
     bool newDataArrived = false;
 
+    TrackingWidget* trackingInfo = TrackingWidget::GetInstance();
+
+
     // Get Blob detection
     if (_odometry_Blob.IsRunning())
     {
+        bool newdata = false;
         // Update our data
         if (_odometry_Blob.NewDataValid(_dataRobot_Blob.id, false))
         {
-            _dataRobot_Blob = _odometry_Blob.GetData(false);
+            _dataRobot_Blob = _odometry_Blob.GetData(false);            
             newDataArrived = true;
+            newdata = true;
         }
 
         // Update opponent data
@@ -94,16 +99,25 @@ void RobotOdometry::Update(int videoID)
         {
             _dataOpponent_Blob = _odometry_Blob.GetData(true);
             newDataArrived = true;
+            newdata = true;
+        }
+
+        if( newdata)
+        {
+            _odometry_Blob.GetDebugImage(trackingInfo->GetDebugImage("Blob"), trackingInfo->GetDebugOffset("Blob"));
         }
     }
 
     if (_odometry_opencv.IsRunning())
     {
+        bool newdata = false;
+
         // Update our data
         if (_odometry_opencv.NewDataValid(_dataRobot_opencv.id, false))
         {
             _dataRobot_opencv = _odometry_opencv.GetData(false);
             newDataArrived = true;
+            newdata = true;
         }
 
         // Update opponent data
@@ -111,17 +125,26 @@ void RobotOdometry::Update(int videoID)
         {
             _dataOpponent_opencv = _odometry_opencv.GetData(true);
             newDataArrived = true;
+            newdata = true;
+        }
+
+        if( newdata)
+        {
+            _odometry_opencv.GetDebugImage(trackingInfo->GetDebugImage("Opencv"), trackingInfo->GetDebugOffset("Opencv"));
         }
     }
 
     // Get Heuristic detection
     if (_odometry_Heuristic.IsRunning())
     {
+        bool newdata = false;
+
         // Update our data
         if (_odometry_Heuristic.NewDataValid(_dataRobot_Heuristic.id, false))
         {
             _dataRobot_Heuristic = _odometry_Heuristic.GetData(false);
             newDataArrived = true;
+            newdata = true;
         }
 
         // Update opponent data
@@ -129,6 +152,12 @@ void RobotOdometry::Update(int videoID)
         {
             _dataOpponent_Heuristic = _odometry_Heuristic.GetData(true);
             newDataArrived = true;
+            newdata = true;
+        }
+
+        if( newdata)
+        {
+            _odometry_Heuristic.GetDebugImage(trackingInfo->GetDebugImage("Heuristic"), trackingInfo->GetDebugOffset("Heuristic"));
         }
     }
 
@@ -140,6 +169,7 @@ void RobotOdometry::Update(int videoID)
         {
             _dataRobot_IMU = _odometry_IMU.GetData(false);
             newDataArrived = true;
+
         }
     }
 
@@ -151,6 +181,8 @@ void RobotOdometry::Update(int videoID)
         {
             _dataRobot_Neural = _odometry_Neural.GetData(false);
             newDataArrived = true;
+
+            _odometry_Neural.GetDebugImage(trackingInfo->GetDebugImage("Neural"), trackingInfo->GetDebugOffset("Neural"));
         }
     }
 
@@ -162,6 +194,8 @@ void RobotOdometry::Update(int videoID)
         {
             _dataRobot_NeuralRot = _odometry_NeuralRot.GetData(false);
             newDataArrived = true;
+
+            _odometry_NeuralRot.GetDebugImage(trackingInfo->GetDebugImage("NeuralRot"), trackingInfo->GetDebugOffset("NeuralRot"));
         }
     }
 
@@ -191,6 +225,9 @@ void RobotOdometry::Update(int videoID)
     // At this time use only a priority set for all inputs
     std::unique_lock<std::mutex> locker(_updateMutex);
     FuseAndUpdatePositions(videoID);
+    GetDebugImage(trackingInfo->GetDebugImage("Fusion"), trackingInfo->GetDebugOffset("Fusion"));
+
+    
 
     // // If IMU is running, then use IMU's angle information
     // if (_odometry_IMU.IsRunning() && _dataRobot_IMU.robotAngleValid)
@@ -342,11 +379,11 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
 
     debugROStringForVideo_tmp += "ALG U_P U_V U_R UAV T_P T_V T_R TAV\n";
-    debugROStringForVideo_tmp += "Heu " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemAngle_valid) + "\n";
-    debugROStringForVideo_tmp += "Blb " + std::to_string(blobUsPos_valid)      + "   " + std::to_string(blobUsPos_valid)      + "   " +  std::string("   ")                    + "   " + std::string("   ")                     + "   " + std::to_string(blobThemPos_valid)      + "   " + std::to_string(blobThemPos_valid) + "\n";
-    debugROStringForVideo_tmp += "Neu " + std::to_string(neuralUsPos_valid)    + "\n";
-    debugROStringForVideo_tmp += "NeR " + std::string("   ")                   + "   " +    std::string("   ")                + "   " +  std::to_string(neuralRot_valid) + "\n";
-    debugROStringForVideo_tmp += "IMU " + std::string("   ")                   + "   " +    std::string("   ")                + "   " +  std::to_string(imuUsRot_valid)  + "\n" ;
+    debugROStringForVideo_tmp += "Heu  " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsPos_valid) + "    " + std::to_string(heuristicUsAngle_valid) + "    " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicThemPos_valid) + "    " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemAngle_valid) + "\n";
+    debugROStringForVideo_tmp += "Blb  " + std::to_string(blobUsPos_valid)      + "   " + std::to_string(blobUsPos_valid)      + "    " +  std::string("   ")                    + "    " + std::string("   ")                     + "   " + std::to_string(blobThemPos_valid)      + "    " + std::to_string(blobThemPos_valid) + "\n";
+    debugROStringForVideo_tmp += "Neu  " + std::to_string(neuralUsPos_valid)    + "\n";
+    debugROStringForVideo_tmp += "NeR  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(neuralRot_valid) + "\n";
+    debugROStringForVideo_tmp += "IMU  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(imuUsRot_valid)  + "\n" ;
 
     // Log the odometry data to file
     std::string logAlgHeader =  "ALG UP UR TP TR";   
@@ -614,8 +651,14 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     }
 
     // Copy over to the shared debug string
+    std::unique_lock<std::mutex> locker(_mutexDebugImage);
+    _debugString = debugROStringForVideo_tmp;
+    locker.unlock();
+
     std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
     debugROStringForVideo = debugROStringForVideo_tmp;
+
+
 }
 
 /*
@@ -1087,3 +1130,41 @@ void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool
         std::cerr << "ERROR: Cannot set velocity for opencv" << std::endl;
     }
 }
+
+void RobotOdometry::GetDebugImage(cv::Mat &debugImage,  cv::Point offset)
+{
+    // This should not happen, but in case it does, we will create an empty image
+    if(debugImage.empty())
+    {
+        debugImage = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0)); 
+    }
+
+    debugImage = cv::Mat::zeros(debugImage.size(), debugImage.type()); // Clear the target image
+
+    // X-coordinates for left and right columns
+    const int leftX = 10 + offset.x; // Left column for Robot Data
+
+    // Draw robot data (top-left)
+    int yLeft = 20 + offset.y; // Start at top
+    printText("Final Robot Data:", debugImage,  yLeft, leftX);
+    _dataRobot.GetDebugImage(debugImage, cv::Point(leftX+10, yLeft+14));
+
+
+    yLeft = 20 + offset.y; // Reset to top
+
+    // Draw opponent data next to it
+    printText("Final Opp Data:", debugImage, yLeft, leftX+230);
+    _dataOpponent.GetDebugImage(debugImage, cv::Point(leftX+10+230, yLeft+14));
+
+
+    yLeft += 140; // Move down for the next section
+
+    // Check if debugImage is empty    // Get unique access to _debugImage
+    std::unique_lock<std::mutex> locker(_mutexDebugImage);
+
+    // Add debug string
+    printText(_debugString, debugImage, yLeft, offset.x);
+
+    locker.unlock(); // Unlock mutex after operation
+}
+

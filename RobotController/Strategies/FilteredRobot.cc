@@ -299,7 +299,7 @@ float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW,
         accSim[2] = accFiltered[2] + signCW*0.3f*maxTurnAccel; // be default, assume they're acceling slowly 
         if(timeSim > lagTime) { accSim[2] = maxTurnAccel*signCW; } // if we're past the lag time, the human inputs correctly
 
-        velSim[2] = std::clamp(velSim[2], maxTurnSpeed, -maxTurnSpeed);
+        velSim[2] = std::clamp(velSim[2], -maxTurnSpeed, maxTurnSpeed);
         
         timeSim += timeIncrement;
     }

@@ -107,6 +107,11 @@ public:
     // Conversion operator to double
     operator double() const { return value_; }
 
+    double degrees() const
+    {
+        return value_ * TO_DEG;
+    }
+
 private:
     double value_; // Value in rads
 };

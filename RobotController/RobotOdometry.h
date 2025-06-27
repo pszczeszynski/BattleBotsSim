@@ -146,4 +146,9 @@ private:
     bool _logOdometryFileOpen = false;
     std::string _logOdometryFileName = "./Logs/odometry_log.csv";
     std::ofstream _logOdometryFile; 
+
+    // debug image
+    void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes. It can be empty if no debug image is available
+    std::mutex _mutexDebugImage;
+    std::string _debugString;
 };

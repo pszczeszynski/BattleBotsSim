@@ -58,6 +58,8 @@ public:
     {
         return (robotPosValid && rect.contains(point));
     }
+
+    void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes.
 };
 
 // ***********************
@@ -85,7 +87,7 @@ public:
     virtual void SetAngle(double newAngle, bool opponentRobot);
     virtual void SetAngularVelocity(double newVel, bool opponentRobot);
 
-    
+    virtual void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes. It can be empty if no debug image is available
 
 protected:
     // If not overriding Start/Stop/IsRunning, then you can tie into this:

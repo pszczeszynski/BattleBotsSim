@@ -127,6 +127,7 @@ extern int STARTING_RIGHT_BR_x;
 extern int STARTING_RIGHT_BR_y;
 extern bool LOG_ODOMETRY_DATA;
 extern bool PLAYBACK_PREPROCESS;
+extern std::string VISION_TRACKING_GUI;
 
 
 template <typename T>

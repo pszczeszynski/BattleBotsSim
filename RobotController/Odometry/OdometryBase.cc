@@ -3,6 +3,7 @@
 
 // clock widget
 #include "../UIWidgets/ClockWidget.h"
+#include "../Odometry/Heuristic1/RobotTracker.h"
 
 // ctor for odometry data
 OdometryData::OdometryData() : robotPosition(-1.0f, -1.0f), robotVelocity(0, 0)
@@ -78,6 +79,76 @@ double OdometryData::GetAge()
 {
     return ClockWidget::programClock.getElapsedTime() - time;
 }
+
+// Adds to the passed image odometry data for debugging purposes.
+void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset )
+{
+    // This should not happen, but in case it does, we will create an empty image
+    if(target.empty())
+    {
+        target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0)); 
+    }
+
+    std::stringstream ss;
+
+    ss << std::fixed << std::setprecision(1);
+
+      // ID
+    ss << " ID: " << (id == 0 ? "Not initialized" : std::to_string(id));
+    ss << "\n";
+    ss << " Frame ID: " << (frameID == -1 ? "Not initialized" : std::to_string(frameID)); 
+    ss << "\n";
+    ss << " Time: " << (time == 0 ? "Not initialized" : std::to_string(time) + " s");
+    ss << "\n";
+    ss << " Time Angle: " << (time_angle == -1 ? "Not initialized" : std::to_string(time_angle) + " s");
+    ss << "\n";
+    ss << " Position: ";
+    if (robotPosValid) {
+        ss << "(" << robotPosition.x << ", " << robotPosition.y << ")";
+    } else {
+        ss << "Not valid";
+    }
+    ss << "\n";
+
+    // Velocity
+    if (robotPosValid) {
+        double magnitude = cv::norm(robotVelocity); // Euclidean norm
+        double angle = std::atan2(robotVelocity.y, robotVelocity.x) * 180.0 / CV_PI; // Convert to degrees
+        ss << " Velocity: " << magnitude << " px/s, " << angle << " deg";
+    } else {
+        ss << " Velocity: Not valid";
+    }
+    ss << "\n";
+
+    // Angle and Angle Velocity
+    ss << " Angle: ";
+    if (robotAngleValid) {
+        ss << robotAngle.degrees() << " deg";
+    } else {
+        ss << "Not valid";
+    }
+    ss << "\n";
+    ss << " Angle Velocity: ";
+    if (robotAngleValid) {
+        ss << robotAngleVelocity << " deg/s";
+    } else {
+        ss << "Not valid";
+    }
+
+    printText(ss.str(), target, offset.y,  offset.x);
+
+};
+
+
+
+
+
+
+
+
+
+
+
 
 // ***********************************************
 // ************ Odometry Base ********************
@@ -265,4 +336,33 @@ void OdometryBase::SetAngularVelocity(double newVel, bool opponentRobot)
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
     odoData.robotAngleVelocity = newVel;
+}
+
+// Returns an image use for debugging. Empty by default
+// The image should be greyscale and of type CV_8UC1
+void OdometryBase::GetDebugImage(cv::Mat& target, cv::Point offset )
+{
+    // This should not happen, but in case it does, we will create an empty image
+    if(target.empty())
+    {
+        target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0)); 
+    }
+
+    target = cv::Mat::zeros(target.size(), target.type()); // Clear the target image
+
+    // X-coordinates for left and right columns
+    const int leftX = 10 + offset.x; // Left column for Robot Data
+
+    // Draw robot data (top-left)
+    int yLeft = 20 + offset.y; // Start at top
+    printText("Robot Data:", target,  yLeft, leftX);
+    _currDataRobot.GetDebugImage(target, cv::Point(leftX+10, yLeft+14));
+
+
+    yLeft = 20 + offset.y; // Reset to top
+
+    // Draw opponent data next to it
+    printText("Opponent Data:", target, yLeft, leftX+190);
+    _currDataOpponent.GetDebugImage(target, cv::Point(leftX+10+190, yLeft+14));
+
 }

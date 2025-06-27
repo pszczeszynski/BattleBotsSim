@@ -19,6 +19,7 @@ public:
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
     void SetAngle(double newAngle, bool opponentRobot) override;
+    void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 private:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override; // Run every time a new frame is available
@@ -42,4 +43,7 @@ private:
     OdometryData _prevDataOpponent; // Contains the previous data, useful for velocity calculations, etc..
 
     OdometryData _tempData;
+
+    std::mutex _mutexDebugImage;
+    cv::Mat _debugImage;
 };

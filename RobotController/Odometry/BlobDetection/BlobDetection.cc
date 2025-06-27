@@ -62,8 +62,7 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
  */
 VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat &previousFrame, std::unique_lock<std::mutex> &locker, double frameTime)
 {
-    static ImageWidget motionImageWidget{"Motion", true};
-
+    
     // hyperparameters
     const cv::Size BLUR_SIZE = cv::Size(14, 14);
     const float MIN_AREA = pow(min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE), 2);
@@ -176,17 +175,25 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     }
 
     // draw the blobs
-    cv::Mat blobsImage;
+    std::unique_lock<std::mutex> debuglock(_mutexDebugImage); // Locks the mutex
+    // _debugImage = cv::Mat::zeros(thresholdImg.size(), CV_8UC1); // Initialize debug image to black
 
-    cv::cvtColor(thresholdImg, blobsImage, cv::COLOR_GRAY2BGR);
+    // cv::cvtColor(thresholdImg, _debugImage, cv::COLOR_BGR2GRAY);
+    thresholdImg.copyTo(_debugImage); // Copy the threshold image to the debug image
+
     for (const MotionBlob &blob : motionBlobs)
     {
-        cv::rectangle(blobsImage, blob.rect, cv::Scalar(0, 255, 0), 2);
-        safe_circle(blobsImage, blob.center, 5, cv::Scalar(0, 255, 0), 2);
+        cv::rectangle(_debugImage, blob.rect, cv::Scalar(255), 2);
+        safe_circle(_debugImage, blob.center, 5, cv::Scalar(255), 2);
     }
 
     // draw the potential robots
-    motionImageWidget.UpdateMat(blobsImage);
+    // motionImageWidget.UpdateMat(blobsImage);
+
+    // static ImageWidget motionImageWidget{"Motion", true};
+    debuglock.unlock(); // Unlock the mutex
+
+
 
     // Identify which blobs are our robots (finds robot positions)
     // classify the blobs and save them for later
@@ -194,6 +201,24 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
     // Should we use extrapolated data? In this case maybe not so that we dont compound a bad reading?
     locker.lock();
     return _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent, blackOutNeural, frameTime);
+}
+
+void BlobDetection::GetDebugImage(cv::Mat &debugImage,  cv::Point offset)
+{
+    OdometryBase::GetDebugImage(debugImage, offset); // Call base class to add the odometry data
+
+
+    // Get unique access to _debugImage
+    std::unique_lock<std::mutex> locker(_mutexDebugImage);
+    if (_debugImage.empty() || _debugImage.size() != debugImage.size() || _debugImage.type() != debugImage.type()) {
+        locker.unlock();
+        return; // No valid _debugImage to merge
+    }
+
+    // Add _debugImage to debugImage
+    cv::add(debugImage, _debugImage, debugImage); // Add images, store result in debugImage
+
+    locker.unlock(); // Unlock mutex after operation
 }
 
 #ifdef SIMULATION

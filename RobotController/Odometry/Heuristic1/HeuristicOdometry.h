@@ -25,6 +25,8 @@ public:
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
     void SetAngle(double newAngle, bool opponentRobot) override;
     void SetAngularVelocity(double newnewVel, bool opponentRobot) override;
+    void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
+
 
     void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
     cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
@@ -162,4 +164,7 @@ private:
     void DumpRobotTrackerInfo(cv::Mat &channel, std::string title);
     void DumpCurrFrameInfo(cv::Mat &channel, cv::Mat &currForeground, std::string title);
     void AddDebugStringToFrame(cv::Mat &channel, std::string debugString);
+
+    std::mutex _mutexDebugImage;
+    cv::Mat _debugImage;
 };

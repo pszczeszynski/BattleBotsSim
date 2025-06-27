@@ -19,19 +19,50 @@ public:
     cv::Mat& GetMask();
     cv::Mat& GetTrackingMat();
     void Update();
+    void DrawGUI();
 
     static TrackingWidget* GetInstance();
     static cv::Point2f leftClickPoint;
     static cv::Point2f rightClickPoint;
+
+    void UpdateDebugImage(const std::string& label, const cv::Mat& image);
+    cv::Mat& GetDebugImage(const std::string& label);
+    cv::Point GetDebugOffset(const std::string& label);
+    std::string SaveGUISettings();
+    void RestoreGUISettings(const std::string& settings);
+
 
 private:
     void _GrabFrame();
     void _DrawAlgorithmData();
     void _AdjustFieldCrop();
     void _MaskOutRegions();
+    void _RenderFrames();
 
     static TrackingWidget* _instance;
 
     cv::Mat _fieldMask;
     cv::Mat _trackingMat{WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
+
+    bool showCamera =true;
+    bool showBlob = false;
+    bool showHeuristic = false;
+    bool showNeural = false;
+    bool showNeuralRot = false;
+    bool showFusion = false;
+    bool showOpencv = false;
+
+    // Store colors for each variant (label -> ImVec4)
+    std::unordered_map<std::string, ImVec4> variantColors;
+
+    // Store images for each variant
+    std::unordered_map<std::string, cv::Mat> variantImages;
+
+        // Store offsets for each variant
+     std::map<std::string, cv::Point> variantOffsets;
+
+
+    void _DrawShowButton(const char* label, bool& enabledFlag);
+
+
 };

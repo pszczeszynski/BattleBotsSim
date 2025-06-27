@@ -1,4 +1,6 @@
 #include "RobotConfig.h"
+#include "UIWidgets/TrackingWidget.h"
+
 
 std::string SAVE_FILE_NAME = "RobotConfig.txt";
 
@@ -145,6 +147,8 @@ DEFINE_GLOBAL_VARIABLE(int, STARTING_RIGHT_BR_y, 400)
 DEFINE_GLOBAL_VARIABLE(bool, LOG_ODOMETRY_DATA, false)
 DEFINE_GLOBAL_VARIABLE(bool, PLAYBACK_PREPROCESS, true)
 
+DEFINE_GLOBAL_VARIABLE(std::string, VISION_TRACKING_GUI, "")
+
 GlobalVariable globalVariables[] = {
     DECLARE_GLOBAL_VARIABLE(NEURAL_BRIGHTNESS_ADJUST),
     DECLARE_GLOBAL_VARIABLE(TURN_THRESH_1_DEG_ORBIT),
@@ -262,7 +266,8 @@ GlobalVariable globalVariables[] = {
     DECLARE_GLOBAL_VARIABLE(STARTING_RIGHT_BR_x),
     DECLARE_GLOBAL_VARIABLE(STARTING_RIGHT_BR_y),
     DECLARE_GLOBAL_VARIABLE(LOG_ODOMETRY_DATA),
-    DECLARE_GLOBAL_VARIABLE(PLAYBACK_PREPROCESS)        
+    DECLARE_GLOBAL_VARIABLE(PLAYBACK_PREPROCESS),
+    DECLARE_GLOBAL_VARIABLE(VISION_TRACKING_GUI)           
 
 
 };
@@ -270,6 +275,8 @@ GlobalVariable globalVariables[] = {
 void saveGlobalVariablesToFile(const std::string& filename)
 {
     std::ofstream file(filename);
+
+    VISION_TRACKING_GUI = TrackingWidget::GetInstance()->SaveGUISettings();
 
     if (file.is_open())
     {
@@ -322,4 +329,11 @@ void loadGlobalVariablesFromFile(const std::string& filename)
     {
         std::cerr << "Unable to open file for reading: " << filename << std::endl;
     }
+
+    if( TrackingWidget::GetInstance() != nullptr )
+    {
+        // Restore GUI settings after loading global variables
+        TrackingWidget::GetInstance()->RestoreGUISettings(VISION_TRACKING_GUI);
+    }
+
 }

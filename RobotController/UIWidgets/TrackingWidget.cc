@@ -35,25 +35,43 @@ TrackingWidget::TrackingWidget() : // initialize the mask to all white
             _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
         }
     }
+
+    // Initialize default colors for each variant
+    // Using ImVec4 (RGBA), with alpha = 1.0f for opaque colors
+    variantColors["Camera"] = ImVec4(0.0f, 0.7f, 0.0f, 1.0f); // Default: Green
+    variantOffsets["Camera"] = cv::Point(0, 0); // No offset for Camera
+
+    variantColors["Blob"] = ImVec4(0.0f, 0.0f, 0.5f, 1.0f);   // Default: Blue
+    variantOffsets["Blob"] = cv::Point(0, 0); // No offset for Blob
+
+    variantColors["Heuristic"] = ImVec4(0.8f, 0.0f, 0.0f, 1.0f); // Default: Red
+    variantOffsets["Heuristic"] = cv::Point(0, 0); // No offset for Heuristic
+
+    variantColors["Neural"] = ImVec4(0.0f, 0.5f, 0.5f, 1.0f);   // Default: Cyan
+    variantOffsets["Neural"] = cv::Point(0, 0); // No offset for Neural
+
+    variantColors["Fusion"] = ImVec4(0.8f, 0.8f, 0.0f, 1.0f);   // Default: Yellow
+    variantOffsets["Fusion"] = cv::Point(0, 0); // No offset for Fusion
+
+    variantColors["Opencv"] = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);   // Default: Grey
+    variantOffsets["Opencv"] = cv::Point(0, 0);
+
+    variantColors["NeuralRot"] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);   // Default: Grey
+    variantOffsets["NeuralRot"] = cv::Point(0, 0);
+
+    RestoreGUISettings(VISION_TRACKING_GUI);
+    
 }
 
 void TrackingWidget::_GrabFrame()
 {
+    static int last_id = 0;
+
     // 1. populate the tracking mat (for display purposes)
     static ICameraReceiver &camera = ICameraReceiver::GetInstance();
-    if (camera.NewFrameReady(0))
+    if (camera.NewFrameReady(last_id))
     {
-        long last_id = 0;
-        long returnid = camera.GetFrame(_trackingMat, last_id);
-
-        // If invalid frame exit
-        if( (returnid < 0) || _trackingMat.empty() )
-        {
-            return;
-        }
-
-        // convert to rgb
-        cv::cvtColor(_trackingMat, _trackingMat, cv::COLOR_GRAY2BGR);
+        last_id = camera.GetFrame(GetDebugImage("Camera"), last_id);      
     }
 }
 
@@ -426,7 +444,12 @@ cv::Mat& TrackingWidget::GetTrackingMat()
 
 void TrackingWidget::Update()
 {
+    // Get the updated camera frame
     _GrabFrame();
+
+    // Render all the frames together
+    _RenderFrames();
+
     _AdjustFieldCrop();
     // Allow the user to mask out areas of the image.
     // They will be set to black when you get a frame from a camera
@@ -435,4 +458,304 @@ void TrackingWidget::Update()
     _DrawAlgorithmData();
 
     UpdateMat(_trackingMat);
+
 }
+
+// New function to store an image with a given label
+// The image should be a clone of the original image to avoid issues with references
+void TrackingWidget::UpdateDebugImage(const std::string& label, const cv::Mat& image) 
+{
+    variantImages[label] = image;
+}
+
+// Returns the old debug image, creates a new one if it doesn't exist
+cv::Mat& TrackingWidget::GetDebugImage(const std::string& label)   
+{
+    if (variantImages.find(label) == variantImages.end())
+    {
+        variantImages[label] = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0)); // Create an empty image if it doesn't exist
+    }
+
+    return variantImages[label];
+}
+
+cv::Point TrackingWidget::GetDebugOffset(const std::string& label)
+{
+    auto it = variantOffsets.find(label);
+    if (it == variantOffsets.end())
+    {
+         variantOffsets[label] = cv::Point(0, 0); // Initialize with default offset if not found
+    }
+
+    return variantOffsets[label]; // Default offset if not found
+}
+
+void TrackingWidget::_DrawShowButton(const char* label, bool& enabledFlag) 
+{
+    ImGui::PushID(label); // Ensure unique IDs for widgets
+
+    // Get the color for this variant (default to white if not found)
+    ImVec4 color = variantColors.count(label) ? variantColors[label] : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // Apply button colors based on enabled state
+    if (enabledFlag) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));        // Green
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.7f, 0.2f, 1.0f)); // Slightly lighter green
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));  // Darker green
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.7f, 1.0f));        // Blue
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.2f, 0.7f, 1.0f)); // Slightly lighter blue
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.5f, 1.0f));  // Darker blue
+    }
+
+    // Draw the toggle button
+    if (ImGui::Button(enabledFlag ? "Shown" : "Hidden")) {
+        enabledFlag = !enabledFlag;
+    }
+
+    ImGui::PopStyleColor(3); // Pop the button colors
+
+    // Draw the label
+    ImGui::SameLine();
+    ImGui::Text(label);
+
+    // Add a color picker for this variant
+    ImGui::SameLine();
+    float colorArray[4] = {color.x, color.y, color.z, color.w};
+    if (ImGui::ColorEdit4(("Color##" + std::string(label)).c_str(), colorArray, ImGuiColorEditFlags_NoInputs)) {
+        variantColors[label] = ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
+    }
+
+    // Add x, y offset inputs using DragInt2 for integers
+    ImGui::SameLine();
+    ImGui::PushItemWidth(60); // Set width for input fields
+    cv::Point offset = variantOffsets.count(label) ? variantOffsets[label] : cv::Point(0, 0);
+    int offsetArray[2] = {offset.x, offset.y};
+    if (ImGui::DragInt2(("Offset##" + std::string(label)).c_str(), offsetArray, 1, -1000, 1000)) {
+        // Update stored offset if changed
+        variantOffsets[label] = cv::Point(offsetArray[0], offsetArray[1]);
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::PopID();
+}
+
+void TrackingWidget::DrawGUI() {
+    ImGui::Begin("Tracking Config");
+
+    // Draw buttons and inputs for each variant
+    _DrawShowButton("Camera", showCamera);
+    _DrawShowButton("Blob", showBlob);
+    _DrawShowButton("Heuristic", showHeuristic);
+    _DrawShowButton("Neural", showNeural);
+    _DrawShowButton("NeuralRot", showNeuralRot);
+    _DrawShowButton("Opencv", showOpencv);
+    _DrawShowButton("Fusion", showFusion);
+
+
+    ImGui::End();
+}
+
+void TrackingWidget::_RenderFrames()
+{
+    // Initialize the output image as empty
+    _trackingMat = cv::Mat();
+
+    // List of variant labels and their corresponding visibility flags
+    std::vector<std::pair<std::string, bool>> variants = {
+        {"Camera", showCamera},
+        {"Blob", showBlob},
+        {"Heuristic", showHeuristic},
+        {"Neural", showNeural},
+        {"Fusion", showFusion},
+        {"NeuralRot", showNeuralRot},
+        {"Opencv", showOpencv}  
+    };
+
+    // Use the camera image size as the output size
+    cv::Size outputSize = GetDebugImage("Camera").size();
+
+    // Initialize output image as a black color image (CV_8UC3)
+    _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);
+
+    // Iterate through each variant to overlay images
+    for (const auto& variant : variants) {
+        const std::string& label = variant.first;
+        bool isVisible = variant.second;
+
+        // Skip if the variant is not visible or the image doesn't exist
+        if (!isVisible || variantImages.find(label) == variantImages.end()) {
+            continue;
+        }
+
+        const cv::Mat& srcImage = variantImages[label];
+        // Skip empty or invalid images
+        if (srcImage.empty() || srcImage.cols != outputSize.width || srcImage.rows != outputSize.height) {
+            continue;
+        }
+
+        // Get the color for this variant (default to white if not found)
+        ImVec4 color = variantColors.count(label) ? variantColors[label] : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        cv::Scalar bgrColor(color.z * 255, color.y * 255, color.x * 255); // Convert RGB to BGR for OpenCV
+
+        // Create a colorized version of the source image
+        cv::Mat colorized;
+        if (srcImage.type() == CV_8UC1) { // Grayscale or binary mask
+            // Convert single-channel image to 3-channel color image
+            cv::Mat temp;
+            cv::cvtColor(srcImage, temp, cv::COLOR_GRAY2BGR);
+            colorized = cv::Mat::zeros(srcImage.size(), CV_8UC3);
+            for (int y = 0; y < srcImage.rows; y++) {
+                for (int x = 0; x < srcImage.cols; x++) {
+                    uchar intensity = srcImage.at<uchar>(y, x);
+                    if (intensity > 0) { // Apply color only to non-zero pixels
+                        colorized.at<cv::Vec3b>(y, x) = cv::Vec3b(
+                            bgrColor[0] * (intensity / 255.0),
+                            bgrColor[1] * (intensity / 255.0),
+                            bgrColor[2] * (intensity / 255.0)
+                        );
+                    }
+                }
+            }
+        } else if (srcImage.type() == CV_8UC3) { // Already a color image
+            colorized = srcImage.clone(); // Use as is or apply color tint if needed
+            // Optionally apply color tint (multiply with color)
+            for (int y = 0; y < srcImage.rows; y++) {
+                for (int x = 0; x < srcImage.cols; x++) {
+                    cv::Vec3b pixel = colorized.at<cv::Vec3b>(y, x);
+                    colorized.at<cv::Vec3b>(y, x) = cv::Vec3b(
+                        pixel[0] * (bgrColor[0] / 255.0),
+                        pixel[1] * (bgrColor[1] / 255.0),
+                        pixel[2] * (bgrColor[2] / 255.0)
+                    );
+                }
+            }
+        } else {
+            continue; // Unsupported image type
+        }
+
+        // Blend the colorized image onto the output using alpha
+        float alpha = color.w; // Use the alpha value from ImVec4
+        for (int y = 0; y < _trackingMat.rows; y++) {
+            for (int x = 0; x < _trackingMat.cols; x++) {
+                cv::Vec3b& outPixel = _trackingMat.at<cv::Vec3b>(y, x);
+                cv::Vec3b srcPixel = colorized.at<cv::Vec3b>(y, x);
+                // Blend only if the source pixel is non-zero
+                if (srcPixel[0] > 0 || srcPixel[1] > 0 || srcPixel[2] > 0) {
+                    outPixel = cv::Vec3b(
+                        outPixel[0] * (1.0 - alpha) + srcPixel[0] * alpha,
+                        outPixel[1] * (1.0 - alpha) + srcPixel[1] * alpha,
+                        outPixel[2] * (1.0 - alpha) + srcPixel[2] * alpha
+                    );
+                }
+            }
+        }
+    }
+}
+
+std::string TrackingWidget::SaveGUISettings() {
+    std::stringstream ss;
+
+    // Save boolean flags
+    ss << "showCamera=" << (showCamera ? "1" : "0") << ";";
+    ss << "showBlob=" << (showBlob ? "1" : "0") << ";";
+    ss << "showHeuristic=" << (showHeuristic ? "1" : "0") << ";";
+    ss << "showNeural=" << (showNeural ? "1" : "0") << ";";
+    ss << "showNeuralRot=" << (showNeuralRot ? "1" : "0") << ";";
+    ss << "showFusion=" << (showFusion ? "1" : "0") << ";";
+    ss << "showOpencv=" << (showOpencv ? "1" : "0") << ";";
+
+    // Save variantColors
+    ss << "variantColors=";
+    for (const auto& pair : variantColors) {
+        ss << pair.first << ":" 
+           << pair.second.x << "," 
+           << pair.second.y << "," 
+           << pair.second.z << "," 
+           << pair.second.w << "|";
+    }
+    ss << ";";
+
+    // Save variantOffsets
+    ss << "variantOffsets=";
+    for (const auto& pair : variantOffsets) {
+        ss << pair.first << ":" 
+           << pair.second.x << "," 
+           << pair.second.y << "|";
+    }
+    ss << ";";
+
+    return ss.str();
+}
+
+void TrackingWidget::RestoreGUISettings(const std::string& settings) {
+    std::stringstream ss(settings);
+    std::string token;
+
+    // Helper function to split a string by delimiter
+    auto split = [](const std::string& s, char delim) -> std::vector<std::string> {
+        std::vector<std::string> result;
+        std::stringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, delim)) {
+            result.push_back(item);
+        }
+        return result;
+    };
+
+    while (std::getline(ss, token, ';')) {
+        if (token.empty()) continue;
+        auto keyValue = split(token, '=');
+        if (keyValue.size() != 2) continue;
+        const std::string& key = keyValue[0];
+        const std::string& value = keyValue[1];
+
+        // Restore boolean flags
+        if (key == "showCamera") showCamera = (value == "1");
+        else if (key == "showBlob") showBlob = (value == "1");
+        else if (key == "showHeuristic") showHeuristic = (value == "1");
+        else if (key == "showNeural") showNeural = (value == "1");
+        else if (key == "showNeuralRot") showNeuralRot = (value == "1");
+        else if (key == "showFusion") showFusion = (value == "1");
+        else if (key == "showOpencv") showOpencv = (value == "1");
+
+        // Restore variantColors
+        else if (key == "variantColors") {
+            variantColors.clear();
+            auto colorEntries = split(value, '|');
+            for (const auto& entry : colorEntries) {
+                if (entry.empty()) continue;
+                auto colorData = split(entry, ':');
+                if (colorData.size() != 2) continue;
+                auto colors = split(colorData[1], ',');
+                if (colors.size() != 4) continue;
+                variantColors[colorData[0]] = ImVec4(
+                    std::stof(colors[0]),
+                    std::stof(colors[1]),
+                    std::stof(colors[2]),
+                    std::stof(colors[3])
+                );
+            }
+        }
+
+        // Restore variantOffsets
+        else if (key == "variantOffsets") {
+            variantOffsets.clear();
+            auto offsetEntries = split(value, '|');
+            for (const auto& entry : offsetEntries) {
+                if (entry.empty()) continue;
+                auto offsetData = split(entry, ':');
+                if (offsetData.size() != 2) continue;
+                auto offsets = split(offsetData[1], ',');
+                if (offsets.size() != 2) continue;
+                variantOffsets[offsetData[0]] = cv::Point(
+                    std::stoi(offsets[0]),
+                    std::stoi(offsets[1])
+                );
+            }
+        }
+    }
+}
+
+
+
