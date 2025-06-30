@@ -28,7 +28,8 @@ public:
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 
-    void MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos); // Reload background and relocks us to the left most blob, opponent on right
+    void MatchStart(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
+    void RecoverDetection(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
     cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
 
     bool enable_camera_antishake = false;  // Turn off/on anti shake
@@ -61,6 +62,9 @@ public:
     bool show_stats = false;
     static cv::Mat backgroundOverlay; // Any overlay we want to apply over the background
     static cv::Size bgOverlaySize;
+
+    static std::string statusstring; // Status string to show in the UI
+
 
 private:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override; // Run every time a new frame is available
@@ -128,16 +132,26 @@ private:
     double deleteForNoMovementTime = 0.7; // Number of s to delete a tracked object for not moving
     int deleteForNoTrackingCount = 150;    // Number of frames to delete a tracked object that hasn't locked on
 
+    // State Machine Variables
+    bool is_our_robot_left = true; // True if our robot is on the left side of the field
+    float start_brightness_ok_threshold = 0.8f; // The threshold for brightness to be considered ok at the start of the match
+    float brightness_stable_start_time = 0.0; // The time when we started to see stable brightness
+    float start_brightness_soak_period = 1.5f; // The time in seconds to wait before we start considering foreground
+    bool tracking_started = false; // True if we have started tracking robots
+    int clear_margin = 10; // Number of pixels to clear around the tracked bbox to avoid interference with the background healing
+
     // *********  Functions
     void calcShakeRemoval(cv::Mat &image);
-    void correctBrightness(cv::Mat &image, bool no_averaging = false);
+    float correctBrightness(cv::Mat &image, bool no_averaging = false); // Returns the brightness correction factor for the image
     double getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean);
     double correctionValues[4] = {0, 0, 0, 0};
-    void healBackground(cv::Mat &currFrame);
+    void healBackground(cv::Mat &currFrame, bool mergeNonRobotAreas = false); // Heals the background by averaging the current frame with the background
     void recreateBackgroundOnMatchStart(cv::Mat& currFrame); // Regenerates background based on the current frame minus tracked fg
     void ReinitBackground();
     bool SaveBackground(void); // Saves the current background to the default file
-
+    bool IsClearOfArea(RobotTracker* tracker, const cv::Rect& area);
+    void ResetBrightnessCorrection();
+    
     cv::Mat regularBackground; // Recalled 8-bit grayscale background from file
     void LoadBackground(cv::Mat &currFrame, std::string image_name = "");
     bool DumpBackground(std::string name, std::string path); // Will continueously dump background to files evey 1s

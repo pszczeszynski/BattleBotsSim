@@ -33,6 +33,7 @@ float RobotTracker::distanceDerating_start = 1.0;     // The mutliplier to resul
 float RobotTracker::distanceDerating_stop = 0.5;      // The maximum derating for things far away
 float RobotTracker::distanceDerating_distance = 15.0; // The radial distance at which we reach _stop intensity
 int RobotTracker::distanceDeratingMatSize = 999;      // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
+int RobotTracker::ageBeforeStartInit = 4; // Number of frames before we start tracking the start position
 
 // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
 float RobotTracker::deltaAngleSweep = 8;  // Delta +/- angle to sweep
@@ -446,6 +447,23 @@ void RobotTracker::FindBestBBox(double currTime, std::vector<myRect> &allBBoxes)
 
 void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat)
 {
+    // Increment age
+    numFramesOld++;
+
+    // Detect if we have cleared the start box
+    if( !startInitialized && numFramesOld >= ageBeforeStartInit && bbox.area() > 0 )
+    {
+        startInitialized = true;
+        startBbox = bbox; // Remember the start bbox     
+    }
+
+    if( startInitialized && !clearedStart &&  (bbox & startBbox).area() <= 0 )
+    {
+        // We cleared the start bbox
+        clearedStart = true;
+    }
+
+
     // Setup cleanup code for muli-threading (increment counter when finished and notify all
     MultiThreadCleanup cleanup(doneInt, mutex, doneCV);
     debugLine = "";

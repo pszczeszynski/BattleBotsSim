@@ -30,20 +30,26 @@
 // CameraDecoder
 // ****************************************
 
+std::string HeuristicOdometry::statusstring = "Stopped."; // Static status string to show in the UI
+
 HeuristicOdometry::HeuristicOdometry(ICameraReceiver *videoSource) : OdometryBase(videoSource)
 {
-
+    statusstring = "Stopped.";
 }
 
 // Statemachine definitions
 enum CAMDECODER_SM
 {
-    CMSM_LOADBACK = 0,
-    CMSM_WAIT_TO_START,
-    CMSM_TRACKINGOK
+    CMSM_LOADBACK = 0,          // Initial state: Load saved background
+    CMSM_WAIT_BRIGHTNESS,       // Wait for brightness to stabilize
+    CMSM_SOAK_PERIOD,           // Soak period after brightness stabilization
+    CMSM_WAIT_ROBOT_CLEAR,      // Wait for robots to clear starting areas
+    CMSM_RECOVER_DETECTION,     // Set current image to background and wait for robots to be detected
+    CMSM_DETECT_MOVING_TRACKERS, // Wait for detecting trackers that may be moving
+    CMSM_TRACKINGOK             // Normal tracking mode
 };
 
-CAMDECODER_SM camStateMachine = CMSM_LOADBACK;
+CAMDECODER_SM heuStateMachine = CMSM_LOADBACK;
 
 double timeTrackForBGSave = 0;
 cv::Size HeuristicOdometry::bgOverlaySize = cv::Size(0,0);
@@ -70,7 +76,7 @@ void HeuristicOdometry::UpdateSettings()
     RobotTracker::numberOfThreads = max(1, HEU_ROBOT_PROCESSORS);
 }
 
-void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos)
+void HeuristicOdometry::MatchStart(bool isOurRobotLeft)
 {
     // check if running, start us if not
     if (!IsRunning())
@@ -78,25 +84,29 @@ void HeuristicOdometry::MatchStart(cv::Point2f robotPos, cv::Point2f opponentPos
         RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
     }
 
-    // First reinitialize background
-    match_start_bg_init = true;
-    while (match_start_bg_init)
-    {
-        Sleep(1);
-    }
+    // Set state machine to matchstart state
+    is_our_robot_left = isOurRobotLeft;
+    heuStateMachine = CMSM_LOADBACK; 
 
-    // Now lock onto robots. Set position here tries to find the best BBox closes to the position
-    // It does not actually set it to that position
-    SetPosition(robotPos, false);
-    SetPosition(opponentPos, true);
 }
 
+void HeuristicOdometry::RecoverDetection(bool isOurRobotLeft)
+{
+    // check if running, start us if not
+    if (!IsRunning())
+    {
+        RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
+    }
+
+    // Set state machine to matchstart state
+    is_our_robot_left = isOurRobotLeft;
+    heuStateMachine = CMSM_RECOVER_DETECTION; 
+
+}
 
 // Called in CameraDecoder thread to process the new frame
 void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 {
-    
-
     timing_list.clear();
     timing_text.clear();
     timing_clock.markStart();
@@ -107,7 +117,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     UpdateSettings(); // Update any settings from user
 
-    // Change the picute to 8-bit B&W
+    // Change the picture to 8-bit B&W
     cv::Mat newFrame;
 
     // Convert to greyscale if required
@@ -155,39 +165,8 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::Rect cropparea(x_offset, y_offset, newFrame.cols - 2 * crop_x, newFrame.rows - 2 * crop_y);
     cv::Mat correctedFrame = (enable_camera_antishake) ?  newFrame(cropparea) : newFrame;
     
-    bool matchstart_was_run = false;
 
-    if( match_start_bg_init)
-    {
-        // First override all variables that matchstatbackground algorithm uses different
-        // OVerride fg_threshold, blurr size nad blur count
-        fg_threshold = HEU_FOREGROUND_THRESHOLD_INIT;
-        blurCount = HEU_BLUR_COUNT_INIT;
-        preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
-  
-        MatchStartBackgroundInit(correctedFrame);
-        
-        matchstart_was_run = true;
-    }
-    else
-    {
-        // Correct Brightness (assumes shake doesn't significantly affect it on average)
-        correctBrightness(correctedFrame);
-    }
-
-    // Find the proper x_offset and y_offset for a shaky image using background
-    if(enable_camera_antishake)
-    { 
-        calcShakeRemoval(newFrame); 
-    }
-
-
-    markTime("Brightness and shake: ");
-
-//  _imshow("corrected", newFrame);
-
-
-
+    // Do user request that should be done before state machine
     // ***********************************************
     // ******* SERVICE USER REQUESTS *****************
 
@@ -210,9 +189,199 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         ReinitBackground();
     }
 
+    if (load_background)
+    {
+        LoadBackground(newFrame, loadBackgroundsPath + "/savedBackground.jpg"); // Use savebackground path
+        load_background = false;
+    }
+
+    if (load_start_background)
+    {
+        LoadBackground(newFrame); // Loads image start background by default
+        load_start_background = false;
+    }
+
+    bool matchstart_was_run = false;
+
+    cv::Rect left_start_rect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y, (STARTING_LEFT_BR_x - STARTING_LEFT_TL_x), (STARTING_LEFT_BR_y - STARTING_LEFT_TL_y));
+    cv::Rect right_start_rect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, (STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x), (STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y));
+    float brightness_correction = 0;
+
+    // State Machine for Initialization
+    switch (heuStateMachine)
+    {
+    case CMSM_LOADBACK:
+        statusstring = "Loading background...";
+        // Load the saved background
+        LoadBackground(newFrame);
+
+        // Invalidate tracking
+        ourRobotTracker = nullptr;
+        opponentRobotTracker = nullptr;
+        _currDataRobot.Clear();
+        _currDataOpponent.Clear();
+
+        // Clear all tracked robots
+        _allRobotTrackersClear();
+
+
+        _UpdateData(currTime);
+    
+        heuStateMachine = CMSM_WAIT_BRIGHTNESS;
+        tracking_started = false;
+        return; // Dont do anything more in this iteration
+        break;
+
+    case CMSM_WAIT_BRIGHTNESS:
+        statusstring = "Waiting for brightness to stabilize...";
+        tracking_started = false;
+
+        // If brightness drops below threshold, reset soak period
+        // Higher returned number means picture is too dark
+        brightness_correction = correctBrightness(correctedFrame, true);
+
+        if (brightness_correction < start_brightness_ok_threshold ||
+            brightness_correction > 1/start_brightness_ok_threshold 
+            )
+        {
+            brightness_stable_start_time = currTime; // Reset soak period
+            statusstring = "Waiting for brightness to stabilize...";
+            return; // Continue waiting for brightness to stabilize
+        }
+        else
+        {
+            statusstring = "Waiting soak period...";
+        }
+
+        // Check if soak period has elapsed
+        if (currTime - brightness_stable_start_time >= start_brightness_soak_period)
+        {
+            // Save current frame as background and refBackground
+            correctedFrame.copyTo(currBackground);
+            currBackground.convertTo(currBackground_16bit, CV_16U, 256);
+            refBackground = currBackground.clone();            
+            ResetBrightnessCorrection();
+
+            heuStateMachine = CMSM_WAIT_ROBOT_CLEAR;
+
+            // Continue exectution to find trackers
+            break;
+        }
+
+        // Since brightness is still changing, we don't want to be averaging yet
+        return; // Continue waiting for soak period
+
+        break;
+
+    case CMSM_WAIT_ROBOT_CLEAR:
+        statusstring = "Waiting for ";
+        statusstring += (!_currDataRobot.robotPosValid) ? "our " : "";
+        statusstring += (!_currDataOpponent.robotPosValid) ? "opponent " : "";
+        statusstring += "robot to clear starting area...";
+
+        // Lets do our robot first
+        if( !_currDataRobot.robotPosValid && (ourRobotTracker != nullptr) )
+        {
+            if (IsClearOfArea(ourRobotTracker, left_start_rect) && IsClearOfArea(ourRobotTracker, right_start_rect))
+            {
+                _currDataRobot.robotPosValid = true; // We have cleared the starting area              
+            }            
+        }
+
+
+        // Opponent Robot
+        if( !_currDataOpponent.robotPosValid && (opponentRobotTracker != nullptr) )
+        {
+
+
+            if (IsClearOfArea(opponentRobotTracker, left_start_rect) && IsClearOfArea(opponentRobotTracker, right_start_rect))
+            {
+                _currDataOpponent.robotPosValid = true; // We have cleared the starting area              
+            }
+        }
+        
+        // Final checks to move state machine to done is done at end of tracking detection below
+        break;
+
+    case CMSM_RECOVER_DETECTION:
+        statusstring = "Recovering detection...";
+              
+        // Invalidate tracking
+        ourRobotTracker = nullptr;
+        opponentRobotTracker = nullptr;
+        _currDataRobot.Clear();
+        _currDataOpponent.Clear();
+
+        // Clear all tracked robots
+        _allRobotTrackersClear();
+        _UpdateData(currTime);
+
+        // Save current frame as background
+        correctedFrame.copyTo(currBackground);
+        currBackground.convertTo(currBackground_16bit, CV_16U, 256);
+        refBackground = currBackground.clone();
+        ResetBrightnessCorrection();
+
+        // Wait for robots to clear their points
+        heuStateMachine = CMSM_DETECT_MOVING_TRACKERS;
+        return;
+
+        break;
+
+    case CMSM_DETECT_MOVING_TRACKERS:
+        // During this period any trackers that appear should be cleared only if they move past their starting area
+        // If both us and opponent robots are detected, all remaining trackers are merged into background
+        // The fusion algorithm will try lock robots, once they are both locked we will clear all remaining trackers
+        statusstring = "Waiting for tracker to lock to ";
+        statusstring += (!_currDataRobot.robotPosValid) ? "our" : "";
+        if( !_currDataOpponent.robotPosValid &&  !_currDataOpponent.robotPosValid)
+        {
+            statusstring += " & ";
+        }
+        statusstring += (!_currDataOpponent.robotPosValid) ? "opponent" : "";
+        statusstring += " robot...";
+
+        // Merging all other trackers will happen at the end if this function
+        break;
+
+
+    case CMSM_TRACKINGOK:
+        statusstring = "Tracking robots...";
+        break;
+    }
+
+    tracking_started = true; // We have started tracking robots
+
+    // OUTDATED CODE (WILL NOT BE USING)
+    // This initializes the background with currFrame but copies over the saved background left/right regions
+    if( match_start_bg_init)
+    {
+        // First override all variables that matchstatbackground algorithm uses different
+        // OVerride fg_threshold, blurr size nad blur count
+        fg_threshold = HEU_FOREGROUND_THRESHOLD_INIT;
+        blurCount = HEU_BLUR_COUNT_INIT;
+        preMaskBlurSize = cv::Size(HEU_BACKGROUND_BLURSIZE_INIT, HEU_BACKGROUND_BLURSIZE_INIT);
+  
+        MatchStartBackgroundInit(correctedFrame);
+        
+        matchstart_was_run = true;
+    }
+
+    // Correct Brightness (assumes shake doesn't significantly affect it on average)
+    correctBrightness(correctedFrame);
+ _imshow("Corrected Frame", correctedFrame); // Show corrected frame
+    // Find the proper x_offset and y_offset for a shaky image using background
+    if(enable_camera_antishake)
+    { 
+        calcShakeRemoval(newFrame); 
+    }
+
+
+    markTime("Brightness and shake: ");
 
 
  
+
 
     if (save_to_video_match_debug || save_to_video_output) // Remeber that we are saving video
     {
@@ -237,17 +406,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // From here on maniuplation of all_bboxes and/or tracker (core tracking data) is allowed
     std::unique_lock<std::mutex> locker(_mutexAllBBoxes);
 
-    if (load_background)
-    {
-        LoadBackground(newFrame, loadBackgroundsPath + "/savedBackground.jpg"); // Use savebackground path
-        load_background = false;
-    }
-
-    if (load_start_background)
-    {
-        LoadBackground(newFrame); // Loads image start background by default
-        load_start_background = false;
-    }
+ 
 
     // ************************************
     // FOREGROUND and BBOX EXTRACTION
@@ -271,8 +430,21 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // Lock all RobotTrackers from being access
     TrackRobots(correctedFrame, currFrameColor);
 
-    // Heal background
-    healBackground(correctedFrame);
+      // If we have identified both robots during robot clear stage, merge everything else into background
+    if( ((heuStateMachine == CMSM_WAIT_ROBOT_CLEAR) || (heuStateMachine == CMSM_DETECT_MOVING_TRACKERS)) && _currDataRobot.robotPosValid && _currDataOpponent.robotPosValid)
+    {
+        // Increment state machine
+        heuStateMachine = CMSM_TRACKINGOK;
+
+        healBackground(correctedFrame,true); // Merge all non-robot areas into background
+    }
+    else
+    {
+        // Heal background
+        healBackground(correctedFrame);
+    }
+
+  
 
     markTime("Heal bg: ");
 
@@ -516,13 +688,12 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     }
 }
 
+// Sets the position to a found tracker's position
+// If no tracker is found, sets as invalid but does copy over specified position for internal use
 void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
 {
-    // First lock for all robot tracking and find the robot
-    std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
-    LocateRobots(newPos, opponentRobot);
-
-    locktracking.unlock();
+    // Locate the robots
+    LocateRobots(newPos, opponentRobot); 
 
     // Now update the data
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -753,6 +924,8 @@ void HeuristicOdometry::_StopCalled()
     {
         cv::destroyWindow(name);
     }
+
+    statusstring = "Stopped";
 }
 
 void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDisplay)
@@ -994,11 +1167,6 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_nam
     // Also load the reference intesnity image
     refBackground = cv::imread(IMAGE_REF_INTENSITY, cv::IMREAD_GRAYSCALE);
 
-    // Reset the reference background average intensity calculations
-    for( int i =0; i < 4; i++)
-    {
-        refIntensities[i] = -1.0;
-    }
 
     // If unable to load, use current frame to set the background
     // or if background doesn't meet our dimension requirements
@@ -1023,6 +1191,8 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_nam
     {
         refBackground.convertTo(refBackground, CV_8U);
     }
+
+    ResetBrightnessCorrection();
 
     // Save this background as current background
     regularBackground.copyTo(currBackground);
@@ -1216,9 +1386,9 @@ void HeuristicOdometry::DumpCurrFrameInfo(cv::Mat &channel, cv::Mat &currForegro
 }
 
 // Returns true if any of the robot was found
-bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
+/*bool HeuristicOdometry::LocateRobotsOLD(cv::Point2f newPos, bool opponentRobot)
 {
-
+    
     // First remove the old tracking info
     RobotTracker *&robotTracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
 
@@ -1254,6 +1424,53 @@ bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
 
     return false;
 }
+*/
+
+bool HeuristicOdometry::LocateRobots(cv::Point2f newPos, bool opponentRobot)
+{
+    // Get access to all trackers
+    std::unique_lock<std::mutex> locker(_mutexAllBBoxes);
+
+    RobotTracker *&robotTracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
+    RobotTracker *&otherTracker = (opponentRobot) ? ourRobotTracker : opponentRobotTracker;
+
+    // Find the closest tracker  
+    RobotTracker* closest = nullptr;
+    float closestDistance = -1;
+    
+    for (auto currItem : _allRobotTrackers)
+    {
+        // Skip if this is otherTracker
+        if (currItem == otherTracker)
+        {
+            continue;
+        }
+        if( closest ==  nullptr)
+        {
+            closest = currItem;
+            closestDistance = distance(currItem->GetCenter(), newPos);
+        }
+        else
+        {
+            float newDistance = distance(currItem->GetCenter(), newPos);
+            if( newDistance < closestDistance)
+            {
+                closest = currItem;
+                closestDistance = newDistance;
+            }
+        }
+    }
+
+
+    // If we found a tracker of sufficient size that is reasonably close that has cleared start tracking
+    if (closest != nullptr && closestDistance < max_distance_to_locate && closest->clearedStart)
+    {
+        robotTracker = closest;        
+        return true;
+    }
+
+    return false;
+}
 
 void HeuristicOdometry::DrawAllBBoxes(cv::Mat &mat, int thickness, cv::Scalar scaler)
 {
@@ -1262,6 +1479,27 @@ void HeuristicOdometry::DrawAllBBoxes(cv::Mat &mat, int thickness, cv::Scalar sc
         cv::rectangle(mat, bbox, scaler, thickness, cv::LINE_4);
         printText(std::to_string(bbox.width) + "x" + std::to_string(bbox.height), mat, bbox.y, bbox.x);
     }
+}
+
+// Function to convert cv::Mat type to human-readable string
+std::string getImageType(int type) {
+    std::string r;
+    int depth = type & CV_MAT_DEPTH_MASK; // Extract depth
+    int chans = 1 + (type >> CV_CN_SHIFT); // Extract number of channels
+
+    switch (depth) {
+        case CV_8U:  r = "8-bit unsigned (CV_8U)"; break;
+        case CV_8S:  r = "8-bit signed (CV_8S)"; break;
+        case CV_16U: r = "16-bit unsigned (CV_16U)"; break;
+        case CV_16S: r = "16-bit signed (CV_16S)"; break;
+        case CV_32S: r = "32-bit signed (CV_32S)"; break;
+        case CV_32F: r = "32-bit float (CV_32F)"; break;
+        case CV_64F: r = "64-bit float (CV_64F)"; break;
+        default:     r = "Unknown type"; break;
+    }
+
+    r += ", Channels: " + std::to_string(chans);
+    return r;
 }
 
 void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame)
@@ -1287,16 +1525,21 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame)
     cv::Mat foregroundBlurred;
     cv::absdiff(croppedFrameBlurred, currBackgroundBlurred, foregroundBlurred);
 
+    std::string img1type = getImageType(croppedFrame.type());
+    std::string img2type = getImageType(foregroundBlurred.type());
+    std::string img3type = getImageType(currBackground.type());
+
+
 //cv::imshow("Frame Blurred", croppedFrameBlurred);
 //cv::imshow("BG Blurred", currBackgroundBlurred);
-//cv::imshow("Blurred Diff", foregroundBlurred);
+cv::imshow("Blurred Diff", foregroundBlurred);
     // First get the mask that includes regions at least the minimum pixels away
     cv::threshold(foregroundBlurred, fg_mask, fg_threshold, 255, cv::THRESH_BINARY);
 
     cv::Mat diffThreshold = fg_threshold_ratio * currBackgroundBlurred;
     cv::Mat fg_maskRatio = foregroundBlurred > diffThreshold;
     cv::bitwise_and(fg_maskRatio, fg_mask, fg_mask);
-//cv::imshow("Blurred Mask", fg_mask);
+cv::imshow("Blurred Mask", fg_mask);
     // Next we want to look at pixels that changed at least a  certain percentage
 
     // Find contours in the mask
@@ -1444,16 +1687,16 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame)
 // to remove invalid areas that are tracked. We will thus implement a very slow decay for tracked
 // areas, and a much faster decay for untracked areas, relying on the fact that a robot should move
 // relativelly quickly.
-void HeuristicOdometry::healBackground(cv::Mat &currFrame )
+void HeuristicOdometry::healBackground(cv::Mat &currFrame,  bool mergeNonRobotAreas )
 {
     // quit if we are not enabled
-    if (!enable_background_healing)
+    if (!mergeNonRobotAreas && !enable_background_healing)
     {
         return;
     }
 
     // If we haven't found both robots or either one is not tracking, don't heal
-    if (!force_background_averaging && ((ourRobotTracker == NULL) || (opponentRobotTracker == NULL) ||
+    if (!mergeNonRobotAreas && !force_background_averaging && ((ourRobotTracker == NULL) || (opponentRobotTracker == NULL) ||
                                         (ourRobotTracker->numFramesNotTracked > 1) || (opponentRobotTracker->numFramesNotTracked > 1)))
     {
         return;
@@ -1463,8 +1706,8 @@ void HeuristicOdometry::healBackground(cv::Mat &currFrame )
     cv::Mat currFrame_16bit;
     currFrame.convertTo(currFrame_16bit, CV_16U, 256);
 
-    int myAveragingCount = averagingCount;
-    int myTrackedAvgCount = trackedAvgCount; 
+    int myAveragingCount = (mergeNonRobotAreas) ? 1 : averagingCount;
+    int myTrackedAvgCount = (mergeNonRobotAreas) ?  1 : trackedAvgCount; 
 
     // Fast untracked averaging
     cv::Mat newBackground_16bit = currBackground_16bit * ((myAveragingCount - 1.0) / myAveragingCount) + currFrame_16bit * 1.0 / myAveragingCount;
@@ -1557,7 +1800,7 @@ void HeuristicOdometry::MatchStartBackgroundInit(cv::Mat &currFrame)
     leftsquare.copyTo(currBackground(leftrect));
     rightsquare.copyTo(currBackground(rightrect));
 
-    imshow("Match Start Background", currBackground);
+    // imshow("Match Start Background", currBackground);
 
     currBackground.convertTo(currBackground_16bit, CV_16U, 256);
 }
@@ -1664,16 +1907,28 @@ float HeuristicOdometry::FindOptimalBrightness(cv::Rect& myRect, cv::Mat& currFr
     return brightnessAdjust;
 }
 
+bool HeuristicOdometry::IsClearOfArea(RobotTracker* tracker, const cv::Rect& area)
+{
+    if (!tracker) return false;
+    
+    // Expand the area by the clearance margin
+    cv::Rect expanded_area(area.x - clear_margin, area.y - clear_margin,
+                          area.width + 2 * clear_margin, area.height + 2 * clear_margin);
+    
+    // Check if tracker's bounding box intersects with the expanded area
+    return (tracker->bbox & expanded_area).area() == 0;
+}
 
 double lastTimeForBrightness = 0;
 float brightnessCorrection = 1.0f;
 
-
-void HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
+// Returns the brightness correction factor for the specified square in the image
+// 1.0f means no correction
+float HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
 {
     // If disabled, dont do anything
-    if( (IMAGE_INTENSITY_TIME_CONSTANT < 0) ||
-        // If reference background isn't loaded then quit or background sane size
+    if( !reset_averaging && (IMAGE_INTENSITY_TIME_CONSTANT < 0) ||
+        // If reference background isn't loaded then quit or background same size
         refBackground.empty() ||  currBackground.empty() || currBackground.cols < IMAGE_INTENSITY_SQR_size || image.cols < IMAGE_INTENSITY_SQR_size
      )
     {
@@ -1682,12 +1937,12 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
         refIntensities[2] = 0;
         refIntensities[3] = 0;
         brightnessCorrection = 1.0f;
-        return;
+        return 1.0f; // Safer to return 1.0f so that the state machine doesnt lock up
     }
 
 
     // If we haven't calculated our reference background intensities yet, then do that now
-    if(refIntensities[0] <= 0 )
+    if((refIntensities[0] <= 0) ||  reset_averaging)
     {
         // refBackground assumed to be black and white (1 channel)
         refIntensities[0] = cv::mean(refBackground(cv::Rect(IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y, IMAGE_INTENSITY_SQR_size, IMAGE_INTENSITY_SQR_size)))[0];
@@ -1702,7 +1957,7 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
     // Dont do anything for invalid time
     if( deltaTime <=0 )
     {
-        return;
+        return 1.0f;
     }
 
     lastTimeForBrightness = currTime;
@@ -1741,7 +1996,21 @@ void HeuristicOdometry::correctBrightness(cv::Mat &image, bool reset_averaging)
 
     // Set it back to 8 bit
     image.convertTo(image, CV_8U);
+
+    return brightnessCorrection; // Return the correction factor
 }
+
+void HeuristicOdometry::ResetBrightnessCorrection()
+{
+    // Reset the brightness correction
+    refIntensities[0] = 0;
+    refIntensities[1] = 0;
+    refIntensities[2] = 0;
+    refIntensities[3] = 0;
+    brightnessCorrection = 1.0f;
+    lastTimeForBrightness = currTime; // Reset the time
+}
+
 
 double HeuristicOdometry::getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean)
 {
@@ -1814,6 +2083,7 @@ void HeuristicOdometry::calcShakeRemoval(cv::Mat &image)
         x_offset = maxLoc.x;
     }
 }
+
 
 
 void HeuristicOdometry::GetDebugImage(cv::Mat &debugImage,  cv::Point offset)

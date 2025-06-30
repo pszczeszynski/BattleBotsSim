@@ -31,6 +31,8 @@ public:
     std::string SaveGUISettings();
     void RestoreGUISettings(const std::string& settings);
 
+    bool save_video_enabled = false;
+    std::string outputVideoFile = "Recordings/Tracking_dataDump.mp4";
 
 private:
     void _GrabFrame();
@@ -64,5 +66,10 @@ private:
 
     void _DrawShowButton(const char* label, bool& enabledFlag);
 
+    // Dump to video functions
+    char outputVideoFileBuffer[256] = ""; // Buffer for ImGui text input
+    cv::VideoWriter video;
+    bool save_video_enabled_old = false;
+    void SaveToVideo();
 
 };

@@ -142,6 +142,7 @@ public:
     static float distanceDerating_stop;     // The maximum derating for things far away
     static float distanceDerating_distance; // The radial distance at which we reach _stop intensity
     static int distanceDeratingMatSize;     // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
+    static int ageBeforeStartInit;
 
     // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
     static float deltaAngleSweep; // Delta +/- angle to sweep
@@ -151,6 +152,7 @@ public:
     int id = -1; // Unique ID
 
     // Tracking Info
+    int numFramesOld = 0; // Number of frames this tracker has been active
     bool lockedOn = false;
     float trackingError = 0;
     int numFramesNotTracked = 0;
@@ -192,6 +194,10 @@ public:
     void SetRotation(double angleRad);
     bool IsPointInside(cv::Point2i point);
     bool IsTrackerCombined(void);
+
+    cv::Rect startBbox;
+    bool clearedStart = false; // True if we cleared the start bbox
+    bool startInitialized = false; // True if we initialized the start bbox
 
 
     cv::Rect predictedBBox;

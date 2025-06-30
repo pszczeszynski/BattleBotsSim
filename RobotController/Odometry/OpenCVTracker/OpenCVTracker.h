@@ -9,7 +9,16 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/video/tracking.hpp>
+
+#ifdef _OPENCV_TRACKING
+    #if defined(CV_VERSION_MAJOR) && CV_VERSION_MAJOR >= 4
+        #include <opencv2/tracking.hpp> // OpenCV 4.x
+    #else
+        #include <opencv2/video/tracking.hpp> // OpenCV 3.x
+    #endif
+#endif
+
+
 
 
 

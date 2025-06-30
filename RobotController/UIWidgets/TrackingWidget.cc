@@ -37,7 +37,7 @@ TrackingWidget::TrackingWidget() : // initialize the mask to all white
     }
 
     // Initialize default colors for each variant
-    // Using ImVec4 (RGBA), with alpha = 1.0f for opaque colors
+    // Using ImVec4 (RGBA), with alpha = 1.0f for opaque color
     variantColors["Camera"] = ImVec4(0.0f, 0.7f, 0.0f, 1.0f); // Default: Green
     variantOffsets["Camera"] = cv::Point(0, 0); // No offset for Camera
 
@@ -265,17 +265,35 @@ void TrackingWidget::_DrawAlgorithmData()
     {
         return;
     }
+
+    // The color format seems to be BLUE, GREEN, RED
     // blob is blue
     cv::Scalar blobColor = cv::Scalar(255, 0, 0);
+    if( variantColors.find("Blob") != variantColors.end() )
+    {
+        blobColor = cv::Scalar(variantColors["Blob"].z * 255, variantColors["Blob"].y * 255, variantColors["Blob"].x * 255);
+    }
 
     // neural is purple
     cv::Scalar neuralColor = cv::Scalar(255, 0, 255);
+    if( variantColors.find("Neural") != variantColors.end() )
+    {
+        neuralColor = cv::Scalar(variantColors["Neural"].z * 255, variantColors["Neural"].y * 255, variantColors["Neural"].x * 255);
+    }
 
     // heursitic is yellow - orange
     cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
+    if( variantColors.find("Heuristic") != variantColors.end() )
+    {
+        heuristicColor = cv::Scalar(variantColors["Heuristic"].z * 255, variantColors["Heuristic"].y * 255, variantColors["Heuristic"].x * 255);
+    }
 
     // opencv is red
     cv::Scalar opencvColor = cv::Scalar(0, 0, 255);
+    if( variantColors.find("Opencv") != variantColors.end() )
+    {
+        opencvColor = cv::Scalar(variantColors["Opencv"].z * 255, variantColors["Opencv"].y * 255, variantColors["Opencv"].x * 255);
+    }
 
     RobotOdometry &odometry = RobotController::GetInstance().odometry;
     BlobDetection &_odometry_Blob = odometry.GetBlobOdometry();
@@ -420,6 +438,14 @@ void TrackingWidget::_DrawAlgorithmData()
                 double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
                 odometry.UpdateForceSetAngle(newAngle, false);
             }
+            else if( InputState::GetInstance().IsMouseDown(1) )
+            {
+                // set the opponent angle
+                cv::Point2f opponentPos = odometry.Opponent().robotPosition;
+                cv::Point2f currMousePos = GetMousePos();
+                double newAngle = atan2(currMousePos.y - opponentPos.y, currMousePos.x - opponentPos.x);
+                odometry.UpdateForceSetAngle(newAngle, true);
+            }
         }
     }
 
@@ -428,13 +454,13 @@ void TrackingWidget::_DrawAlgorithmData()
     cv::Point2f robotPos = odometry.Robot().robotPosition;
     double robotAngle = odometry.Robot().robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
-    safe_arrow(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 0, 0), 2);
+    safe_arrow(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 150, 150), 2);
 
     // draw opponent angle with arrow
     cv::Point2f opponentPos = odometry.Opponent().robotPosition;
     double opponentAngle = odometry.Opponent().robotAngle;
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
-    safe_arrow(_trackingMat, opponentPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
+    safe_arrow(_trackingMat, opponentPos, arrowEnd, cv::Scalar(150, 150, 255), 2);
 }
 
 cv::Mat& TrackingWidget::GetTrackingMat()
@@ -458,6 +484,9 @@ void TrackingWidget::Update()
     _DrawAlgorithmData();
 
     UpdateMat(_trackingMat);
+
+    // Save to video (if enabled)
+    SaveToVideo();
 
 }
 
@@ -540,21 +569,6 @@ void TrackingWidget::_DrawShowButton(const char* label, bool& enabledFlag)
     ImGui::PopID();
 }
 
-void TrackingWidget::DrawGUI() {
-    ImGui::Begin("Tracking Config");
-
-    // Draw buttons and inputs for each variant
-    _DrawShowButton("Camera", showCamera);
-    _DrawShowButton("Blob", showBlob);
-    _DrawShowButton("Heuristic", showHeuristic);
-    _DrawShowButton("Neural", showNeural);
-    _DrawShowButton("NeuralRot", showNeuralRot);
-    _DrawShowButton("Opencv", showOpencv);
-    _DrawShowButton("Fusion", showFusion);
-
-
-    ImGui::End();
-}
 
 void TrackingWidget::_RenderFrames()
 {
@@ -653,6 +667,116 @@ void TrackingWidget::_RenderFrames()
     }
 }
 
+
+void TrackingWidget::DrawGUI() {
+    ImGui::Begin("Tracking Config");
+
+    // Draw buttons and inputs for each variant
+    _DrawShowButton("Camera", showCamera);
+    _DrawShowButton("Blob", showBlob);
+    _DrawShowButton("Heuristic", showHeuristic);
+    _DrawShowButton("Neural", showNeural);
+    _DrawShowButton("NeuralRot", showNeuralRot);
+    _DrawShowButton("Opencv", showOpencv);
+    _DrawShowButton("Fusion", showFusion);
+
+    // Add two line spacers
+    ImGui::Separator();
+
+    ImGui::Dummy(ImVec2(0.0f, 30.0f));
+    
+    // ADD Heuristic status line
+    ImGui::SetWindowFontScale(1.5f);
+    ImGui::TextWrapped("Heuristic Status: %s", HeuristicOdometry::statusstring.c_str());
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Dummy(ImVec2(0.0f, 30.0f));
+ 
+    
+    HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
+
+    // Set leftstart and rightstart to middle of background starting boxes
+    cv::Point2f leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
+    cv::Point2f rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    if (ImGui::Button("Start Left", ImVec2(150, 40)))
+    {
+        heuristic.MatchStart(true);
+        heuristic.SetPosition(leftStart, false); // Set the position to the left start
+        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    ImGui::Text("        ");
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    if (ImGui::Button("Start Right", ImVec2(150, 40)))
+    {
+        heuristic.MatchStart(false);
+        heuristic.SetPosition(leftStart, true); // Set the position to the left start
+        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    if (ImGui::Button("Recover Left", ImVec2(150, 40)))
+    {
+        heuristic.RecoverDetection(true);
+        heuristic.SetPosition(leftStart, false); // Set the position to the left start
+        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    ImGui::Text("        ");
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    if (ImGui::Button("Recover Right", ImVec2(150, 40)))
+    {
+        heuristic.RecoverDetection(false);
+        heuristic.SetPosition(leftStart, true); // Set the position to the left start
+        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+
+
+
+
+    ImGui::Dummy(ImVec2(0.0f, 80.0f));
+
+
+    // Add input field for outputVideoFile
+    ImGui::Text("Output Video File:");
+    ImGui::InputText("##trackvid", outputVideoFileBuffer, sizeof(outputVideoFileBuffer));
+    outputVideoFile = outputVideoFileBuffer; // Update std::string from buffer
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+    bool doPopStyle = false;
+    // Add button to toggle save_video_enabled
+    if (save_video_enabled) {
+        // Push red color for button background when recording
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Red color (RGBA)
+        doPopStyle = true;
+    }
+    if (ImGui::Button(save_video_enabled ? "Stop Recording" : "Start Recording")) {
+        save_video_enabled = !save_video_enabled; // Toggle the boolean
+    }
+
+    if (doPopStyle) {
+        // Pop the custom color after rendering the button
+        ImGui::PopStyleColor();
+    }
+
+
+
+
+    ImGui::End();
+}
+
 std::string TrackingWidget::SaveGUISettings() {
     std::stringstream ss;
 
@@ -664,6 +788,10 @@ std::string TrackingWidget::SaveGUISettings() {
     ss << "showNeuralRot=" << (showNeuralRot ? "1" : "0") << ";";
     ss << "showFusion=" << (showFusion ? "1" : "0") << ";";
     ss << "showOpencv=" << (showOpencv ? "1" : "0") << ";";
+
+
+    // Save outputVideoFile
+    ss << "outputVideoFile=" << outputVideoFile << ";";
 
     // Save variantColors
     ss << "variantColors=";
@@ -719,6 +847,14 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         else if (key == "showFusion") showFusion = (value == "1");
         else if (key == "showOpencv") showOpencv = (value == "1");
 
+
+        // Restore outputVideoFile
+        else if (key == "outputVideoFile") {
+            outputVideoFile = value;
+            strncpy(outputVideoFileBuffer, value.c_str(), sizeof(outputVideoFileBuffer) - 1);
+            outputVideoFileBuffer[sizeof(outputVideoFileBuffer) - 1] = '\0'; // Ensure null-termination
+        }
+
         // Restore variantColors
         else if (key == "variantColors") {
             variantColors.clear();
@@ -755,6 +891,51 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
             }
         }
     }
+}
+
+void TrackingWidget::SaveToVideo()
+{
+    if (!save_video_enabled)
+    {
+        if( save_video_enabled_old && video.isOpened()) 
+        {
+            // If we were previously saving, close the video file
+            video.release();
+        }
+
+        save_video_enabled_old = false;
+        return;
+    }
+
+
+    // Try avc1 firST
+    if (!video.isOpened())
+    {
+        int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+        video.open(outputVideoFile, fourcc, 60.0,cv::Size(_trackingMat.cols, _trackingMat.rows), true);
+    }
+
+    // Make sure we are initialized
+    if (!video.isOpened())
+    {
+        // Try XVID codec
+        int fourcc =  cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+        video.open(outputVideoFile, fourcc, 60.0,cv::Size(_trackingMat.cols, _trackingMat.rows), true);
+        if (!video.isOpened()) 
+        {
+            // Fallback to MJPG
+            fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+            video.open(outputVideoFile, fourcc, 60.0,cv::Size(_trackingMat.cols, _trackingMat.rows), true);
+            if (!video.isOpened()) 
+            {
+                save_video_enabled = false;
+                return;
+            }
+        }
+     }
+
+    save_video_enabled_old = true;
+    video.write(_trackingMat);
 }
 
 

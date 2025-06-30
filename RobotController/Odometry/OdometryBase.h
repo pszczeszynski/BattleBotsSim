@@ -81,7 +81,7 @@ public:
     virtual bool IsRunning(void); // Returns true if the algorithm is running
 
     virtual void SwitchRobots(void); // Switches who's who
-    virtual void SetPosition(cv::Point2f newPos, bool opponentRobot);  // Sets position: Adomotry will try to find the closest BBOX to meet this
+    virtual void SetPosition(cv::Point2f newPos, bool opponentRobot);  // Sets position: Odomotry will try to find the closest BBOX to meet this
     virtual void ForcePosition(cv::Point2f newPos, bool opponentRobot); // Forces position to be overriden regardless of state 
     virtual void SetVelocity(cv::Point2f newVel, bool opponentRobot);
     virtual void SetAngle(double newAngle, bool opponentRobot);

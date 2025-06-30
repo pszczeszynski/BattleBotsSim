@@ -52,8 +52,8 @@ if "!cleanBuild!"=="YES" (
 echo "cmakeParams: !cmakeParams!"
 
 REM Configure the cmake
-echo cmake -B ./build -S . !cmakeParams!
-cmake -B ./build -S . !cmakeParams!
+echo cmake -B ./build -S . -DCMAKE_BUILD_TYPE=Release !cmakeParams!
+cmake -B ./build -S . -DCMAKE_BUILD_TYPE=Release !cmakeParams!
 
 REM Run the CMake build command
 echo Building the project

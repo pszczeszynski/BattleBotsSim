@@ -23,6 +23,8 @@ ConfigWidget::ConfigWidget()
 
 void ConfigWidget::Draw()
 {
+    HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
+
     ImGui::Begin("Orbit Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     // button for LEAD_WITH_BAR
@@ -77,29 +79,7 @@ void ConfigWidget::Draw()
     ImGui::Begin("Heuristic Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG*2); 
 
-    // Background Management
-    HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
-
-    // Set leftstart and rightstart to middle of background starting boxes
-    leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
-    rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
-
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
-    if (ImGui::Button("Auto Lock Us Left", ImVec2(200, 50)))
-    {
-        heuristic.MatchStart(leftStart, rightStart);
-    }
-    ImGui::PopStyleColor();
-
-    ImGui::SameLine();
-    ImGui::Text("     ");
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-    if (ImGui::Button("Auto Lock Us Right", ImVec2(200, 50)))
-    {
-        heuristic.MatchStart(rightStart, leftStart);
-    }
-    ImGui::PopStyleColor();
+ 
 
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
@@ -188,6 +168,8 @@ void ConfigWidget::Draw()
     ImGui::PushItemWidth(100); ImGui::SliderInt("##FGThresholdInit", &HEU_FOREGROUND_THRESHOLD_INIT, 0, 40); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Checkbox(":Heal BG", &HEU_HEAL_BG_INIT);
+
+
 
 
     //ImGui::Text("  BBox Buffer:");
