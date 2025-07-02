@@ -94,46 +94,41 @@ void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset )
     ss << std::fixed << std::setprecision(1);
 
       // ID
-    ss << " ID: " << (id == 0 ? "Not initialized" : std::to_string(id));
+    ss << " ID: " << (id == 0 ? "Not set" : std::to_string(id));
     ss << "\n";
-    ss << " Frame ID: " << (frameID == -1 ? "Not initialized" : std::to_string(frameID)); 
+    ss << " Frame ID: " << (frameID == -1 ? "Not set" : std::to_string(frameID)); 
     ss << "\n";
-    ss << " Time: " << (time == 0 ? "Not initialized" : std::to_string(time) + " s");
+    ss << " Time: " << (time == 0 ? "Not set" : std::to_string(time) + " s");
     ss << "\n";
-    ss << " Time Angle: " << (time_angle == -1 ? "Not initialized" : std::to_string(time_angle) + " s");
-    ss << "\n";
-    ss << " Position: ";
-    if (robotPosValid) {
-        ss << "(" << robotPosition.x << ", " << robotPosition.y << ")";
-    } else {
-        ss << "Not valid";
-    }
+    ss << " Time Angle: " << (time_angle == -1 ? "Not set" : std::to_string(time_angle) + " s");
+    ss << "\n ";
+    if (!robotPosValid) { ss << "Invalid "; }
+    else { ss << "Valid "; }
+    ss << "Pos: ";
+    ss << "(" << robotPosition.x << ", " << robotPosition.y << ")";
     ss << "\n";
 
     // Velocity
-    if (robotPosValid) {
-        double magnitude = cv::norm(robotVelocity); // Euclidean norm
-        double angle = std::atan2(robotVelocity.y, robotVelocity.x) * 180.0 / CV_PI; // Convert to degrees
-        ss << " Velocity: " << magnitude << " px/s, " << angle << " deg";
-    } else {
-        ss << " Velocity: Not valid";
-    }
+    if (!robotPosValid) { ss << "Invalid "; }
+    else { ss << "Valid "; }
+
+    double magnitude = cv::norm(robotVelocity); // Euclidean norm
+    double angle = std::atan2(robotVelocity.y, robotVelocity.x) * 180.0 / CV_PI; // Convert to degrees
+    ss << " Vel: " << magnitude << " px/s, " << angle << " deg";
+
     ss << "\n";
 
     // Angle and Angle Velocity
+    if (!robotAngleValid) { ss << "Invalid "; }
+    else { ss << "Valid "; }
     ss << " Angle: ";
-    if (robotAngleValid) {
-        ss << robotAngle.degrees() << " deg";
-    } else {
-        ss << "Not valid";
-    }
+    ss << robotAngle.degrees() << " deg";
+    
     ss << "\n";
-    ss << " Angle Velocity: ";
-    if (robotAngleValid) {
-        ss << robotAngleVelocity << " deg/s";
-    } else {
-        ss << "Not valid";
-    }
+    if (!robotAngleValid) { ss << "Invalid "; }
+    else { ss << "Valid "; }
+    ss << " AVel: ";
+    ss << robotAngleVelocity << " deg/s";
 
     printText(ss.str(), target, offset.y,  offset.x);
 

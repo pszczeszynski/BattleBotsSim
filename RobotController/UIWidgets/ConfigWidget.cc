@@ -83,10 +83,10 @@ void ConfigWidget::Draw()
 
     ImGui::Text("BACKGROUND:  ");
     ImGui::SameLine();
-    if (ImGui::Button("Load Start Bg"))
-    {
-        heuristic.load_start_background = true;
-    }
+    //if (ImGui::Button("Load Start Bg"))
+    //{
+    //    heuristic.load_start_background = true;
+    //}
     ImGui::SameLine();
     if (ImGui::Button("Load Saved Bg"))
     {
@@ -99,7 +99,7 @@ void ConfigWidget::Draw()
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("ReBoot BG"))
+    if (ImGui::Button("Curr Frame To BG"))
     {
         heuristic.set_currFrame_to_bg = true;
     }
@@ -125,15 +125,19 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("FG Min Delta:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGThreshold", &HEU_FOREGROUND_THRESHOLD, 0, 30); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGThreshold", &HEU_FOREGROUND_THRESHOLD, 0, 90); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("FG Min Ratio:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGRatio", &HEU_FOREGROUND_RATIO, 0, 30); ImGui::PopItemWidth();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGRatio", &HEU_FOREGROUND_RATIO, 0, 50); ImGui::PopItemWidth();
     ImGui::SameLine();
     ImGui::Text("  FG Min Size:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##FGMinSize", &HEU_FOREGROUND_MINSIZE, 5, 70); ImGui::PopItemWidth();
+      ImGui::SameLine();
+    ImGui::Text("  FG Max Size:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##FGMaxSize", &HEU_FOREGROUND_MAXSIZE, 5, 500); ImGui::PopItemWidth();
     ImGui::Text("  FG Blur Size:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##FGBlur", &HEU_FOREGROUND_BLURSIZE, 1, 30); ImGui::PopItemWidth();
@@ -194,19 +198,21 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##RobProcessors", &HEU_ROBOT_PROCESSORS, 1, 32); ImGui::PopItemWidth();
 
-    ImGui::Checkbox(":Show BG Mat ", &heuristic.show_bg_mat);
+    ImGui::Checkbox(":BG Mat ", &heuristic.show_bg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show FG Mat  ", &heuristic.show_fg_mat);
+    ImGui::Checkbox(":FG Mat  ", &heuristic.show_fg_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show Tracking  ", &heuristic.show_track_mat);
+    ImGui::Checkbox(":Tracking  ", &heuristic.show_track_mat);
     ImGui::SameLine();
-    ImGui::Checkbox(":Show Stats ", &heuristic.show_stats);
+    ImGui::Checkbox(":Stats ", &heuristic.show_stats);
     ImGui::SameLine();
     ImGui::Checkbox(":Save Video Debug", &heuristic.save_to_video_match_debug);
     ImGui::SameLine();
     ImGui::Checkbox(":Save Video Track", &heuristic.save_to_video_output);
     ImGui::SameLine();
-    ImGui::Checkbox(":Log Odometry Data", &LOG_ODOMETRY_DATA);
+    ImGui::Checkbox(":Log Odometry", &LOG_ODOMETRY_DATA);
+    ImGui::SameLine();
+    ImGui::Checkbox(":Extract Tuning", &heuristic.show_tuning);
     ImGui::End();
 
 

@@ -93,6 +93,7 @@ float FindClosestBBox(const std::vector<myRect> &allBBoxes, const cv::Point2f &p
     return closest;
 }
 
+
 // Generic function to print text on the image for debugging
 void printText(std::string text, cv::Mat& image, int yoffset, int xoffset) 
 {
@@ -290,6 +291,12 @@ cv::Rect CalculateMaskBBox(const cv::Mat &mask)
 
     return boundingBox;
 }
+
+bool DoRectOverlap(const cv::Rect& rect1, const cv::Rect& rect2)
+{
+    return (rect1 & rect2).area() > 0;
+}
+
 
 // ****************************************
 // Vector2

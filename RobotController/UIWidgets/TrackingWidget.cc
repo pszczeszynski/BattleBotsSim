@@ -687,8 +687,15 @@ void TrackingWidget::DrawGUI() {
     
     // ADD Heuristic status line
     ImGui::SetWindowFontScale(1.5f);
+
+    // Create a child window with fixed height for the text
+    ImGui::BeginChild("HeuristicStatus", ImVec2(0, 60.0f), false); // 60 pixels height, adjust as needed
     ImGui::TextWrapped("Heuristic Status: %s", HeuristicOdometry::statusstring.c_str());
+    ImGui::EndChild();
+
     ImGui::SetWindowFontScale(1.0f);
+
+    // Remove ImGui::Dummy, as the child window handles spacing
     ImGui::Dummy(ImVec2(0.0f, 30.0f));
  
     
@@ -721,26 +728,18 @@ void TrackingWidget::DrawGUI() {
 
     ImGui::Dummy(ImVec2(0.0f, 20.0f));
 
+    ImGui::Text("   ");
+    ImGui::SameLine();
+
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
-    if (ImGui::Button("Recover Left", ImVec2(150, 40)))
+    if (ImGui::Button("Auto Recover", ImVec2(150, 40)))
     {
         heuristic.RecoverDetection(true);
-        heuristic.SetPosition(leftStart, false); // Set the position to the left start
-        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+
     }
     ImGui::PopStyleColor();
 
-    ImGui::SameLine();
-    ImGui::Text("        ");
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-    if (ImGui::Button("Recover Right", ImVec2(150, 40)))
-    {
-        heuristic.RecoverDetection(false);
-        heuristic.SetPosition(leftStart, true); // Set the position to the left start
-        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
-    }
-    ImGui::PopStyleColor();
+    
 
 
 

@@ -42,6 +42,7 @@ cv::Size RotateSize(cv::Size startSize, float degrees);
 cv::Rect MoveRectToBeInside(cv::Rect recttofix, cv::Mat &mat_to_fit);
 cv::Rect CalculateMaskBBox(const cv::Mat &mask);
 cv::Rect CropRect(cv::Rect ref_rect, cv::Rect croping);
+bool DoRectOverlap(const cv::Rect& rect1, const cv::Rect& rect2);
 
 // Debugging variables
 extern Clock timing_clock;
@@ -115,6 +116,19 @@ public:
         : cv::Rect(refrect)
     {
         numOfOwners = 0;
+    }
+
+    cv::Point2f Center()
+    {
+        return cv::Point2f( x+width/2.0f, y+height/2.0f );
+    }
+
+    // Overload multiplication operator for intersection of two myRect objects
+    myRect operator*(const myRect& other) const
+    {
+        myRect result = *this & other; // Use cv::Rect's intersection operator
+        result.numOfOwners = 0; // Reset owners
+        return result;
     }
 };
 

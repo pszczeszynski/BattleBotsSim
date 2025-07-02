@@ -8,6 +8,28 @@
 #include <unordered_set>
 #include "imgui.h"
 
+// TrackedBBox
+// Unlike robot tracker which trackes foreground movement, this track boxes of interest 
+// by simply comparing overlap regions. Its faster and good enough for initial filtering
+
+struct TrackedBBox 
+{
+    myRect bbox;               // Current bounding box
+    myRect startBBox;          // Starting bbox
+    int frame_count;           // Number of frames the box has existed
+    cv::Point2f velocity;      // Velocity in pixels per frame (x, y)
+    cv::Point2f last_center;   // Center of the box in the previous frame
+    bool is_active;            // Whether the box is still being tracked
+    bool is_clear;              // True when the box has in the past moved completly out of its startBBox
+
+    TrackedBBox(myRect _bbox) : bbox(_bbox), startBBox(_bbox), frame_count(1), 
+        velocity(0, 0), last_center(_bbox.x + _bbox.width / 2.0f, _bbox.y + _bbox.height / 2.0f), 
+        is_active(true), is_clear(false) {}
+
+    TrackedBBox(RobotTracker* tracker);
+};
+
+
 // ***********************
 // Camera Decoder Class
 extern std::mutex debugROStringForVideo_mutex;
@@ -51,6 +73,7 @@ public:
     bool reinit_bg = false;                // Re-initializes curr background from previous loaded one
     bool set_currFrame_to_bg = false;        // Makes curr frame into background
     bool match_start_bg_init = false;       // Initialize the background using current frame with defined boxes from saved background
+    bool show_tuning = false;           // Show foreground extraction stuff
     std::string dumpBackgroundsPath = "backgrounds/dump";
     std::string loadBackgroundsPath = "backgrounds"; // Please to look for preloaded backgrounds
     std::string outputVideoFile = "Recordings/Heuristic_dataDump.mp4";
@@ -109,8 +132,11 @@ private:
     // Foreground threshold
     cv::Mat foreground; // The masked out foreground image
     cv::Mat fg_mask;    // The mask that defines the foreground
-    std::mutex _mutexAllBBoxes;
+    
+    std::mutex _mutexAllBBoxes; // Mutex to control access to all_bboxes, tracked_bboxes
     std::vector<myRect> all_bboxes; // All the bounding boxes around foreground objects
+    std::vector<TrackedBBox> tracked_bboxes; // Persistent list of tracked boxes
+
 
     int fg_threshold = 20;            // Minimum intensity difference between background and fg
     double fg_threshold_ratio = 0.1f; // Minimum ratio difference of pixels
@@ -122,7 +148,7 @@ private:
     int fg_post_blur_threshold = 90;
     int fg_contour_downsize = 2;     // Reduction of resolution when looking at contours
     int fg_contour_bbox_growth = 5;  // Number of pixels on each side to grow bbox to allow them to easily be combined
-    int fg_max_bbox_dimension = 300; // Maximum dimension of a bbox before we reject it
+    int fg_bbox_maxsize = 300; // Maximum dimension of a bbox before we reject it
 
     // Robot Tracking
     std::vector<RobotTracker *> _allRobotTrackers;
@@ -134,7 +160,7 @@ private:
 
     // State Machine Variables
     bool is_our_robot_left = true; // True if our robot is on the left side of the field
-    float start_brightness_ok_threshold = 0.8f; // The threshold for brightness to be considered ok at the start of the match
+    float start_brightness_ok_threshold = 0.7f; // The threshold for brightness to be considered ok at the start of the match
     float brightness_stable_start_time = 0.0; // The time when we started to see stable brightness
     float start_brightness_soak_period = 1.5f; // The time in seconds to wait before we start considering foreground
     bool tracking_started = false; // True if we have started tracking robots
@@ -151,24 +177,29 @@ private:
     bool SaveBackground(void); // Saves the current background to the default file
     bool IsClearOfArea(RobotTracker* tracker, const cv::Rect& area);
     void ResetBrightnessCorrection();
-    
+
     cv::Mat regularBackground; // Recalled 8-bit grayscale background from file
     void LoadBackground(cv::Mat &currFrame, std::string image_name = "");
     bool DumpBackground(std::string name, std::string path); // Will continueously dump background to files evey 1s
     void ExtractForeground(cv::Mat &croppedFrame);
     RobotTracker *AddTrackedItem(cv::Rect bbox);
+    RobotTracker *AddTrackedItem(TrackedBBox tracked);
     void _allRobotTrackersClear(); // clears and deletes all robot trackers
     void DrawAllBBoxes(cv::Mat &mat, int thickness = 1, cv::Scalar scaler = cv::Scalar(255, 0, 0));
     void MatchStartBackgroundInit(cv::Mat &currFrame); // Initializes the match background using the current frame and the defined boxes from the saved background
     float GetForegroundSize(cv::Mat& inBackground, cv::Mat& inForeground); // Returns the average value of the fg mask
     float FindOptimalBrightness(cv::Rect& myRect, cv::Mat& currFrame);
 
-    std::mutex _mutexTrackData;
-    std::condition_variable_any conditionVarTrackRobots;
+    float CalculateIoU(const myRect& box1, const myRect& box2); // Returns the bbox union area as a fraction of total combined area.
+    bool IsSimilarSize(const myRect& box1, const myRect& box2, float max_size_error = 0.3f); // Returns true if boxes are similar in size
+
+
+    std::mutex _mutexTrackData; // Used for parallel processes to report back they are done with the conditional variable below
+    std::condition_variable_any conditionVarTrackRobots; 
     
 
     void TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDisplay);
-    bool LocateRobots(cv::Point2f newPos, bool opponentRobot);
+    bool LocateRobots(cv::Point2f newPos, bool opponentRobot, bool skipMutexLock = false);
     void _deleteTracker(RobotTracker *staleTracker);
 
     // Video Saving for debugging
