@@ -86,30 +86,6 @@ void VisionPreprocessor::Preprocess(cv::Mat &frame, cv::Mat &dst)
     cv::Mat map1, map2;
     cv::Mat outputImage;
 
-/*  // Old fisheye code that is too slow
-    if( false &&  FISHEYE_ENABLE)
-    {
-        _generateCameraParameters(FISHEYE_FL, FISHEYE_SCALE, FISHEYE_Y, frame.size(), K, D);
-
-        // Compute the undistortion and rectification transformation map
-        cv::Size newsize = frame.size();
-        newsize.width = newsize.width * 1.25; // Correct the width for the expansion required
-        cv::fisheye::initUndistortRectifyMap(K, D, cv::Matx33d::eye(), K, newsize, CV_16SC2, map1, map2);
-
-        // Apply the undistortion and rectification transformation to the image
-        cv::remap(frame, outputImage, map1, map2, cv::INTER_LINEAR);
-
-        if( CameraWidget::ShowFisheyeImg)
-        {
-            cv::imshow("Fisheye Post", outputImage);
-            cv::pollKey();
-        }
-    }
-    else 
-    {
-        outputImage = frame;
-    }
-*/
     outputImage = frame;
 
 #ifdef STABALIZE

@@ -65,7 +65,7 @@ bool RobotControllerGUI::Update()
     _robotTelemetryWidget.Draw();
     _variantsWidget.Draw();
     _odoData.Draw();
-
+    _cameraWidget.Draw();
     TrackingWidget::GetInstance()->DrawGUI();    
 
 
