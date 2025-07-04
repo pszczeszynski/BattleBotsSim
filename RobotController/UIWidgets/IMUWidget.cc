@@ -114,11 +114,11 @@ void IMUWidget::Draw()
     }
     else if (pcvRotation != nullptr)
     {
-        std::cout << "CV Rotation not running" << std::endl;
+        // std::cout << "CV Rotation not running" << std::endl;
     }
     else
     {
-        std::cout << "CV Rotation is null" << std::endl;
+        // std::cout << "CV Rotation is null" << std::endl;
     }
 
     // draw the widget
