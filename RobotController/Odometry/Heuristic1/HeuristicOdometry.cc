@@ -88,6 +88,7 @@ enum CAMDECODER_SM
     CMSM_START_WAIT_ROBOT_CLEAR,      // Wait for robots to clear starting areas
     CMSM_RECOVER_DETECTION,     // Set current image to background and wait for robots to be detected
     CMSM_DETECT_MOVING_TRACKERS, // Wait for detecting trackers that may be moving
+    CMSM_STARTNOW,              // User indicating foreground is ready
     CMSM_TRACKINGOK             // Normal tracking mode
 };
 
@@ -119,6 +120,35 @@ void HeuristicOdometry::UpdateSettings()
     RobotTracker::numberOfThreads = max(1, HEU_ROBOT_PROCESSORS);
 }
 
+void HeuristicOdometry::AutoMatchStart(bool isOurRobotLeft)
+{
+    // check if running, start us if not
+    if (!IsRunning())
+    {
+        RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
+    }
+
+    
+    cv::Point2f leftStart((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2.0f, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2.0f );
+    cv::Point2f rightStart((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2.0f, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2.0f );
+
+    if( isOurRobotLeft)
+    {
+        ForcePosition( leftStart, false);
+        ForcePosition( rightStart, true);
+    }
+    else
+    {
+        ForcePosition( leftStart, true);
+        ForcePosition( rightStart, false);
+    }
+
+    // Set state machine to matchstart state
+
+    heuStateMachine = CMSM_LOADBACK; 
+
+}
+
 void HeuristicOdometry::MatchStart(bool isOurRobotLeft)
 {
     // check if running, start us if not
@@ -127,13 +157,27 @@ void HeuristicOdometry::MatchStart(bool isOurRobotLeft)
         RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
     }
 
+    cv::Point2f leftStart((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2.0f, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2.0f );
+    cv::Point2f rightStart((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2.0f, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2.0f );
+
+    if( isOurRobotLeft)
+    {
+        ForcePosition( leftStart, false);
+        ForcePosition( rightStart, true);
+    }
+    else
+    {
+        ForcePosition( leftStart, true);
+        ForcePosition( rightStart, false);
+    }
+   
+
     // Set state machine to matchstart state
-    is_our_robot_left = isOurRobotLeft;
-    heuStateMachine = CMSM_LOADBACK; 
+    heuStateMachine = CMSM_STARTNOW; 
 
 }
 
-void HeuristicOdometry::RecoverDetection(bool isOurRobotLeft)
+void HeuristicOdometry::RecoverDetection()
 {
     // check if running, start us if not
     if (!IsRunning())
@@ -142,7 +186,6 @@ void HeuristicOdometry::RecoverDetection(bool isOurRobotLeft)
     }
 
     // Set state machine to matchstart state
-    is_our_robot_left = isOurRobotLeft;
     heuStateMachine = CMSM_RECOVER_DETECTION; 
 
 }
@@ -393,6 +436,17 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         // Merging all other trackers will happen at the end if this function
         break;
 
+    case CMSM_STARTNOW:
+        // Save current frame as background and refBackground
+        correctedFrame.copyTo(currBackground);
+        currBackground.convertTo(currBackground_16bit, CV_16U, 256);
+        refBackground = currBackground.clone();            
+        ResetBrightnessCorrection();
+
+        heuStateMachine = CMSM_START_WAIT_ROBOT_CLEAR;
+
+        // Continue exectution to find trackers
+        break;
 
     case CMSM_TRACKINGOK:
         statusstring = "Tracking robots...";

@@ -67,6 +67,7 @@ bool RobotControllerGUI::Update()
     _odoData.Draw();
     _cameraWidget.Draw();
     TrackingWidget::GetInstance()->DrawGUI();    
+    _cameraWidget.Draw();
 
 
 #ifdef VIDEO_FILES

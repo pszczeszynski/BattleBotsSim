@@ -295,6 +295,12 @@ void TrackingWidget::_DrawAlgorithmData()
         opencvColor = cv::Scalar(variantColors["Opencv"].z * 255, variantColors["Opencv"].y * 255, variantColors["Opencv"].x * 255);
     }
 
+    // Fusion color
+    cv::Scalar fusionColor = cv::Scalar(255, 255, 255);
+    if( variantColors.find("Fusion") != variantColors.end() )
+    {
+        fusionColor = cv::Scalar(variantColors["Fusion"].z * 255, variantColors["Fusion"].y * 255, variantColors["Fusion"].x * 255);
+    }
     RobotOdometry &odometry = RobotController::GetInstance().odometry;
     BlobDetection &_odometry_Blob = odometry.GetBlobOdometry();
     HeuristicOdometry &_odometry_Heuristic = odometry.GetHeuristicOdometry();
@@ -303,66 +309,27 @@ void TrackingWidget::_DrawAlgorithmData()
 
 
     // go through every odometry algorithm and draw the tracking results
-    if (_odometry_opencv.IsRunning())
-    {
-        OdometryData robot = _odometry_opencv.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-        DrawX(_trackingMat, robot.robotPosition, opencvColor, 20);
-
-        OdometryData opponent = _odometry_opencv.GetData(true);
-        opponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        safe_circle(_trackingMat, opponent.robotPosition, 20, opencvColor, 2);
+    if (_odometry_opencv.IsRunning() && showOpencv )
+    {    
+        _DrawPositions(_odometry_opencv.GetData(false) , _odometry_opencv.GetData(true), _trackingMat, opencvColor);  
+        _DrawAngles(_odometry_opencv.GetData(false), _odometry_opencv.GetData(true), _trackingMat, opencvColor);
     }
 
-    if (_odometry_Blob.IsRunning())
+    if (_odometry_Blob.IsRunning() && showBlob)
     {
-        OdometryData robot = _odometry_Blob.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-        DrawX(_trackingMat, robot.robotPosition, blobColor, (robot.robotPosValid) ? 20 : 5);
-
-        OdometryData opponent = _odometry_Blob.GetData(true);
-        opponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        safe_circle(_trackingMat, opponent.robotPosition, (opponent.robotPosValid) ? 20 : 5, blobColor, 2);
+        _DrawPositions(_odometry_Blob.GetData(false) , _odometry_Blob.GetData(true), _trackingMat, blobColor);  
+        _DrawAngles(_odometry_Blob.GetData(false), _odometry_Blob.GetData(true), _trackingMat, blobColor);
     }
 
-    if (_odometry_Heuristic.IsRunning())
+    if (_odometry_Heuristic.IsRunning() && showHeuristic)
     {
-        OdometryData robot = _odometry_Heuristic.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-
-        if (robot.robotPosValid)
-        {
-            DrawX(_trackingMat, robot.robotPosition, heuristicColor, (robot.robotPosValid) ? 20 : 5);
-        }
-
-
-        OdometryData opponent = _odometry_Heuristic.GetData(true);
-        opponent.Extrapolate(Clock::programClock.getElapsedTime());
-
-        if (opponent.robotAngleValid)
-        {
-            cv::Point2f arrowEnd = opponent.robotPosition + cv::Point2f(50 * cos(opponent.robotAngle), 50 * sin(opponent.robotAngle));
-            safe_arrow(_trackingMat, opponent.robotPosition, arrowEnd, heuristicColor, 2);
-        }
-
-        if (opponent.robotPosValid)
-        {
-            safe_circle(_trackingMat, opponent.robotPosition, (opponent.robotPosValid) ? 20 : 5, heuristicColor, 2);
-        }
+        _DrawPositions(_odometry_Heuristic.GetData(false) , _odometry_Heuristic.GetData(true), _trackingMat, heuristicColor);  
+        _DrawAngles(_odometry_Heuristic.GetData(false), _odometry_Heuristic.GetData(true), _trackingMat, heuristicColor); 
     }
 
-    if (_odometry_Neural.IsRunning())
+    if (_odometry_Neural.IsRunning() && showNeural)
     {
-        OdometryData robot = _odometry_Neural.GetData(false);
-        robot.Extrapolate(Clock::programClock.getElapsedTime());
-
-        if( robot.robotPosValid && (robot.GetAge() < 0.3) )
-        {
-            DrawX(_trackingMat, robot.robotPosition, neuralColor, 30);
-        }
-       
+        _DrawPositions(_odometry_Neural.GetData(false) , _odometry_Neural.GetData(true), _trackingMat, neuralColor);  
     }
 
 
@@ -450,18 +417,64 @@ void TrackingWidget::_DrawAlgorithmData()
     }
 
 
+    if( showFusion)
+    {
+        _DrawPositions(odometry.Robot() , odometry.Opponent(), _trackingMat, fusionColor);  
+        _DrawAngles(odometry.Robot(), odometry.Opponent(), _trackingMat, fusionColor);
+    }
+}
+
+void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent, cv::Mat& currMatt, cv::Scalar& arrowColor, bool forceShow)
+{
+    int linethickness = 1;
+
+    if( robot.robotAngleValid || forceShow)
+    {
+        linethickness = 3;
+    }
+
     // draw robot angle with arrow
-    cv::Point2f robotPos = odometry.Robot().robotPosition;
-    double robotAngle = odometry.Robot().robotAngle;
+    cv::Point2f robotPos = robot.robotPosition;
+    double robotAngle = robot.robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
-    safe_arrow(_trackingMat, robotPos, arrowEnd, cv::Scalar(255, 150, 150), 2);
+    safe_arrow(currMatt, robotPos, arrowEnd, arrowColor, linethickness);
+
+    linethickness = 1;
+    if( opponent.robotAngleValid || forceShow)
+    {
+        linethickness = 3;
+    }
 
     // draw opponent angle with arrow
-    cv::Point2f opponentPos = odometry.Opponent().robotPosition;
-    double opponentAngle = odometry.Opponent().robotAngle;
+    cv::Point2f opponentPos = opponent.robotPosition;
+    double opponentAngle = opponent.robotAngle;
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
-    safe_arrow(_trackingMat, opponentPos, arrowEnd, cv::Scalar(150, 150, 255), 2);
+    safe_arrow(currMatt, opponentPos, arrowEnd, arrowColor, linethickness);
+    
+
 }
+
+void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent, cv::Mat& currMatt, cv::Scalar& arrowColor, bool forceShow)
+{
+    int size = 5;
+    if (robot.robotPosValid || forceShow)
+    {
+        size = 20;
+    }
+
+    robot.Extrapolate(Clock::programClock.getElapsedTime());
+    DrawX(currMatt, robot.robotPosition, arrowColor, size);
+    
+    size = 5;
+    if( opponent.robotPosValid || forceShow)
+    {
+        size = 20;
+    }
+
+    opponent.Extrapolate(Clock::programClock.getElapsedTime());
+    safe_circle(currMatt, opponent.robotPosition, size, arrowColor, 2);
+}
+
 
 cv::Mat& TrackingWidget::GetTrackingMat()
 {
@@ -664,6 +677,7 @@ void TrackingWidget::_RenderFrames()
                 }
             }
         }
+
     }
 }
 
@@ -706,6 +720,27 @@ void TrackingWidget::DrawGUI() {
     cv::Point2f rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    if (ImGui::Button("Auto Start Left", ImVec2(150, 40)))
+    {
+        heuristic.AutoMatchStart(true);
+        heuristic.SetPosition(leftStart, false); // Set the position to the left start
+        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    ImGui::Text("        ");
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    if (ImGui::Button("Auto Start Right", ImVec2(150, 40)))
+    {
+        heuristic.AutoMatchStart(false);
+        heuristic.SetPosition(leftStart, true); // Set the position to the left start
+        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
+    }
+    ImGui::PopStyleColor();
+
+ ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
     if (ImGui::Button("Start Left", ImVec2(150, 40)))
     {
         heuristic.MatchStart(true);
@@ -726,6 +761,7 @@ void TrackingWidget::DrawGUI() {
     }
     ImGui::PopStyleColor();
 
+
     ImGui::Dummy(ImVec2(0.0f, 20.0f));
 
     ImGui::Text("   ");
@@ -734,7 +770,7 @@ void TrackingWidget::DrawGUI() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
     if (ImGui::Button("Auto Recover", ImVec2(150, 40)))
     {
-        heuristic.RecoverDetection(true);
+        heuristic.RecoverDetection();
 
     }
     ImGui::PopStyleColor();

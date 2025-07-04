@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "ImageWidget.h"
 #include "../Globals.h"
+#include "../RobotOdometry.h"
 
 
 /**
@@ -41,6 +42,8 @@ private:
     void _MaskOutRegions();
     void _RenderFrames();
 
+
+
     static TrackingWidget* _instance;
 
     cv::Mat _fieldMask;
@@ -65,6 +68,9 @@ private:
 
 
     void _DrawShowButton(const char* label, bool& enabledFlag);
+    void _DrawAngles(OdometryData& robot, OdometryData& opponent, cv::Mat& currMatt, cv::Scalar& arrowColor, bool forceShow = false);
+    void _DrawPositions(OdometryData& robot, OdometryData& opponent, cv::Mat& currMatt, cv::Scalar& arrowColor, bool forceShow = false);
+
 
     // Dump to video functions
     char outputVideoFileBuffer[256] = ""; // Buffer for ImGui text input

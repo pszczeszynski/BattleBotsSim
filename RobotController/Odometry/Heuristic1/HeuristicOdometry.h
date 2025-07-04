@@ -50,8 +50,10 @@ public:
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 
-    void MatchStart(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
-    void RecoverDetection(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
+    void AutoMatchStart(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
+    void MatchStart(bool isOurRobotLeft);     // We're ready, just start
+
+    void RecoverDetection();                // Reload background and relocks us 
     cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
 
     bool enable_camera_antishake = false;  // Turn off/on anti shake
@@ -132,7 +134,7 @@ private:
     // Foreground threshold
     cv::Mat foreground; // The masked out foreground image
     cv::Mat fg_mask;    // The mask that defines the foreground
-    
+
     std::mutex _mutexAllBBoxes; // Mutex to control access to all_bboxes, tracked_bboxes
     std::vector<myRect> all_bboxes; // All the bounding boxes around foreground objects
     std::vector<TrackedBBox> tracked_bboxes; // Persistent list of tracked boxes
@@ -159,7 +161,6 @@ private:
     int deleteForNoTrackingCount = 150;    // Number of frames to delete a tracked object that hasn't locked on
 
     // State Machine Variables
-    bool is_our_robot_left = true; // True if our robot is on the left side of the field
     float start_brightness_ok_threshold = 0.7f; // The threshold for brightness to be considered ok at the start of the match
     float brightness_stable_start_time = 0.0; // The time when we started to see stable brightness
     float start_brightness_soak_period = 1.5f; // The time in seconds to wait before we start considering foreground
