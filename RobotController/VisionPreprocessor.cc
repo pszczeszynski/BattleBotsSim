@@ -53,9 +53,17 @@ cv::Point2f VisionPreprocessor::TransformPoint(const cv::Point2f &pt)
     // Apply transformation matrix
     cv::Mat dstMat = _transformationMatrix * srcMat;
 
+    double divide = dstMat.at<double>(2, 0);
+
+    // If the divide is 0, return 0,0
+    if (divide == 0)
+    {
+        return cv::Point2f(0, 0);
+    }
+
     // Convert back to inhomogeneous coordinates
-    float x = dstMat.at<double>(0, 0) / dstMat.at<double>(2, 0);
-    float y = dstMat.at<double>(1, 0) / dstMat.at<double>(2, 0);
+    float x = dstMat.at<double>(0, 0) / divide;
+    float y = dstMat.at<double>(1, 0) / divide;
 
     return cv::Point2f(x, y);
 }
