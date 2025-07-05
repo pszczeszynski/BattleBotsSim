@@ -7,15 +7,11 @@
 #include "../../Common/Communication.h"
 #include "FieldWidget.h"
 
-// Define my statics
-cv::Point2f ConfigWidget::leftStart = cv::Point2f(0, 0);
-cv::Point2f ConfigWidget::rightStart = cv::Point2f(0, 0);
+
 
 ConfigWidget::ConfigWidget()
 {
-    // Initialize is here in case the globals have changed
-    //leftStart = cv::Point2f(HEU_LEFTSTART_X, HEU_LEFTSTART_Y);
-    //rightStart = cv::Point2f(HEU_RIGHTSTART_X, HEU_RIGHTSTART_Y);
+
 }
 
 
@@ -190,7 +186,15 @@ void ConfigWidget::Draw()
     ImGui::Text("Vel Averaging:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelAvg", &HEU_VELOCITY_AVERAGING, 1, 100); ImGui::PopItemWidth();
-        
+    ImGui::SameLine();
+    ImGui::Text("Vel to Angle Min Speed:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelMinSpeed", &HEU_VEL_TO_ANGLE_MIN, 1, 100); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Text("Vel To Angle Factor:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelAvgFactor", &HEU_VEL_TO_ANGLE_K, 1, 100); ImGui::PopItemWidth();
+
     // Tracked Robot Management
     ImGui::Text("INTERNALS:  ");
     ImGui::SameLine();

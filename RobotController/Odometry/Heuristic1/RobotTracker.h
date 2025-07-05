@@ -20,6 +20,10 @@
 #define angleWrap(degree) ((degree < -180.0) ? fmod(degree + 180.0, 360.0) + 180.0 : fmod(degree + 180.0, 360.0) - 180.0)
 #endif
 
+#ifndef angleWrap90
+#define angleWrap90(degree) ((degree < -90.0) ? fmod(degree + 90.0, 180.0) + 90.0 : fmod(degree + 90.0, 180.0) - 90.0)
+#endif
+
 #ifndef angleWrapRad
 #define angleWrapRad(rad) ((rad < -M_PI) ? fmod(rad + M_PI, 2*M_PI) + M_PI : fmod(rad + M_PI, 2*M_PI) - M_PI)
 #endif
@@ -145,9 +149,6 @@ public:
     static float detectionVelocitySmoothing;      // (s) smoothing of the background detection
     static float minVelocity;                     // Min number of pixels/s movement required
     static float moveTowardsCenter;               // Amount of pixels per second to move towards center (?20?)
-    static float rotateTowardsMovement;           // Amount of radians per second to move towards velocity dir (?2?)
-    static float rotateTowardsWeight;             // Scaling factor to increase weight vs speed
-    static float minSpeedForRotationCorrection;   // Minimum speed in pixels/s before we add in movement
     static float bboxFoundIsMuchSmallerThreshold; // The area reduction in bounding box that will trigger regeneration of Foreground
     static int combinedBBoxScanBuffer;            // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
     static bool matchingAreaAddOurBBoxes;         // increase matching area to always include our bbox and predicted bbox

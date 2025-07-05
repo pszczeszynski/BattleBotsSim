@@ -95,28 +95,6 @@ CANData RobotController::GetCANData()
     return ret;
 }
 
-void ClickOnHeuristic()
-{
-    TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
-    if (trackingWidget == nullptr)
-    {
-        return;
-    }
-
-    if (InputState::GetInstance().IsMouseDown(0) && trackingWidget->IsMouseOver())
-    {
-        TrackingWidget::robotMouseClickPoint = trackingWidget->GetMousePos();
-        HEU_LEFTSTART_X = TrackingWidget::robotMouseClickPoint.x;
-        HEU_LEFTSTART_Y = TrackingWidget::robotMouseClickPoint.y;
-    }
-
-    if (InputState::GetInstance().IsMouseDown(1) && trackingWidget->IsMouseOver())
-    {
-        TrackingWidget::opponentMouseClickPoint = trackingWidget->GetMousePos();
-        HEU_RIGHTSTART_X = TrackingWidget::opponentMouseClickPoint.x;
-        HEU_RIGHTSTART_Y = TrackingWidget::opponentMouseClickPoint.y;
-    }
-}
 
 long loopCount = 0;
 
@@ -234,7 +212,7 @@ void RobotController::Run()
 
         DrawStatusIndicators();
 
-        ClickOnHeuristic();
+        // ClickOnHeuristic();
 
         _trackingWidget.Update();
 

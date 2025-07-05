@@ -109,6 +109,10 @@ void RobotOdometry::MatchStart(bool partOfAuto )
     _dataOpponent.robotVelocity = cv::Point2f(0,0);
     _dataRobot.time =  Clock::programClock.getElapsedTime();
     _dataRobot.time_angle = _dataRobot.time;
+    _dataRobot.robotPosValid = true;
+    _dataRobot.robotAngleValid = true;
+    _dataOpponent.robotPosValid = true;
+    _dataOpponent.robotAngleValid = true;
 
 
     _odometry_Heuristic.ForcePosition( _dataRobot.robotPosition, false);

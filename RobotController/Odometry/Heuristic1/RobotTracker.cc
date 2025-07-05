@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <functional>
 #include "../../MathUtils.h"
+#include "../../RobotConfig.h"
 
 // Initialize static variables
 bool RobotTracker::useMultithreading = true;
@@ -22,9 +23,6 @@ float RobotTracker::robotVelocitySmoothing = 0.2;           // (s) smoothing of 
 float RobotTracker::detectionVelocitySmoothing = 1.0;       // (s) smoothing of the background detection
 float RobotTracker::minVelocity = 7.0;                      // Min number of pixels/s movement required
 float RobotTracker::moveTowardsCenter = 40.0;               // Amount of pixels per second to move towards center (?20?)
-float RobotTracker::rotateTowardsMovement = 0;              // Amount of radians per second to move towards velocity dir (?2?)
-float RobotTracker::rotateTowardsWeight = 1.0 / 50.0;       // Scaling factor to increase weight vs speed
-float RobotTracker::minSpeedForRotationCorrection = 30.0;   // Minimum speed in pixels/s before we add in movement
 float RobotTracker::bboxFoundIsMuchSmallerThreshold = 0.75; // The area reduction in bounding box that will trigger regeneration of Foreground
 int RobotTracker::combinedBBoxScanBuffer = 15;              // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
 bool RobotTracker::matchingAreaAddOurBBoxes = true;         // increase matching area to always include our bbox and predicted bbox
@@ -676,18 +674,41 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     rotation = newRotation;
 
     // Move rotation towards velocity
-    if (newVelocity.mag() > minSpeedForRotationCorrection)
+    if (newVelocity.mag() > (float) HEU_VEL_TO_ANGLE_MIN)
     {
         // Get the angle difference between velocity and rotation
         float velAngle = atan2(newVelocity.y, newVelocity.x);
         float rotAngle = atan2(rotation.y, rotation.x);
 
-        float deltaAngle = angleWrap(velAngle - rotAngle);
+        float forwardX = cos(rotAngle);
+        float forwardY = sin(rotAngle);
+        float dotProduct = newVelocity.x * forwardX + newVelocity.y * forwardY;
+
+        // If dotProduct is negative, the robot is moving backward
+        if (dotProduct < 0) {
+            // Add 180 degrees (π radians) to velAngle to point in the forward direction
+            velAngle = angleWrapRad(velAngle + M_PI);
+        }
+
+        // Calculate the delta angle
+        float deltaAngle = angleWrapRad(velAngle - rotAngle);
+
 
         // Add a scaled version of the error
-        float scalingfactor = deltaTime * rotateTowardsMovement * rotateTowardsWeight * newVelocity.mag();
+        float scalingfactor = deltaTime * (newVelocity.mag() - (float) HEU_VEL_TO_ANGLE_MIN) *((float) HEU_VEL_TO_ANGLE_K) /200.0f ;
 
-        rotAngle += scalingfactor * ((deltaAngle > 0) ? 1.0 : -1.0);
+        if( scalingfactor > 1.0f)
+        {
+            scalingfactor=1.0f;
+        }
+        if( scalingfactor > 0.001f)
+        {
+            // Interpolate angles correctly by using the shortest path
+            rotAngle = rotAngle + scalingfactor * deltaAngle;
+            rotAngle = angleWrap(rotAngle); // Ensure the result is wrapped
+        }
+
+        //rotAngle += scalingfactor * ((deltaAngle > 0) ? 1.0 : -1.0);
 
         rotation.x = cos(rotAngle);
         rotation.y = sin(rotAngle);

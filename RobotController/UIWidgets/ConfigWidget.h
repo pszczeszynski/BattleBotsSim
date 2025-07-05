@@ -9,6 +9,4 @@ class ConfigWidget
 public:
     ConfigWidget();
     void Draw();
-    static cv::Point2f leftStart;
-    static cv::Point2f rightStart;
 };
