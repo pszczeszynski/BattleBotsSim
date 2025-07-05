@@ -8,7 +8,6 @@
 #include "Input/Gamepad.h"
 #include "../Common/Communication.h"
 #include "Extrapolator.h"
-#include "MatQueue.h"
 #include "SelfRighter.h"
 #include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
