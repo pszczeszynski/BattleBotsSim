@@ -95,12 +95,14 @@ void ICameraReceiver::_StartCaptureThread()
 /**
  * Attempts to get a frame from the camera
  * @param output the output frame
- * @param old_id the previous id of the frame. If a new frame is not ready it will block
- * If old_id is 0, it will return the latest frame
- * @param frameTime (Optional) pointer to a double that will store the frame elapsed time when it was acquired
+ * @param old_id the previous id of the frame. If a new frame is not ready it
+ * will block If old_id is 0, it will return the latest frame
+ * @param frameTime (Optional) pointer to a double that will store the frame
+ * elapsed time when it was acquired
  * @return the id of the new frame
  */
-long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime, bool blockUntilReady)
+long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double *frameTime,
+                               bool blockUntilReady)
 {
     // Using scoped mutex locker because conditional variable integrates with it
     // This creates and locks the mutex
@@ -108,15 +110,20 @@ long ICameraReceiver::GetFrame(cv::Mat &output, long old_id, double* frameTime, 
 
     while ((_frameID <= 0) || (_frameID <= old_id))
     {
-        if( blockUntilReady )
+        if (blockUntilReady)
         {
             _frameCV.wait(locker);
         }
-        else       // Unlock mutex, waits until conditional varables is notifed, then it locks mutex again
-        if( _frameCV.wait_for(locker, GET_FRAME_MUTEX_TIMEOUT) ==  std::cv_status::timeout )
+        else
         {
-            // Unable to get a new frame, exit
-            return -1;
+            // Unlock mutex, waits until conditional varables is notifed, then
+            // it locks mutex again
+            if (_frameCV.wait_for(locker, GET_FRAME_MUTEX_TIMEOUT) ==
+                std::cv_status::timeout)
+            {
+                // Unable to get a new frame, exit
+                return -1;
+            }
         }
     }
 

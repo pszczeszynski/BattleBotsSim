@@ -4,7 +4,6 @@
 #include "windows.h"
 #include "ServerSocket.h"
 #include "../Common/Communication.h"
-#include "../Common/Communication.h"
 #include "DriverStationLog.h"
 #include <fstream>
 #include <functional>
@@ -85,8 +84,14 @@ private:
 
     void TryConnection(void);
     void RadioThreadFunction(void);
-    void RadioThreadSendFunction(RawHID *dev, bool *newMessage, DriverStationMessage *message, std::mutex *messageMutex, bool delay);
-    void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex, std::deque<RobotMessage> *messageQueue, RobotMessage *radioStats, Clock *lastReceivedTimer, std::mutex *radioStatsMutex);
+    void RadioThreadSendFunction(RawHID *dev, bool *newMessage,
+                                 DriverStationMessage *message,
+                                 std::mutex *messageMutex, bool delay);
+    void RadioThreadRecvFunction(RawHID *dev, std::mutex *messageMutex,
+                                 std::deque<RobotMessage> *messageQueue,
+                                 RobotMessage *radioStats,
+                                 Clock *lastReceivedTimer,
+                                 std::mutex *radioStatsMutex);
 
     std::atomic<bool> _radio_reinit;
     RawHID _radios[2];
