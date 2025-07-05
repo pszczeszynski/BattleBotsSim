@@ -72,7 +72,7 @@ public:
         int elementsToRemove = n < size ? n : size; // min
         for (int i = 0; i < elementsToRemove; i++)
         {
-            rear = (rear - 1) % capacity;
+            rear = (rear - 1 + capacity) % capacity;
             size--;
         }
     }
