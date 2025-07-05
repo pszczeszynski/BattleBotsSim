@@ -83,6 +83,7 @@ extern int HEU_POSITION_TO_CENTER_SPEED;
 extern int HEU_VELOCITY_AVERAGING;
 extern int HEU_VEL_TO_ANGLE_MIN;
 extern int HEU_VEL_TO_ANGLE_K;
+extern float HEU_ROT_GAIN;
 extern int RADIO_CHANNEL;
 extern int SECONDARY_RADIO_CHANNEL;
 extern bool AUTO_SWITCH_CHANNEL;

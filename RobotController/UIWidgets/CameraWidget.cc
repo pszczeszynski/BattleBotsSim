@@ -147,7 +147,7 @@ void CameraWidget::Draw()
                 overlay = cv::Mat::zeros(HeuristicOdometry::bgOverlaySize, CV_8UC3);
             }
             else{
-                overlay.setTo(cv::Scalar(0));
+                overlay.setTo(cv::Scalar(255));
             }
             
             cv::Scalar lineColor = cv::Scalar(255,0,255);

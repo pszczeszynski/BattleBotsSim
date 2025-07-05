@@ -191,6 +191,9 @@ void ConfigWidget::Draw()
     ImGui::Text("Vel To Angle Factor:");
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelAvgFactor", &HEU_VEL_TO_ANGLE_K, 1, 100); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100); ImGui::SliderFloat("##HEUROTGAIN", &HEU_ROT_GAIN, 1.0, 1.5); ImGui::PopItemWidth();
+
 
     // Tracked Robot Management
     ImGui::Text("INTERNALS:  ");

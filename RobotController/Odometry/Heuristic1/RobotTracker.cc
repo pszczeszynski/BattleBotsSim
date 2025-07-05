@@ -671,7 +671,16 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     avgVelocity.y = avgVelocity.y * (robotVelocitySmoothing - deltaTime) / robotVelocitySmoothing + deltaTime * newVelocity.y / robotVelocitySmoothing;
 
     // Calculate Rotation
-    rotation = newRotation;
+    float rotAngle = atan2(rotation.y, rotation.x);
+    float newAngle =  atan2(newRotation.y, newRotation.x);
+    float deltaAngle =  angleWrapRad(newAngle-rotAngle);
+
+    // Scale angle by gain factor
+    deltaAngle *= HEU_ROT_GAIN;
+
+    rotation.x = cos(rotAngle + deltaAngle);
+    rotation.y = sin(rotAngle + deltaAngle);
+
 
     // Move rotation towards velocity
     if (newVelocity.mag() > (float) HEU_VEL_TO_ANGLE_MIN)
@@ -695,7 +704,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
 
 
         // Add a scaled version of the error
-        float scalingfactor = deltaTime * (newVelocity.mag() - (float) HEU_VEL_TO_ANGLE_MIN) *((float) HEU_VEL_TO_ANGLE_K) /200.0f ;
+        float scalingfactor = deltaTime * (newVelocity.mag() - (float) HEU_VEL_TO_ANGLE_MIN) *((float) HEU_VEL_TO_ANGLE_K) /800.0f ;
 
         if( scalingfactor > 1.0f)
         {
