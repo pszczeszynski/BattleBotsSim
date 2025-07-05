@@ -18,7 +18,7 @@ public:
     void SwitchRobots(void) override;
     void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
-    void SetAngle(double newAngle, bool opponentRobot) override;
+    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid) override;
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 private:
@@ -30,7 +30,7 @@ private:
     bool _IsValidBlob(MotionBlob &blobNew, OdometryData &prevData);
     // bool _IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData); // Checks if blob is valid
     void _GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData);        // Averages velocity since its comming in jittery
-    void SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData);
+    void _SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData);
     void CalcAnglePathTangent(OdometryData &currData, OdometryData &prevData);
 
     RobotClassifier _robotClassifier; // Takes the blobs and figures out whos who

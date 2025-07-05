@@ -7,17 +7,20 @@ class RobotController;
 // OdometryIMU calss
 class OdometryIMU : public OdometryBase
 {
-public:
+  public:
     OdometryIMU();
-    void SetAngle(double newAngle, bool opponentRobot) override;
+    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime,
+                  double newAngleVelocity, bool valid) override;
 
-    bool Run() override; // Starts the thread(s) to decode data. Returns true if succesful
+    bool Run() override; // Starts the thread(s) to decode data. Returns true if
+                         // succesful
 
     float GetOffset();
 
-private:
+  private:
     void _UpdateData(IMUData &imuData, double timestamp);
-    double _lastGlobalOffset = 0; // our raw imu angle - the global robot angle at the last received packet time
+    double _lastGlobalOffset = 0; // our raw imu angle - the global robot angle
+                                  // at the last received packet time
     double _lastImuAngle = 0;
     Angle _lastAngle;
     int _lastRadioChannel = 0;

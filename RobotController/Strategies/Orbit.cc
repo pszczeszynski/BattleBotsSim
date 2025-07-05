@@ -55,9 +55,9 @@ RobotSimState Orbit::_ExtrapolateOurPos(double seconds_position, double seconds_
 
     RobotSimState currentState;
     currentState.position = odoData.robotPosition;
-    currentState.angle = odoData.robotAngle;
+    currentState.angle = odoData._angle;
     currentState.velocity = odoData.robotVelocity;
-    currentState.angularVelocity = odoData.robotAngleVelocity * angle_vel_scale;
+    currentState.angularVelocity = odoData._robotAngleVelocity * angle_vel_scale;
 
     // predict where the robot will be in a couple milliseconds
     RobotSimState exState = robotSimulator.Simulate(currentState, seconds_position, NUM_PREDICTION_ITERS);
@@ -276,7 +276,7 @@ std::vector<cv::Point2f> Orbit::_CalculateOrbitPath(cv::Point2f opponentWeaponPo
                                                     bool draw)
 {
     // get the robot angle
-    double robotAngle = RobotController::GetInstance().odometry.Robot().robotAngle;
+    double robotAngle = RobotController::GetInstance().odometry.Robot()._angle;
 
     double angleToUs = atan2(robotPosition.y - opponentWeaponPosEx.y, robotPosition.x - opponentWeaponPosEx.x);
 
@@ -374,7 +374,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     /////////////////////////////////////////////////////////
 
     // the orbit center is the opponent position
-    cv::Point2f opponentWeaponPosEx = GetWeaponPos(opponentExState.robotPosition, opponentData.robotAngle, OPPONENT_WEAPON_OFFSET);
+    cv::Point2f opponentWeaponPosEx = GetWeaponPos(opponentExState.robotPosition, opponentData._angle, OPPONENT_WEAPON_OFFSET);
 
     ///////////////// CALCULATE ORBIT DIRECTION ///////////////
     // get the angle from us to the center
@@ -386,8 +386,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
 
     Gamepad& gamepad = RobotController::GetInstance().gamepad;
     // 4. Calculate the orbit radius
-    double orbitRadius = _CalculateOrbitRadius(angleWeaponToUs, exState.position, opponentExState.robotPosition, opponentExState.robotAngle, gamepad, circleDirection);
-    double dangerLevel = _GetDangerLevel(angleWeaponToUs, opponentExState.robotAngle, circleDirection);
+    double orbitRadius = _CalculateOrbitRadius(angleWeaponToUs, exState.position, opponentExState.robotPosition, opponentExState._angle, gamepad, circleDirection);
+    double dangerLevel = _GetDangerLevel(angleWeaponToUs, opponentExState._angle, circleDirection);
     // calculate the pure pursuit radius given the velocity of the robot
     double purePursuitRadius = _CalculatePurePursuitRadius(odoData.robotPosition, opponentExState.robotPosition, orbitRadius);
 
@@ -408,8 +408,8 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
 
         // draw arrow from from opponent ex state to their weapon
         safe_arrow(drawingImage, opponentExState.robotPosition,
-                        opponentExState.robotPosition + cv::Point2f(cos(opponentExState.robotAngle) * 50,
-                                                               sin(opponentExState.robotAngle) * 50),
+                        opponentExState.robotPosition + cv::Point2f(cos(opponentExState._angle) * 50,
+                                                               sin(opponentExState._angle) * 50),
                         cv::Scalar(0, 255, 255), 2);
     }
     /////////////////////////////////////////////
@@ -425,7 +425,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
     // get the path of the orbit (to use pure pursuit with)
     std::vector<cv::Point2f> path = _CalculateOrbitPath(opponentWeaponPosEx,
                                                         opponentExState.robotPosition,
-                                                        opponentExState.robotAngle,
+                                                        opponentExState._angle,
                                                         odoData.robotPosition,
                                                         circleDirection, draw);
     // calculate tangent points
@@ -498,7 +498,7 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
                                                        exState.position,
                                                        opponentWeaponPosEx,
                                                        opponentExState.robotPosition,
-                                                       opponentExState.robotAngle,
+                                                       opponentExState._angle,
                                                        circleDirection,
                                                        &currOrbitRadius,
                                                        &currOrbitCenter);
@@ -553,17 +553,17 @@ cv::Point2f Orbit::_GetOrbitFollowPoint(bool circleDirection, double& outCost, b
 
     // add turning score
     double angleToTarget = atan2(targetPoint.y - odoData.robotPosition.y, targetPoint.x - odoData.robotPosition.x);
-    double angleDiff = angle_wrap(angleToTarget - odoData.robotAngle + (LEAD_WITH_BAR ? 0 : M_PI));
+    double angleDiff = angle_wrap(angleToTarget - odoData._angle + (LEAD_WITH_BAR ? 0 : M_PI));
     double angleCost = abs(angleDiff) / (180 * TO_RAD);
 
-    double angleToButt = angle_wrap(opponentExState.robotAngle + M_PI);
+    double angleToButt = angle_wrap(opponentExState._angle + M_PI);
     // 0 -> 2pi
     double angleFromUsToButt = angle_wrap(angleToButt - angleWeaponToUs - M_PI) + M_PI;
 
     // draw an arrow from the opponent to the weapon
     safe_arrow(drawingImage, opponentExState.robotPosition,
-                    opponentExState.robotPosition + cv::Point2f(cos(opponentExState.robotAngle + M_PI) * 50,
-                                                           sin(opponentExState.robotAngle + M_PI) * 50),
+                    opponentExState.robotPosition + cv::Point2f(cos(opponentExState._angle + M_PI) * 50,
+                                                           sin(opponentExState._angle + M_PI) * 50),
                     cv::Scalar(50, 150, 50), 2);
 
     // draw an arrow from weapon to us

@@ -14,6 +14,10 @@ CVRotation::CVRotation(ICameraReceiver* videoSource) : OdometryBase(videoSource)
     _net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
     _net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
 
+    // init to 0,0 so confidence is 0
+    _netXY1 = cv::Point2f(0, 0);
+    _netXY2 = cv::Point2f(0, 0);
+
     _instance = this;
 }
 
@@ -38,11 +42,11 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     std::unique_lock<std::mutex> lock(_updateMutex);
     _currDataRobot.Clear();
     _currDataRobot.isUs = true;
-    _currDataRobot.robotAngleValid = true;
-    _currDataRobot.robotAngle = Angle(rotation);
+    _currDataRobot._robotAngleValid = true;
+    _currDataRobot._angle = Angle(rotation);
     _currDataRobot.id = _frameID;
     _currDataRobot.time = frameTime;
-    _currDataRobot.time_angle = frameTime;
+    _currDataRobot.SetAngle(Angle(rotation), frameTime);
     lock.unlock();
 }
 
@@ -115,12 +119,14 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     clock.markStart();
     cv::Mat fieldImagePreprocessed;
 
-    // Convert to gray scale 
-    if (fieldImage.channels() == 1) {
+    // Convert to gray scale
+    if (fieldImage.channels() == 1)
+    {
         // shallow copy for now, since later we will divide it by 255
         fieldImagePreprocessed = fieldImage;
     }
-    else if (fieldImage.channels() == 3) {
+    else if (fieldImage.channels() == 3)
+    {
         cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
     }
     else if (fieldImage.channels() == 4)
@@ -129,10 +135,12 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     }
 
     // normalize the image
-    fieldImagePreprocessed.convertTo(fieldImagePreprocessed, CV_32FC1, 1.0 / 255.0);
+    fieldImagePreprocessed.convertTo(fieldImagePreprocessed, CV_32FC1,
+                                     1.0 / 255.0);
 
     // crop the image, but make sure we don't go out of bounds
-    cv::Rect roi(robotPos.x - CROP_SIZE/2, robotPos.y - CROP_SIZE/2, CROP_SIZE, CROP_SIZE);
+    cv::Rect roi(robotPos.x - CROP_SIZE / 2, robotPos.y - CROP_SIZE / 2,
+                 CROP_SIZE, CROP_SIZE);
     cv::Mat croppedImage;
     bool success = _CropImage(fieldImagePreprocessed, croppedImage, roi);
 
@@ -143,14 +151,17 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
         return _lastRotation;
     }
 
-
     // flip the image horizontally for another prediction
     cv::Mat croppedImageFlipped;
     cv::flip(croppedImage, croppedImageFlipped, 1);
 
     // convert to blobs
-    cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0, cv::Size(CROP_SIZE, CROP_SIZE), cv::Scalar(0, 0, 0), false, false);
-    cv::Mat blobFlip = cv::dnn::blobFromImage(croppedImageFlipped, 1.0, cv::Size(CROP_SIZE, CROP_SIZE), cv::Scalar(0, 0, 0), false, false);
+    cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0,
+                                          cv::Size(CROP_SIZE, CROP_SIZE),
+                                          cv::Scalar(0, 0, 0), false, false);
+    cv::Mat blobFlip = cv::dnn::blobFromImage(
+        croppedImageFlipped, 1.0, cv::Size(CROP_SIZE, CROP_SIZE),
+        cv::Scalar(0, 0, 0), false, false);
 
     // set the input to the network
     _net.setInput(blob);
@@ -181,7 +192,7 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
 
     
     // the guiding Angle is either our last rotation or the imu. This is used to decide the +- 180 degree ambiguity
-    double guidingAngle = RobotController::GetInstance().odometry.Robot().robotAngle;
+    double guidingAngle = RobotController::GetInstance().odometry.Robot()._angle;
     // add 180 if closer to last rotation since the robot is symmetrical
     if (abs(angle_wrap(avgAngle - guidingAngle)) > M_PI / 2)
     {
@@ -197,6 +208,7 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     }
     _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
     _lastRotation = avgAngle;
+    std::cout << "avgAngle: " << avgAngle << std::endl;
 
     clock.markEnd();
 

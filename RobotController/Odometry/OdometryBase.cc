@@ -6,7 +6,7 @@
 #include "../Odometry/Heuristic1/RobotTracker.h"
 
 // ctor for odometry data
-OdometryData::OdometryData() : robotPosition(-1.0f, -1.0f), robotVelocity(0, 0)
+OdometryData::OdometryData(int id) : id(id), robotPosition(-1.0f, -1.0f), robotVelocity(0, 0)
 {
 }
 
@@ -21,56 +21,41 @@ void OdometryData::Clear()
     rect = cv::Rect2i(0, 0, 0, 0);
 
     // Our Rotation
-    robotAngleValid = false;
-    robotAngle = Angle(0);
-    robotAngleVelocity = 0; // Clockwise, rads/s
+    _robotAngleValid = false;
+    _angle = Angle(0);
+    _robotAngleVelocity = 0; // Clockwise, rads/s
 
     // Clear user data
     userDataDouble.clear();
 }
 
-// Modifies internal data to extrapolate values
-void OdometryData::Extrapolate(double newtime)
-{
-    // Only extrapolate into the future
-    if (newtime < time)
-    {
-        newtime = time;
-    }
 
+OdometryData OdometryData::_ExtrapolateTo(double newtime)
+{
+    OdometryData result = *this; // Create a copy of current data
+    
     // Extrapolate only if data is marked as valid
     if (robotPosValid)
     {
-        robotPosition += robotVelocity * (newtime - time);
+        result.robotPosition += robotVelocity * (newtime - time);
+        result.time = newtime;
     }
 
-    time = newtime;
-
-    // Now do angle
-    double angleTime = (time_angle < 0) ? time : time_angle;
-    if (newtime < angleTime)
+    if (_robotAngleValid)
     {
-        newtime = angleTime;
+        Angle currentAngle = result.GetAngle();
+        Angle newAngle = currentAngle + Angle(_robotAngleVelocity *
+                                              (newtime - _angleFrameTime));
+        result.SetAngle(newAngle, _robotAngleVelocity, newtime, true);
     }
 
-    if (robotAngleValid)
-    {
-        robotAngle = robotAngle + Angle(robotAngleVelocity * (newtime - time_angle));
-    }
-
-    time_angle = newtime;
+    return result;
 }
 
-void OdometryData::ExtrapolateBounded(double newtime, double maxRelativeTime)
+OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime, double maxRelativeTime)
 {
-    if (newtime > time + maxRelativeTime)
-    {
-        return;
-    }
-
-    Extrapolate(newtime);
+    return _ExtrapolateTo(std::min(targetTime, time + maxRelativeTime));
 }
-
 
 /**
  * Returns the age of this data in seconds
@@ -100,7 +85,7 @@ void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset )
     ss << "\n";
     ss << " Time: " << (time == 0 ? "Not set" : std::to_string(time) + " s");
     ss << "\n";
-    ss << " Time Angle: " << (time_angle == -1 ? "Not set" : std::to_string(time_angle) + " s");
+    ss << " Time Angle: " << (_angleFrameTime == -1 ? "Not set" : std::to_string(_angleFrameTime) + " s");
     ss << "\n ";
     if (!robotPosValid) { ss << "Invalid "; }
     else { ss << "Valid "; }
@@ -119,20 +104,43 @@ void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset )
     ss << "\n";
 
     // Angle and Angle Velocity
-    if (!robotAngleValid) { ss << "Invalid "; }
+    if (!_robotAngleValid) { ss << "Invalid "; }
     else { ss << "Valid "; }
     ss << " Angle: ";
-    ss << robotAngle.degrees() << " deg";
+    ss << _angle.degrees() << " deg";
     
     ss << "\n";
-    if (!robotAngleValid) { ss << "Invalid "; }
+    if (!_robotAngleValid) { ss << "Invalid "; }
     else { ss << "Valid "; }
     ss << " AVel: ";
-    ss << robotAngleVelocity << " deg/s";
+    ss << _robotAngleVelocity << " deg/s";
 
     printText(ss.str(), target, offset.y,  offset.x);
 
 };
+
+void OdometryData::SetAngle(Angle newAngle, double newAngleVelocity, double angleFrameTime, bool valid)
+{
+    _angle = newAngle;
+    _angleFrameTime = angleFrameTime;
+    _robotAngleVelocity = newAngleVelocity;
+    _robotAngleValid = valid;
+}
+
+Angle OdometryData::GetAngle()
+{
+    return _angle;
+}
+
+double OdometryData::GetAngleFrameTime()
+{
+    return _angleFrameTime;
+}
+
+double OdometryData::GetAngleVelocity()
+{
+    return _robotAngleVelocity;
+}
 
 
 
@@ -157,14 +165,14 @@ OdometryBase::OdometryBase(ICameraReceiver *videoSource) : _videoSource(videoSou
 
 bool OdometryBase::IsRunning(void)
 {
-    return _running;
+    return _running.load();
 }
 
 // Start the thread
 // Returns false if already running
 bool OdometryBase::Run(void)
 {
-    if (_running)
+    if (_running.load())
     {
         // Already running, you need to stop existing thread first
         return false;
@@ -180,14 +188,14 @@ bool OdometryBase::Run(void)
     processingThread = std::thread([&]()
                                    {
         // Mark we are running
-        _running = true;
+        _running.store(true);
 
         // Initialize anything that needs initilialization
         _StartCalled();
 
         frameID = -1;
 
-        while (_running && !_stopWhenAble)
+        while (_running.load() && !_stopWhenAble.load())
         {
             // Get the new frame video frame
             // Iats going to be pre-processed already (e.g. birdseyeview) and black-and-white
@@ -206,8 +214,8 @@ bool OdometryBase::Run(void)
         _StopCalled();
 
         // Exiting thread
-        _running = false;
-        _stopWhenAble = false; });
+        _running.store(false);
+        _stopWhenAble.store(false); });
 
     return true;
 }
@@ -216,31 +224,31 @@ bool OdometryBase::Run(void)
 bool OdometryBase::Stop(void)
 {
     // If not running, return true
-    if (!_running)
+    if (!_running.load())
     {
         return true;
     }
 
     // Try to stop the thread
-    _stopWhenAble = true;
+    _stopWhenAble.store(true);
 
     Clock clockWaiting;
 
     // Wait with a timeout to have it end
-    while (_stopWhenAble && (clockWaiting.getElapsedTime() < ODOMETRY_STOP_TIMEOUT))
+    while (_stopWhenAble.load() && (clockWaiting.getElapsedTime() < ODOMETRY_STOP_TIMEOUT))
     {
         // Sleep for 1ms
         Sleep(1);
     }
 
     // See if it ended. The thread may have died thus also check if its joinable.
-    if (!_stopWhenAble || processingThread.joinable())
+    if (!_stopWhenAble.load() || processingThread.joinable())
     {
         processingThread.join();
 
         // Reset these in case the thread died and didnt reset it
-        _running = false;
-        _stopWhenAble = false;
+        _running.store(false);
+        _stopWhenAble.store(false);
 
         return true;
     }
@@ -301,36 +309,22 @@ void OdometryBase::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     SetPosition(newPos, opponentRobot);
 }
 
-
 void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
-
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
     odoData.robotVelocity = newVel;
 }
 
 // Sets angle and zeroes out angular velocity
-void OdometryBase::SetAngle(double newAngle, bool opponentRobot)
+void OdometryBase::SetAngle(Angle newAngle, bool opponentRobot,
+                            double angleFrameTime, double newAngleVelocity,
+                            bool valid)
 {
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    odoData.robotAngle = Angle(newAngle);
-    odoData.robotAngleValid = true;
-    odoData.robotAngleVelocity = 0;
-}
-
-
-void OdometryBase::SetAngularVelocity(double newVel, bool opponentRobot)
-{
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    odoData.robotAngleVelocity = newVel;
+    odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
 }
 
 // Returns an image use for debugging. Empty by default
@@ -359,5 +353,4 @@ void OdometryBase::GetDebugImage(cv::Mat& target, cv::Point offset )
     // Draw opponent data next to it
     printText("Opponent Data:", target, yLeft, leftX+190);
     _currDataOpponent.GetDebugImage(target, cv::Point(leftX+10+190, yLeft+14));
-
 }

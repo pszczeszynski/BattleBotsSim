@@ -219,7 +219,7 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataOpponent.robotPosValid = false;
 
     // Set our rotation
-    _currDataRobot.robotAngleValid = false;
+    _currDataRobot._robotAngleValid = false;
     
 }
 

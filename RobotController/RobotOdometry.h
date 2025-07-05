@@ -130,16 +130,6 @@ private:
     #define VISUAL_VELOCITY_HISTORY_SIZE 10
     std::deque<cv::Point2f> _visualVelocities;
 
-    // Odometry monitoring
-    OdometryData ext_dataRobot_Blob;
-    OdometryData ext_dataRobot_Heuristic;
-    OdometryData ext_dataRobot_Neural;
-    OdometryData ext_dataRobot_NeuralRot;
-    OdometryData ext_dataRobot_IMU;
-    OdometryData ext_dataRobot_Human;
-    OdometryData ext_dataOpponent_Blob;
-    OdometryData ext_dataOpponent_Heuristic;
-    OdometryData ext_dataOpponent_Human;
 
     void LogOdometryToFile(std::string& extraHeader, std::string& extraData);
     std::stringstream GetOdometryLog( const std::string& name, OdometryData& odometry, bool doheader = false);

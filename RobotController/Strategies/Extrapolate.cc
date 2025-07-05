@@ -11,7 +11,7 @@ OdometryData ExtrapolateOpponentPos(double seconds, double max_prediction_time)
     double extrapolationTime = std::min((distanceToOpponent / 100.0 * seconds), max_prediction_time);
     extrapolationTime += Clock::programClock.getElapsedTime();
 
-    opponentData.Extrapolate(extrapolationTime);
+    opponentData._Extrapolate(extrapolationTime);
 
     // clip within field bounds
     opponentData.robotPosition.x = std::max(0.0f, std::min(opponentData.robotPosition.x, (float) WIDTH));

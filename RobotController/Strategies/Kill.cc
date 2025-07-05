@@ -17,7 +17,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // extrapolate our position into the future
     OdometryData ourData = RobotController::GetInstance().odometry.Robot();
-    ourData.Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
+    ourData._Extrapolate(Clock::programClock.getElapsedTime() + (POSITION_EXTRAPOLATE_MS / 1000.0));
 
     
     // extrapolate the opponent's position into the future

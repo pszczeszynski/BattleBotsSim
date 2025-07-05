@@ -766,11 +766,11 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     {
         // If no tracker found, keep previous position (no velocities)
         data.robotPosition = oldData.robotPosition;
-        data.robotAngle = oldData.robotAngle;
+        data._angle = oldData._angle;
         data.robotVelocity = cv::Point2f(0,0);
-        data.robotAngleVelocity = 0;
+        data._robotAngleVelocity = 0;
         data.robotPosValid = false;
-        data.robotAngleValid = false;
+        data._robotAngleValid = false;
         return;
     }
 
@@ -779,25 +779,25 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     data.robotVelocity = tracker->avgVelocity.Point2f();
     data.rect = tracker->bbox;
 
-    data.robotAngleValid = true;
-    data.robotAngle = Angle(tracker->rotation.angleRad());
+    data._robotAngleValid = true;
+    data._angle = Angle(tracker->rotation.angleRad());
 
-    data.robotAngleVelocity = 0;
+    data._robotAngleVelocity = 0;
 
     // If old data angle wasnt valid, dont calculate velocity
-    if( !oldData.robotAngleValid) { return;}
-    data.robotAngleVelocity = oldData.robotAngleVelocity;
+    if( !oldData._robotAngleValid) { return;}
+    data._robotAngleVelocity = oldData._robotAngleVelocity;
 
     
     // Make sure deltaTime isn't very small (e.g. we just updated and itll cause a discontinuity)
     double deltaTime = data.time - oldData.time;
     if ((deltaTime > 1.0f/250.0f) && (deltaTime < angleVelocityTimeConstant) )
     {
-        data.robotAngleVelocity = data.robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data.robotAngle - oldData.robotAngle);
+        data._robotAngleVelocity = data._robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data._angle - oldData._angle);
     }
     else if(deltaTime > 1.0f/250.0f)
     {
-        data.robotAngleVelocity = (data.robotAngle - oldData.robotAngle) / deltaTime;
+        data._robotAngleVelocity = (data._angle - oldData._angle) / deltaTime;
     }
 }
 
@@ -927,7 +927,7 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     odoData.robotPosValid = true;
 }
 
-void HeuristicOdometry::SetAngle(double newAngle, bool opponentRobot)
+void HeuristicOdometry::SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid)
 {
     // First lock for all robot tracking and find the robot
     std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
@@ -944,10 +944,7 @@ void HeuristicOdometry::SetAngle(double newAngle, bool opponentRobot)
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
-    odoData.robotAngle = Angle(newAngle);
-    odoData.robotAngleValid = true;
-    odoData.robotAngleVelocity = 0;
-    odoData.time_angle = Clock::programClock.getElapsedTime();
+    odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
 }
 
 void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
@@ -972,18 +969,6 @@ void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
     odoData.robotVelocity = newVel;
     odoData.time = Clock::programClock.getElapsedTime();
 }
-
-void HeuristicOdometry::SetAngularVelocity(double newVel, bool opponentRobot)
-{
-    std::unique_lock<std::mutex> locker(_updateMutex);
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    odoData.robotAngleVelocity = newVel;
-
-    odoData.time_angle = Clock::programClock.getElapsedTime();
-    // Unfortunetaly we dont store older data, thus new data point that will come in may cause discontinuity in angular velocity
-}
-
 
 void HeuristicOdometry::SwitchRobots(void)
 {

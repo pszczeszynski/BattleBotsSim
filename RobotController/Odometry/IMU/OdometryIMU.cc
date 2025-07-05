@@ -33,9 +33,12 @@ bool OdometryIMU::Run()
             double frameTime = -1.0f;
 
             IMUData newMessage;
-            long frameIDnew = RobotController::GetInstance().GetIMUFrame(newMessage, frameID, &frameTime); // Blocking read until new frame available
+            // Blocking read until new frame available
+            long frameIDnew = RobotController::GetInstance().GetIMUFrame(
+                newMessage, frameID, &frameTime);
 
-            if (frameIDnew >= 0) // If a new frame was obtained do this
+            // If a new frame was obtained do this
+            if (frameIDnew >= 0)
             {
                 frameID = frameIDnew;
 
@@ -63,12 +66,13 @@ float OdometryIMU::GetOffset()
 void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 {
     RobotOdometry& odometry = RobotController::GetInstance().odometry;
-    OdometryData globalOdometryData = odometry.Robot();
-    globalOdometryData.Extrapolate(timestamp); // extrapolate to current time
-
+    OdometryData globalOdometryData = odometry.Robot(timestamp);
     CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
+
     OdometryData cvRotData = cvRotation.GetData(false);
-    cvRotData.Extrapolate(timestamp);
+
+    cvRotData.ExtrapolateBoundedTo(timestamp);
+
     double neuralRotConfidence = cvRotation.GetLastConfidence();
 
     // Get unique access
@@ -76,20 +80,11 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 
     double deltaTime = timestamp - _currDataRobot.time;
 
-    _currDataRobot.id++;                // Increment frame id
-    _currDataRobot.time = timestamp;    // Set to new time
-    _currDataRobot.time_angle = timestamp;
-    _currDataOpponent.id++;             // Increment frame id
-    _currDataOpponent.time = timestamp; // Set to new time
-
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.isUs = true; // Make sure this is set
-    _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false; // Make sure this is set
+    uint32_t newId = _currDataRobot.id + 1;
+    _currDataRobot = OdometryData();
 
     // Set our rotation
-    _currDataRobot.robotAngleValid = true;
+    _currDataRobot._robotAngleValid = true;
 
     // reset the last imu angle if we changed radio channels
     if (RADIO_CHANNEL != _lastRadioChannel)
@@ -97,33 +92,36 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
         _lastImuAngle = imuData.rotation;
     }
 
-    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData.robotAngle);
+    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData._angle);
 
     // increment the robot angle
-    _currDataRobot.robotAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
+    _currDataRobot._angle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
 
     // fuse towards the neural rotation if confidence is high
     if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH)
     {
         double interpolateAmount = std::min(1.0, deltaTime * ANGLE_FUSE_SPEED);
-        _currDataRobot.robotAngle = InterpolateAngles(_currDataRobot.robotAngle, cvRotData.robotAngle, interpolateAmount);
+        _currDataRobot._angle = InterpolateAngles(_currDataRobot._angle, cvRotData._angle, interpolateAmount);
     }
 
-    _currDataRobot.robotAngleVelocity = imuData.rotationVelocity;
+    _currDataRobot._robotAngleVelocity = imuData.rotationVelocity;
 
     _lastImuAngle = imuData.rotation;
     _lastRadioChannel = RADIO_CHANNEL;
-    _lastAngle = _currDataRobot.robotAngle;
+    _lastAngle = _currDataRobot._angle;
 }
 
-void OdometryIMU::SetAngle(double newAngle, bool opponentRobot)
+void OdometryIMU::SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid)
 {
     // Only do this for our robot
     if (opponentRobot)
     {
+        // throw exception
+        throw std::runtime_error("SetAngle called for imu of opponent ??? smh");
         return;
     }
 
     std::unique_lock<std::mutex> locker(_updateMutex);
-    _lastAngle = Angle(newAngle);
+    _lastAngle = newAngle;
+    _currDataRobot.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
 }

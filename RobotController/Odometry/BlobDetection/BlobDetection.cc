@@ -108,8 +108,6 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat &currFrame, cv::Mat 
 
         cv::rectangle(grayDiff, neuralRect, cv::Scalar(0), -1);
 
-        // cv::imshow("Neural", grayDiff);
-        // cv::waitKey(1);
     }
 
     // cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY); // Image is already grayscale
@@ -262,7 +260,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
 #ifndef HARDCODE_SIM
         _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
         // Update our robot position/velocity/angle
-        SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
+        _SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot);
 #else
         // Update our robot position/velocity/angle
         SetData(&robot, _currDataRobot, _prevDataRobot);
@@ -277,7 +275,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         if( invalidCount >= 10 )
         {
             _currDataRobot.robotPosValid = false;
-            _currDataRobot.robotAngleValid = false;
+            _currDataRobot._robotAngleValid = false;
             _prevDataRobot = _currDataRobot; // Invalidate old data
         }
         
@@ -305,10 +303,10 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
 #ifndef HARDCODE_SIM
         _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
         // Update opponent position/velocity info
-        SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
+        _SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent);
 #else
         // Update opponent position/velocity info
-        SetData(&opponent, _currDataOpponent, _prevDataOpponent);
+        _SetData(&opponent, _currDataOpponent, _prevDataOpponent);
 #endif
     }
     else
@@ -318,7 +316,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         if( invalidCount >= 10 )
         {
             _currDataOpponent.robotPosValid = false;
-            _currDataOpponent.robotAngleValid = false;
+            _currDataOpponent._robotAngleValid = false;
             _prevDataOpponent = _currDataOpponent; // Invalidate old data
         }
 
@@ -359,7 +357,7 @@ bool BlobDetection::_IsValidBlob(MotionBlob &blobNew, OdometryData &prevData)
  * @param blob - the MotionBlob to update to
  * @param currData - the current data to update (will set the position and velocity)
  */
-void BlobDetection::SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData)
+void BlobDetection::_SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData)
 {
     double elapsedSincePrev = Clock::programClock.getElapsedTime() - prevData.time;
 
@@ -421,7 +419,6 @@ void BlobDetection::_GetSmoothedVisualVelocity(OdometryData &currData, OdometryD
  */
 void BlobDetection::CalcAnglePathTangent(OdometryData &currData, OdometryData &prevData)
 {
-    Angle retAngleRad;
     cv::Point2f lastAngleUpdatePos(prevData.userDataDouble["lastAnglePosX"], prevData.userDataDouble["lastAnglePosY"]);
     double lastAngleTime = prevData.userDataDouble["lastAngleTime"];
     double elapsedAngleTime = currData.time - lastAngleTime;
@@ -431,24 +428,11 @@ void BlobDetection::CalcAnglePathTangent(OdometryData &currData, OdometryData &p
     currData.userDataDouble["lastAnglePosY"] = lastAngleUpdatePos.y;
     currData.userDataDouble["lastAngleTime"] = lastAngleTime;
 
-    currData.robotAngleValid = false;
-
-    // Save the old angle into the current one
-    if (!prevData.robotAngleValid || std::isnan(prevData.robotAngle))
-    {
-        currData.robotAngle = Angle(0);
-        currData.robotAngleVelocity = 0;
-    }
-    else
-    {
-        currData.robotAngleValid = true;
-        currData.robotAngle = prevData.robotAngle;
-        currData.robotAngleVelocity = prevData.robotAngleVelocity;
-    }
-
     // If currPosition isn't valid then angle isn't valid either
     if (!currData.robotPosValid)
     {
+        // totally invalidate the angle
+        currData.SetAngle(Angle(0), 0, 0, false);
         return;
     }
 
@@ -456,54 +440,58 @@ void BlobDetection::CalcAnglePathTangent(OdometryData &currData, OdometryData &p
     cv::Point2f delta = currData.robotPosition - lastAngleUpdatePos;
     if (norm(delta) < DIST_BETWEEN_ANG_UPDATES_PX)
     {
+        // set all to previous values
+        currData.SetAngle(prevData.GetAngle(), prevData.GetAngleVelocity(),
+                          prevData.GetAngleFrameTime(),
+                          prevData.IsAngleValid());
         return;
     }
 
     // update the angle
-    retAngleRad = Angle(atan2(delta.y, delta.x));
-    if (std::isnan((double)retAngleRad))
+    Angle newAngle = Angle(atan2(delta.y, delta.x));
+    if (std::isnan((double)newAngle))
     {
-        retAngleRad = Angle(0);
+        newAngle = Angle(0);
     }
 
     // if the angle is closer to 180 degrees to the last angle
-    if (abs(Angle(retAngleRad + M_PI - currData.robotAngle)) < abs(Angle(retAngleRad - currData.robotAngle)))
+    if (abs(Angle(newAngle + M_PI - currData.GetAngle())) < abs(Angle(newAngle - currData.GetAngle())))
     {
         // add 180 degrees to the angle
-        retAngleRad = Angle(retAngleRad + M_PI);
+        newAngle = Angle(newAngle + M_PI);
     }
 
+    Angle newAngleInterpolated{0};
+    double angularVelocity{0};
+
     // Calculate angular velocity
-    if (prevData.robotAngleValid && !std::isnan(prevData.robotAngle))
+    if (prevData.IsAngleValid() && !std::isnan(prevData.GetAngle()))
     {
         double weight = elapsedAngleTime * 1000 / ANGLE_SMOOTHING_TIME_CONSTANT;
         weight = min(weight, 1.0f);
-
         // Record the angle, but smooth it
-        currData.robotAngle = prevData.robotAngle * (1.0 - weight) + retAngleRad * weight;
+        newAngleInterpolated =
+            prevData.GetAngle() * (1.0 - weight) + newAngle * weight;
 
-        double angularVelocity = (retAngleRad - prevData.robotAngle) / (currData.time - lastAngleTime);
-
-        // Average it
-        weight = ((currData.isUs) ? 1.0f : 0.8f) * elapsedAngleTime * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
-
-        weight = min(weight, 1.0f);
-
-        // interpolate towards the visual angle velocity so it's not so noisy
-        if (std::isnan(prevData.robotAngleVelocity))
+        double deltaTime = currData.time - lastAngleTime;
+        if (deltaTime > 0)
         {
-            currData.robotAngleVelocity = angularVelocity;
+            angularVelocity =
+                (newAngleInterpolated - prevData.GetAngle()) / deltaTime;
         }
         else
         {
-            currData.robotAngleVelocity = prevData.robotAngleVelocity * (1.0 - weight) + weight * (angularVelocity - prevData.robotAngleVelocity);
+            angularVelocity = 0;
         }
+
+        // Average it
+        weight = ((currData.isUs) ? 1.0f : 0.8f) * elapsedAngleTime * 1000 /
+                 NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
+        weight = min(weight, 1.0f);
     }
-    else
-    {
-        currData.robotAngle = retAngleRad;
-        currData.robotAngleVelocity = 0;
-    }
+
+    currData.SetAngle(newAngleInterpolated, angularVelocity, currData.time,
+                      true);
 
     // save the last position
     currData.userDataDouble["lastAnglePosX"] = currData.robotPosition.x;
@@ -565,14 +553,14 @@ void BlobDetection::SetAngle(double newAngle, bool opponentRobot)
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
-    odoData.robotAngle = Angle(newAngle);
-    odoData.robotAngleValid = true;
-    odoData.robotAngleVelocity = 0;
+    odoData._angle = Angle(newAngle);
+    odoData._robotAngleValid = true;
+    odoData._robotAngleVelocity = 0;
     odoData.id++;
 
     OdometryData &odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
 
-    odoData2.robotAngle = Angle(newAngle);
-    odoData2.robotAngleValid = true;
-    odoData2.robotAngleVelocity = 0;
+    odoData2._angle = Angle(newAngle);
+    odoData2._robotAngleValid = true;
+    odoData2._robotAngleVelocity = 0;
 }

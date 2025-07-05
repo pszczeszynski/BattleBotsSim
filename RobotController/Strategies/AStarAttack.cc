@@ -118,8 +118,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // oppAnglePreviousPerfect = opponentData.robotAngle;
 
     // update filtered positions/velocities
-    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.robotAngle);
-    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.robotAngle); // oppFiltered.updateFiltersOpp(deltaTime, opponentData.robotPosition, oppAngleDrift);
+    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData._angle);
+    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData._angle); // oppFiltered.updateFiltersOpp(deltaTime, opponentData.robotPosition, oppAngleDrift);
 
     displayPathTangency(oppFiltered, cv::Scalar{255, 255, 255}); // display opp path tangency
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, cv::Scalar(0, 0, 255), 2); // draw a circle on the opponent

@@ -19,17 +19,32 @@
 class OdometryData
 {
 public:
-    OdometryData();
+    OdometryData(int id = 0);
 
-    int id = 0; // Increment ID whenever data changes. A value of 0 means it hasn't been initialized yet
-    int frameID = -1; // The ID of the last video frame this data is based off. A value of -1 means it hasn't been initialized yet
+    int id = 0; // Increment ID whenever data changes. A value of 0 means it
+                // hasn't been initialized yet
+    int frameID = -1; // The ID of the last video frame this data is based off.
+                      // A value of -1 means it hasn't been initialized yet
 
+    double time = 0; // The time of the last video frame this data is based off
+                     // since the start of this program in seconds. A value of 0
+                     // means it hasn't been initialized yet
+    void Clear();    // Clears all position and user data to invalid;
 
-    double time = 0; // The time of the last video frame this data is based off since the start of this program in seconds.
-                     // A value of 0 means it hasn't been initialized yet
-    double time_angle = -1; // The time of the last angle update
+    bool IsAngleValid(); // returns true if the angle is valid
+    void SetAngle(Angle newAngle, double newAngleVelocity,
+                  double angleFrameTime, bool valid);
+    Angle GetAngle(); // gets the last set angle without extrapolation
+    double GetAngleFrameTime();  // returns the time of the frame the angle was calculated on
+    double GetAngleVelocity(); // returns the last set angle velocity
 
-    bool isUs = false; // Set to true for our robot to help generic functions know
+    // returns a new instance of the data extrapolated to the target time
+    // the maxRelativeTime is the maximum time to extrapolate forward
+    OdometryData ExtrapolateBoundedTo(double targetTime,
+                                      double maxRelativeTime = MAX_EXTRAPOLATION_TIME_S);
+
+    bool isUs =
+        false; // Set to true for our robot to help generic functions know
 
     // Our Position
     bool robotPosValid = false;
@@ -40,18 +55,11 @@ public:
     // This should be optional
     cv::Rect rect;
 
-    // Our Rotation
-    bool robotAngleValid = false;
-    Angle robotAngle;
-    double robotAngleVelocity = 0; // Clockwise
 
     // User data for tracking algorithm internals
     std::unordered_map<std::string, double> userDataDouble;
 
-    void Clear(); // Clears all position and user data to invalid;
 
-    void Extrapolate(double newtime); // Extrapolates position and anlge into newtime future
-    void ExtrapolateBounded(double newtime, double maxRelativeTime = MAX_EXTRAPOLATION_TIME_S); // Extrapolates position and anlge into newtime future, but not past maxTime
     double GetAge(); // returns the age of this data in seconds
 
     bool IsPointInside(cv::Point2f point)
@@ -60,6 +68,15 @@ public:
     }
 
     void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes.
+private:
+    // extrapolates the data to the new time without bound!
+    OdometryData _ExtrapolateTo(double newtime);
+
+    // Our Rotation
+    bool _robotAngleValid = false;
+    double _robotAngleVelocity = 0; // Clockwise
+    Angle _angle;
+    double _angleFrameTime = -1; // The time of the last angle update
 };
 
 // ***********************
@@ -84,8 +101,9 @@ public:
     virtual void SetPosition(cv::Point2f newPos, bool opponentRobot);  // Sets position: Odomotry will try to find the closest BBOX to meet this
     virtual void ForcePosition(cv::Point2f newPos, bool opponentRobot); // Forces position to be overriden regardless of state 
     virtual void SetVelocity(cv::Point2f newVel, bool opponentRobot);
-    virtual void SetAngle(double newAngle, bool opponentRobot);
-    virtual void SetAngularVelocity(double newVel, bool opponentRobot);
+    virtual void SetAngle(Angle newAngle, bool opponentRobot,
+                          double angleFrameTime, double newAngleVelocity,
+                          bool valid);
 
     virtual void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes. It can be empty if no debug image is available
 
@@ -101,8 +119,8 @@ protected:
 
     // Core thread
     std::thread processingThread; // Main thread of the algorithm
-    bool _running = false;        // This marks whether the processingThread is running
-    bool _stopWhenAble = false;   // This requests that the main process stop.
+    std::atomic<bool> _running = false;        // This marks whether the processingThread is running
+    std::atomic<bool> _stopWhenAble = false;   // This requests that the main process stop.
 
     // Data that stores results
     std::mutex _updateMutex;        // Mutex for updating core results

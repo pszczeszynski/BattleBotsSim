@@ -110,7 +110,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     numOfFields += 2;
 
 
-    double opponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+    double opponentAngle = RobotController::GetInstance().odometry.Opponent()._angle;
     // enforce 0 to 360
     while (opponentAngle < 0)
     {
@@ -307,12 +307,12 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
 
         if (angle != nullptr)
         {
-            _currDataRobot.robotAngleValid = true;
-            _currDataRobot.robotAngle = *angle;
+            _currDataRobot._robotAngleValid = true;
+            _currDataRobot._angle = *angle;
         }
         else
         {
-            _currDataRobot.robotAngleValid = false;
+            _currDataRobot._robotAngleValid = false;
         }
 
     }
@@ -335,19 +335,19 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
         
         if (angle != nullptr)
         {
-            _currDataOpponent.robotAngleValid = true;
-            _currDataOpponent.robotAngle = *angle;
+            _currDataOpponent._robotAngleValid = true;
+            _currDataOpponent._angle = *angle;
         }
         else
         {
-            _currDataOpponent.robotAngleValid = false;
+            _currDataOpponent._robotAngleValid = false;
         }
 
         if (angle_vel != nullptr)
         {
-            _currDataOpponent.robotAngleVelocity = *angle_vel;
+            _currDataOpponent._robotAngleVelocity = *angle_vel;
             // increment angle
-            double currOpponentAngle = RobotController::GetInstance().odometry.Opponent().robotAngle;
+            double currOpponentAngle = RobotController::GetInstance().odometry.Opponent()._angle;
 
             // read delta time
             double currTime = Clock::programClock.getElapsedTime();
@@ -356,8 +356,8 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle*
 
             if (elapsedTime < 0.07)
             {
-                _currDataOpponent.robotAngle = Angle(currOpponentAngle + *angle_vel * elapsedTime);
-                _currDataOpponent.robotAngleValid = true;
+                _currDataOpponent._angle = Angle(currOpponentAngle + *angle_vel * elapsedTime);
+                _currDataOpponent._robotAngleValid = true;
             }
         }
     }

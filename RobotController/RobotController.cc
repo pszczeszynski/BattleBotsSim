@@ -548,7 +548,7 @@ DriverStationMessage RobotController::RobotLogic()
 
 
     cv::Point2f robotPos = odoData.robotPosition;
-    Angle robotAngle = odoData.robotAngle;
+    Angle robotAngle = odoData.GetAngle();
     float robotAnglef = (double) robotAngle;
     cv::Point2f arrowEnd = robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
     safe_arrow(drawingImage, robotPos, arrowEnd, cv::Scalar(0, 0, 255), 2);
