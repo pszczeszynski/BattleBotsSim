@@ -87,26 +87,6 @@ void CameraWidget::Draw()
 
         ImGui::NewLine();
 
-        // Image to set reference brightness. This should be just like the normal background image 
-        // and can be the same file
-        static char refBackroundChars[128] = {0};
-        int stringlength = std::strlen(refBackroundChars);
-        if( stringlength < 1 )
-        {
-            std::strcpy(refBackroundChars, IMAGE_REF_INTENSITY.c_str());
-        }
-
-        ImGui::Text("Ref Brightness img:");  
-        ImGui::SameLine();
-        ImGui::InputText("##refbright", refBackroundChars, IM_ARRAYSIZE(refBackroundChars));
-
-        static char startBackgroundChar[128] = {0};
-        stringlength = std::strlen(startBackgroundChar);
-        if( stringlength < 1 )
-        {
-            std::strcpy(startBackgroundChar, IMAGE_START_BACKGROUND.c_str());
-        }
-
         // Get all the points in
 
         ImGui::Text("Specify areas to compare. Size=");
@@ -134,21 +114,8 @@ void CameraWidget::Draw()
  
 
         ImGui::PopItemWidth();        
-
-        ImGui::Text("Start Background img:");  
-        ImGui::SameLine();
-        ImGui::InputText("##startbgnd", startBackgroundChar, IM_ARRAYSIZE(startBackgroundChar));
         ImGui::PushItemWidth(80);
         ImGui::InputFloat("Avg Time Constant (Set < 0 to disable)", &IMAGE_INTENSITY_TIME_CONSTANT);
-        
-        if (ImGui::Button("Commit Image Settings"))
-        {
-            IMAGE_REF_INTENSITY.assign(refBackroundChars);
-            IMAGE_START_BACKGROUND.assign(startBackgroundChar);
-
-            //RobotController::GetInstance().SetRefBrightness(refBackroundChars);
-        }
-
         
 
         // Heuristic settings

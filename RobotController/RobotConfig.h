@@ -108,8 +108,6 @@ extern float TRACKER_MIN_CONFIDENCE;
 extern float ANGLE_FUSE_CONF_THRESH;
 extern float ANGLE_FUSE_SPEED;
 extern float CAMERA_GAIN;
-extern std::string IMAGE_REF_INTENSITY;
-extern std::string IMAGE_START_BACKGROUND;
 extern float IMAGE_INTENSITY_TIME_CONSTANT;
 extern int IMAGE_INTENSITY_SQR_size;
 extern int IMAGE_INTENSITY_SQR_1_x, IMAGE_INTENSITY_SQR_1_y;

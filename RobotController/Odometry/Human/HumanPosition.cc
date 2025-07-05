@@ -200,10 +200,6 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             heuristic.set_currFrame_to_bg = true;
         }
 
-        if (load_start_count > _lastLoadStartCount)
-        {
-            heuristic.load_start_background = true;
-        }
         
         if (load_saved_count > _lastLoadSavedCount)
         {

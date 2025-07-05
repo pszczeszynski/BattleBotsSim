@@ -73,7 +73,6 @@ public:
     bool save_background_to_files = false; // If set to true, will dump background ever 1s
     bool save_background = false;          // If set to true, will dump current background to the file to be loaded next time
     bool load_background = false;           // Loads a new background from saved background  file
-    bool load_start_background = true;      // Loads a new background from the specified start background
     bool reinit_bg = false;                // Re-initializes curr background from previous loaded one
     bool set_currFrame_to_bg = false;        // Makes curr frame into background
     bool match_start_bg_init = false;       // Initialize the background using current frame with defined boxes from saved background

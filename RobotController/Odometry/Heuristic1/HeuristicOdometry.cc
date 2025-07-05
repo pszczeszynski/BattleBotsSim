@@ -258,11 +258,6 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         load_background = false;
     }
 
-    if (load_start_background)
-    {
-        LoadBackground(newFrame); // Loads image start background by default
-        load_start_background = false;
-    }
 
     bool matchstart_was_run = false;
 
@@ -1275,7 +1270,7 @@ void HeuristicOdometry::_allRobotTrackersClear()
 
 // Saves currBackground to a file
 bool HeuristicOdometry::SaveBackground()
-{
+{    
     currBackground.copyTo(regularBackground);
     return DumpBackground("savedBackground", loadBackgroundsPath);
 }
@@ -1301,13 +1296,12 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_nam
     // This should also be cropped already
     if( image_name.length() < 1)
     {
-        image_name = IMAGE_START_BACKGROUND;
+        image_name = loadBackgroundsPath + "/savedBackground.jpg";
     }
 
     regularBackground = cv::imread(image_name, cv::IMREAD_GRAYSCALE);
 
     // Make the saved background as our reference background
-    // refBackground = cv::imread(IMAGE_REF_INTENSITY, cv::IMREAD_GRAYSCALE);
     refBackground = regularBackground.clone();
 
 
