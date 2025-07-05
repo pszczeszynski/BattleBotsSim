@@ -50,11 +50,13 @@ public:
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 
-    void AutoMatchStart(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
-    void MatchStart(bool isOurRobotLeft);     // We're ready, just start
+    void AutoMatchStart(); // Reload background and relocks us to the tracking widgets position of us
+    void MatchStart();     // We're ready, just start
 
     void RecoverDetection();                // Reload background and relocks us 
     cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
+
+    bool IsBackgroundStable();              // Returns false if its waiting for background to stabilize
 
     bool enable_camera_antishake = false;  // Turn off/on anti shake
     bool enable_background_healing = true; // Turn off/on background healing
@@ -163,7 +165,8 @@ private:
     // State Machine Variables
     float start_brightness_ok_threshold = 0.7f; // The threshold for brightness to be considered ok at the start of the match
     float brightness_stable_start_time = 0.0; // The time when we started to see stable brightness
-    float start_brightness_soak_period = 1.5f; // The time in seconds to wait before we start considering foreground
+    float start_brightness_soak_period = 1.0f; // The time in seconds to wait before we start considering foreground. Blob is released after this
+    float start_brightness_soak_period2 = 0.5f; // Additional time in seconds to wait before we start considering foreground. Heuristic is started after
     bool tracking_started = false; // True if we have started tracking robots
     int clear_margin = 10; // Number of pixels to clear around the tracked bbox to avoid interference with the background healing
 

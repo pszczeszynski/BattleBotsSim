@@ -184,17 +184,14 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         if (auto_l_count > _lastAutoLCount)
         {
-            heuristic.AutoMatchStart(true);
-            heuristic.SetPosition(ConfigWidget::leftStart, false); // Set the position to the left start
-            heuristic.SetPosition(ConfigWidget::rightStart, true); // Set the opponent position to the right start
+            TrackingWidget::GetInstance()->AutoMatchStart(true);
                
         }
 
         if (auto_r_count > _lastAutoRCount)
         {
-            heuristic.AutoMatchStart(false);
-            heuristic.SetPosition(ConfigWidget::leftStart, true); // Set the opponent position to the left start
-            heuristic.SetPosition(ConfigWidget::rightStart, false); // Set our position to the right start
+            TrackingWidget::GetInstance()->AutoMatchStart(false);
+
         }
 
 

@@ -105,16 +105,16 @@ void ClickOnHeuristic()
 
     if (InputState::GetInstance().IsMouseDown(0) && trackingWidget->IsMouseOver())
     {
-        TrackingWidget::leftClickPoint = trackingWidget->GetMousePos();
-        HEU_LEFTSTART_X = TrackingWidget::leftClickPoint.x;
-        HEU_LEFTSTART_Y = TrackingWidget::leftClickPoint.y;
+        TrackingWidget::robotMouseClickPoint = trackingWidget->GetMousePos();
+        HEU_LEFTSTART_X = TrackingWidget::robotMouseClickPoint.x;
+        HEU_LEFTSTART_Y = TrackingWidget::robotMouseClickPoint.y;
     }
 
     if (InputState::GetInstance().IsMouseDown(1) && trackingWidget->IsMouseOver())
     {
-        TrackingWidget::rightClickPoint = trackingWidget->GetMousePos();
-        HEU_RIGHTSTART_X = TrackingWidget::rightClickPoint.x;
-        HEU_RIGHTSTART_Y = TrackingWidget::rightClickPoint.y;
+        TrackingWidget::opponentMouseClickPoint = trackingWidget->GetMousePos();
+        HEU_RIGHTSTART_X = TrackingWidget::opponentMouseClickPoint.x;
+        HEU_RIGHTSTART_Y = TrackingWidget::opponentMouseClickPoint.y;
     }
 }
 
