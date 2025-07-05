@@ -1,0 +1,12 @@
+build/*
+doc_images/*
+backgrouns/*
+IPCamera/*
+libs/*
+Logs/*
+MachineLearning/Archive/*
+MachineLearning/venv/*
+MachineLearning/venvrot/*
+Recordings/*
+MachineLearning/TrainingData/*
+MachineLearning/TestingData/*
