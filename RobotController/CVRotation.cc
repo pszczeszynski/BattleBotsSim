@@ -107,21 +107,18 @@ float ConvertNetworkOutputToRad(cv::Mat& output)
     return rotation;
 }
 
-
-#define CROP_SIZE 128
-
 double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPos)
 {
+    constexpr int CROP_SIZE = 128;
     static ClockWidget clock("CVRotation");
 
     clock.markStart();
     cv::Mat fieldImagePreprocessed;
 
-
-    // convert to grayscale
     // Convert to gray scale 
     if (fieldImage.channels() == 1) {
-        fieldImagePreprocessed = fieldImage.clone();
+        // shallow copy for now, since later we will divide it by 255
+        fieldImagePreprocessed = fieldImage;
     }
     else if (fieldImage.channels() == 3) {
         cv::cvtColor(fieldImage, fieldImagePreprocessed, cv::COLOR_BGR2GRAY);
@@ -146,13 +143,14 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
         return _lastRotation;
     }
 
+
     // flip the image horizontally for another prediction
     cv::Mat croppedImageFlipped;
     cv::flip(croppedImage, croppedImageFlipped, 1);
 
     // convert to blobs
-    cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
-    cv::Mat blobFlip = cv::dnn::blobFromImage(croppedImageFlipped, 1.0, cv::Size(128, 128), cv::Scalar(0, 0, 0), false, false);
+    cv::Mat blob = cv::dnn::blobFromImage(croppedImage, 1.0, cv::Size(CROP_SIZE, CROP_SIZE), cv::Scalar(0, 0, 0), false, false);
+    cv::Mat blobFlip = cv::dnn::blobFromImage(croppedImageFlipped, 1.0, cv::Size(CROP_SIZE, CROP_SIZE), cv::Scalar(0, 0, 0), false, false);
 
     // set the input to the network
     _net.setInput(blob);
@@ -198,7 +196,6 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
         avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.5f);
     }
     _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
-
     _lastRotation = avgAngle;
 
     clock.markEnd();
