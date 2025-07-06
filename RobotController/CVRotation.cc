@@ -164,13 +164,13 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     // set the input to the network
     _net.setInput(blob);
     cv::Mat result1 = _net.forward();
-    _netXY1 = ConvertNetworkOutputToXY(result1);
+    cv::Point2f netXY1 = ConvertNetworkOutputToXY(result1);
     float rotation1 = angle_wrap(ConvertNetworkOutputToRad(result1));
 
     // now, flip the image and do it again
     _net.setInput(blobFlip);
     cv::Mat result2 = _net.forward();
-    _netXY2 = ConvertNetworkOutputToXY(result2);
+    cv::Point2f netXY2 = ConvertNetworkOutputToXY(result2);
     float rotation2 = angle_wrap(-ConvertNetworkOutputToRad(result2));
 
     // compute deltas for both the predicted rotation and the flipped rotation
@@ -202,8 +202,15 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     {
         avgAngle = InterpolateAngles(Angle(_lastRotation), Angle(avgAngle), 0.5f);
     }
-    _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
-    _lastRotation = avgAngle;
+    
+    // Update confidence variables with thread safety
+    {
+        std::unique_lock<std::mutex> lock(_updateMutex);
+        _netXY1 = netXY1;
+        _netXY2 = netXY2;
+        _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
+        _lastRotation = avgAngle;
+    }
 
     clock.markEnd();
 
@@ -216,11 +223,16 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
 */
 double CVRotation::GetLastComputedRotation()
 {
+    // Get unique access to ensure thread safety
+    std::unique_lock<std::mutex> lock(_updateMutex);
     return _lastRotation;
 }
 
 double CVRotation::GetLastConfidence()
 {
+    // Get unique access to ensure thread safety
+    std::unique_lock<std::mutex> lock(_updateMutex);
+    
     // compute magnitude of _netXY1
     double mag1 = cv::norm(_netXY1);
     double mag2 = cv::norm(_netXY2);
