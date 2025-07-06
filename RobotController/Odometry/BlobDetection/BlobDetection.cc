@@ -68,8 +68,8 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat& currFrame, cv::Mat&
 
     // hyperparameters
     const cv::Size BLUR_SIZE = cv::Size(14, 14);
-    const float MIN_AREA = pow(min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE), 2);
-    const float MAX_AREA = pow(max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE), 2);
+    const float MIN_DIM = min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE);
+    const float MAX_DIM = max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE);
     const int BLOB_SEARCH_SIZE = 10;
 
     // Compute the absolute difference between the current frame and the previous frame
@@ -138,7 +138,10 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat& currFrame, cv::Mat&
                 cv::floodFill(thresholdImg, cv::Point(x, y), cv::Scalar(100), &rect);
 
                 // if the blob is a reasonable size, add it to the list
-                if (rect.area() >= MIN_AREA && rect.area() <= MAX_AREA)
+                if (rect.width >= MIN_DIM &&
+                    rect.height >= MIN_DIM &&
+                    rect.width <= MAX_DIM &&
+                    rect.height <= MAX_DIM )
                 {
                     // add the rect to the list of potential robots
                     potentialRobots.push_back(rect);
@@ -330,7 +333,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
 #define MOVING_AVERAGE_RATE 1.0
 
 // how fast the robot needs to be moving to update the angle
-#define VELOCITY_THRESH_FOR_ANGLE_UPDATE 100 * WIDTH / 720.0
+#define VELOCITY_THRESH_FOR_ANGLE_UPDATE 30 * WIDTH / 720.0
 
 // max rotational speed to update the angle radians per second
 #define MAX_ROTATION_SPEED_TO_ALIGN 250 * TO_RAD
@@ -412,18 +415,51 @@ void BlobDetection::_GetSmoothedVisualVelocity(OdometryData& currData, OdometryD
     return;
 }
 
+// Number of seconds to average velocity for APT threhsold calcs. This sets the settling time constant.
+#define APT_VELOCITY_AVERAGING 0.5 
 /**
  * @brief updates the angle of the robot using the velocity
  */
 void BlobDetection::CalcAnglePathTangent(OdometryData& currData, OdometryData& prevAngleData, double timestamp)
 {
     constexpr float kAngleSmoothingTimeConstantMs = 80;
+    constexpr float kMinVelocityForAngleWeight = 0.5*VELOCITY_THRESH_FOR_ANGLE_UPDATE; // Minimum velocity threshold for angle contribution
+    constexpr float kMaxVelocityForAngleWeight = 2.0*VELOCITY_THRESH_FOR_ANGLE_UPDATE; // Velocity at which full weight is applied
 
     double elapsedAngleTime = timestamp - prevAngleData.GetAngleFrameTime();
     cv::Point2f delta = currData.robotPosition - prevAngleData.robotPosition;
 
+    // Calculate a slower averaging on velocity to filter out severe noise
+    if (prevAngleData.userDataDouble["prevVelForAPTSet"] < 0.5)
+    {
+        prevAngleData.userDataDouble["prevVelForAPTSet"] = 1.0;
+        prevAngleData.userDataDouble["APT_Vel_x"] = 0;
+        prevAngleData.userDataDouble["APT_Vel_y"] = 0;    
+        prevAngleData.userDataDouble["APT_Vel_t"] = timestamp;
+    }
+
+    cv::Point2f apt_velocity(prevAngleData.userDataDouble["APT_Vel_x"], prevAngleData.userDataDouble["APT_Vel_y"]);
+    double apt_old_time = prevAngleData.userDataDouble["APT_Vel_t"];
+    double delta_apt_time = timestamp - prevAngleData.userDataDouble["APT_Vel_t"];
+    double scaling_apt = min(delta_apt_time / APT_VELOCITY_AVERAGING, 0.25);  // Never add in the full amount due to the noise
+    apt_velocity = apt_velocity * (1.0 - scaling_apt) + scaling_apt * currData.robotVelocity;
+
+    // Record back new data
+    currData.userDataDouble["APT_Vel_x"] = apt_velocity.x;
+    currData.userDataDouble["APT_Vel_y"] = apt_velocity.y;     
+    currData.userDataDouble["APT_Vel_t"] = timestamp; 
+    prevAngleData.userDataDouble["APT_Vel_x"] = apt_velocity.x;
+    prevAngleData.userDataDouble["APT_Vel_y"] = apt_velocity.y;     
+    prevAngleData.userDataDouble["APT_Vel_t"] = timestamp; 
+
+    double robotVel = cv::norm(currData.robotVelocity);
+    double aptRobotVel = cv::norm(apt_velocity);
+
+    double minRobotVel = min(robotVel, aptRobotVel);
+
     // Check both distance and time thresholds
-    if (norm(delta) < DIST_BETWEEN_ANG_UPDATES_PX || elapsedAngleTime < 0.001 || !currData.robotPosValid)
+    if (cv::norm(delta) < DIST_BETWEEN_ANG_UPDATES_PX || elapsedAngleTime < 0.001 || !currData.robotPosValid )
+       // || robotVel < VELOCITY_THRESH_FOR_ANGLE_UPDATE || aptRobotVel < VELOCITY_THRESH_FOR_ANGLE_UPDATE/2.0)
     {
         // Copy previous angle data
         currData.SetAngle(prevAngleData.GetAngle(), prevAngleData.GetAngleVelocity(), prevAngleData.GetAngleFrameTime(),
@@ -431,8 +467,7 @@ void BlobDetection::CalcAnglePathTangent(OdometryData& currData, OdometryData& p
         return;
     }
 
-
-    // update the angle
+    // Update the angle
     Angle newAngle = Angle(atan2(delta.y, delta.x));
     if (std::isnan((double)newAngle))
     {
@@ -440,10 +475,10 @@ void BlobDetection::CalcAnglePathTangent(OdometryData& currData, OdometryData& p
         return;
     }
 
-    // if the angle is closer to 180 degrees to the last angle
+    // If the angle is closer to 180 degrees to the last angle
     if (abs(Angle(newAngle + M_PI - prevAngleData.GetAngle())) < abs(Angle(newAngle - prevAngleData.GetAngle())))
     {
-        // add 180 degrees to the angle
+        // Add 180 degrees to the angle
         newAngle = Angle(newAngle + M_PI);
     }
 
@@ -453,9 +488,21 @@ void BlobDetection::CalcAnglePathTangent(OdometryData& currData, OdometryData& p
     // Calculate angular velocity
     if (prevAngleData.IsAngleValid() && !std::isnan(prevAngleData.GetAngle()))
     {
-        // Interpolate the angle
-        double weight = min(elapsedAngleTime * 1000 / kAngleSmoothingTimeConstantMs, 1.0f);
-        newAngleInterpolated = InterpolateAngles(prevAngleData.GetAngle(), newAngle, weight);
+        // Base time-based weight
+        double time_weight = min(elapsedAngleTime * 1000.0 / kAngleSmoothingTimeConstantMs, 1.0f);
+
+        // Inverse time weight: if time updates exceeds reasonable levels, that means there is a discontinuity in the data
+        time_weight *= max((0.15 - elapsedAngleTime)/0.15,0.02); // Normaly we expect 20ms per update or faster. if it approaches 150ms, its junk.
+        
+        // Velocity-based weight: scale based on aptRobotVel
+        double velocity_weight = min(max((minRobotVel - kMinVelocityForAngleWeight) / 
+                                                  (kMaxVelocityForAngleWeight - kMinVelocityForAngleWeight), 0.0), 1.0);
+        
+        // Combine time and velocity weights (multiply or take minimum, depending on desired behavior)
+        double final_weight = max(time_weight * velocity_weight, 0.25); // Limit the weight to prevent huge jumps
+
+        // Interpolate the angle with velocity-modulated weight
+        newAngleInterpolated = InterpolateAngles(prevAngleData.GetAngle(), newAngle, final_weight);
         angularVelocity = (newAngleInterpolated - prevAngleData.GetAngle()) / elapsedAngleTime;
     }
 

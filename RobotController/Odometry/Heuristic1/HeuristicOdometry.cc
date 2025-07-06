@@ -1679,7 +1679,7 @@ void HeuristicOdometry::DrawAllBBoxes(cv::Mat &mat, int thickness, cv::Scalar sc
         {
             // Calculate IoU to determine if this bbox is already tracked
             float iou = CalculateIoU(bbox, tracked);
-            if (iou > 0.6f) // If IoU > 0.6, consider it tracked
+            if (iou > 0.4f) // If IoU > 0.4, consider it tracked
             {
                 is_tracked = true;
                 break;
