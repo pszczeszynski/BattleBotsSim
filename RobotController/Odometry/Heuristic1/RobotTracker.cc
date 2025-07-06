@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <functional>
 #include "../../MathUtils.h"
+#include "../../RobotConfig.h"
 
 // Initialize static variables
 bool RobotTracker::useMultithreading = true;
@@ -22,9 +23,6 @@ float RobotTracker::robotVelocitySmoothing = 0.2;           // (s) smoothing of 
 float RobotTracker::detectionVelocitySmoothing = 1.0;       // (s) smoothing of the background detection
 float RobotTracker::minVelocity = 7.0;                      // Min number of pixels/s movement required
 float RobotTracker::moveTowardsCenter = 40.0;               // Amount of pixels per second to move towards center (?20?)
-float RobotTracker::rotateTowardsMovement = 0;              // Amount of radians per second to move towards velocity dir (?2?)
-float RobotTracker::rotateTowardsWeight = 1.0 / 50.0;       // Scaling factor to increase weight vs speed
-float RobotTracker::minSpeedForRotationCorrection = 30.0;   // Minimum speed in pixels/s before we add in movement
 float RobotTracker::bboxFoundIsMuchSmallerThreshold = 0.75; // The area reduction in bounding box that will trigger regeneration of Foreground
 int RobotTracker::combinedBBoxScanBuffer = 15;              // Number of pixels to grow extrapolated bbox by to scan a combined bbox with
 bool RobotTracker::matchingAreaAddOurBBoxes = true;         // increase matching area to always include our bbox and predicted bbox
@@ -39,6 +37,13 @@ int RobotTracker::ageBeforeStartInit = 4; // Number of frames before we start tr
 float RobotTracker::deltaAngleSweep = 8;  // Delta +/- angle to sweep
 float RobotTracker::deltaAngleStep = 0.5; // Number of degrees to step angle sweep
 int RobotTracker::matchBufffer = 10;      // number of pixels around all edges to expand search (fixed pixels)
+
+// Static variable definitions for drift reduction code
+float RobotTracker::max_rotation_diff = 10.0;   // Degrees
+float RobotTracker::maxTimeToNotUpdateRotImage = 0.5; // Force image update ver 1/this times a second
+float RobotTracker::maxMovementToNotUpdateRotImage = 10.0;
+bool RobotTracker::enableOlderImageTracking = false;  // Not recommended at this time
+
 
 // **********************************
 // General Purpose Functions
@@ -343,6 +348,7 @@ RobotTracker::RobotTracker(cv::Rect bboxin)
     bbox = bboxin;
     position.x = bbox.x + bbox.width / 2.0;
     position.y = bbox.y + bbox.height / 2.0;
+    old_state_valid = false; // Older state not valid initially
 
     // Initialize the distanceDerating box
     InitializeDeratingMat();
@@ -480,25 +486,28 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         debugImage = debugMat;
     }
 
+    // time used for dumping video for debugging
     currTimeSaved = currTime;
-
-    if (currTime > 2.0 * 41.855)
-    {
-        currTimeSaved = currTime;
-    }
 
     // ****************************
     // Check for non-movement
     // Done at the beggining of the frame just to make sure it gets executed (doesn't have to be frame accurate)
 
+    double deltaTime = currTime - lastTime;
+
+    // If this frame came in with too little delta time, just abonden it
+    if (deltaTime <= 0.001) {
+        return;
+    }
+
     // Check velocity
     if (velForMovementDetection.mag() < minVelocity)
     {
-        timeNotMoving += currTime - lastTime;
+        timeNotMoving += deltaTime;
     }
     else
     {
-        timeNotMoving -= currTime - lastTime; // Subtract 50ms from timeNOtMoving if moving
+        timeNotMoving -= deltaTime; // Subtract deltatime from timeNOtMoving if moving
         if (timeNotMoving < 0)
         {
             timeNotMoving = 0;
@@ -535,6 +544,8 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     //        a) Keep old foreground, just move it and rotate it and assume this will be ok
     //        b) Keep old mask only (rotated+moved), and extract new foreground pixels
     //        c) Cut the new foreground with the BBOX of the old one in the new position
+
+    // NOTE: FindBestBBox was already run by heuristic class before running this process frame in parallel mode.
 
     // Case (1): no bounding box found
     if ((bestBBox == NULL) || bestBBox->empty())
@@ -606,9 +617,48 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
 
     // General Positioning Algorithm
     // Use the old foreground to scan across the new foreground to see how much it moved
-    Vector2 newRotation = rotation;
+    bool use_old_state = false;
 
+    // Check if we should use the older state for rotation matching
+    if ( enableOlderImageTracking && old_state_valid && (old_position-position).mag() < maxMovementToNotUpdateRotImage && (currTime - old_time) < maxTimeToNotUpdateRotImage ) 
+    {
+        
+        // Compare rotation difference with older state
+        float oldAngle = atan2(old_rotation.y, old_rotation.x);
+        float currAngle = atan2(rotation.y, rotation.x);
+        float rotation_diff = fabs(angleWrapRad(currAngle - oldAngle)) * 180.0 / M_PI;
+        if (rotation_diff < max_rotation_diff) {
+            use_old_state = true;
+        }
+        
+    }
+
+    cv::Rect cur_bbox = bbox;
+    cv::Mat& curr_fg_image = fg_image;
+    cv::Mat& curr_fg_mask = fg_mask;
+    Vector2 curr_rotation = rotation;
+
+    if(enableOlderImageTracking && use_old_state)
+    {
+        bbox = old_bbox;
+        fg_image = old_fg_image;
+        fg_mask = old_fg_mask;
+        rotation = old_rotation;
+    }
+
+    Vector2 newRotation = rotation;
+    
     double confidence = FindNewPosAndRotUsingMatchTemplate(currFrame, foreground, matchingBBox, newRotation);
+    
+    if(enableOlderImageTracking && use_old_state)
+    {
+        bbox = cur_bbox;
+        fg_image = curr_fg_image;
+        fg_mask = curr_fg_mask;
+        rotation = curr_rotation;
+    }
+
+    // double confidence = FindNewPosAndRotUsingMatchTemplate(currFrame, foreground, matchingBBox, newRotation);
 
     // Theres a small chance a solution wasnt found due to some faults.
     // This shouldn't ever happen, but just in case lets check for that
@@ -643,13 +693,6 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     // TBD: Maybe increase the movement towards center of BBox the further away it is?
     // newPos = LimitPointToRect( bestBBox, newPos);
 
-    // Add in slow drift towards center
-    double deltaTime = currTime - lastTime;
-    if (deltaTime <= 0.000001)
-    {
-        deltaTime = 0.001;
-    }
-
     double avgScaler = deltaTime / moveTowardsCenter;
     if (avgScaler <= 0.0)
     {
@@ -673,25 +716,70 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     avgVelocity.y = avgVelocity.y * (robotVelocitySmoothing - deltaTime) / robotVelocitySmoothing + deltaTime * newVelocity.y / robotVelocitySmoothing;
 
     // Calculate Rotation
-    rotation = newRotation;
+    float rotAngle = atan2(rotation.y, rotation.x);
+    float newAngle =  atan2(newRotation.y, newRotation.x);
+    float deltaAngle =  angleWrapRad(newAngle-rotAngle);
+
+    // Scale angle by gain factor
+    deltaAngle *= HEU_ROT_GAIN;
+
+    rotation.x = cos(rotAngle + deltaAngle);
+    rotation.y = sin(rotAngle + deltaAngle);
+
 
     // Move rotation towards velocity
-    if (newVelocity.mag() > minSpeedForRotationCorrection)
+    if (newVelocity.mag() > (float) HEU_VEL_TO_ANGLE_MIN)
     {
         // Get the angle difference between velocity and rotation
         float velAngle = atan2(newVelocity.y, newVelocity.x);
         float rotAngle = atan2(rotation.y, rotation.x);
 
-        float deltaAngle = angleWrap(velAngle - rotAngle);
+        float forwardX = cos(rotAngle);
+        float forwardY = sin(rotAngle);
+        float dotProduct = newVelocity.x * forwardX + newVelocity.y * forwardY;
+
+        // If dotProduct is negative, the robot is moving backward
+        if (dotProduct < 0) {
+            // Add 180 degrees (π radians) to velAngle to point in the forward direction
+            velAngle = angleWrapRad(velAngle + M_PI);
+        }
+
+        // Calculate the delta angle
+        float deltaAngle = angleWrapRad(velAngle - rotAngle);
+
 
         // Add a scaled version of the error
-        float scalingfactor = deltaTime * rotateTowardsMovement * rotateTowardsWeight * newVelocity.mag();
+        float scalingfactor = deltaTime * (newVelocity.mag() - (float) HEU_VEL_TO_ANGLE_MIN) *((float) HEU_VEL_TO_ANGLE_K) /800.0f ;
 
-        rotAngle += scalingfactor * ((deltaAngle > 0) ? 1.0 : -1.0);
+        if( scalingfactor > 1.0f)
+        {
+            scalingfactor=1.0f;
+        }
+        if( scalingfactor > 0.001f)
+        {
+            // Interpolate angles correctly by using the shortest path
+            rotAngle = rotAngle + scalingfactor * deltaAngle;
+            rotAngle = angleWrap(rotAngle); // Ensure the result is wrapped
+        }
+
+        //rotAngle += scalingfactor * ((deltaAngle > 0) ? 1.0 : -1.0);
 
         rotation.x = cos(rotAngle);
         rotation.y = sin(rotAngle);
     }
+
+ 
+    if (enableOlderImageTracking && !use_old_state) {
+        old_fg_image = fg_image.clone();
+        old_fg_mask = fg_mask.clone();
+        old_bbox = bbox;
+        old_position = position;
+        
+        old_time = currTime;
+        old_state_valid = true;
+        old_rotation = rotation;
+    }
+
 
     // Record new values
     lastTime = currTime;
@@ -876,6 +964,14 @@ double RobotTracker::FindNewPosAndRotUsingMatchTemplate(cv::Mat &currFrame, cv::
     double newangle = atan2(newRot.y, newRot.x) - deg2rad(sweep_rotation); // sweep_rotation in anticlockwise
     delta_angle = sweep_rotation;
 
+/*
+    float old_angle = atan2(old_rotation.y, old_rotation.x);
+    float curr_angle = atan2(newRot.y, newRot.x);
+    double deltaAngleRad = curr_angle - old_angle - deg2rad(sweep_rotation); 
+
+    double newangle = atan2(newRot.y, newRot.x) - deltaAngleRad; // sweep_rotation in anticlockwise
+    delta_angle = rad2deg( sweep_rotation);
+*/
     newRot.x = cos(newangle);
     newRot.y = sin(newangle);
 

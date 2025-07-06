@@ -84,8 +84,8 @@ enum CAMDECODER_SM
 {
     CMSM_LOADBACK = 0,          // Initial state: Load saved background
     CMSM_WAIT_BRIGHTNESS,       // Wait for brightness to stabilize
-    CMSM_SOAK_PERIOD,           // Soak period after brightness stabilization
-    CMSM_START_WAIT_ROBOT_CLEAR,      // Wait for robots to clear starting areas
+    CMSM_WAIT_BRIGHTNESS2,      // Second part of waiting for brightness
+    CMSM_START_WAIT_ROBOT_CLEAR, // Wait for robots to clear starting areas
     CMSM_RECOVER_DETECTION,     // Set current image to background and wait for robots to be detected
     CMSM_DETECT_MOVING_TRACKERS, // Wait for detecting trackers that may be moving
     CMSM_STARTNOW,              // User indicating foreground is ready
@@ -120,7 +120,7 @@ void HeuristicOdometry::UpdateSettings()
     RobotTracker::numberOfThreads = max(1, HEU_ROBOT_PROCESSORS);
 }
 
-void HeuristicOdometry::AutoMatchStart(bool isOurRobotLeft)
+void HeuristicOdometry::AutoMatchStart()
 {
     // check if running, start us if not
     if (!IsRunning())
@@ -128,28 +128,14 @@ void HeuristicOdometry::AutoMatchStart(bool isOurRobotLeft)
         RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
     }
 
-    
-    cv::Point2f leftStart((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2.0f, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2.0f );
-    cv::Point2f rightStart((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2.0f, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2.0f );
-
-    if( isOurRobotLeft)
-    {
-        ForcePosition( leftStart, false);
-        ForcePosition( rightStart, true);
-    }
-    else
-    {
-        ForcePosition( leftStart, true);
-        ForcePosition( rightStart, false);
-    }
-
+  
     // Set state machine to matchstart state
 
     heuStateMachine = CMSM_LOADBACK; 
 
 }
 
-void HeuristicOdometry::MatchStart(bool isOurRobotLeft)
+void HeuristicOdometry::MatchStart()
 {
     // check if running, start us if not
     if (!IsRunning())
@@ -157,20 +143,6 @@ void HeuristicOdometry::MatchStart(bool isOurRobotLeft)
         RobotController::GetInstance().odometry.Run(OdometryAlg::Heuristic);
     }
 
-    cv::Point2f leftStart((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2.0f, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2.0f );
-    cv::Point2f rightStart((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2.0f, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2.0f );
-
-    if( isOurRobotLeft)
-    {
-        ForcePosition( leftStart, false);
-        ForcePosition( rightStart, true);
-    }
-    else
-    {
-        ForcePosition( leftStart, true);
-        ForcePosition( rightStart, false);
-    }
-   
 
     // Set state machine to matchstart state
     heuStateMachine = CMSM_STARTNOW; 
@@ -188,6 +160,11 @@ void HeuristicOdometry::RecoverDetection()
     // Set state machine to matchstart state
     heuStateMachine = CMSM_RECOVER_DETECTION; 
 
+}
+
+bool HeuristicOdometry::IsBackgroundStable()
+{
+    return (heuStateMachine != CMSM_WAIT_BRIGHTNESS) && (heuStateMachine != CMSM_LOADBACK);
 }
 
 // Called in CameraDecoder thread to process the new frame
@@ -281,11 +258,6 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         load_background = false;
     }
 
-    if (load_start_background)
-    {
-        LoadBackground(newFrame); // Loads image start background by default
-        load_start_background = false;
-    }
 
     bool matchstart_was_run = false;
 
@@ -329,9 +301,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             )
         {
             brightness_stable_start_time = currTime; // Reset soak period
-            statusstring = "Waiting for brightness to stabilize...";
-
-                
+            statusstring = "Waiting for brightness to stabilize1...";            
 
             char buffer[32];
             std::snprintf(buffer, sizeof(buffer), "Corr = %.2f", brightness_correction);
@@ -342,11 +312,49 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         }
         else
         {
-            statusstring = "Waiting soak period...";
+            statusstring = "Waiting soak period1...";
         }
 
         // Check if soak period has elapsed
         if (currTime - brightness_stable_start_time >= start_brightness_soak_period)
+        {           
+            heuStateMachine = CMSM_WAIT_BRIGHTNESS2;
+            brightness_stable_start_time = currTime; // Reset soak period but to soak2 now
+
+            return;
+        }
+
+
+        return; // Continue waiting for soak period
+
+        break;
+    case CMSM_WAIT_BRIGHTNESS2:
+        tracking_started = false;
+
+        // See how much correction is required
+        brightness_correction = correctBrightness(correctedFrame, true);
+
+        if (brightness_correction < start_brightness_ok_threshold ||
+            brightness_correction > 1/start_brightness_ok_threshold 
+            )
+        {
+            brightness_stable_start_time = currTime; // Reset soak period
+            statusstring = "Waiting for brightness to stabilize2...";
+       
+            char buffer[32];
+            std::snprintf(buffer, sizeof(buffer), "Corr = %.2f", brightness_correction);
+            statusstring += buffer;
+
+
+            return; // Continue waiting for brightness to stabilize
+        }
+        else
+        {
+            statusstring = "Waiting soak period2...";
+        }
+
+        // Check if soak period has elapsed
+        if (currTime - brightness_stable_start_time >= start_brightness_soak_period2)
         {
             // Save current frame as background and refBackground
             correctedFrame.copyTo(currBackground);
@@ -1245,7 +1253,7 @@ void HeuristicOdometry::_allRobotTrackersClear()
 
 // Saves currBackground to a file
 bool HeuristicOdometry::SaveBackground()
-{
+{    
     currBackground.copyTo(regularBackground);
     return DumpBackground("savedBackground", loadBackgroundsPath);
 }
@@ -1271,13 +1279,12 @@ void HeuristicOdometry::LoadBackground(cv::Mat &currFrame, std::string image_nam
     // This should also be cropped already
     if( image_name.length() < 1)
     {
-        image_name = IMAGE_START_BACKGROUND;
+        image_name = loadBackgroundsPath + "/savedBackground.jpg";
     }
 
     regularBackground = cv::imread(image_name, cv::IMREAD_GRAYSCALE);
 
     // Make the saved background as our reference background
-    // refBackground = cv::imread(IMAGE_REF_INTENSITY, cv::IMREAD_GRAYSCALE);
     refBackground = regularBackground.clone();
 
 
@@ -1692,7 +1699,7 @@ void HeuristicOdometry::DrawAllBBoxes(cv::Mat &mat, int thickness, cv::Scalar sc
     cv::Rect leftrect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y, (STARTING_LEFT_BR_x - STARTING_LEFT_TL_x), (STARTING_LEFT_BR_y - STARTING_LEFT_TL_y));
     cv::Rect rightrect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, (STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x), (STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y));
 
-    if( heuStateMachine == CMSM_SOAK_PERIOD || heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR)
+    if( heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR)
     {
          cv::rectangle(mat, leftrect, cv::Scalar(255), 4, cv::LINE_4);
          cv::rectangle(mat, rightrect,  cv::Scalar(255), 4, cv::LINE_4);

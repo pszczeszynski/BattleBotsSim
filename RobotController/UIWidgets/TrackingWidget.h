@@ -21,10 +21,13 @@ public:
     cv::Mat& GetTrackingMat();
     void Update();
     void DrawGUI();
+    void AutoMatchStart(bool left);
 
     static TrackingWidget* GetInstance();
-    static cv::Point2f leftClickPoint;
-    static cv::Point2f rightClickPoint;
+    static cv::Point2f robotMouseClickPoint;
+    static cv::Point2f opponentMouseClickPoint;
+    static double robotMouseClickAngle;
+    static double opponentMouseClickAngle;
 
     void UpdateDebugImage(const std::string& label, const cv::Mat& image);
     cv::Mat& GetDebugImage(const std::string& label);
@@ -34,6 +37,9 @@ public:
 
     bool save_video_enabled = false;
     std::string outputVideoFile = "Recordings/Tracking_dataDump.mp4";
+
+
+
 
 private:
     void _GrabFrame();

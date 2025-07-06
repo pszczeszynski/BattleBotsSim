@@ -43,7 +43,9 @@ public:
     bool Run(OdometryAlg algorithm); // Runs the algorithm specified
     bool Stop(OdometryAlg algorithm); // Stops the algorithm specified
     bool IsRunning(OdometryAlg algorithm); // Returns true if the algorithm is running
-
+    void AutoMatchStart(); // Put odometry into auto start mode waiting for brightness to finish
+    void MatchStart(bool partOfAuto = false);     // Just force an auto start (e.g. dont wait for brightness to finish but do everything else)
+    
     // Retrieve data. It extrapolates to current time if currTime is specified
     OdometryData Robot(double currTime = DEFAULT_ODOMETRY_EXTRAPOLATION);
     OdometryData Opponent(double currTime =  DEFAULT_ODOMETRY_EXTRAPOLATION);

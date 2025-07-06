@@ -49,11 +49,13 @@ public:
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 
-    void AutoMatchStart(bool isOurRobotLeft); // Reload background and relocks us to the left most blob, opponent on right
-    void MatchStart(bool isOurRobotLeft);     // We're ready, just start
+    void AutoMatchStart(); // Reload background and relocks us to the tracking widgets position of us
+    void MatchStart();     // We're ready, just start
 
     void RecoverDetection();                // Reload background and relocks us 
     cv::Mat& GetPrevTrackingMatRef(void) { return prevFrameColor; }
+
+    bool IsBackgroundStable();              // Returns false if its waiting for background to stabilize
 
     bool enable_camera_antishake = false;  // Turn off/on anti shake
     bool enable_background_healing = true; // Turn off/on background healing
@@ -70,7 +72,6 @@ public:
     bool save_background_to_files = false; // If set to true, will dump background ever 1s
     bool save_background = false;          // If set to true, will dump current background to the file to be loaded next time
     bool load_background = false;           // Loads a new background from saved background  file
-    bool load_start_background = true;      // Loads a new background from the specified start background
     bool reinit_bg = false;                // Re-initializes curr background from previous loaded one
     bool set_currFrame_to_bg = false;        // Makes curr frame into background
     bool match_start_bg_init = false;       // Initialize the background using current frame with defined boxes from saved background
@@ -162,7 +163,8 @@ private:
     // State Machine Variables
     float start_brightness_ok_threshold = 0.7f; // The threshold for brightness to be considered ok at the start of the match
     float brightness_stable_start_time = 0.0; // The time when we started to see stable brightness
-    float start_brightness_soak_period = 1.5f; // The time in seconds to wait before we start considering foreground
+    float start_brightness_soak_period = 1.0f; // The time in seconds to wait before we start considering foreground. Blob is released after this
+    float start_brightness_soak_period2 = 0.5f; // Additional time in seconds to wait before we start considering foreground. Heuristic is started after
     bool tracking_started = false; // True if we have started tracking robots
     int clear_margin = 10; // Number of pixels to clear around the tracked bbox to avoid interference with the background healing
 

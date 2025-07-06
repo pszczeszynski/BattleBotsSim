@@ -7,8 +7,10 @@
 #include "../SafeDrawing.h"
 
 TrackingWidget *TrackingWidget::_instance = nullptr;
-cv::Point2f TrackingWidget::leftClickPoint = cv::Point2f(0, 0);
-cv::Point2f TrackingWidget::rightClickPoint = cv::Point2f(0, 0);
+cv::Point2f TrackingWidget::robotMouseClickPoint = cv::Point2f(0, 0);
+cv::Point2f TrackingWidget::opponentMouseClickPoint = cv::Point2f(0, 0);
+double TrackingWidget::robotMouseClickAngle = 0;
+double TrackingWidget::opponentMouseClickAngle = 0;
 
 
 #define MASK_PATH "./backgrounds/fieldMask.jpg"
@@ -339,6 +341,19 @@ void TrackingWidget::_DrawAlgorithmData()
         // if pressing not pressing shift
         if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift))
         {
+            if (InputState::GetInstance().IsMouseDown(0))
+            {
+                robotMouseClickPoint = GetMousePos();
+                odometry.UpdateForceSetPosAndVel(robotMouseClickPoint, cv::Point2f(0,0), false);
+            }
+                        
+            if (InputState::GetInstance().IsMouseDown(1))
+            {
+                opponentMouseClickPoint = GetMousePos();
+                odometry.UpdateForceSetPosAndVel(opponentMouseClickPoint, cv::Point2f(0,0), true);
+            }
+
+
             if (EDITING_OPENCV)
             {
                 if (InputState::GetInstance().IsMouseDown(0))
@@ -404,6 +419,7 @@ void TrackingWidget::_DrawAlgorithmData()
                 cv::Point2f currMousePos = GetMousePos();
                 double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
                 odometry.UpdateForceSetAngle(newAngle, false);
+                robotMouseClickAngle = newAngle;
             }
             else if (InputState::GetInstance().IsMouseDown(1))
             {
@@ -412,6 +428,7 @@ void TrackingWidget::_DrawAlgorithmData()
                 cv::Point2f currMousePos = GetMousePos();
                 double newAngle = atan2(currMousePos.y - opponentPos.y, currMousePos.x - opponentPos.x);
                 odometry.UpdateForceSetAngle(newAngle, true);
+                opponentMouseClickAngle = newAngle;
             }
         }
     }
@@ -680,6 +697,30 @@ void TrackingWidget::_RenderFrames()
     }
 }
 
+void TrackingWidget::AutoMatchStart(bool left)
+{
+    // Set leftstart and rightstart to middle of background starting boxes
+    cv::Point2f leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
+    cv::Point2f rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
+    
+    // Initialize left/right click positions and angles to center of our starting rectangles
+    if( left)
+    {
+        robotMouseClickPoint = leftStart;
+        robotMouseClickAngle = deg2rad(0);
+        opponentMouseClickPoint = rightStart;
+        opponentMouseClickAngle = deg2rad(-180.0f);
+    }
+    else
+    {
+        robotMouseClickPoint = rightStart;
+        robotMouseClickAngle = deg2rad(-180.0f);
+        opponentMouseClickPoint = leftStart;
+        opponentMouseClickAngle = deg2rad(0);
+    }
+
+    RobotController::GetInstance().odometry.AutoMatchStart();
+}
 
 void TrackingWidget::DrawGUI() {
     ImGui::Begin("Tracking Config");
@@ -711,8 +752,9 @@ void TrackingWidget::DrawGUI() {
     // Remove ImGui::Dummy, as the child window handles spacing
     ImGui::Dummy(ImVec2(0.0f, 30.0f));
  
-    
-    HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
+    RobotOdometry& odometry = RobotController::GetInstance().odometry;
+
+    HeuristicOdometry& heuristic = odometry.GetHeuristicOdometry();
 
     // Set leftstart and rightstart to middle of background starting boxes
     cv::Point2f leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
@@ -721,9 +763,8 @@ void TrackingWidget::DrawGUI() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
     if (ImGui::Button("Auto Start Left", ImVec2(150, 40)))
     {
-        heuristic.AutoMatchStart(true);
-        heuristic.SetPosition(leftStart, false); // Set the position to the left start
-        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+        AutoMatchStart(true);
+
     }
     ImGui::PopStyleColor();
 
@@ -733,18 +774,15 @@ void TrackingWidget::DrawGUI() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     if (ImGui::Button("Auto Start Right", ImVec2(150, 40)))
     {
-        heuristic.AutoMatchStart(false);
-        heuristic.SetPosition(leftStart, true); // Set the position to the left start
-        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
+        AutoMatchStart(false);
     }
+
     ImGui::PopStyleColor();
 
- ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
     if (ImGui::Button("Start Left", ImVec2(150, 40)))
     {
-        heuristic.MatchStart(true);
-        heuristic.SetPosition(leftStart, false); // Set the position to the left start
-        heuristic.SetPosition(rightStart, true); // Set the opponent position to the right start
+        odometry.MatchStart();
     }
     ImGui::PopStyleColor();
 
@@ -754,9 +792,7 @@ void TrackingWidget::DrawGUI() {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     if (ImGui::Button("Start Right", ImVec2(150, 40)))
     {
-        heuristic.MatchStart(false);
-        heuristic.SetPosition(leftStart, true); // Set the position to the left start
-        heuristic.SetPosition(rightStart, false); // Set the opponent position to the right start
+        odometry.MatchStart();
     }
     ImGui::PopStyleColor();
 

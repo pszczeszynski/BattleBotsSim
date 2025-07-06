@@ -15,6 +15,18 @@
 std::mutex debugROStringForVideo_mutex;
 std::string debugROStringForVideo = "";
 
+// Statemachine definitions
+enum FUSION_SM
+{
+    FUSION_NORMAL = 0,          // Normal State
+    FUSION_WAIT_FOR_BG         // Wait for background to stabilize
+    
+};
+
+FUSION_SM fusionStateMachine = FUSION_NORMAL;
+
+
+
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoSource),
                                                              _odometry_Blob(&videoSource),
@@ -71,6 +83,72 @@ void RobotOdometry::_AdjustAngleWithArrowKeys()
         UpdateForceSetAngle(_dataOpponent.GetAngle() + angleUserAdjust, true);
     }
 }
+
+
+// Put odometry into auto start mode waiting for brightness to finish
+void RobotOdometry::AutoMatchStart()
+{
+    _odometry_Heuristic.AutoMatchStart();
+
+    // Fix the positions now just for visuals, but will re-run later
+    MatchStart(true);
+
+    fusionStateMachine = FUSION_WAIT_FOR_BG;
+}
+
+
+ // Just force an auto start (e.g. dont wait for brightness to finish but do everything else)
+void RobotOdometry::MatchStart(bool partOfAuto )
+{
+    // Set all the positions and angles
+    _dataRobot.robotPosition = TrackingWidget::robotMouseClickPoint;
+    _dataRobot.robotAngle = Angle(TrackingWidget::robotMouseClickAngle);
+    _dataOpponent.robotPosition = TrackingWidget::opponentMouseClickPoint;
+    _dataOpponent.robotAngle = Angle(TrackingWidget::opponentMouseClickAngle);
+    _dataRobot.robotVelocity = cv::Point2f(0,0);
+    _dataOpponent.robotVelocity = cv::Point2f(0,0);
+    _dataRobot.time =  Clock::programClock.getElapsedTime();
+    _dataRobot.time_angle = _dataRobot.time;
+    _dataRobot.robotPosValid = true;
+    _dataRobot.robotAngleValid = true;
+    _dataOpponent.robotPosValid = true;
+    _dataOpponent.robotAngleValid = true;
+
+
+    _odometry_Heuristic.ForcePosition( _dataRobot.robotPosition, false);
+    _odometry_Heuristic.SetAngle( _dataRobot.robotAngle, false);
+    _odometry_Heuristic.SetVelocity( _dataRobot.robotVelocity, false);
+    _odometry_Heuristic.SetAngularVelocity(_dataRobot.robotAngleVelocity, false );
+
+    _odometry_Heuristic.ForcePosition( _dataOpponent.robotPosition, true);
+    _odometry_Heuristic.SetAngle( _dataOpponent.robotAngle, true);
+    _odometry_Heuristic.SetVelocity( _dataOpponent.robotVelocity, true);
+    _odometry_Heuristic.SetAngularVelocity(_dataOpponent.robotAngleVelocity, true );
+
+    _odometry_Blob.ForcePosition( _dataRobot.robotPosition, false);
+    _odometry_Blob.SetAngle( _dataRobot.robotAngle, false);
+    _odometry_Blob.SetVelocity( _dataRobot.robotVelocity, false);
+    _odometry_Blob.SetAngularVelocity(_dataRobot.robotAngleVelocity, false );
+
+    _odometry_Blob.ForcePosition( _dataOpponent.robotPosition, true);
+    _odometry_Blob.SetAngle( _dataOpponent.robotAngle, true);
+    _odometry_Blob.SetVelocity( _dataOpponent.robotVelocity, true);
+    _odometry_Blob.SetAngularVelocity(_dataOpponent.robotAngleVelocity, true );
+
+
+    _odometry_opencv.ForcePosition( _dataOpponent.robotPosition, true);
+    _odometry_opencv.SetAngle( _dataOpponent.robotAngle, true);
+    _odometry_opencv.SetVelocity( _dataOpponent.robotVelocity, true);
+    _odometry_opencv.SetAngularVelocity(_dataOpponent.robotAngleVelocity, true );
+
+    fusionStateMachine = FUSION_NORMAL;
+
+    if( !partOfAuto )
+    {
+        _odometry_Heuristic.MatchStart();
+    }
+}
+
 
 // Updates internal Odometry data
 void RobotOdometry::Update(int videoID)
@@ -224,7 +302,27 @@ void RobotOdometry::Update(int videoID)
 
     // At this time use only a priority set for all inputs
     std::unique_lock<std::mutex> locker(_updateMutex);
-    FuseAndUpdatePositions(videoID);
+
+    if( fusionStateMachine == FUSION_NORMAL)
+    {
+        FuseAndUpdatePositions(videoID);
+    }
+    else if(fusionStateMachine==FUSION_WAIT_FOR_BG)
+    {
+        // If heuristic is not active, leave this state
+        if( ! _odometry_Heuristic.IsRunning())
+        {
+            fusionStateMachine = FUSION_NORMAL;
+        }
+
+        // Check if background is ready
+        if( _odometry_Heuristic.IsBackgroundStable())
+        {
+            fusionStateMachine = FUSION_NORMAL;
+            MatchStart(true);
+        }
+    }
+
     GetDebugImage(trackingInfo->GetDebugImage("Fusion"), trackingInfo->GetDebugOffset("Fusion"));
 
     
@@ -568,6 +666,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         _dataRobot.SetAngle(ext_dataRobot_Heuristic.GetAngle(),
                             ext_dataRobot_Heuristic.GetAngleVelocity(),
                             ext_dataRobot_Heuristic.GetAngleFrameTime(), true);
+        ext_dataRobot_Blob.InvalidateAngle();
     }
     else if (blobUsAngle_valid)
     {
