@@ -192,7 +192,8 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::PushItemWidth(100); ImGui::SliderInt("##TRVelAvgFactor", &HEU_VEL_TO_ANGLE_K, 1, 100); ImGui::PopItemWidth();
     ImGui::SameLine();
-    ImGui::PushItemWidth(100); ImGui::SliderFloat("##HEUROTGAIN", &HEU_ROT_GAIN, 1.0, 1.5); ImGui::PopItemWidth();
+    ImGui::Text("Rot Gain:");
+    ImGui::PushItemWidth(100); ImGui::SliderFloat("##HEUROTGAIN", &HEU_ROT_GAIN, 1.0, 2.0); ImGui::PopItemWidth();
 
 
     // Tracked Robot Management
