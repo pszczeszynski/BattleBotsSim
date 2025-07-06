@@ -113,4 +113,4 @@ STARTING_RIGHT_BR_x = 695
 STARTING_RIGHT_BR_y = 483
 LOG_ODOMETRY_DATA = 0
 PLAYBACK_PREPROCESS = 0
-VISION_TRACKING_GUI = showCamera=1;showBlob=0;showHeuristic=1;showNeural=0;showNeuralRot=0;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Neural:0,0.5,0.5,1|Camera:1,1,1,1|Blob:0,0,1,0.615686|Heuristic:0.103314,0.898039,0,0.643137|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,-157|Camera:0,0|Fusion:40,-388|Heuristic:329,-149|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;
+VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=0;showNeuralRot=0;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Neural:0,0.5,0.5,1|Blob:0,0.973452,1,1|Heuristic:0.101961,0.898039,0,1|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,472|Camera:0,0|Fusion:40,-388|Heuristic:365,556|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;
