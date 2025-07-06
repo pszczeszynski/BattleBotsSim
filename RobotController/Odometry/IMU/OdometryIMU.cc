@@ -98,6 +98,7 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
 
     // set the new angle + velocity
     _currDataRobot.SetAngle(newAngle, imuData.rotationVelocity, timestamp, true);
+    _currDataRobot.time = timestamp;
 
     _lastImuAngle = imuData.rotation;
     _lastRadioChannel = RADIO_CHANNEL;
