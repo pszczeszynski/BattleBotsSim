@@ -30,8 +30,8 @@ private:
     bool _IsValidBlob(MotionBlob &blobNew, OdometryData &prevData);
     // bool _IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData); // Checks if blob is valid
     void _GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData);        // Averages velocity since its comming in jittery
-    void _SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData);
-    void CalcAnglePathTangent(OdometryData &currData, OdometryData &prevData);
+    void _SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData, OdometryData &prevAngleData, double timestamp);
+    void CalcAnglePathTangent(OdometryData &currData, OdometryData &prevAngleData, double timestamp);
 
     RobotClassifier _robotClassifier; // Takes the blobs and figures out whos who
     cv::Mat _previousImage;           // The previous image to do delta on
@@ -41,6 +41,8 @@ private:
     cv::Mat _lastDrawingImage;      // Copy of the last image for other processes to pull
     OdometryData _prevDataRobot;    // Contains the previous data, useful for velocity calculations, etc..
     OdometryData _prevDataOpponent; // Contains the previous data, useful for velocity calculations, etc..
+    OdometryData _prevAngleDataRobot; // Contains the angle data the last time we did the path tangent calculation
+    OdometryData _prevAngleDataOpponent; // Contains the angle data the last time we did the path tangent calculation
 
     OdometryData _tempData;
 

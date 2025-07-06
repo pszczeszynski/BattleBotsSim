@@ -21,9 +21,9 @@ void OdometryData::Clear()
     rect = cv::Rect2i(0, 0, 0, 0);
 
     // Our Rotation
-    _robotAngleValid = false;
+    _angleValid = false;
     _angle = Angle(0);
-    _robotAngleVelocity = 0; // Clockwise, rads/s
+    _angleVelocity = 0; // Clockwise, rads/s
 
     // Clear user data
     userDataDouble.clear();
@@ -32,6 +32,7 @@ void OdometryData::Clear()
 
 OdometryData OdometryData::_ExtrapolateTo(double newtime)
 {
+    return *this;
     OdometryData result = *this; // Create a copy of current data
     
     // Extrapolate only if data is marked as valid
@@ -41,12 +42,11 @@ OdometryData OdometryData::_ExtrapolateTo(double newtime)
         result.time = newtime;
     }
 
-    if (_robotAngleValid)
+    if (_angleValid)
     {
-        Angle currentAngle = result.GetAngle();
-        Angle newAngle = currentAngle + Angle(_robotAngleVelocity *
-                                              (newtime - _angleFrameTime));
-        result.SetAngle(newAngle, _robotAngleVelocity, newtime, true);
+        Angle newAngle = GetAngle() + Angle(_angleVelocity * (newtime - _angleFrameTime));
+        result._angleFrameTime = newtime;
+        result.SetAngle(newAngle, _angleVelocity, newtime, true);
     }
 
     return result;
@@ -104,16 +104,16 @@ void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset )
     ss << "\n";
 
     // Angle and Angle Velocity
-    if (!_robotAngleValid) { ss << "Invalid "; }
+    if (!_angleValid) { ss << "Invalid "; }
     else { ss << "Valid "; }
     ss << " Angle: ";
     ss << _angle.degrees() << " deg";
     
     ss << "\n";
-    if (!_robotAngleValid) { ss << "Invalid "; }
+    if (!_angleValid) { ss << "Invalid "; }
     else { ss << "Valid "; }
     ss << " AVel: ";
-    ss << _robotAngleVelocity << " deg/s";
+    ss << _angleVelocity << " deg/s";
 
     printText(ss.str(), target, offset.y,  offset.x);
 
@@ -123,8 +123,8 @@ void OdometryData::SetAngle(Angle newAngle, double newAngleVelocity, double angl
 {
     _angle = newAngle;
     _angleFrameTime = angleFrameTime;
-    _robotAngleVelocity = newAngleVelocity;
-    _robotAngleValid = valid;
+    _angleVelocity = newAngleVelocity;
+    _angleValid = valid;
 }
 
 Angle OdometryData::GetAngle()
@@ -139,9 +139,13 @@ double OdometryData::GetAngleFrameTime()
 
 double OdometryData::GetAngleVelocity()
 {
-    return _robotAngleVelocity;
+    return _angleVelocity;
 }
 
+bool OdometryData::IsAngleValid()
+{
+    return _angleValid;
+}
 
 
 
@@ -353,4 +357,14 @@ void OdometryBase::GetDebugImage(cv::Mat& target, cv::Point offset )
     // Draw opponent data next to it
     printText("Opponent Data:", target, yLeft, leftX+190);
     _currDataOpponent.GetDebugImage(target, cv::Point(leftX+10+190, yLeft+14));
+}
+
+void OdometryData::InvalidatePosition()
+{
+    robotPosValid = false;
+}
+
+void OdometryData::InvalidateAngle()
+{
+    _angleValid = false;
 }

@@ -110,7 +110,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     numOfFields += 2;
 
 
-    double opponentAngle = RobotController::GetInstance().odometry.Opponent()._angle;
+    double opponentAngle = RobotController::GetInstance().odometry.Opponent().GetAngle();
     // enforce 0 to 360
     while (opponentAngle < 0)
     {
@@ -226,16 +226,13 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         _lastLoadSavedCount = load_saved_count;
         _lastSavedCount = save_count;
 
-        //if (_sendHeuristicMat)
-        //{
-            // Only do if new data available
-            if( new_slider_data > 0)
-            {
-                HEU_FOREGROUND_THRESHOLD = foreground_min_delta;
-                HEU_UNTRACKED_MOVING_BLOB_AVGING = background_heal_rate;
-                RobotController::GetInstance().odometry.GetHeuristicOdometry().force_background_averaging = (bool)force_heal_value;
-            }
-        //}
+        // Only do if new data available
+        if( new_slider_data > 0)
+        {
+            HEU_FOREGROUND_THRESHOLD = foreground_min_delta;
+            HEU_UNTRACKED_MOVING_BLOB_AVGING = background_heal_rate;
+            RobotController::GetInstance().odometry.GetHeuristicOdometry().force_background_averaging = (bool)force_heal_value;
+        }
 
         if (clickPosition == _lastReceivedPos && type == _lastReceivedType )
         {
@@ -284,83 +281,29 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
 }
 
-void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f* pos, Angle* angle, double* angle_vel)
+void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f *pos, Angle *angle)
 {
     _updateMutex.lock();
 
-    if (isUs)
+    OdometryData& currData = isUs ? _currDataRobot : _currDataOpponent;
+
+    currData.id++;
+    currData.frameID = frameID;
+    currData.time = time;
+    currData.Clear();
+
+    if (pos != nullptr)
     {
-        _currDataRobot.id++;
-        _currDataRobot.frameID = frameID;
-        _currDataRobot.time = time;
-        _currDataRobot.time_angle = time;
-        _currDataRobot.Clear(); // doesn't clear id or time
-        if (pos != nullptr)
-        {
-            _currDataRobot.robotPosValid = true;
-            _currDataRobot.robotPosition = *pos;
-        }
-        else
-        {
-            _currDataRobot.robotPosValid = false;
-        }
-
-        if (angle != nullptr)
-        {
-            _currDataRobot._robotAngleValid = true;
-            _currDataRobot._angle = *angle;
-        }
-        else
-        {
-            _currDataRobot._robotAngleValid = false;
-        }
-
+        currData.robotPosValid = true;
+        currData.robotPosition = *pos;
     }
     else
     {
-        _currDataOpponent.id++;
-        _currDataOpponent.frameID = frameID;
-        _currDataOpponent.time = time;
-        _currDataOpponent.time_angle = time;
-        _currDataOpponent.Clear(); // doesn't clear id or time
-        if (pos != nullptr)
-        {
-            _currDataOpponent.robotPosValid = true;
-            _currDataOpponent.robotPosition = *pos;
-        }
-        else
-        {
-            _currDataOpponent.robotPosValid = false;
-        }
-        
-        if (angle != nullptr)
-        {
-            _currDataOpponent._robotAngleValid = true;
-            _currDataOpponent._angle = *angle;
-        }
-        else
-        {
-            _currDataOpponent._robotAngleValid = false;
-        }
-
-        if (angle_vel != nullptr)
-        {
-            _currDataOpponent._robotAngleVelocity = *angle_vel;
-            // increment angle
-            double currOpponentAngle = RobotController::GetInstance().odometry.Opponent()._angle;
-
-            // read delta time
-            double currTime = Clock::programClock.getElapsedTime();
-            double elapsedTime = currTime - _lastAngleVelUpdateTimeSec;
-            _lastAngleVelUpdateTimeSec = currTime;
-
-            if (elapsedTime < 0.07)
-            {
-                _currDataOpponent._angle = Angle(currOpponentAngle + *angle_vel * elapsedTime);
-                _currDataOpponent._robotAngleValid = true;
-            }
-        }
+        currData.robotPosValid = false;
     }
+
+    // set the angle and with 0 angular velocity
+    currData.SetAngle(*angle, 0, time, true);
 
     _updateMutex.unlock();
 }

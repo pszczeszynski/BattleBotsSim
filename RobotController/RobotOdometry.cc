@@ -54,21 +54,21 @@ void RobotOdometry::_AdjustAngleWithArrowKeys()
 
     if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow))
     {
-        UpdateForceSetAngle(_dataRobot._angle - angleUserAdjust, false);
+        UpdateForceSetAngle(_dataRobot.GetAngle() - angleUserAdjust, false);
     }
     else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow))
     {
-        UpdateForceSetAngle(_dataRobot._angle + angleUserAdjust, false);
+        UpdateForceSetAngle(_dataRobot.GetAngle() + angleUserAdjust, false);
     }
 
     // opponent with up and 1 and 3
     if (InputState::GetInstance().IsKeyDown(ImGuiKey_1))
     {
-        UpdateForceSetAngle(_dataOpponent._angle - angleUserAdjust, true);
+        UpdateForceSetAngle(_dataOpponent.GetAngle() - angleUserAdjust, true);
     }
     else if (InputState::GetInstance().IsKeyDown(ImGuiKey_3))
     {
-        UpdateForceSetAngle(_dataOpponent._angle + angleUserAdjust, true);
+        UpdateForceSetAngle(_dataOpponent.GetAngle() + angleUserAdjust, true);
     }
 }
 
@@ -246,12 +246,6 @@ void RobotOdometry::Update(int videoID)
 
 void RobotOdometry::FuseAndUpdatePositions(int videoID)
 {
-    // Clear robot/opponent valid flags
-    bool robotPosValid = false;
-    bool opponentPosValid = false;
-    bool robotAngleValid = false;
-    bool opponentAngleValid = false;
-
     // ******************************
     // We have the following sources of data:
     // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |  THEM ROT | THEM A.VEL
@@ -319,7 +313,6 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     OdometryData ext_dataOpponent_Blob = _dataOpponent_Blob.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataOpponent_Heuristic = _dataOpponent_Heuristic.ExtrapolateBoundedTo(currTime);
 
-
     // ******************************
     // HUMAN OVERRIDES
     // ******************************
@@ -336,17 +329,16 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         // Check if it arrived within reasonable time
         if (ext_dataOpponent_Human.GetAge() < _dataAgeThreshold)
         {
-            // Invalidate angles of all others
-            // Only one algorithm calculates Opponent at this time
-            ext_dataOpponent_Heuristic._robotAngleValid = false;
-            ext_dataOpponent_Blob._robotAngleValid = false;
+            // Set opponent data (note: with 0 angular velocity)
+            _dataOpponent.SetAngle(ext_dataOpponent_Human.GetAngle(), 0,
+                                   ext_dataOpponent_Human.GetAngleFrameTime(),
+                                   true);
 
-            // Set opponent data
-            _dataOpponent._angle = ext_dataOpponent_Human._angle;
-            _dataOpponent.time_angle = ext_dataOpponent_Human.time_angle;
-            _dataOpponent._robotAngleValid = true;
+            // Mark that we should force these angles to be the human's
+            ext_dataOpponent_Heuristic.InvalidateAngle();
+            ext_dataOpponent_Blob.InvalidateAngle();
 
-            debugROStringForVideo_tmp += "Human_Rot set = " + std::to_string(ext_dataOpponent_Human._angle) + "\n";
+            debugROStringForVideo_tmp += "Human_Rot set = " + std::to_string(ext_dataOpponent_Human.GetAngle()) + "\n";
         }
     }
 
@@ -360,28 +352,39 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     bool heuristicValid = _odometry_Heuristic.IsRunning() && (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
     bool heuristicUsPos_valid = heuristicValid && _dataRobot_Heuristic.robotPosValid;
-    bool heuristicUsAngle_valid = heuristicValid && _dataRobot_Heuristic._robotAngleValid;
+    bool heuristicUsAngle_valid = heuristicValid && _dataRobot_Heuristic.IsAngleValid();
     heuristicValid = _odometry_Heuristic.IsRunning() && (_dataOpponent_Heuristic.GetAge() < _dataAgeThreshold);
     bool heuristicThemPos_valid = heuristicValid && _dataOpponent_Heuristic.robotPosValid;
-    bool heuristicThemAngle_valid = heuristicValid && _dataOpponent_Heuristic._robotAngleValid;
+    bool heuristicThemAngle_valid = heuristicValid && _dataOpponent_Heuristic.IsAngleValid();
 
     bool blobValid = _odometry_Blob.IsRunning() && (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
     bool blobUsPos_valid = blobValid && _dataRobot_Blob.robotPosValid;
-    bool blobUsAngle_valid = blobValid && _dataRobot_Blob._robotAngleValid;
+    bool blobUsAngle_valid = blobValid && _dataRobot_Blob.IsAngleValid();
     blobValid = _odometry_Blob.IsRunning() && (_dataOpponent_Blob.GetAge() < _dataAgeThreshold);
     bool blobThemPos_valid = blobValid && _dataOpponent_Blob.robotPosValid;
-    bool blobThemAngle_valid = blobValid && _dataOpponent_Blob._robotAngleValid;
+    bool blobThemAngle_valid = blobValid && _dataOpponent_Blob.IsAngleValid();
 
-    bool neuralUsPos_valid = _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid && (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
+    bool neuralUsPos_valid = _odometry_Neural.IsRunning() &&
+                             _dataRobot_Neural.robotPosValid &&
+                             (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
 
-    bool neuralRot_valid = _odometry_NeuralRot.IsRunning() && _dataRobot_NeuralRot._robotAngleValid && (_dataRobot_NeuralRot.GetAge() < _dataAgeThreshold);
+    bool neuralRot_valid = _odometry_NeuralRot.IsRunning() &&
+                           _dataRobot_NeuralRot.IsAngleValid() &&
+                           (_dataRobot_NeuralRot.GetAge() < _dataAgeThreshold);
 
-    bool imuValid = _odometry_IMU.IsRunning() && (_dataRobot_IMU.GetAge() < _dataAgeThreshold);
-    bool imuUsRot_valid = imuValid && _dataRobot_IMU._robotAngleValid;
-
+    bool imuValid = _odometry_IMU.IsRunning() &&
+                    (_dataRobot_IMU.GetAge() < _dataAgeThreshold);
+    bool imuUsRot_valid = imuValid && _dataRobot_IMU.IsAngleValid();
 
     debugROStringForVideo_tmp += "ALG U_P U_V U_R UAV T_P T_V T_R TAV\n";
-    debugROStringForVideo_tmp += "Heu  " + std::to_string(heuristicUsPos_valid) + "   " + std::to_string(heuristicUsPos_valid) + "    " + std::to_string(heuristicUsAngle_valid) + "    " + std::to_string(heuristicUsAngle_valid) + "   " + std::to_string(heuristicThemPos_valid) + "    " + std::to_string(heuristicThemPos_valid) + "   " + std::to_string(heuristicThemAngle_valid) + "\n";
+    debugROStringForVideo_tmp +=
+        "Heu  " + std::to_string(heuristicUsPos_valid) + "   " +
+        std::to_string(heuristicUsPos_valid) + "    " +
+        std::to_string(heuristicUsAngle_valid) + "    " +
+        std::to_string(heuristicUsAngle_valid) + "   " +
+        std::to_string(heuristicThemPos_valid) + "    " +
+        std::to_string(heuristicThemPos_valid) + "   " +
+        std::to_string(heuristicThemAngle_valid) + "\n";
     debugROStringForVideo_tmp += "Blb  " + std::to_string(blobUsPos_valid) + "   " + std::to_string(blobUsPos_valid) + "    " + std::to_string(blobUsAngle_valid) + "    " + std::to_string(blobUsAngle_valid) + "   " + std::to_string(blobThemPos_valid) + "    " + std::to_string(blobThemPos_valid) + "   " + std::to_string(blobThemAngle_valid) + "\n";
     debugROStringForVideo_tmp += "Neu  " + std::to_string(neuralUsPos_valid)    + "\n";
     debugROStringForVideo_tmp += "NeR  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(neuralRot_valid) + "\n";
@@ -419,10 +422,10 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
             heuristicUsPos_valid = false;
             heuristicUsAngle_valid = false;
 
-            ext_dataRobot_Heuristic.robotPosValid = false;
-            ext_dataRobot_Heuristic._robotAngleValid = false;
-            ext_dataOpponent_Heuristic.robotPosValid = false;
-            ext_dataOpponent_Heuristic._robotAngleValid = false;
+            ext_dataRobot_Heuristic.InvalidatePosition();
+            ext_dataRobot_Heuristic.InvalidateAngle();
+            ext_dataOpponent_Heuristic.InvalidatePosition();
+            ext_dataOpponent_Heuristic.InvalidateAngle();
         }
     }
 
@@ -442,10 +445,10 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
             blobUsPos_valid = false;
             blobUsAngle_valid = false;
 
-            ext_dataRobot_Blob.robotPosValid = false;
-            ext_dataRobot_Blob._robotAngleValid = false;
-            ext_dataOpponent_Blob.robotPosValid = false;
-            ext_dataOpponent_Blob._robotAngleValid = false;
+            ext_dataRobot_Blob.InvalidatePosition();
+            ext_dataRobot_Blob.InvalidateAngle();
+            ext_dataOpponent_Blob.InvalidatePosition();
+            ext_dataOpponent_Blob.InvalidateAngle();
         }
     }
 
@@ -459,8 +462,8 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
             heuristicUsPos_valid = false;
             heuristicUsAngle_valid = false;
-            ext_dataRobot_Heuristic.robotPosValid = false;
-            ext_dataRobot_Heuristic._robotAngleValid = false;
+            ext_dataRobot_Heuristic.InvalidatePosition();
+            ext_dataRobot_Heuristic.InvalidateAngle();
 
             _dataRobot.robotPosValid = true;
             _dataRobot.robotPosition = ext_dataRobot_Neural.robotPosition;
@@ -536,57 +539,44 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     if (imuUsRot_valid)
     {
         debugROStringForVideo_tmp += "Imu";
-        _dataRobot._angle = ext_dataRobot_IMU._angle;
-        _dataRobot.time_angle = ext_dataRobot_IMU.time_angle;
-        _dataRobot._robotAngleValid = true;
+        _dataRobot.SetAngle(ext_dataRobot_IMU.GetAngle(),
+                            ext_dataRobot_IMU.GetAngleVelocity(),
+                            ext_dataRobot_IMU.GetAngleFrameTime(), true);
 
         // Reset heuristic angle calculation
-        ext_dataRobot_Heuristic._robotAngleValid = false;
+        ext_dataRobot_Heuristic.InvalidateAngle();
+        ext_dataRobot_Blob.InvalidateAngle();
     }
     else if (neuralRot_valid)
     {
         debugROStringForVideo_tmp += "NeuRot";
-        _dataRobot._angle = ext_dataRobot_NeuralRot._angle;
-        _dataRobot.time_angle = ext_dataRobot_NeuralRot.time_angle;
-        _dataRobot._robotAngleValid = true;
+
+        // TODO: decide if we want to use neuralRot velocity
+        // Currently uses heuristic's angular velocity or otherwise 0
+        double angleVelocity = ext_dataRobot_Heuristic.IsAngleValid() ? ext_dataRobot_Heuristic.GetAngleVelocity() : 0;
+        _dataRobot.SetAngle(ext_dataRobot_NeuralRot.GetAngle(),
+                            angleVelocity,
+                            ext_dataRobot_NeuralRot.GetAngleFrameTime(), true);
 
         // Set heuristor to neural
-        ext_dataRobot_Heuristic._robotAngleValid = false;
-
+        ext_dataRobot_Heuristic.InvalidateAngle();
+        ext_dataRobot_Blob.InvalidateAngle();
     }
     else if (heuristicUsAngle_valid)
     {
         debugROStringForVideo_tmp += "Heu";
-        _dataRobot._angle = ext_dataRobot_Heuristic._angle;
-        _dataRobot.time_angle = ext_dataRobot_Heuristic.time_angle;
-        _dataRobot._robotAngleValid = true;
+        _dataRobot.SetAngle(ext_dataRobot_Heuristic.GetAngle(),
+                            ext_dataRobot_Heuristic.GetAngleVelocity(),
+                            ext_dataRobot_Heuristic.GetAngleFrameTime(), true);
     }
     else if (blobUsAngle_valid)
     {
         debugROStringForVideo_tmp += "Blob";
-        _dataRobot._angle = ext_dataRobot_Blob._angle;
-        _dataRobot.time_angle = ext_dataRobot_Blob.time_angle;
-        _dataRobot._robotAngleValid = true;
+        _dataRobot.SetAngle(ext_dataRobot_Blob.GetAngle(),
+                            ext_dataRobot_Blob.GetAngleVelocity(),
+                            ext_dataRobot_Blob.GetAngleFrameTime(), true);
     }
 
-    debugROStringForVideo_tmp += "\nUS A_Vel = ";
-    //  US A. VEL:
-    //            Rule: 1) IMU, 2) Heuristic, 3) Blob
-    if (imuValid)
-    {
-        debugROStringForVideo_tmp += "Imu";
-        _dataRobot._robotAngleVelocity = ext_dataRobot_IMU._robotAngleVelocity;
-    }
-    else if (heuristicUsAngle_valid)
-    {
-        debugROStringForVideo_tmp += "Heu";
-        _dataRobot._robotAngleVelocity = ext_dataRobot_Heuristic._robotAngleVelocity;
-    }
-    else if (blobUsAngle_valid)
-    {
-        debugROStringForVideo_tmp += "Blob";
-        _dataRobot._robotAngleVelocity = ext_dataRobot_Blob._robotAngleVelocity;
-    }
     //  THEM POS:
     //            Rule: 1) Heuristic, 2) Blob
     //            Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold, setpos on blob
@@ -635,42 +625,23 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     if (humanThemAngle_valid)
     {
         debugROStringForVideo_tmp += "Human";
-        _dataOpponent._angle = ext_dataOpponent_Human._angle;
-        _dataOpponent.time_angle = ext_dataOpponent_Human.time_angle;
-        _dataOpponent._robotAngleValid = true;
+        _dataOpponent.SetAngle(ext_dataOpponent_Human.GetAngle(),
+                               ext_dataOpponent_Human.GetAngleVelocity(),
+                               ext_dataOpponent_Human.GetAngleFrameTime(), true);
     }
     else if (heuristicThemAngle_valid)
     {
         debugROStringForVideo_tmp += "Heu";
-        _dataOpponent._angle = ext_dataOpponent_Heuristic._angle;
-        _dataOpponent.time_angle = ext_dataOpponent_Heuristic.time_angle;
-        _dataOpponent._robotAngleValid = true;
+        _dataOpponent.SetAngle(ext_dataOpponent_Heuristic.GetAngle(),
+                               ext_dataOpponent_Heuristic.GetAngleVelocity(),
+                               ext_dataOpponent_Heuristic.GetAngleFrameTime(), true);
     }
     else if (blobThemAngle_valid)
     {
         debugROStringForVideo_tmp += "Blob";
-        _dataOpponent._angle = ext_dataOpponent_Blob._angle;
-        _dataOpponent.time_angle = ext_dataOpponent_Blob.time_angle;
-        _dataOpponent._robotAngleValid = true;
-    }
-
-    debugROStringForVideo_tmp += "\nTHEM A_Vel = ";
-    //  THEM A. VEL:
-    //            Rule: 1) Human, 2) Heuristic, 3) Blob
-    if (humanThemAngle_valid)
-    {
-        debugROStringForVideo_tmp += "Human";
-        _dataOpponent._robotAngleVelocity = ext_dataOpponent_Human._robotAngleVelocity;
-    }
-    else if (heuristicThemAngle_valid)
-    {
-        debugROStringForVideo_tmp += "Heu";
-        _dataOpponent._robotAngleVelocity = ext_dataOpponent_Heuristic._robotAngleVelocity;
-    }
-    else if (blobThemAngle_valid)
-    {
-        debugROStringForVideo_tmp += "Blob";
-        _dataOpponent._robotAngleVelocity = ext_dataOpponent_Blob._robotAngleVelocity;
+        _dataOpponent.SetAngle(ext_dataOpponent_Blob.GetAngle(),
+                               ext_dataOpponent_Blob.GetAngleVelocity(),
+                               ext_dataOpponent_Blob.GetAngleFrameTime(), true);
     }
 
     // *********************************************
@@ -679,76 +650,76 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     // Robot Position and velocity:
     //   Heuristic, Blob need back-annotated robot positions and velocities
-    if( !ext_dataRobot_Heuristic.robotPosValid)
+    if (!ext_dataRobot_Heuristic.robotPosValid)
     {
-        if( forceUsPosition )
+        if (forceUsPosition)
         {
-            _odometry_Heuristic.ForcePosition( _dataRobot.robotPosition, false);
+            _odometry_Heuristic.ForcePosition(_dataRobot.robotPosition, false);
         }
         else
         {
-            _odometry_Heuristic.SetPosition( _dataRobot.robotPosition, false);
+            _odometry_Heuristic.SetPosition(_dataRobot.robotPosition, false);
         }
 
-        _odometry_Heuristic.SetVelocity(_dataRobot.robotVelocity, false );
+        _odometry_Heuristic.SetVelocity(_dataRobot.robotVelocity, false);
     }
 
-    if( !ext_dataRobot_Blob.robotPosValid)
+    if (!ext_dataRobot_Blob.robotPosValid)
     {
-        if( forceUsPosition )
+        if (forceUsPosition)
         {
-            _odometry_Blob.ForcePosition( _dataRobot.robotPosition, false);
+            _odometry_Blob.ForcePosition(_dataRobot.robotPosition, false);
         }
         else
         {
-            _odometry_Blob.SetPosition( _dataRobot.robotPosition, false);
+            _odometry_Blob.SetPosition(_dataRobot.robotPosition, false);
         }
 
-        _odometry_Blob.SetVelocity(_dataRobot.robotVelocity, false );
+        _odometry_Blob.SetVelocity(_dataRobot.robotVelocity, false);
     }
 
     // Robot Angle + velocity:
     // Heuristic, Blob will need it back annotated
-    if( !ext_dataRobot_Heuristic._robotAngleValid)
+    if (!ext_dataRobot_Heuristic.IsAngleValid())
     {
-        _odometry_Heuristic.SetAngle( _dataRobot._angle, false);
-        _odometry_Heuristic.SetAngularVelocity(_dataRobot._robotAngleVelocity, false );
+        _odometry_Heuristic.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.GetAngleFrameTime(),
+                                     _dataRobot.GetAngleVelocity(), true);
     }
 
-    if( !ext_dataRobot_Blob._robotAngleValid)
+    if (!ext_dataRobot_Blob.IsAngleValid() && _dataRobot.IsAngleValid())
     {
-        _odometry_Blob.SetAngle( _dataRobot._angle, false);
-        _odometry_Blob.SetAngularVelocity(_dataRobot._robotAngleVelocity, false );
+        _odometry_Blob.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.GetAngleFrameTime(),
+                                _dataRobot.GetAngleVelocity(), true);
     }
-
 
     // OPPONENT same things:
     // Opponent Position and velocity:
     //   Heuristic, Blob need back-annotated robot positions and velocities
-    if( !ext_dataOpponent_Heuristic.robotPosValid)
+    if (!ext_dataOpponent_Heuristic.robotPosValid && _dataOpponent.robotPosValid)
     {
-        _odometry_Heuristic.SetPosition( _dataOpponent.robotPosition, true);
-        _odometry_Heuristic.SetVelocity(_dataOpponent.robotVelocity, true );
+        _odometry_Heuristic.SetPosition(_dataOpponent.robotPosition, true);
+        _odometry_Heuristic.SetVelocity(_dataOpponent.robotVelocity, true);
     }
 
-    if( !ext_dataOpponent_Blob.robotPosValid)
+    if (!ext_dataOpponent_Blob.robotPosValid && _dataOpponent.robotPosValid)
     {
-        _odometry_Blob.SetPosition( _dataOpponent.robotPosition, true);
-        _odometry_Blob.SetVelocity(_dataOpponent.robotVelocity, true );
+        _odometry_Blob.SetPosition(_dataOpponent.robotPosition, true);
+        _odometry_Blob.SetVelocity(_dataOpponent.robotVelocity, true);
     }
 
     // Opponent angle
     // Heuristic, Blob will need it back annotated
-    if( !ext_dataOpponent_Heuristic._robotAngleValid)
+    if (!ext_dataOpponent_Heuristic.IsAngleValid() && _dataOpponent.IsAngleValid())
     {
-        _odometry_Heuristic.SetAngle( _dataOpponent._angle, true);
-        _odometry_Heuristic.SetAngularVelocity(_dataOpponent._robotAngleVelocity, true );
+        _odometry_Heuristic.SetAngle(_dataOpponent.GetAngle(), true,
+                                     _dataOpponent.GetAngleFrameTime(),
+                                     _dataOpponent.GetAngleVelocity(), true);
     }
 
-    if( !ext_dataOpponent_Blob._robotAngleValid)
+    if (!ext_dataOpponent_Blob.IsAngleValid() && _dataOpponent.IsAngleValid())
     {
-        _odometry_Blob.SetAngle( _dataOpponent._angle, true);
-        _odometry_Blob.SetAngularVelocity(_dataOpponent._robotAngleVelocity, true );
+        _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.GetAngleFrameTime(),
+                                _dataOpponent.GetAngleVelocity(), true);
     }
 #ifdef FORCE_SIM_DATA
     _dataRobot.robotPosValid = true;
@@ -782,7 +753,9 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
 
         // draw on the tracking mat a square
-        cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size), _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255), 2);
+        cv::rectangle(trackingMat, _dataRobot.robotPosition - cv::Point2f(size, size),
+                      _dataRobot.robotPosition + cv::Point2f(size, size), cv::Scalar(255, 255, 255),
+                      2);
 
         size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
 
@@ -802,7 +775,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 /*
  * Returns true if the tracking data can be trusted + used for orbit + kill mode
  * False otherwise.
- * 
+ *
  * Criteria are:
  * 1. Good if both blob + heuristic are valid + agree, and neural net isn't running
  * 2. Good if the current selected robot pos with the neural net + neural net valid + recent
@@ -917,17 +890,15 @@ static double GetImuAngleVelocityRadPerSec()
 void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot)
 {
     // Go through each Odometry and update it
-    _odometry_Blob.SetAngle(newAngle, opponentRobot);
-    _odometry_Heuristic.SetAngle(newAngle, opponentRobot);
-    _odometry_IMU.SetAngle(newAngle, opponentRobot);
+    double currTime = Clock::programClock.getElapsedTime();
+    _odometry_Blob.SetAngle(Angle(newAngle), opponentRobot, currTime, 0, true);
+    _odometry_Heuristic.SetAngle(Angle(newAngle), opponentRobot, currTime, 0, true);
+    _odometry_IMU.SetAngle(Angle(newAngle), opponentRobot, currTime, 0, true);
 
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData &odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
-
-    odoData._angle = Angle(newAngle);
-    odoData._robotAngleValid = true;
-    odoData._robotAngleVelocity = 0;
+    odoData.SetAngle(Angle(newAngle), currTime, 0, true);
 }
 
 /**
@@ -1133,15 +1104,15 @@ void RobotOdometry::LogOdometryToFile(std::string& extraHeader, std::string& ext
         {
             _logOdometryFile << std::endl << "[" << getCurrentDateTime() << "]" << std::endl 
             << extraHeader << "," 
-            << GetOdometryLog("UsHeu", ext_dataRobot_Heuristic,true).str() << ","
-            << GetOdometryLog("UsBlob", ext_dataRobot_Blob,true).str() << ","
-            << GetOdometryLog("UsNeural", ext_dataRobot_Neural,true).str() << ","
-            << GetOdometryLog("UsNeuralRot", ext_dataRobot_NeuralRot,true).str() << ","
-            << GetOdometryLog("UsIMU", ext_dataRobot_IMU,true).str() << ","
-            << GetOdometryLog("UsHuman", ext_dataRobot_Human,true).str() << ","   
-            << GetOdometryLog("ThemHeu", ext_dataOpponent_Heuristic,true).str() << ","
-            << GetOdometryLog("ThemBlob", ext_dataOpponent_Blob,true).str() << ","
-            << GetOdometryLog("ThemHuman", ext_dataOpponent_Human,true).str()           
+            << GetOdometryLog("UsHeu", _dataRobot_Heuristic,true).str() << ","
+            << GetOdometryLog("UsBlob", _dataRobot_Blob,true).str() << ","
+            << GetOdometryLog("UsNeural", _dataRobot_Neural,true).str() << ","
+            << GetOdometryLog("UsNeuralRot", _dataRobot_NeuralRot,true).str() << ","
+            << GetOdometryLog("UsIMU", _dataRobot_IMU,true).str() << ","
+            << GetOdometryLog("UsHuman", _dataRobot_Human,true).str() << ","   
+            << GetOdometryLog("ThemHeu", _dataOpponent_Heuristic,true).str() << ","
+            << GetOdometryLog("ThemBlob", _dataOpponent_Blob,true).str() << ","
+            << GetOdometryLog("ThemHuman", _dataOpponent_Human,true).str()           
             << std::endl;
         }
     }
@@ -1156,15 +1127,15 @@ void RobotOdometry::LogOdometryToFile(std::string& extraHeader, std::string& ext
         // Write the data to the file
         _logOdometryFile 
         << extraData << ","
-        << GetOdometryLog("UsHeu", ext_dataRobot_Heuristic).str() << ","
-        << GetOdometryLog("UsBlob", ext_dataRobot_Blob).str() << ","
-        << GetOdometryLog("UsNeural", ext_dataRobot_Neural).str() << ","
-        << GetOdometryLog("UsNeuralRot", ext_dataRobot_NeuralRot).str() << ","
-        << GetOdometryLog("UsIMU", ext_dataRobot_IMU).str() << ","
-        << GetOdometryLog("UsHuman", ext_dataRobot_Human).str() << ","   
-        << GetOdometryLog("ThemHeu", ext_dataOpponent_Heuristic).str() << ","
-        << GetOdometryLog("ThemBlob", ext_dataOpponent_Blob).str() << ","
-        << GetOdometryLog("ThemHuman", ext_dataOpponent_Human).str()         
+        << GetOdometryLog("UsHeu", _dataRobot_Heuristic).str() << ","
+        << GetOdometryLog("UsBlob", _dataRobot_Blob).str() << ","
+        << GetOdometryLog("UsNeural", _dataRobot_Neural).str() << ","
+        << GetOdometryLog("UsNeuralRot", _dataRobot_NeuralRot).str() << ","
+        << GetOdometryLog("UsIMU", _dataRobot_IMU).str() << ","
+        << GetOdometryLog("UsHuman", _dataRobot_Human).str() << ","   
+        << GetOdometryLog("ThemHeu", _dataOpponent_Heuristic).str() << ","
+        << GetOdometryLog("ThemBlob", _dataOpponent_Blob).str() << ","
+        << GetOdometryLog("ThemHuman", _dataOpponent_Human).str()         
         << std::endl;
     }
 
@@ -1183,17 +1154,17 @@ std::stringstream RobotOdometry::GetOdometryLog( const std::string& name, Odomet
     ss << std::fixed << std::setprecision(2)
        << name << ","
        << ((odometry.robotPosValid) ? "1" : "0") << ","
-       << ((odometry._robotAngleValid) ? "1" : "0") << ","
+       << ((odometry.IsAngleValid()) ? "1" : "0") << ","
        << odometry.frameID << ","
        << odometry.time << ","
        << odometry.robotPosition.x << ","
        << odometry.robotPosition.y << ","
-       << odometry._angle << ","
+       << odometry.GetAngle() << ","
        << odometry.robotVelocity.x << ","
        << odometry.robotVelocity.y << ","
        << std::sqrt(odometry.robotVelocity.x * odometry.robotVelocity.x + odometry.robotVelocity.y * odometry.robotVelocity.y) << ","
        << std::atan2(odometry.robotVelocity.y, odometry.robotVelocity.x) << ","
-       << odometry._robotAngleVelocity;
+       << odometry.GetAngleVelocity();
     }
 
     return ss;

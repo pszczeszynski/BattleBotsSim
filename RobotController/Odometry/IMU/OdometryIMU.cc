@@ -70,45 +70,38 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
     CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
 
     OdometryData cvRotData = cvRotation.GetData(false);
-
     cvRotData.ExtrapolateBoundedTo(timestamp);
-
     double neuralRotConfidence = cvRotation.GetLastConfidence();
 
     // Get unique access
     std::unique_lock<std::mutex> locker(_updateMutex);
-
     double deltaTime = timestamp - _currDataRobot.time;
 
-    uint32_t newId = _currDataRobot.id + 1;
-    _currDataRobot = OdometryData();
-
-    // Set our rotation
-    _currDataRobot._robotAngleValid = true;
-
+    _currDataRobot = OdometryData(_currDataRobot.id + 1);
     // reset the last imu angle if we changed radio channels
     if (RADIO_CHANNEL != _lastRadioChannel)
     {
         _lastImuAngle = imuData.rotation;
     }
 
-    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData._angle);
+    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData.GetAngle());
 
-    // increment the robot angle
-    _currDataRobot._angle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
+    // increment the robot angle (corrects for any fixed dc offset)
+    Angle newAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
 
     // fuse towards the neural rotation if confidence is high
     if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH)
     {
         double interpolateAmount = std::min(1.0, deltaTime * ANGLE_FUSE_SPEED);
-        _currDataRobot._angle = InterpolateAngles(_currDataRobot._angle, cvRotData._angle, interpolateAmount);
+        newAngle = InterpolateAngles(newAngle, cvRotData.GetAngle(), interpolateAmount);
     }
 
-    _currDataRobot._robotAngleVelocity = imuData.rotationVelocity;
+    // set the new angle + velocity
+    _currDataRobot.SetAngle(newAngle, imuData.rotationVelocity, timestamp, true);
 
     _lastImuAngle = imuData.rotation;
     _lastRadioChannel = RADIO_CHANNEL;
-    _lastAngle = _currDataRobot._angle;
+    _lastAngle = _currDataRobot.GetAngle();
 }
 
 void OdometryIMU::SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid)
@@ -116,8 +109,6 @@ void OdometryIMU::SetAngle(Angle newAngle, bool opponentRobot, double angleFrame
     // Only do this for our robot
     if (opponentRobot)
     {
-        // throw exception
-        throw std::runtime_error("SetAngle called for imu of opponent ??? smh");
         return;
     }
 

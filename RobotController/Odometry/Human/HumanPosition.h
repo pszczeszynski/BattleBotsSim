@@ -39,7 +39,7 @@ private:
     DataType _lastReceivedType;
     ServerSocket* _socket;
     std::vector<int> _GetDataFromSocket();
-    void _UpdateData(bool isUs, double time, cv::Point2f * pos, Angle * angle, double* angle_vel = nullptr);
+    void _UpdateData(bool isUs, double time, cv::Point2f *pos, Angle *angle);
 
     double _lastAngleVelUpdateTimeSec = 0;
 };

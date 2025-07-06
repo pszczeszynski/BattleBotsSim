@@ -743,11 +743,9 @@ void HeuristicOdometry::_UpdateData(double timestamp)
     _currDataRobot.id++;                // Increment frame id
     _currDataRobot.frameID = frameID; // Set to new frame id
     _currDataRobot.time = timestamp;    // Set to new time
-    _currDataRobot.time_angle = timestamp;    // Set to new time
     _currDataOpponent.id++;             // Increment frame id
     _currDataOpponent.frameID = frameID; // Set to new frame id
     _currDataOpponent.time = timestamp; // Set to new time
-    _currDataOpponent.time_angle = timestamp; // Set to new time
 
     // Clear curr data
     _currDataRobot.Clear();
@@ -756,21 +754,19 @@ void HeuristicOdometry::_UpdateData(double timestamp)
     _currDataOpponent.isUs = false; // Make sure this is set
 
     // Update our robot position/velocity/angle
-    _UpdateOdometry(_currDataRobot, _prevDataRobot, ourRobotTracker);
-    _UpdateOdometry(_currDataOpponent, _prevDataOpponent, opponentRobotTracker);
+    _UpdateOdometry(_currDataRobot, _prevDataRobot, ourRobotTracker, timestamp);
+    _UpdateOdometry(_currDataOpponent, _prevDataOpponent, opponentRobotTracker, timestamp);
 }
 
-void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker)
+void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker, double timestamp)
 {
     if (tracker == nullptr)
     {
         // If no tracker found, keep previous position (no velocities)
         data.robotPosition = oldData.robotPosition;
-        data._angle = oldData._angle;
+        data.SetAngle(oldData.GetAngle(), 0, oldData.time, false);
         data.robotVelocity = cv::Point2f(0,0);
-        data._robotAngleVelocity = 0;
         data.robotPosValid = false;
-        data._robotAngleValid = false;
         return;
     }
 
@@ -779,26 +775,28 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     data.robotVelocity = tracker->avgVelocity.Point2f();
     data.rect = tracker->bbox;
 
-    data._robotAngleValid = true;
-    data._angle = Angle(tracker->rotation.angleRad());
-
-    data._robotAngleVelocity = 0;
+    Angle newAngle = Angle(tracker->rotation.angleRad());
 
     // If old data angle wasnt valid, dont calculate velocity
-    if( !oldData._robotAngleValid) { return;}
-    data._robotAngleVelocity = oldData._robotAngleVelocity;
+    if(!oldData.IsAngleValid()) {
+        data.SetAngle(newAngle, 0, timestamp, true);
+        return;
+    }
 
+    double newAngleVelocity = oldData.GetAngleVelocity();
     
     // Make sure deltaTime isn't very small (e.g. we just updated and itll cause a discontinuity)
     double deltaTime = data.time - oldData.time;
-    if ((deltaTime > 1.0f/250.0f) && (deltaTime < angleVelocityTimeConstant) )
+    if ((deltaTime > 1.0f/250.0f) && (deltaTime < angleVelocityTimeConstant))
     {
-        data._robotAngleVelocity = data._robotAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data._angle - oldData._angle);
+        newAngleVelocity = newAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data.GetAngle() - oldData.GetAngle());
     }
     else if(deltaTime > 1.0f/250.0f)
     {
-        data._robotAngleVelocity = (data._angle - oldData._angle) / deltaTime;
+        newAngleVelocity = (data.GetAngle() - oldData.GetAngle()) / deltaTime;
     }
+
+    data.SetAngle(newAngle, newAngleVelocity, timestamp, true);
 }
 
 // Sets the position to a found tracker's position

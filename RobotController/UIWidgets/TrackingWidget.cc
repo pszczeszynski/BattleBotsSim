@@ -405,7 +405,7 @@ void TrackingWidget::_DrawAlgorithmData()
                 double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
                 odometry.UpdateForceSetAngle(newAngle, false);
             }
-            else if( InputState::GetInstance().IsMouseDown(1) )
+            else if (InputState::GetInstance().IsMouseDown(1))
             {
                 // set the opponent angle
                 cv::Point2f opponentPos = odometry.Opponent().robotPosition;
@@ -415,7 +415,6 @@ void TrackingWidget::_DrawAlgorithmData()
             }
         }
     }
-
 
     if( showFusion)
     {
@@ -428,26 +427,26 @@ void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent, cv
 {
     int linethickness = 1;
 
-    if( robot._robotAngleValid || forceShow)
+    if( robot.IsAngleValid() || forceShow)
     {
         linethickness = 3;
     }
 
     // draw robot angle with arrow
     cv::Point2f robotPos = robot.robotPosition;
-    double robotAngle = robot._angle;
+    double robotAngle = robot.GetAngle();
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
     safe_arrow(currMatt, robotPos, arrowEnd, arrowColor, linethickness);
 
     linethickness = 1;
-    if( opponent._robotAngleValid || forceShow)
+    if( opponent.IsAngleValid() || forceShow)
     {
         linethickness = 3;
     }
 
     // draw opponent angle with arrow
     cv::Point2f opponentPos = opponent.robotPosition;
-    double opponentAngle = opponent._angle;
+    double opponentAngle = opponent.GetAngle();
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
     safe_arrow(currMatt, opponentPos, arrowEnd, arrowColor, linethickness);
     
@@ -462,8 +461,8 @@ void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent,
         size = 20;
     }
 
-    robot._Extrapolate(Clock::programClock.getElapsedTime());
-    DrawX(currMatt, robot.robotPosition, arrowColor, size);
+    OdometryData robot_ext = robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    DrawX(currMatt, robot_ext.robotPosition, arrowColor, size);
     
     size = 5;
     if( opponent.robotPosValid || forceShow)
@@ -471,8 +470,8 @@ void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent,
         size = 20;
     }
 
-    opponent._Extrapolate(Clock::programClock.getElapsedTime());
-    safe_circle(currMatt, opponent.robotPosition, size, arrowColor, 2);
+    OdometryData opponent_ext = opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    safe_circle(currMatt, opponent_ext.robotPosition, size, arrowColor, 2);
 }
 
 

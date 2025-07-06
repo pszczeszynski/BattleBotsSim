@@ -42,11 +42,8 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     std::unique_lock<std::mutex> lock(_updateMutex);
     _currDataRobot.Clear();
     _currDataRobot.isUs = true;
-    _currDataRobot._robotAngleValid = true;
-    _currDataRobot._angle = Angle(rotation);
     _currDataRobot.id = _frameID;
-    _currDataRobot.time = frameTime;
-    _currDataRobot.SetAngle(Angle(rotation), frameTime);
+    _currDataRobot.SetAngle(Angle(rotation), 0, frameTime, true);
     lock.unlock();
 }
 
@@ -188,11 +185,9 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     // compute the average of the two angles
     float avgAngle = InterpolateAngles(Angle(rotation1), Angle(rotation2), 0.5);
 
-
-
     
     // the guiding Angle is either our last rotation or the imu. This is used to decide the +- 180 degree ambiguity
-    double guidingAngle = RobotController::GetInstance().odometry.Robot()._angle;
+    double guidingAngle = RobotController::GetInstance().odometry.Robot().GetAngle();
     // add 180 if closer to last rotation since the robot is symmetrical
     if (abs(angle_wrap(avgAngle - guidingAngle)) > M_PI / 2)
     {
@@ -208,7 +203,6 @@ double CVRotation::ComputeRobotRotation(cv::Mat &fieldImage, cv::Point2f robotPo
     }
     _lastDisagreementRad = abs(angle_wrap(rotation1 - rotation2));
     _lastRotation = avgAngle;
-    std::cout << "avgAngle: " << avgAngle << std::endl;
 
     clock.markEnd();
 

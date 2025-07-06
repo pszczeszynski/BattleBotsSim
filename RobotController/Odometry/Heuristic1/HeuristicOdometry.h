@@ -100,7 +100,7 @@ private:
 
     // Update our data
     void _UpdateData(double timestamp);
-    void _UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker);
+    void _UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker, double timestamp);
     void UpdateSettings(); // Bring in user settings
 
     Clock clock_outer; // Clock to tell us when to update statistic window (1x per second)

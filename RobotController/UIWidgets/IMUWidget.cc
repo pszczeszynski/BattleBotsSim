@@ -20,7 +20,7 @@ IMUWidget::IMUWidget() : ImageWidget("IMU", false)
         if (ImGui::Button("Flip angle"))
         {
             RobotOdometry& odometry = RobotController::GetInstance().odometry;
-            odometry.UpdateForceSetAngle(odometry.Robot()._angle + M_PI, false);
+            odometry.UpdateForceSetAngle(odometry.Robot().GetAngle() + M_PI, false);
         }
     });
 }

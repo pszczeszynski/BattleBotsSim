@@ -75,7 +75,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(std::vector<MotionBlob> &blo
     {
         CVPosition& cvPosition = RobotController::GetInstance().odometry.GetNeuralOdometry();
         OdometryData neuralData = cvPosition.GetData(false);
-        neuralData.ExtrapolateBounded(frameTime);
+        neuralData = neuralData.ExtrapolateBoundedTo(frameTime);
 
         // get the latest position from the neural network
         cv::Point2f neuralPosition = neuralData.robotPosition;

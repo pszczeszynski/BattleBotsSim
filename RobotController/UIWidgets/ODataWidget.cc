@@ -7,7 +7,7 @@
 #include "../RobotController.h"
 
 /**
- * @brief Draws the playback interface
+ * @brief Draws the odometry data for debugging purposes
 */
 void ODataWidget::Draw()
 {
@@ -22,22 +22,21 @@ void ODataWidget::Draw()
     ImGui::Text("ODOMETRY DATA:");
     ImGui::Text("  Robot:");
     ImGui::Text("        Pos Valid = %s", (currOdo.robotPosValid) ? "YES" : "NO");
-    ImGui::Text("        Angle Valid = %s", (currOdo._robotAngleValid) ? "YES" : "NO");
+    ImGui::Text("        Angle Valid = %s", (currOdo.IsAngleValid()) ? "YES" : "NO");
     ImGui::Text("        Pos   = (%.1f, %.1f)", currOdo.robotPosition.x,currOdo.robotPosition.y);
-    ImGui::Text("        Angle = %.1f deg", rad2deg(currOdo._angle));
+    ImGui::Text("        Angle = %.1f deg", rad2deg(currOdo.GetAngle()));
     ImGui::Text("        Vel =(%.1f, %.1f)", currOdo.robotVelocity.x,currOdo.robotVelocity.y);
-    ImGui::Text("        Angle Vel  =%.1f deg/s", rad2deg(currOdo._robotAngleVelocity));
+    ImGui::Text("        Angle Vel  =%.1f deg/s", rad2deg(currOdo.GetAngleVelocity()));
 
     OdometryData& currOdo2 =  currOpponent;
     ImGui::Text("  Opponent:");
     ImGui::Text("        Pos Valid = %s", (currOdo2.robotPosValid) ? "YES" : "NO");
-    ImGui::Text("        Angle Valid = %s", (currOdo2._robotAngleValid) ? "YES" : "NO");
+    ImGui::Text("        Angle Valid = %s", (currOdo2.IsAngleValid()) ? "YES" : "NO");
     ImGui::Text("        Pos   = (%.1f, %.1f)", currOdo2.robotPosition.x,currOdo2.robotPosition.y);
-    ImGui::Text("        Angle = %.1f deg", rad2deg(currOdo2._angle));
+    ImGui::Text("        Angle = %.1f deg", rad2deg(currOdo2.GetAngle()));
     ImGui::Text("        Vel =(%.1f, %.1f)", currOdo2.robotVelocity.x,currOdo2.robotVelocity.y);
-    ImGui::Text("        Angle Vel  =%.1f deg/s", rad2deg(currOdo2._robotAngleVelocity));
+    ImGui::Text("        Angle Vel  =%.1f deg/s", rad2deg(currOdo2.GetAngleVelocity()));
 
     ImGui::End();
-
 }
 

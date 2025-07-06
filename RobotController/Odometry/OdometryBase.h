@@ -43,8 +43,11 @@ public:
     OdometryData ExtrapolateBoundedTo(double targetTime,
                                       double maxRelativeTime = MAX_EXTRAPOLATION_TIME_S);
 
-    bool isUs =
-        false; // Set to true for our robot to help generic functions know
+    void InvalidatePosition();
+    void InvalidateAngle();
+
+    // Set to true for our robot to help generic functions know
+    bool isUs = false;
 
     // Our Position
     bool robotPosValid = false;
@@ -72,9 +75,9 @@ private:
     // extrapolates the data to the new time without bound!
     OdometryData _ExtrapolateTo(double newtime);
 
-    // Our Rotation
-    bool _robotAngleValid = false;
-    double _robotAngleVelocity = 0; // Clockwise
+    // Rotation
+    bool _angleValid = false;
+    double _angleVelocity = 0; // Clockwise
     Angle _angle;
     double _angleFrameTime = -1; // The time of the last angle update
 };
