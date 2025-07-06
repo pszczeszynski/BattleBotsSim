@@ -96,56 +96,49 @@ void RobotOdometry::AutoMatchStart()
     fusionStateMachine = FUSION_WAIT_FOR_BG;
 }
 
-
- // Just force an auto start (e.g. dont wait for brightness to finish but do everything else)
-void RobotOdometry::MatchStart(bool partOfAuto )
+// Just force an auto start (e.g. dont wait for brightness to finish but do everything else)
+void RobotOdometry::MatchStart(bool partOfAuto)
 {
     // Set all the positions and angles
     _dataRobot.robotPosition = TrackingWidget::robotMouseClickPoint;
     _dataRobot.SetAngle(Angle(TrackingWidget::robotMouseClickAngle), 0, Clock::programClock.getElapsedTime(), true);
     _dataOpponent.robotPosition = TrackingWidget::opponentMouseClickPoint;
-    _dataOpponent.SetAngle(Angle(TrackingWidget::opponentMouseClickAngle), 0, Clock::programClock.getElapsedTime(), true);
-    _dataRobot.robotVelocity = cv::Point2f(0,0);
-    _dataOpponent.robotVelocity = cv::Point2f(0,0);
-    _dataRobot.time =  Clock::programClock.getElapsedTime();
+    _dataOpponent.SetAngle(Angle(TrackingWidget::opponentMouseClickAngle), 0, Clock::programClock.getElapsedTime(),
+                           true);
+    _dataRobot.robotVelocity = cv::Point2f(0, 0);
+    _dataOpponent.robotVelocity = cv::Point2f(0, 0);
+    _dataRobot.time = Clock::programClock.getElapsedTime();
     _dataRobot.robotPosValid = true;
     _dataOpponent.robotPosValid = true;
 
     _odometry_Heuristic.ForcePosition(_dataRobot.robotPosition, false);
-    _odometry_Heuristic.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.time,
-                                 _dataRobot.GetAngleVelocity(), true);
+    _odometry_Heuristic.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.time, _dataRobot.GetAngleVelocity(), true);
     _odometry_Heuristic.SetVelocity(_dataRobot.robotVelocity, false);
 
     _odometry_Heuristic.ForcePosition(_dataOpponent.robotPosition, true);
-    _odometry_Heuristic.SetAngle(_dataOpponent.GetAngle(), true,
-                                 _dataOpponent.time,
-                                 _dataOpponent.GetAngleVelocity(), true);
+    _odometry_Heuristic.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(),
+                                 true);
     _odometry_Heuristic.SetVelocity(_dataOpponent.robotVelocity, true);
 
     _odometry_Blob.ForcePosition(_dataRobot.robotPosition, false);
-    _odometry_Blob.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.time,
-                            _dataRobot.GetAngleVelocity(), true);
+    _odometry_Blob.SetAngle(_dataRobot.GetAngle(), false, _dataRobot.time, _dataRobot.GetAngleVelocity(), true);
     _odometry_Blob.SetVelocity(_dataRobot.robotVelocity, false);
 
     _odometry_Blob.ForcePosition(_dataOpponent.robotPosition, true);
-    _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time,
-                            _dataOpponent.GetAngleVelocity(), true);
+    _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(), true);
     _odometry_Blob.SetVelocity(_dataOpponent.robotVelocity, true);
 
     _odometry_opencv.ForcePosition(_dataOpponent.robotPosition, true);
-    _odometry_opencv.SetAngle(_dataOpponent.GetAngle(), true,
-                              _dataOpponent.time,
-                              _dataOpponent.GetAngleVelocity(), true);
+    _odometry_opencv.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(),
+                              true);
     _odometry_opencv.SetVelocity(_dataOpponent.robotVelocity, true);
 
     fusionStateMachine = FUSION_NORMAL;
 
-    if( !partOfAuto )
-    {
-        _odometry_Heuristic.MatchStart();
+    if (!partOfAuto) {
+      _odometry_Heuristic.MatchStart();
     }
 }
-
 
 // Updates internal Odometry data
 void RobotOdometry::Update(int videoID)
@@ -177,7 +170,7 @@ void RobotOdometry::Update(int videoID)
             newdata = true;
         }
 
-        if( newdata)
+        if (newdata)
         {
             _odometry_Blob.GetDebugImage(trackingInfo->GetDebugImage("Blob"), trackingInfo->GetDebugOffset("Blob"));
         }
