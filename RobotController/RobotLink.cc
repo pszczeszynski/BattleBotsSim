@@ -463,7 +463,7 @@ void RobotLinkReal::RadioThreadFunction(void)
     }
 }
 
-RobotLinkReal::RobotLinkReal()
+RobotLinkReal::RobotLinkReal() : _requestSend(false), _secondaryRequestSend(false)
 {
     // init last can message
     memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));

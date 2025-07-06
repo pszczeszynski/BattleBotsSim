@@ -17,7 +17,8 @@ CVRotation::CVRotation(ICameraReceiver* videoSource) : OdometryBase(videoSource)
     // init to 0,0 so confidence is 0
     _netXY1 = cv::Point2f(0, 0);
     _netXY2 = cv::Point2f(0, 0);
-
+    _lastDisagreementRad = 0;
+    _lastRotation = 0;
     _instance = this;
 }
 
