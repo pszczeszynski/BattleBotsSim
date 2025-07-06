@@ -70,14 +70,14 @@ public:
     cv::Point Point(float scale = 1.0);
     cv::Point2f Point2f();
 
-       // Assignment operator for cv::Point2f
+    // Assignment operator for cv::Point2f
     Vector2& operator=(const cv::Point2f& point) {
         this->x = point.x;
         this->y = point.y;
         return *this;
     }
 
-    // Optional: Copy assignment operator to prevent self-assignment issues
+    // Copy assignment operator
     Vector2& operator=(const Vector2& other) {
         if (this != &other) { // prevent self-assignment
             x = other.x;
@@ -95,6 +95,30 @@ public:
     Vector2& operator*=(const float& scalar) {
         x *= scalar;
         y *= scalar;
+        return *this;
+    }
+
+    // Subtraction operator
+    Vector2 operator-(const Vector2& other) const {
+        return Vector2(x - other.x, y - other.y);
+    }
+
+    // -= operator
+    Vector2& operator-=(const Vector2& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+
+    // Addition operator
+    Vector2 operator+(const Vector2& other) const {
+        return Vector2(x + other.x, y + other.y);
+    }
+
+    // += operator
+    Vector2& operator+=(const Vector2& other) {
+        x += other.x;
+        y += other.y;
         return *this;
     }
 };
@@ -158,6 +182,7 @@ public:
     static float distanceDerating_distance; // The radial distance at which we reach _stop intensity
     static int distanceDeratingMatSize;     // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
     static int ageBeforeStartInit;
+    static bool enableOlderImageTracking;   // Uses older image if not much movement/rotation occurs to have more accurate rotation. Not very effective at this time.
 
     // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
     static float deltaAngleSweep; // Delta +/- angle to sweep
@@ -204,7 +229,7 @@ public:
     cv::Rect GetExtrapolatedBBOX(double curr_time);
     Vector2 GetExtrapolatedPosition(double curr_time);
     void ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat); // Porcess new frame, return true if lock occured
-
+    
     cv::Point GetCenter(void);
     void SetRotation(double angleRad);
     bool IsPointInside(cv::Point2i point);
@@ -237,4 +262,20 @@ public:
     void matchTemplateThread(const cv::Rect &matLocation, const cv::Mat &matchingMat, float currAngleStart, float currAngleStop);
 
     void FixPartialForeground(cv::Mat &currFrame, cv::Mat &foreground, cv::Mat &new_fg_mask, cv::Rect &bestBBox);
+
+    // New code for keeptrick track of older image for drift reduction
+    // New member variables for older state
+    cv::Mat old_fg_image;      // Older foreground image
+    cv::Mat old_fg_mask;       // Older foreground mask
+    cv::Rect old_bbox;         // Older bounding box
+    Vector2 old_position;      // Older position
+    Vector2 old_rotation;      // Older rotation
+    double old_time;           // Time of older state
+    bool old_state_valid;      // Flag to indicate if older state is valid
+
+    // New static thresholds
+    static float max_rotation_diff;    // Maximum rotation difference (degrees) to trigger update
+    static float maxTimeToNotUpdateRotImage;
+    static float maxMovementToNotUpdateRotImage;
+
 };

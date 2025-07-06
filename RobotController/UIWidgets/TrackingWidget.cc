@@ -344,11 +344,13 @@ void TrackingWidget::_DrawAlgorithmData()
             if (InputState::GetInstance().IsMouseDown(0))
             {
                 robotMouseClickPoint = GetMousePos();
+                odometry.UpdateForceSetPosAndVel(robotMouseClickPoint, cv::Point2f(0,0), false);
             }
                         
             if (InputState::GetInstance().IsMouseDown(1))
             {
                 opponentMouseClickPoint = GetMousePos();
+                odometry.UpdateForceSetPosAndVel(opponentMouseClickPoint, cv::Point2f(0,0), true);
             }
 
 
