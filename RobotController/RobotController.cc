@@ -19,7 +19,8 @@
 
 int main()
 {
-    loadGlobalVariablesFromFile("RobotConfig.txt");
+
+    loadGlobalVariablesFromFile(SAVE_FILE_NAME);
     // initialize the robot controller
     RobotController& robotController = RobotController::GetInstance();
     // run the robot controller

@@ -1,8 +1,13 @@
 #include "RobotConfig.h"
 #include "UIWidgets/TrackingWidget.h"
 
-
+#ifdef SIMULATION
+std::string SAVE_FILE_NAME = "RobotConfigSim.txt";
+#elif defined(VIDEO_FILES)
+std::string SAVE_FILE_NAME = "RobotConfigVideo.txt";
+#else
 std::string SAVE_FILE_NAME = "RobotConfig.txt";
+#endif
 
 #define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
     type name = defaultValue; \
