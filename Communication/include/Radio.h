@@ -51,12 +51,13 @@ template <typename SendType, typename ReceiveType>
 Radio<SendType, ReceiveType>::Radio(uint8_t channel)
 {
     InitRadio(channel);
+    _channel = channel;
 }
 
 template <typename SendType, typename ReceiveType>
 bool Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
 {
-    const byte address[6] = "00001";
+    const byte address[] = {0xC3,0xCD,0xCC,0x0C,0xCC};
     if (!radio.begin()) return false;
     radio.openReadingPipe(1, address);
     radio.openWritingPipe(address);
@@ -65,6 +66,7 @@ bool Radio<SendType, ReceiveType>::InitRadio(uint8_t channel)
     radio.setAutoAck(false);
     if (!radio.setDataRate(RF24_2MBPS)) return false;
     radio.setChannel(channel);
+    _channel = channel;
     return true;
 }
 

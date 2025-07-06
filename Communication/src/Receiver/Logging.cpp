@@ -24,10 +24,10 @@ Logger::Logger()
     }
 
     // zero out radio data
-    radioStatus = 0;
-    powerLevel = 0;
-    invalidPacketCount = 0;
-    radioChannel = 0;
+    // radioStatus = 0;
+    // powerLevel = 0;
+    // invalidPacketCount = 0;
+    // radioChannel = 0;
 
     // init overflow
     overflow = false;

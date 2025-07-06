@@ -34,13 +34,10 @@ void CANBUS::OnMessage(const CAN_message_t &msg)
                 (*_vesc_handler)(msg);
             }
             break;
-        case LEFT_TEENSY_ID:
-        case CENTER_TEENSY_ID:
-        case RIGHT_TEENSY_ID:
-            if (placement == (dev_id & 0x0f))
-            {
-                Serial.println("Configuration Error: receiving CAN message from same ID as self");
-            }
+        case LEFT_DRIVE_TEENSY_ID:
+        case RIGHT_DRIVE_TEENSY_ID:
+        case REAR_WEP_TEENSY_ID:
+        case FRONT_WEP_TEENSY_ID:
             // handle arbitration/telemetry from other teensys
             if(_teensy_handler)
             {
@@ -62,12 +59,14 @@ uint8_t CANBUS::GetCanID(enum board_placement placement)
 {
     switch(placement)
     {
-        case rxLeft:
-            return LEFT_TEENSY_ID;
-        case rxCenter:
-            return CENTER_TEENSY_ID;
-        case rxRight:
-            return RIGHT_TEENSY_ID;
+        case rxWepFront:
+            return FRONT_WEP_TEENSY_ID;
+        case rxWepRear:
+            return REAR_WEP_TEENSY_ID;
+        case rxDriveLeft:
+            return LEFT_DRIVE_TEENSY_ID;
+        case rxDriveRight:
+            return RIGHT_DRIVE_TEENSY_ID;
         default:
             return 0;
     }

@@ -449,29 +449,57 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage& msg)
     if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS) return; // don't switch if recently switched
 
     int32_t nextChannel = -1; //the free channel to switch to
+    
+    switch(RADIO_CHANNEL)
+    {
+        case TEENSY_RADIO_1:
+            nextChannel = TEENSY_RADIO_2;
+            break;
+        case TEENSY_RADIO_2:
+            nextChannel = TEENSY_RADIO_3;
+            break;
+        case TEENSY_RADIO_3:
+            nextChannel = TEENSY_RADIO_4;
+            break;
+        case TEENSY_RADIO_4:
+            nextChannel = TEENSY_RADIO_1;
+            break;
+        default:
+            nextChannel = TEENSY_RADIO_1;
+            break;
+    }
     if (_transmitterConnected && _secondaryTransmitterConnected) 
     {
-        // get whichever one isn't being used
-        nextChannel = TEENSY_RADIO_1 + TEENSY_RADIO_2 + TEENSY_RADIO_3 - RADIO_CHANNEL - SECONDARY_RADIO_CHANNEL;
-    } 
-    else 
-    {
-        switch(RADIO_CHANNEL)
+        for(uint8_t i = 0; i < 4; i++)
         {
-            case TEENSY_RADIO_1:
-                nextChannel = TEENSY_RADIO_2;
+            // keep checking the next channel until we find one that neither radio is on
+            if (RADIO_CHANNEL == nextChannel || SECONDARY_RADIO_CHANNEL == nextChannel)
+            {
+                switch(nextChannel)
+                {
+                    case TEENSY_RADIO_1:
+                        nextChannel = TEENSY_RADIO_2;
+                        break;
+                    case TEENSY_RADIO_2:
+                        nextChannel = TEENSY_RADIO_3;
+                        break;
+                    case TEENSY_RADIO_3:
+                        nextChannel = TEENSY_RADIO_4;
+                        break;
+                    case TEENSY_RADIO_4:
+                        nextChannel = TEENSY_RADIO_1;
+                        break;
+                    default:
+                        nextChannel = TEENSY_RADIO_1;
+                        break;
+                }
+            }
+            else
+            {
                 break;
-            case TEENSY_RADIO_2:
-                nextChannel = TEENSY_RADIO_3;
-                break;
-            case TEENSY_RADIO_3:
-                nextChannel = TEENSY_RADIO_1;
-                break;
-            default:
-                nextChannel = TEENSY_RADIO_1;
-                break;
+            }
         }
-    }
+    } 
 
     _primaryRadioStatsMutex.lock();
     float primaryAvgDelay = _primaryRadioStats.radioData.averageDelayMS;

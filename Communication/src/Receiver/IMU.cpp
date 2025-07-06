@@ -8,8 +8,9 @@
 #define CENTER_GYRO_SCALE_FACTOR -1.0
 #define CENTER_GYRO_AXIS gyrZ
 
-#define SIDE_GYRO_SCALE_FACTOR -1.0055083
+#define SIDE_GYRO_SCALE_FACTOR -1.0
 #define SIDE_GYRO_AXIS gyrX
+
 
 #define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
 #define PI 3.14159
@@ -22,12 +23,13 @@ void IMU::Initialize(enum board_placement placement)
 {
     switch(placement)
     {
-        case rxCenter:
+        case rxWepFront:
+        case rxWepRear:
             _gyro_scale_factor = CENTER_GYRO_SCALE_FACTOR;
             _gyro_axis = &ICM_20948::CENTER_GYRO_AXIS;
             break;
-        case rxLeft:
-        case rxRight:
+        case rxDriveLeft:
+        case rxDriveRight:
             _gyro_scale_factor = SIDE_GYRO_SCALE_FACTOR;
             _gyro_axis = &ICM_20948::SIDE_GYRO_AXIS;
             break;

@@ -63,6 +63,7 @@ struct Point
 #define TEENSY_RADIO_1 50
 #define TEENSY_RADIO_2 120
 #define TEENSY_RADIO_3 70
+#define TEENSY_RADIO_4 100
 
 // disable padding
 #pragma pack(push, 1)

@@ -297,7 +297,8 @@ bool ErrorCheckMessage(DriverStationMessage &msg)
     // otherwise, the message is invalid
     else
     {
-        Serial.println("invalid case 3 invalid type");
+        Serial.print("invalid case 3 invalid type, message type RX'd: ");
+        Serial.println((uint8_t)msg.type);
 
         return false;
     }

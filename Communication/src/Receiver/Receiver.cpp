@@ -235,17 +235,21 @@ void DetermineChannel()
 {
     switch(placement)
     {
-        case rxLeft:
+        case rxWepFront:
             radioChannel = TEENSY_RADIO_1;
-            Serial.println("Firmware select: left receiver");
+            Serial.println("Firmware select: front weapon receiver");
             break;
-        case rxCenter:
+        case rxWepRear:
             radioChannel = TEENSY_RADIO_2;
-            Serial.println("Firmware select: center receiver");
+            Serial.println("Firmware select: rear weapon receiver");
             break;
-        case rxRight:
+        case rxDriveLeft:
             radioChannel = TEENSY_RADIO_3;
-            Serial.println("Firmware select: right receiver");
+            Serial.println("Firmware select: left drive receiver");
+            break;
+        case rxDriveRight:
+            radioChannel = TEENSY_RADIO_4;
+            Serial.println("Firmware select: right drive receiver");
             break;
         case tx:
         case invalidPlacement:
