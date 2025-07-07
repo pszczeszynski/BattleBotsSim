@@ -24,7 +24,7 @@ void DrawCANDataTable()
 
     ImGui::PopStyleVar(2);
 
-    const char *rowLabels[] = {"L Drive", "R Drive", "F Weapon", "B Weapon"};
+    const char *rowLabels[] = {"L Drive", "R Drive", "F Weapon", "B Weapon", "Flippy Boi"};
 
     if (ImGui::BeginTable("table1", 6, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
     {
@@ -37,7 +37,7 @@ void DrawCANDataTable()
         ImGui::TableSetupColumn("RPM");
         ImGui::TableHeadersRow();
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)
         {
             ImGui::TableNextRow();
             // Check conditions for changing row color
