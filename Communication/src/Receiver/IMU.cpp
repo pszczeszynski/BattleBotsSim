@@ -15,8 +15,18 @@
 #define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
 #define PI 3.14159
 
+#define STALE_ANGLE_SYNC_TIMEOUT 150 // consider angle sync up to date if received within last x ms
+#define STILL_THRESHOLD_TIMEOUT 500 // consider robot to be still if all IMUs report still for this long
+
+
 IMU::IMU()
 {
+    _imu_healthy = true;
+}
+
+bool IMU::isImuHealthy()
+{
+    return _imu_healthy;
 }
 
 void IMU::Initialize(enum board_placement placement)
@@ -274,6 +284,71 @@ void IMU::Update()
     // 1. update the gyro
     _updateGyro(deltaTimeMS);
 
+    uint8_t still_gyros = 0;
+    for(int i = 0; i < 4; i++)
+    {
+        // ignore the local gyro
+        if (_placement != i)
+        {
+            // if we have seen a packet come in from a given gyro at least once every 150ms, and it has reported < 0.1 rads/s for the last 500ms,
+            // we can be reasonably confident it thinks the robot is currently still. track how many gyros think the robot is currently still
+            const bool isGyroSyncUpdated = (millis() - lastPacketTimestamp[i] < STALE_ANGLE_SYNC_TIMEOUT);
+            if (isGyroSyncUpdated == false)
+            {
+                stoppedMovingTimestamp[i] = 0;
+            }
+
+            const bool hasGyroReportedStill = (stoppedMovingTimestamp[i] != 0 && (millis() - stoppedMovingTimestamp[i]) > STILL_THRESHOLD_TIMEOUT);
+
+            if (isGyroSyncUpdated & hasGyroReportedStill)
+            {
+                still_gyros++;
+            }
+        }
+    }
+
+    if (fabs(_currRotVelZ) < 0.1f)
+    {
+        if (stoppedMovingTimestamp[_placement] == 0)
+        {
+            stoppedMovingTimestamp[_placement] = millis();
+        }
+    }
+    else
+    {
+        stoppedMovingTimestamp[_placement] = 0;
+    }
+
+    if (fabs(_currRotVelZ) > 0.15f)
+    {
+        if (startedMovingTimestamp == 0)
+        {
+            startedMovingTimestamp = millis();
+        }
+    }
+    else
+    {
+        startedMovingTimestamp = 0;
+    }
+
+
+
+    if (still_gyros >= 2)
+    {
+        // if at least 2 other gyros are confident the robot is still but the onboard gyro thinks robot is moving, mark the local gyro as unhealthy
+        if ((startedMovingTimestamp != 0) && (millis() - startedMovingTimestamp > STILL_THRESHOLD_TIMEOUT))
+        {
+            _imu_healthy = false;
+            ForceCalibrate();
+        }
+
+        // if we have also been still for the last 500ms, mark the imu as healthy again
+        else if ((stoppedMovingTimestamp[_placement] != 0) && (millis() - stoppedMovingTimestamp[_placement] > STILL_THRESHOLD_TIMEOUT))
+        {
+            _imu_healthy = true;
+        }
+    }
+
     // 2. update the accelerometer
     _updateAccelerometer(deltaTimeMS);
 
@@ -467,8 +542,23 @@ void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
     }
 }
 
-void IMU::MergeExternalInput(float rotation)
+void IMU::MergeExternalInput(board_placement placement, float rotation, float velocity)
 {
+    all_velocities[placement] = velocity;
+    lastPacketTimestamp[placement] = millis();
+
+    if (fabsf(velocity) < 0.1f)
+    {
+        if (stoppedMovingTimestamp[placement] == 0)
+        {
+            stoppedMovingTimestamp[placement] = millis();
+        }
+    }
+    else
+    {
+        stoppedMovingTimestamp[placement] = 0;
+    }
+
     if (millis() < BOOT_GYRO_MERGE_MS)
     {
         _rotation = rotation;

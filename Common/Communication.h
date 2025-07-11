@@ -99,7 +99,8 @@ struct CANChannelChange
 struct CANAngleSync
 {
     float angle;
-    uint16_t magic;
+    uint8_t magic;
+    int16_t velocity; // centi-radians per second
 };
 
 struct CANMessage

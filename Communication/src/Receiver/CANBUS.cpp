@@ -72,6 +72,23 @@ uint8_t CANBUS::GetCanID(enum board_placement placement)
     }
 }
 
+enum board_placement CANBUS::GetTeensyById(uint8_t id)
+{
+    switch(id)
+    {
+        case FRONT_WEAPON_CAN_ID:
+            return rxWepFront;
+        case REAR_WEP_TEENSY_ID:
+            return rxWepRear;
+        case LEFT_DRIVE_TEENSY_ID:
+            return rxDriveLeft;
+        case RIGHT_DRIVE_TEENSY_ID:
+            return rxDriveRight;
+        default:
+            return invalidPlacement;  
+    }
+}
+
 MessageHandler_t CANBUS::_teensy_handler = nullptr;
 MessageHandler_t CANBUS::_vesc_handler = nullptr;
 
