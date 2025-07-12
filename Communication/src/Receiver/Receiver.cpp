@@ -3,21 +3,20 @@
 #include <FastLED.h>
 
 #include "Hardware.h"
+#include "PowerMonitor.h"
+#include "Radio.h"
 #include "Receiver/CANBUS.h"
 #include "Receiver/CommandHandlers.h"
 #include "Receiver/IMU.h"
 #include "Receiver/Logging.h"
 #include "Receiver/Vesc.h"
-#include "PowerMonitor.h"
-#include "Radio.h"
 #include "Utils.h"
 #include <cstring> // for std::memcpy
-
 
 // RECEIVER SPECIFIC BUILD OPTION DEFINES
 
 // allows driver station to tether to robot directly for testing
-//#define RECEIVER_USB
+// #define RECEIVER_USB
 
 // RECEIVER SPECIFIC CONFIG DEFINES
 
@@ -42,9 +41,9 @@
 #define STOP_ROBOT_TIMEOUT_MS 250
 #define RESEND_AUTO_DRIVE_MS 8
 
-#define POWER_STATS_TELEMETRY_INTERVAL 50 // every 50 packets -> updates at 4hz
+#define POWER_STATS_TELEMETRY_INTERVAL 50  // every 50 packets -> updates at 4hz
 #define RADIO_STATS_TELEMETRY_INITERVAL 20 // every 20 packets -> 10hz
-#define CAN_DATA_TELEMETRY_INTERVAL 10 // every 10 packets -> 20 
+#define CAN_DATA_TELEMETRY_INTERVAL 10     // every 10 packets -> 20
 
 #define ANGLE_SYNC_MAGIC 0xAB
 
@@ -74,7 +73,12 @@ Radio<RobotMessage, DriverStationMessage> rxRadio;
 PowerMonitor monitor;
 Logger logger{};
 CANBUS can{};
-VESC vesc{&can, LEFT_MOTOR_CAN_ID, RIGHT_MOTOR_CAN_ID, FRONT_WEAPON_CAN_ID, BACK_WEAPON_CAN_ID, SELF_RIGHTER_CAN_ID};
+VESC vesc{&can,
+          LEFT_MOTOR_CAN_ID,
+          RIGHT_MOTOR_CAN_ID,
+          FRONT_WEAPON_CAN_ID,
+          BACK_WEAPON_CAN_ID,
+          SELF_RIGHTER_CAN_ID};
 
 // FUNCTION PROTOTYPES
 RobotMessage GenerateTelemetryPacket();
@@ -82,33 +86,28 @@ RobotMessage GenerateTelemetryPacket();
 // RECEIVER ISRs
 
 IntervalTimer imuTimer;
-void ServiceImu()
-{
-    if (resetIMU)
-    {
-        imu.ForceCalibrate();
-        Serial.println("calibrating IMU");
-        resetIMU = false;
+void ServiceImu() {
+  if (resetIMU) {
+    imu.ForceCalibrate();
+    Serial.println("calibrating IMU");
+    resetIMU = false;
+  } else {
+    imu.Update();
+  }
+  static uint8_t counter = 0;
+  counter++;
+  if (counter >= 50) {
+    if (millis() > BOOT_GYRO_MERGE_MS && fuseIMU) {
+      CANMessage syncMessage;
+      syncMessage.type = ANGLE_SYNC;
+      syncMessage.angle.angle = float(imu.getRotation());
+      syncMessage.angle.velocity =
+          (int16_t)(imu.getRotationVelocity() * 100.0f);
+      syncMessage.angle.magic = ANGLE_SYNC_MAGIC;
+      can.SendTeensy(&syncMessage);
     }
-    else
-    {
-        imu.Update();
-    }
-    static uint8_t counter = 0;
-    counter++;
-    if(counter >= 50)
-    {
-        if(millis() > BOOT_GYRO_MERGE_MS && fuseIMU)
-        {
-            CANMessage syncMessage;
-            syncMessage.type = ANGLE_SYNC;
-            syncMessage.angle.angle = float(imu.getRotation());
-            syncMessage.angle.velocity = (int16_t)(imu.getRotationVelocity() * 100.0f);
-            syncMessage.angle.magic = ANGLE_SYNC_MAGIC;
-            can.SendTeensy(&syncMessage);
-        }
-        counter = 0;
-    }
+    counter = 0;
+  }
 }
 
 // IntervalTimer angleSyncTimer;
@@ -127,377 +126,348 @@ void ServiceImu()
 // }
 
 IntervalTimer packetWatchdogTimer;
-void ServicePacketWatchdog()
-{
-    // NOTE: don't stop robot unless comms are lost on all three boards
-    // IE lastReceiveTime must update when another board receives a packet
-    // MAKE SURE ESTOP HAS HIGHEST PRIORITY
-    if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
-    {
-        if (!noPacketWatchdogTrigger)
-        {
-            Serial.println("NO PACKET WATCHDOG TRIGGERED, STOPPING ROBOT!");
-            DriveCommand command{0};
-            command.movement = 0;
-            command.turn = 0;
-            command.frontWeaponPower = 0;
-            command.backWeaponPower = 0;
-            command.selfRighterPower = 0;
-            command.selfRighterPower = 0;
-            Drive(command);
-            DriveWeapons(command);
-            noPacketWatchdogTrigger = true;
-        }
+void ServicePacketWatchdog() {
+  // NOTE: don't stop robot unless comms are lost on all three boards
+  // IE lastReceiveTime must update when another board receives a packet
+  // MAKE SURE ESTOP HAS HIGHEST PRIORITY
+  if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS) {
+    if (!noPacketWatchdogTrigger) {
+      Serial.println("NO PACKET WATCHDOG TRIGGERED, STOPPING ROBOT!");
+      DriveCommand command{0};
+      command.movement = 0;
+      command.turn = 0;
+      command.frontWeaponPower = 0;
+      command.backWeaponPower = 0;
+      command.selfRighterPower = 0;
+      command.selfRighterPower = 0;
+      Drive(command);
+      DriveWeapons(command);
+      noPacketWatchdogTrigger = true;
     }
-    /*else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
-            (shouldResendAuto))
-    {
-        DriveWithMessage(lastMessage, true);
-        lastAutoSendTime = millis();
-    }*/
+  }
+  /*else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
+          (shouldResendAuto))
+  {
+      DriveWithMessage(lastMessage, true);
+      lastAutoSendTime = millis();
+  }*/
 }
 
 IntervalTimer CANEventsTimer;
-void ServiceCANEvents()
-{
-    can.Update();
-}
+void ServiceCANEvents() { can.Update(); }
 
-void HandlePacket()
-{
-    if (!rxRadio.Available()) return;
-    digitalWriteFast(STATUS_1_LED_PIN, HIGH);
-    DriverStationMessage msg = rxRadio.Receive();
-    resetIMU |= msg.resetIMU;
-    fuseIMU = (msg.fuseIMU & imu.isImuHealthy());
-    //imu.Update();
-    digitalWriteFast(STATUS_2_LED_PIN, HIGH);
+void HandlePacket() {
+  if (!rxRadio.Available())
+    return;
+  digitalWriteFast(STATUS_1_LED_PIN, HIGH);
+  DriverStationMessage msg = rxRadio.Receive();
+  resetIMU |= msg.resetIMU;
+  fuseIMU = (msg.fuseIMU & imu.isImuHealthy());
+  // imu.Update();
+  digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
-    RobotMessage return_msg = GenerateTelemetryPacket();
-    lastTelemetryMessage = return_msg;
-    digitalWriteFast(STATUS_3_LED_PIN, HIGH);
-    return_msg.timestamp = msg.timestamp;
-    SendOutput result = rxRadio.Send(return_msg);
-    logger.updateRadioData((int)result, 0, 0, 0);
-    digitalWriteFast(STATUS_4_LED_PIN, HIGH);
-    if(ErrorCheckMessage(msg))
-    {
-        DriveWithMessage(msg);
-        validMessageCount++;
-        maxReceiveIntervalMs = max(maxReceiveIntervalMs, millis() - lastReceiveTime);
-        lastReceiveTime = millis();
-        lastAutoSendTime = millis();
-    }
-    else
-    {
-        invalidMessageCount++;
-    }
+  RobotMessage return_msg = GenerateTelemetryPacket();
+  lastTelemetryMessage = return_msg;
+  digitalWriteFast(STATUS_3_LED_PIN, HIGH);
+  return_msg.timestamp = msg.timestamp;
+  SendOutput result = rxRadio.Send(return_msg);
+  logger.updateRadioData((int)result, 0, 0, 0);
+  digitalWriteFast(STATUS_4_LED_PIN, HIGH);
+  if (ErrorCheckMessage(msg)) {
+    DriveWithMessage(msg);
+    validMessageCount++;
+    maxReceiveIntervalMs =
+        max(maxReceiveIntervalMs, millis() - lastReceiveTime);
+    lastReceiveTime = millis();
+    lastAutoSendTime = millis();
+  } else {
+    invalidMessageCount++;
+  }
 
-    noPacketWatchdogTrigger = false;
-    //digitalWriteFast(STATUS_1_LED_PIN, HIGH);
-    receivedPacketSinceBoot = true;
-    digitalWriteFast(STATUS_1_LED_PIN, LOW);
-    digitalWriteFast(STATUS_2_LED_PIN, LOW);
-    digitalWriteFast(STATUS_3_LED_PIN, LOW);
-    digitalWriteFast(STATUS_4_LED_PIN, LOW);
+  noPacketWatchdogTrigger = false;
+  // digitalWriteFast(STATUS_1_LED_PIN, HIGH);
+  receivedPacketSinceBoot = true;
+  digitalWriteFast(STATUS_1_LED_PIN, LOW);
+  digitalWriteFast(STATUS_2_LED_PIN, LOW);
+  digitalWriteFast(STATUS_3_LED_PIN, LOW);
+  digitalWriteFast(STATUS_4_LED_PIN, LOW);
 }
 
 #ifdef RECEIVER_USB
-void HandlePacket(DriverStationMessage msg)
-{
-    RobotMessage return_msg = GenerateTelemetryPacket();
-    resetIMU |= msg.resetIMU;
-    fuseIMU = msg.fuseIMU;
-    lastTelemetryMessage = return_msg;
-    return_msg.timestamp = msg.timestamp;
-    
-    char sendBuffer[64];
-    std::memcpy(sendBuffer, &return_msg, sizeof(RobotMessage));
-    RawHID.send(sendBuffer, 1);
-    if(ErrorCheckMessage(msg))
-    {
-        DriveWithMessage(msg);
-        validMessageCount++;
-        maxReceiveIntervalMs = max(maxReceiveIntervalMs, millis() - lastReceiveTime);
-        lastReceiveTime = millis();
-        lastAutoSendTime = millis();
-    }
-    else
-    {
-        invalidMessageCount++;
-    }
+void HandlePacket(DriverStationMessage msg) {
+  RobotMessage return_msg = GenerateTelemetryPacket();
+  resetIMU |= msg.resetIMU;
+  fuseIMU = msg.fuseIMU;
+  lastTelemetryMessage = return_msg;
+  return_msg.timestamp = msg.timestamp;
 
-    noPacketWatchdogTrigger = false;
+  char sendBuffer[64];
+  std::memcpy(sendBuffer, &return_msg, sizeof(RobotMessage));
+  RawHID.send(sendBuffer, 1);
+  if (ErrorCheckMessage(msg)) {
+    DriveWithMessage(msg);
+    validMessageCount++;
+    maxReceiveIntervalMs =
+        max(maxReceiveIntervalMs, millis() - lastReceiveTime);
+    lastReceiveTime = millis();
+    lastAutoSendTime = millis();
+  } else {
+    invalidMessageCount++;
+  }
+
+  noPacketWatchdogTrigger = false;
 }
 #endif
 
 // RECEIVER HELPER FUNCTIONS
-void DetermineChannel()
-{
-    switch(placement)
-    {
-        case rxWepFront:
-            radioChannel = TEENSY_RADIO_1;
-            Serial.println("Firmware select: front weapon receiver");
-            break;
-        case rxWepRear:
-            radioChannel = TEENSY_RADIO_2;
-            Serial.println("Firmware select: rear weapon receiver");
-            break;
-        case rxDriveLeft:
-            radioChannel = TEENSY_RADIO_3;
-            Serial.println("Firmware select: left drive receiver");
-            break;
-        case rxDriveRight:
-            radioChannel = TEENSY_RADIO_4;
-            Serial.println("Firmware select: right drive receiver");
-            break;
-        case tx:
-        case invalidPlacement:
-        default:
-            // shouldn't happen 
-            Serial.println("Error: running rx radio setup with tx board ID");
-            break;
-    }
+void DetermineChannel() {
+  switch (placement) {
+  case rxWepFront:
+    radioChannel = TEENSY_RADIO_1;
+    Serial.println("Firmware select: front weapon receiver");
+    break;
+  case rxWepRear:
+    radioChannel = TEENSY_RADIO_2;
+    Serial.println("Firmware select: rear weapon receiver");
+    break;
+  case rxDriveLeft:
+    radioChannel = TEENSY_RADIO_3;
+    Serial.println("Firmware select: left drive receiver");
+    break;
+  case rxDriveRight:
+    radioChannel = TEENSY_RADIO_4;
+    Serial.println("Firmware select: right drive receiver");
+    break;
+  case tx:
+  case invalidPlacement:
+  default:
+    // shouldn't happen
+    Serial.println("Error: running rx radio setup with tx board ID");
+    break;
+  }
 }
 
-void GenerateIMUPacket(RobotMessage &msg)
-{
-    msg.type = IMU_DATA;
+void GenerateIMUPacket(RobotMessage &msg) {
+  msg.type = IMU_DATA;
 
-    // get accelerometer data and set accelsdf
-    Point accel = imu.getAccel();
-    msg.imuData.accelX = accel.x;
-    msg.imuData.accelY = accel.y;
+  // get accelerometer data and set accelsdf
+  Point accel = imu.getAccel();
+  msg.imuData.accelX = accel.x;
+  msg.imuData.accelY = accel.y;
 
-    // get gyro data and set gyro
-    msg.imuData.rotation = imu.getRotation();
-    // calculate rotation velocity
-    msg.imuData.rotationVelocity = imu.getRotationVelocity();
+  // get gyro data and set gyro
+  msg.imuData.rotation = imu.getRotation();
+  // calculate rotation velocity
+  msg.imuData.rotationVelocity = imu.getRotationVelocity();
 }
 
-void GenerateCANTelemetryPacket(RobotMessage &msg)
-{
-    msg.type = CAN_DATA;
-    vesc.GetCurrents(msg.canData.motorCurrent);
-    vesc.GetVolts(msg.canData.motorVoltage);
-    vesc.GetRPMs(msg.canData.motorERPM);
-    vesc.GetFETTemps(msg.canData.escFETTemp);
-    vesc.GetMotorTemps(msg.canData.motorTemp);
+void GenerateCANTelemetryPacket(RobotMessage &msg) {
+  msg.type = CAN_DATA;
+  vesc.GetCurrents(msg.canData.motorCurrent);
+  vesc.GetVolts(msg.canData.motorVoltage);
+  vesc.GetRPMs(msg.canData.motorERPM);
+  vesc.GetFETTemps(msg.canData.escFETTemp);
+  vesc.GetMotorTemps(msg.canData.motorTemp);
 }
 
-void GenerateRadioStatsPacket(RobotMessage &msg)
-{
-    static unsigned long lastRadioStatsRefreshTime = 0;
+void GenerateRadioStatsPacket(RobotMessage &msg) {
+  static unsigned long lastRadioStatsRefreshTime = 0;
 
-    msg.type = RADIO_DATA;
-    // send average delay (0 if no messages received yet)
-    msg.radioData.averageDelayMS = validMessageCount == 0 ? -1 : ((float) (millis() - lastRadioStatsRefreshTime) / validMessageCount);
-    // set invalid message count
-    msg.radioData.invalidPackets = (short) invalidMessageCount;
-    // set max delay
-    msg.radioData.maxDelayMS = maxReceiveIntervalMs;
+  msg.type = RADIO_DATA;
+  // send average delay (0 if no messages received yet)
+  msg.radioData.averageDelayMS =
+      validMessageCount == 0
+          ? -1
+          : ((float)(millis() - lastRadioStatsRefreshTime) / validMessageCount);
+  // set invalid message count
+  msg.radioData.invalidPackets = (short)invalidMessageCount;
+  // set max delay
+  msg.radioData.maxDelayMS = maxReceiveIntervalMs;
 
-    // set the last drive command fields
-    msg.radioData.movement = lastDriveCommand.movement;
-    msg.radioData.turn = lastDriveCommand.turn;
-    msg.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
-    msg.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
-    
-    // reset max delay
-    if (millis() - lastRadioStatsRefreshTime > 1000)
-    {
-        invalidMessageCount = 0;
-        validMessageCount = 0;
-        maxReceiveIntervalMs = 0;
-        lastRadioStatsRefreshTime = millis();
-    }
+  // set the last drive command fields
+  msg.radioData.movement = lastDriveCommand.movement;
+  msg.radioData.turn = lastDriveCommand.turn;
+  msg.radioData.frontWeaponPower = lastDriveCommand.frontWeaponPower;
+  msg.radioData.backWeaponPower = lastDriveCommand.backWeaponPower;
+
+  // reset max delay
+  if (millis() - lastRadioStatsRefreshTime > 1000) {
+    invalidMessageCount = 0;
+    validMessageCount = 0;
+    maxReceiveIntervalMs = 0;
+    lastRadioStatsRefreshTime = millis();
+  }
 }
 
-void GeneratePowerStatsPacket(RobotMessage &msg)
-{
-    msg.type = BOARD_TELEMETRY_DATA;
+void GeneratePowerStatsPacket(RobotMessage &msg) {
+  msg.type = BOARD_TELEMETRY_DATA;
 
-    msg.boardTelemetryData.current_5v = monitor.get5vCurrent();
-    msg.boardTelemetryData.voltage_3v3 = monitor.get3v3Voltage();
-    msg.boardTelemetryData.voltage_5v = monitor.get5vVoltage();
-    msg.boardTelemetryData.voltage_batt = monitor.getBattVoltage();
+  msg.boardTelemetryData.current_5v = monitor.get5vCurrent();
+  msg.boardTelemetryData.voltage_3v3 = monitor.get3v3Voltage();
+  msg.boardTelemetryData.voltage_5v = monitor.get5vVoltage();
+  msg.boardTelemetryData.voltage_batt = monitor.getBattVoltage();
 }
 
-RobotMessage GenerateTelemetryPacket()
-{
-    static uint32_t updateCount = 0;
-    RobotMessage msg;
+RobotMessage GenerateTelemetryPacket() {
+  static uint32_t updateCount = 0;
+  RobotMessage msg;
 
-    // offset them by increments of 2 so at a worst case
-    // every other packet is an IMU message
-    if ((updateCount % CAN_DATA_TELEMETRY_INTERVAL) == 2)
-    {
-        GenerateCANTelemetryPacket(msg);
-    }
-    else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 4)
-    {
-        GenerateRadioStatsPacket(msg);
-    }
-    else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 6)
-    {
-        GeneratePowerStatsPacket(msg);
-    }
-    else
-    {
-        GenerateIMUPacket(msg);
-        logger.updateIMUData(msg.imuData.rotation, msg.imuData.rotationVelocity, msg.imuData.accelX, msg.imuData.accelY);
-    }
-    updateCount++;
- 
-    return msg;
+  // offset them by increments of 2 so at a worst case
+  // every other packet is an IMU message
+  if ((updateCount % CAN_DATA_TELEMETRY_INTERVAL) == 2) {
+    GenerateCANTelemetryPacket(msg);
+  } else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 4) {
+    GenerateRadioStatsPacket(msg);
+  } else if ((updateCount % RADIO_STATS_TELEMETRY_INITERVAL) == 6) {
+    GeneratePowerStatsPacket(msg);
+  } else {
+    GenerateIMUPacket(msg);
+    logger.updateIMUData(msg.imuData.rotation, msg.imuData.rotationVelocity,
+                         msg.imuData.accelX, msg.imuData.accelY);
+  }
+  updateCount++;
+
+  return msg;
 }
 
-void OnTeensyMessage(const CAN_message_t &msg)
-{
-    CANMessage message;
-    memcpy(&message, msg.buf, sizeof(CANMessage));
+void OnTeensyMessage(const CAN_message_t &msg) {
+  CANMessage message;
+  memcpy(&message, msg.buf, sizeof(CANMessage));
 
-    switch(message.type)
-    {
-        case ANGLE_SYNC:
-            if (fuseIMU && (message.angle.magic == ANGLE_SYNC_MAGIC))
-            {
-                const enum board_placement sender = CANBUS::GetTeensyById(msg.id);
-                imu.MergeExternalInput(sender, message.angle.angle, message.angle.velocity/100.0f);
-            }
-            break;
-        case PING_REQUEST:
-            if (message.ping.pingID == CANBUS::GetCanID(placement)) {
-                message.type = PING_RESPONSE;
-                can.SendTeensy(&message);
-            }
-            Serial.print(message.ping.pingID);
-            Serial.println("received ping");
-            break;
-        case PING_RESPONSE:
-            Serial.println("received response");
-            DownsampledPrintf("Received ping response from %x, time taken: %d\n", message.ping.pingID, micros() - message.ping.timestamp);
-            break;
-        case COMMAND_PACKET_ID:
-            lastPacketID = message.packetID.packetID;
-            
-            // THIS ACTS AS A SAFEGUARD TO ENSURE ROBOT ESTOPS ON RADIO DISCONNECT
-            // only "fresh" packets can feed the watchdog, resent packets don't count
-            if(!message.packetID.isResentMessage)
-            {
-                lastReceiveTime = millis();
-            }
-            lastAutoSendTime = millis();
-            shouldResendAuto = false;
-        /*case CHANNEL_CHANGE:
-            if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
-                radioChannel = message.channel.newChannel;
-                rxRadio.SetChannel(radioChannel);
-            }*/
-        default:
-            break;
+  switch (message.type) {
+  case ANGLE_SYNC:
+    if (fuseIMU && (message.angle.magic == ANGLE_SYNC_MAGIC)) {
+      const enum board_placement sender = CANBUS::GetTeensyById(msg.id);
+      imu.MergeExternalInput(sender, message.angle.angle,
+                             message.angle.velocity / 100.0f);
     }
+    break;
+  case PING_REQUEST:
+    if (message.ping.pingID == CANBUS::GetCanID(placement)) {
+      message.type = PING_RESPONSE;
+      can.SendTeensy(&message);
+    }
+    Serial.print(message.ping.pingID);
+    Serial.println("received ping");
+    break;
+  case PING_RESPONSE:
+    Serial.println("received response");
+    DownsampledPrintf("Received ping response from %x, time taken: %d\n",
+                      message.ping.pingID, micros() - message.ping.timestamp);
+    break;
+  case COMMAND_PACKET_ID:
+    lastPacketID = message.packetID.packetID;
+
+    // THIS ACTS AS A SAFEGUARD TO ENSURE ROBOT ESTOPS ON RADIO DISCONNECT
+    // only "fresh" packets can feed the watchdog, resent packets don't count
+    if (!message.packetID.isResentMessage) {
+      lastReceiveTime = millis();
+    }
+    lastAutoSendTime = millis();
+    shouldResendAuto = false;
+  /*case CHANNEL_CHANGE:
+      if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
+          radioChannel = message.channel.newChannel;
+          rxRadio.SetChannel(radioChannel);
+      }*/
+  default:
+    break;
+  }
 }
 
 // ONE TIME INIT ON RECEIVER BOOT
-void rx_setup()
-{
-    Serial.begin(SERIAL_BAUD);
-    Serial.println("RX Setup: boot started");
+void rx_setup() {
+  Serial.begin(SERIAL_BAUD);
+  Serial.println("RX Setup: boot started");
 
-    if (!logger.init())
-    {
-        Serial.println("WARNING: logger failed to initialize");
-    }
+  if (!logger.init()) {
+    Serial.println("WARNING: logger failed to initialize");
+  }
 
-    CANBUS::SetTeensyHandler(&OnTeensyMessage);
-    CANBUS::SetVESCHandler(&VESC::OnMessage);
+  CANBUS::SetTeensyHandler(&OnTeensyMessage);
+  CANBUS::SetVESCHandler(&VESC::OnMessage);
 
-    FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
 
-    imu.Initialize(placement);
-    imuTimer.priority(IMU_PRIORITY);
-    imuTimer.begin(ServiceImu, IMU_INTERVAL);
+  imu.Initialize(placement);
+  imuTimer.priority(IMU_PRIORITY);
+  imuTimer.begin(ServiceImu, IMU_INTERVAL);
 
-    // angleSyncTimer.priority(ANGLE_SYNC_PRIORITY);
-    // angleSyncTimer.begin(ServiceAngleSync, ANGLE_SYNC_INTERVAL);
+  // angleSyncTimer.priority(ANGLE_SYNC_PRIORITY);
+  // angleSyncTimer.begin(ServiceAngleSync, ANGLE_SYNC_INTERVAL);
 
-    CANEventsTimer.priority(CAN_EVENTS_PRIORITY);
-    CANEventsTimer.begin(ServiceCANEvents, CAN_EVENTS_INTERVAL);
+  CANEventsTimer.priority(CAN_EVENTS_PRIORITY);
+  CANEventsTimer.begin(ServiceCANEvents, CAN_EVENTS_INTERVAL);
 
-    packetWatchdogTimer.priority(WATCHDOG_PRIORITY);
-    packetWatchdogTimer.begin(ServicePacketWatchdog, WATCHDOG_INTERVAL);
+  packetWatchdogTimer.priority(WATCHDOG_PRIORITY);
+  packetWatchdogTimer.begin(ServicePacketWatchdog, WATCHDOG_INTERVAL);
 
-    DetermineChannel();
-    delay(100);
-    rxRadio.InitRadio(radioChannel);
-    lastReinitRadioTime = millis();
+  DetermineChannel();
+  delay(100);
+  rxRadio.InitRadio(radioChannel);
+  lastReinitRadioTime = millis();
 
-    pinMode(STATUS_1_LED_PIN, OUTPUT);
-    pinMode(STATUS_2_LED_PIN, OUTPUT);
-    pinMode(STATUS_3_LED_PIN, OUTPUT);
-    pinMode(STATUS_4_LED_PIN, OUTPUT);
+  pinMode(STATUS_1_LED_PIN, OUTPUT);
+  pinMode(STATUS_2_LED_PIN, OUTPUT);
+  pinMode(STATUS_3_LED_PIN, OUTPUT);
+  pinMode(STATUS_4_LED_PIN, OUTPUT);
 
-    digitalWrite(STATUS_1_LED_PIN, LOW);
-    digitalWrite(STATUS_2_LED_PIN, LOW);
-    digitalWrite(STATUS_3_LED_PIN, LOW);
-    digitalWrite(STATUS_4_LED_PIN, LOW);
+  digitalWrite(STATUS_1_LED_PIN, LOW);
+  digitalWrite(STATUS_2_LED_PIN, LOW);
+  digitalWrite(STATUS_3_LED_PIN, LOW);
+  digitalWrite(STATUS_4_LED_PIN, LOW);
 
-    Serial.println("RX Setup: boot complete");
+  Serial.println("RX Setup: boot complete");
 
-    imu.Update();
+  imu.Update();
 
-    attachInterrupt(digitalPinToInterrupt(RADIO_IRQ_PIN), HandlePacket, FALLING);
+  attachInterrupt(digitalPinToInterrupt(RADIO_IRQ_PIN), HandlePacket, FALLING);
 }
 
 // CONTINUOUSLY CALLED ON RECEIVER
-void rx_loop()
-{
-    if(millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS)
-    {
-        if (millis() - lastReinitRadioTime > 1000)
-        {
-            lastReinitRadioTime = millis();
-            Serial.println("Reinit radio");
-            rxRadio.InitRadio(radioChannel);
-        }
-        //digitalWriteFast(STATUS_1_LED_PIN, LOW);
+void rx_loop() {
+  if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS) {
+    if (millis() - lastReinitRadioTime > 1000) {
+      lastReinitRadioTime = millis();
+      Serial.println("Reinit radio");
+      rxRadio.InitRadio(radioChannel);
     }
+    // digitalWriteFast(STATUS_1_LED_PIN, LOW);
+  }
 
-    float fetTemps[NUM_MOTORS];
-    float voltages[NUM_MOTORS];
-    float currents[NUM_MOTORS];
-    float motorTemps[NUM_MOTORS];
-    int erpms[NUM_MOTORS];
-    float dutyCycle[NUM_MOTORS];
+  float fetTemps[NUM_MOTORS];
+  float voltages[NUM_MOTORS];
+  float currents[NUM_MOTORS];
+  float motorTemps[NUM_MOTORS];
+  int erpms[NUM_MOTORS];
+  float dutyCycle[NUM_MOTORS];
 
-    vesc.GetFloatFETTemps(fetTemps);
-    vesc.GetFloatVolts(voltages);
-    vesc.GetFloatCurrents(currents);
-    vesc.GetFloatMotorTemps(motorTemps);
-    vesc.GetIntRPMs(erpms);
-    vesc.GetFloatDutyCycle(dutyCycle);
+  vesc.GetFloatFETTemps(fetTemps);
+  vesc.GetFloatVolts(voltages);
+  vesc.GetFloatCurrents(currents);
+  vesc.GetFloatMotorTemps(motorTemps);
+  vesc.GetIntRPMs(erpms);
+  vesc.GetFloatDutyCycle(dutyCycle);
 
-    logger.updateVescData(fetTemps, voltages, currents, motorTemps, erpms, dutyCycle);
+  logger.updateVescData(fetTemps, voltages, currents, motorTemps, erpms,
+                        dutyCycle);
 
-    logger.update();
+  logger.update();
 
-    monitor.readSensors();
+  monitor.readSensors();
 
 #ifdef RECEIVER_USB
-    int n;
-    uint8_t recvBuffer[64];
-    n = RawHID.recv(recvBuffer, 0);
+  int n;
+  uint8_t recvBuffer[64];
+  n = RawHID.recv(recvBuffer, 0);
 
-    // if the message is a tx ping, send a response back
-    // forward to the robot otherwise
-    if (n > sizeof(DriverStationMessage))
-    {
-        DriverStationMessage command;
-        // reinterpret the buffer as a DriveCommand
-        std::memcpy(&command, recvBuffer, sizeof(command));
-        HandlePacket(command);
-    }
+  // if the message is a tx ping, send a response back
+  // forward to the robot otherwise
+  if (n > sizeof(DriverStationMessage)) {
+    DriverStationMessage command;
+    // reinterpret the buffer as a DriveCommand
+    std::memcpy(&command, recvBuffer, sizeof(command));
+    HandlePacket(command);
+  }
 #endif
 }

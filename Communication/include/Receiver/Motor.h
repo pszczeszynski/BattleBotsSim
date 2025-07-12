@@ -1,16 +1,16 @@
 
 #pragma once
-#include <Servo.h>
 #include <Arduino.h>
+#include <Servo.h>
 
-class Motor
-{
+class Motor {
 public:
-    Motor(int pwmPin);
-    void init();
-    void SetPower(double speed);
+  Motor(int pwmPin);
+  void init();
+  void SetPower(double speed);
+
 private:
-    Servo motor;
-    double lastPower = 0;
-    int _pwmPin;
+  Servo motor;
+  double lastPower = 0;
+  int _pwmPin;
 };
