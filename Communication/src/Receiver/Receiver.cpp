@@ -3,13 +3,13 @@
 #include <FastLED.h>
 
 #include "Hardware.h"
-#include "PowerMonitor.h"
-#include "Radio.h"
 #include "Receiver/CANBUS.h"
 #include "Receiver/CommandHandlers.h"
 #include "Receiver/IMU.h"
 #include "Receiver/Logging.h"
 #include "Receiver/Vesc.h"
+#include "PowerMonitor.h"
+#include "Radio.h"
 #include "Utils.h"
 #include <cstring> // for std::memcpy
 
