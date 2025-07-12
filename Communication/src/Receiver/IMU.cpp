@@ -6,17 +6,14 @@
 #include <cmath>
 
 #define CENTER_GYRO_SCALE_FACTOR -1.0
-#define CENTER_GYRO_AXIS gyrZ
+#define CENTER_GYRO_AXIS gyrX
 
 #define SIDE_GYRO_SCALE_FACTOR -1.0
-#define SIDE_GYRO_AXIS gyrX
+#define SIDE_GYRO_AXIS gyrZ
 
 
-#define EXTERNAL_GYRO_MERGE_WEIGHT 0.25
-#define PI 3.14159
+#define PI 3.14159265358979323846
 
-#define STALE_ANGLE_SYNC_TIMEOUT 150 // consider angle sync up to date if received within last x ms
-#define STILL_THRESHOLD_TIMEOUT 500 // consider robot to be still if all IMUs report still for this long
 
 
 IMU::IMU()
@@ -31,6 +28,8 @@ bool IMU::isImuHealthy()
 
 void IMU::Initialize(enum board_placement placement)
 {
+    _placement = placement;
+    
     switch(placement)
     {
         case rxWepFront:
@@ -141,46 +140,35 @@ void IMU::ForceCalibrate()
     _smoothRotationVelocity = 0;
 }
 
-// time until the gyro calibration weighted average is 1/2 of the way to the new value
-#define GYRO_CALIBRATE_PERIOD_MS 1000
-// the threshold for the gyro to be considered "stationary"
-#define CALIBRATE_THRESH_RAD 1000.0 * TO_RAD // 10 degrees/s
-
-#define GYRO_DRIFT_MAX 2 * TO_RAD // degrees/s^2
-
-#define LPF_BETA 1
-
-// time until the accel calibration weighted average is 1/2 of the way to the new value
-#define IMU_CALIBRATE_PERIOD_MS 10000
-// threshold for the accelerometer to be considered "stationary"
-#define CALIBRATE_THRESH_MPSS 1
 
 void IMU::_updateGyro(double deltaTimeMS)
 {
+    // the threshold for the gyro to be considered "stationary"
+    constexpr double kCalibrateThreshRadsPerSec = 10.0 * TO_RAD; // 10 degrees/s
+    // lower betas mean more velocity smoothing. Lower betas are faster
+    constexpr double kLPFRotVelBeta = 1;
+    // time until the gyro calibration weighted average is 1/2 of the way to the new value
+    constexpr double kGyroCalibratePeriodMs = 1000;
+
     _currRotVelZ = -(myICM.*_gyro_axis)() * TO_RAD;
     _currRotVelZ *= _gyro_scale_factor;
     _currRotVelZ -= _calibrationRotVelZ;
-
-    _smoothRotationVelocity = _smoothRotationVelocity + (LPF_BETA * (_currRotVelZ - _smoothRotationVelocity));
-
+    _smoothRotationVelocity = _smoothRotationVelocity + (kLPFRotVelBeta * (_currRotVelZ - _smoothRotationVelocity));
+    // assume this update's velocity was constant at the average of the previous and current velocity
     double avgRotVelZ = (_smoothRotationVelocity + _prevRotVelZ) / 2;
-    double gyroNewWeight = deltaTimeMS / GYRO_CALIBRATE_PERIOD_MS;
-    float gyroClamp = deltaTimeMS * GYRO_DRIFT_MAX / 1000;
 
     // if the gyro is stationary, calibrate it
-    if (abs(avgRotVelZ) < CALIBRATE_THRESH_RAD)
+    if (abs(avgRotVelZ) < kCalibrateThreshRadsPerSec)
     {
-        float rotationOffset = (avgRotVelZ - _calibrationRotVelZ)*gyroNewWeight;
-        rotationOffset = std::max(-gyroClamp, std::min(gyroClamp, rotationOffset));
-        _calibrationRotVelZ += rotationOffset;
-        //_calibrationRotVelZ = (1 - gyroNewWeight) * _calibrationRotVelZ + gyroNewWeight * clampedRotVelZ;
+        double gyroNewWeight = deltaTimeMS / kGyroCalibratePeriodMs;
+        _calibrationRotVelZ = (1 - gyroNewWeight) * _calibrationRotVelZ + gyroNewWeight * avgRotVelZ;
     }
 
     // update the rotation
     _rotation += avgRotVelZ * deltaTimeMS / 1000.0;
 
     // check for inf
-    if (abs(_rotation) > 2 * 3.14 * 1000)
+    if (abs(_rotation) > 2 * PI * 1000)
     {
         _rotation = 0;
     }
@@ -194,13 +182,17 @@ static double magnitude(Point p)
     return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
-
-// time until we reset the velocity to 0 if the accelerometer is stationary
-#define RESET_VELOCITY_NO_ACCEL_TIME_MS 50
-
-#define VELOCITY_BLEAD_PERIOD_MS 10000
 void IMU::_updateAccelerometer(double deltaTimeMS)
 { 
+    // time until the accel calibration weighted average is 1/2 of the way to the new value
+    constexpr double kAccelCalibratePeriodMs = 10000;
+    // threshold for the accelerometer to be considered "stationary"
+    constexpr double kCalibrateThreshMpss = 1;
+    // time until we reset the velocity to 0 if the accelerometer is stationary
+    constexpr double kResetVelocityNoAccelTimeMs = 50;  
+    // time until we slowly blead off the velocity to 0 even when we are moving
+    constexpr double kVelocityBleadPeriodMs = 10000;
+    
     // get (unfiltered) accelerometer data and set accel
     _currAcceleration.x = myICM.accX() / (9.81 * 10);
     _currAcceleration.y = myICM.accY() / (9.81 * 10);
@@ -219,16 +211,16 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
 
 
     Point avgAccel = (_currAcceleration + _prevAcceleration) / 2;
-    double accelNewWeight = deltaTimeMS / IMU_CALIBRATE_PERIOD_MS;
+    double accelNewWeight = deltaTimeMS / kAccelCalibratePeriodMs;
 
     // if the accelerometer is stationary, calibrate it
-    if (magnitude(avgAccel) < CALIBRATE_THRESH_MPSS)
+    if (magnitude(avgAccel) < kCalibrateThreshMpss)
     {
         // move the calibration value towards the new value
         _calibrationAccel = _calibrationAccel * (1 - accelNewWeight) + avgAccel * accelNewWeight;
 
         // if the accelerometer has been stationary for a while, reset the velocity
-        if (millis() - _lastAccelerateTimeMS > RESET_VELOCITY_NO_ACCEL_TIME_MS)
+        if (millis() - _lastAccelerateTimeMS > kResetVelocityNoAccelTimeMs)
         {
             // if the accelerometer has been stationary for a while, reset the velocity
             _velocity = Point{0, 0, 0};
@@ -243,7 +235,7 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
         _velocity += (avgAccel - _calibrationAccel) * deltaTimeMS / 1000.0;
 
         // slowly blead off the velocity to 0 even when we are moving
-        double bleadWeight = deltaTimeMS / VELOCITY_BLEAD_PERIOD_MS;
+        double bleadWeight = deltaTimeMS / kVelocityBleadPeriodMs;
         _velocity = _velocity * (1 - bleadWeight);
     }
 
@@ -251,25 +243,15 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
     _prevAcceleration = _currAcceleration;
 }
 
-double currTime = 0;
-double prevTime = 0;
-
-/**
- *Updates the time data for the current loop iteration
- */
-double getDt()
-{
-    currTime = micros() / 1000;
-    double dt = currTime - prevTime;
-    prevTime = currTime;
-    return dt;
-}
-
 void IMU::Update()
 {
+    constexpr double kStaleAngleSyncTimeoutMs = 150;
+    constexpr double kStillThresholdTimeoutMs = 500;
+
     // compute the time since the last update
     double currTimeMS = micros() / 1000;
     double deltaTimeMS = currTimeMS - _prevTimeMS;
+    _prevTimeMS = currTimeMS;
 
     // if the time is too small, don't update
     if (deltaTimeMS < 0.3)
@@ -284,34 +266,45 @@ void IMU::Update()
     // 1. update the gyro
     _updateGyro(deltaTimeMS);
 
+    // Count how many external gyros think the robot is still
     uint8_t still_gyros = 0;
+    const uint32_t current_time = millis();
+    
     for(int i = 0; i < 4; i++)
     {
-        // ignore the local gyro
-        if (_placement != i)
+        // Skip local gyro
+        if (_placement == i) continue;
+        
+        // Check if this gyro's data is recent (within timeout)
+        const bool boards_data_is_recent = (current_time - lastPacketTimestamp[i] < kStaleAngleSyncTimeoutMs);
+        
+        if (!boards_data_is_recent)
         {
-            // if we have seen a packet come in from a given gyro at least once every 150ms, and it has reported < 0.1 rads/s for the last 500ms,
-            // we can be reasonably confident it thinks the robot is currently still. track how many gyros think the robot is currently still
-            const bool isGyroSyncUpdated = (millis() - lastPacketTimestamp[i] < STALE_ANGLE_SYNC_TIMEOUT);
-            if (isGyroSyncUpdated == false)
-            {
-                stoppedMovingTimestamp[i] = 0;
-            }
-
-            const bool hasGyroReportedStill = (stoppedMovingTimestamp[i] != 0 && (millis() - stoppedMovingTimestamp[i]) > STILL_THRESHOLD_TIMEOUT);
-
-            if (isGyroSyncUpdated & hasGyroReportedStill)
-            {
-                still_gyros++;
-            }
+            // Reset stopped timestamp if data is stale
+            stoppedMovingTimestamp[i] = 0;
+            continue;
+        }
+        
+        // Check if this gyro has been reporting still for the required duration
+        const bool other_gyro_still = (stoppedMovingTimestamp[i] != 0 && 
+                                      (current_time - stoppedMovingTimestamp[i]) > kStillThresholdTimeoutMs);
+        
+        if (other_gyro_still)
+        {
+            still_gyros++;
         }
     }
 
-    if (fabs(_currRotVelZ) < 0.1f)
+    // Track local gyro movement state
+    constexpr double kStoppedThreshRadsPerSec = 0.1;
+    constexpr double kStartedMovingThreshRadsPerSec = 0.15;
+    
+    // Check if local gyro thinks robot is stopped
+    if (fabs(_currRotVelZ) < kStoppedThreshRadsPerSec)
     {
         if (stoppedMovingTimestamp[_placement] == 0)
         {
-            stoppedMovingTimestamp[_placement] = millis();
+            stoppedMovingTimestamp[_placement] = current_time;
         }
     }
     else
@@ -319,11 +312,12 @@ void IMU::Update()
         stoppedMovingTimestamp[_placement] = 0;
     }
 
-    if (fabs(_currRotVelZ) > 0.15f)
+    // Check if local gyro thinks robot started moving
+    if (fabs(_currRotVelZ) > kStartedMovingThreshRadsPerSec)
     {
         if (startedMovingTimestamp == 0)
         {
-            startedMovingTimestamp = millis();
+            startedMovingTimestamp = current_time;
         }
     }
     else
@@ -331,19 +325,18 @@ void IMU::Update()
         startedMovingTimestamp = 0;
     }
 
-
-
-    if (still_gyros >= 2)
+    // IMU health detection: if majority of external gyros think robot is still
+    if (still_gyros > 2)
     {
-        // if at least 2 other gyros are confident the robot is still but the onboard gyro thinks robot is moving, mark the local gyro as unhealthy
-        if ((startedMovingTimestamp != 0) && (millis() - startedMovingTimestamp > STILL_THRESHOLD_TIMEOUT))
+        // If local gyro thinks robot is moving but others think it's still, mark as unhealthy
+        if (startedMovingTimestamp != 0 && (current_time - startedMovingTimestamp > kStillThresholdTimeoutMs))
         {
             _imu_healthy = false;
             ForceCalibrate();
         }
-
-        // if we have also been still for the last 500ms, mark the imu as healthy again
-        else if ((stoppedMovingTimestamp[_placement] != 0) && (millis() - stoppedMovingTimestamp[_placement] > STILL_THRESHOLD_TIMEOUT))
+        // If local gyro also thinks robot is still, mark as healthy
+        else if (stoppedMovingTimestamp[_placement] != 0 && 
+                 (current_time - stoppedMovingTimestamp[_placement]) > kStillThresholdTimeoutMs)
         {
             _imu_healthy = true;
         }
@@ -351,8 +344,6 @@ void IMU::Update()
 
     // 2. update the accelerometer
     _updateAccelerometer(deltaTimeMS);
-
-    _prevTimeMS = currTimeMS;
 }
 
 bool IMU::dataReady()
@@ -542,12 +533,16 @@ void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
     }
 }
 
-void IMU::MergeExternalInput(board_placement placement, float rotation, float velocity)
+void IMU::MergeExternalInput(board_placement placement, float rotation, float rotation_velocity)
 {
-    all_velocities[placement] = velocity;
+    constexpr double kStoppedThreshRadsPerSec = 0.1f;
+    constexpr double kExternalGyroMergeWeight = 0.005;
+
+    all_velocities[placement] = rotation_velocity;
     lastPacketTimestamp[placement] = millis();
 
-    if (fabsf(velocity) < 0.1f)
+    // record when another board stops moving or starts moving
+    if (fabsf(rotation_velocity) < kStoppedThreshRadsPerSec)
     {
         if (stoppedMovingTimestamp[placement] == 0)
         {
@@ -567,16 +562,9 @@ void IMU::MergeExternalInput(board_placement placement, float rotation, float ve
     {
         double difference = rotation - _rotation;
 
-        //fix wrap-around issues before merging
-        while(difference > PI)
-        {
-            difference -= 2*PI;
-        }
-        while(difference < -PI)
-        {
-            difference += 2*PI;
-        }
+        // Angle wrap-around
+        difference = fmod(difference + PI, 2*PI) - PI;
 
-        _rotation += EXTERNAL_GYRO_MERGE_WEIGHT*difference;
+        _rotation += kExternalGyroMergeWeight*difference;
     }
 }

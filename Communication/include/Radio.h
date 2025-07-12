@@ -4,7 +4,18 @@
 #include "Hardware.h"
 
 // BELOW MUST CHANGE FOR EACH RECEIVER TEENSY
+// Choose radio channel based on firmware type
+#ifdef FORCE_RX_WEP_FRONT_FIRMWARE
 #define CHANNEL TEENSY_RADIO_1
+#elif defined(FORCE_RX_WEP_REAR_FIRMWARE)
+#define CHANNEL TEENSY_RADIO_2
+#elif defined(FORCE_RX_DRIVE_LEFT_FIRMWARE)
+#define CHANNEL TEENSY_RADIO_3
+#elif defined(FORCE_RX_DRIVE_RIGHT_FIRMWARE)
+#define CHANNEL TEENSY_RADIO_4
+#else
+#define CHANNEL TEENSY_RADIO_1  // Default fallback
+#endif
 #define POWER RF24_PA_MAX
 #define POWER_STATUS_MSG "Setting power to HIGH"
 #define VERBOSE_RADIO

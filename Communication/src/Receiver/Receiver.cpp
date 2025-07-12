@@ -363,7 +363,7 @@ void OnTeensyMessage(const CAN_message_t &msg)
         case ANGLE_SYNC:
             if (fuseIMU && (message.angle.magic == ANGLE_SYNC_MAGIC))
             {
-                const enum board_placement sender =  CANBUS::GetTeensyById(msg.id);
+                const enum board_placement sender = CANBUS::GetTeensyById(msg.id);
                 imu.MergeExternalInput(sender, message.angle.angle, message.angle.velocity/100.0f);
             }
             break;
