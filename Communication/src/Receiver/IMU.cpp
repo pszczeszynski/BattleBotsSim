@@ -31,6 +31,7 @@ bool IMU::isImuHealthy()
 
 void IMU::Initialize(enum board_placement placement)
 {
+    _placement = placement;
     switch(placement)
     {
         case rxWepFront:
