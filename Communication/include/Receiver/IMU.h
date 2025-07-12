@@ -22,7 +22,7 @@ public:
     IMU();
     void Initialize(enum board_placement placement);
     void Update();
-    void MergeExternalInput(float rotation);
+    void MergeExternalInput(board_placement placement, float rotation, float velocity);
     void ForceCalibrate();
     bool dataReady();
     Point getAccel();
@@ -34,6 +34,8 @@ public:
     void printPaddedInt16b(int16_t val);
     void printRawAGMT(ICM_20948_AGMT_t agmt);
     void printFormattedFloat(float val, uint8_t leading, uint8_t decimals);
+
+    bool isImuHealthy();
 
     ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
 private:
@@ -60,5 +62,12 @@ private:
     double _gyro_scale_factor = 0;
     float (ICM_20948::*_gyro_axis)(void) = nullptr;
     float _smoothRotationVelocity = 0;
+
+    float all_velocities[4] = {0.0f};
+    uint32_t lastPacketTimestamp[4] = {0};
+    uint32_t stoppedMovingTimestamp[4] = {0};
+    uint32_t startedMovingTimestamp = 0;
+
+    bool _imu_healthy = true;
 
 };

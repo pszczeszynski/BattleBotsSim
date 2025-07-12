@@ -1,6 +1,10 @@
 #include <Arduino.h>
 #include "Hardware.h"
+
+#if defined(FORCE_TX_FIRMWARE)
 #include "Transmitter.h"
+#endif
+
 #include "Receiver.h"
 
 
@@ -13,15 +17,19 @@ void readFirmwareSelect() {
 
 #if defined(FORCE_TX_FIRMWARE)
     placement = tx;
-#elif defined(FORCE_RX_LEFT_FIRMWARE)
-    placement = rxLeft;
-#elif defined(FORCE_RX_CENTER_FIRMWARE)
-    placement = rxCenter;
-#elif defined(FORCE_RX_RIGHT_FIRMWARE)
-    placement = rxRight;
-#else
+#elif defined(FORCE_RX_FIRMWARE)
     placement = (enum board_placement)((digitalRead(FIRMWARE_SELECT_MSB_PIN) << 1) +
         digitalRead(FIRMWARE_SELECT_LSB_PIN));
+#elif defined(FORCE_RX_DRIVE_LEFT_FIRMWARE)
+    placement = rxDriveLeft;
+#elif defined(FORCE_RX_WEP_FRONT_FIRMWARE)
+    placement = rxWepFront;
+#elif defined(FORCE_RX_WEP_REAR_FIRMWARE)
+    placement = rxWepRear;
+#elif defined(FORCE_RX_DRIVE_RIGHT_FIRMWARE)
+    placement = rxDriveRight;
+#else
+# error "Must select TX or RX firmware target, unified target is deprecated"
 #endif
 }
 
@@ -31,11 +39,14 @@ void setup()
     switch(placement)
     {
         case tx:
+#if defined(FORCE_TX_FIRMWARE)
             tx_setup();
             break;
-        case rxLeft:
-        case rxCenter:
-        case rxRight:
+#endif
+        case rxDriveLeft:
+        case rxDriveRight:
+        case rxWepFront:
+        case rxWepRear:
             rx_setup();
             break;
         case invalidPlacement:
@@ -50,11 +61,14 @@ void loop()
     switch(placement)
     {
         case tx:
+#if defined(FORCE_TX_FIRMWARE)
             tx_loop();
             break;
-        case rxLeft:
-        case rxCenter:
-        case rxRight:
+#endif
+        case rxDriveLeft:
+        case rxDriveRight:
+        case rxWepFront:
+        case rxWepRear:
             rx_loop();
             break;
         case invalidPlacement:

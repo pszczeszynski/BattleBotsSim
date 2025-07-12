@@ -6,11 +6,14 @@
 
 enum board_placement
 {
-    invalidPlacement = -1,
-    tx = 0,
-    rxLeft,
-    rxCenter,
-    rxRight,
+    invalidPlacement        = -1,
+    rxWepFront              = 0,
+    rxWepRear,
+    rxDriveLeft,
+    rxDriveRight,
+
+
+    tx,   
 };
 
 ///////////////////////////COMMON BOARD PINOUTS///////////////////////////
@@ -63,13 +66,14 @@ enum board_placement
 // Lower 8 bits used for hardware ID, upper 21 bits for message ID
 
 // vesc can bus ids
-#define LEFT_MOTOR_CAN_ID 3
-#define RIGHT_MOTOR_CAN_ID 1
-#define FRONT_WEAPON_CAN_ID 2
-#define BACK_WEAPON_CAN_ID 4
-#define SELF_RIGHTER_CAN_ID 23
+#define LEFT_MOTOR_CAN_ID                   3
+#define RIGHT_MOTOR_CAN_ID                  1
+#define FRONT_WEAPON_CAN_ID                 2
+#define BACK_WEAPON_CAN_ID                  4
+#define SELF_RIGHTER_CAN_ID                 23
 
 // teensy can bus ids - derived from 0x
-#define LEFT_TEENSY_ID rxLeft|0xf0
-#define CENTER_TEENSY_ID rxCenter|0xf0
-#define RIGHT_TEENSY_ID rxRight|0xf0
+#define LEFT_DRIVE_TEENSY_ID                0xf1
+#define RIGHT_DRIVE_TEENSY_ID               0xf2
+#define REAR_WEP_TEENSY_ID                  0xf3
+#define FRONT_WEP_TEENSY_ID                 0xf4

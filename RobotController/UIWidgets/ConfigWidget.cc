@@ -322,6 +322,33 @@ void ConfigWidget::Draw()
         {
             ImGui::PopStyleColor();
         }
+
+        ImGui::SameLine();
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx1->Rx4"))
+        {
+            RADIO_CHANNEL = TEENSY_RADIO_4;
+        }
+
+        if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PopStyleColor();
+        }
     }
 
     ImGui::InputInt("Secondary Radio Channel", &SECONDARY_RADIO_CHANNEL);
@@ -403,6 +430,33 @@ void ConfigWidget::Draw()
             ImGui::PopStyleVar();
         }
         else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
+        {
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::SameLine();
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Button("Tx2->Rx4"))
+        {
+            SECONDARY_RADIO_CHANNEL = TEENSY_RADIO_4;
+        }
+
+        if (RADIO_CHANNEL == TEENSY_RADIO_4)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+        else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_4)
         {
             ImGui::PopStyleColor();
         }

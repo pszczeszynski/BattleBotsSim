@@ -21,6 +21,7 @@ public:
     void SendTeensy(CANMessage *msg);
 
     static uint8_t GetCanID(enum board_placement placement);
+    static enum board_placement GetTeensyById(uint8_t id);
     static void OnMessage(const CAN_message_t &msg);
 
     static void SetVESCHandler(MessageHandler_t vesc_handler);

@@ -46,7 +46,7 @@
 #define RADIO_STATS_TELEMETRY_INITERVAL 20 // every 20 packets -> 10hz
 #define CAN_DATA_TELEMETRY_INTERVAL 10 // every 10 packets -> 20 
 
-#define ANGLE_SYNC_MAGIC 0xABCD
+#define ANGLE_SYNC_MAGIC 0xAB
 
 // RECEIVER SPECIFIC GLOBAL VARIABLES
 extern enum board_placement placement;
@@ -103,6 +103,7 @@ void ServiceImu()
             CANMessage syncMessage;
             syncMessage.type = ANGLE_SYNC;
             syncMessage.angle.angle = float(imu.getRotation());
+            syncMessage.angle.velocity = (int16_t)(imu.getRotationVelocity() * 100.0f);
             syncMessage.angle.magic = ANGLE_SYNC_MAGIC;
             can.SendTeensy(&syncMessage);
         }
@@ -168,7 +169,7 @@ void HandlePacket()
     digitalWriteFast(STATUS_1_LED_PIN, HIGH);
     DriverStationMessage msg = rxRadio.Receive();
     resetIMU |= msg.resetIMU;
-    fuseIMU = msg.fuseIMU;
+    fuseIMU = (msg.fuseIMU & imu.isImuHealthy());
     //imu.Update();
     digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
@@ -235,17 +236,21 @@ void DetermineChannel()
 {
     switch(placement)
     {
-        case rxLeft:
+        case rxWepFront:
             radioChannel = TEENSY_RADIO_1;
-            Serial.println("Firmware select: left receiver");
+            Serial.println("Firmware select: front weapon receiver");
             break;
-        case rxCenter:
+        case rxWepRear:
             radioChannel = TEENSY_RADIO_2;
-            Serial.println("Firmware select: center receiver");
+            Serial.println("Firmware select: rear weapon receiver");
             break;
-        case rxRight:
+        case rxDriveLeft:
             radioChannel = TEENSY_RADIO_3;
-            Serial.println("Firmware select: right receiver");
+            Serial.println("Firmware select: left drive receiver");
+            break;
+        case rxDriveRight:
+            radioChannel = TEENSY_RADIO_4;
+            Serial.println("Firmware select: right drive receiver");
             break;
         case tx:
         case invalidPlacement:
@@ -358,7 +363,8 @@ void OnTeensyMessage(const CAN_message_t &msg)
         case ANGLE_SYNC:
             if (fuseIMU && (message.angle.magic == ANGLE_SYNC_MAGIC))
             {
-                imu.MergeExternalInput(message.angle.angle);
+                const enum board_placement sender =  CANBUS::GetTeensyById(msg.id);
+                imu.MergeExternalInput(sender, message.angle.angle, message.angle.velocity/100.0f);
             }
             break;
         case PING_REQUEST:
