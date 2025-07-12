@@ -37,6 +37,24 @@ void DrawCrossRotated(cv::Mat& mat, cv::Point2f center, float rotation, cv::Scal
                        center.y + radius * sin(rotation + 3 * M_PI / 2));
     cv::line(mat, point1, point3, color, thickness, cv::LINE_AA);
     cv::line(mat, point2, point4, color, thickness, cv::LINE_AA);
+    
+    // Draw arrow tip pointing in the direction the robot is facing
+    float arrowLength = 20.0f;
+    float arrowWidth = 8.0f;
+    
+    // Arrow tip point (in the direction of rotation)
+    cv::Point2f arrowTip(center.x + (radius + arrowLength) * cos(rotation),
+                         center.y + (radius + arrowLength) * sin(rotation));
+    
+    // Arrow base points (perpendicular to the direction)
+    cv::Point2f arrowBase1(center.x + radius * cos(rotation + M_PI / 2),
+                           center.y + radius * sin(rotation + M_PI / 2));
+    cv::Point2f arrowBase2(center.x + radius * cos(rotation - M_PI / 2),
+                           center.y + radius * sin(rotation - M_PI / 2));
+    
+    // Draw arrow lines
+    cv::line(mat, arrowBase1, arrowTip, color, thickness, cv::LINE_AA);
+    cv::line(mat, arrowBase2, arrowTip, color, thickness, cv::LINE_AA);
 }
 
 /**
@@ -69,6 +87,11 @@ void IMUWidget::Draw()
 
     // put text
     cv::putText(mat, "IMU", cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255, 255), 2);
+    
+    // Show fusion status
+    std::string fusionText = imuData.fusingIMU ? "FUSING" : "NO FUSE";
+    cv::Scalar fusionColor = imuData.fusingIMU ? cv::Scalar(0, 255, 0, 255) : cv::Scalar(255, 0, 0, 255); // Green if fusing, red if not
+    cv::putText(mat, fusionText, cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6, fusionColor, 2);
 
     // draw circle
     cv::Scalar strokeColor = cv::Scalar(255, 255, 255, 255);

@@ -43,9 +43,11 @@ void DrawCANDataTable()
             // Check conditions for changing row color
             // bool setRed = data.motorTemp[i] == 0 || data.escFETTemp[i] > 80 || data.motorTemp[i] > 90;
 
+            // Check if motor data is valid (non-zero temperature indicates active motor)
             if (data.motorTemp[i] == 0)
             {
-                // don't set color
+                // Motor not active - set gray color
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0, 0, 0, 255));
             }
             else if (data.escFETTemp[i] > 80 || data.motorTemp[i] > 90 || data.motorVoltage[i] <= 57)
             {
@@ -55,7 +57,7 @@ void DrawCANDataTable()
             else if (data.escFETTemp[i] > 60 || data.motorTemp[i] > 60)
             {
                 // Set row color to yellow
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 255, 0, 255));
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(150, 150, 0, 255));
             }
             else
             {
