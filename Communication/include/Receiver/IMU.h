@@ -29,18 +29,19 @@ public:
   Point getVelocity();
   double getRotation();
   double getRotationVelocity();
-  void plotData(double orient, double vel, double accel);
-  void printScaledAGMT();
-  void printPaddedInt16b(int16_t val);
-  void printRawAGMT(ICM_20948_AGMT_t agmt);
-  void printFormattedFloat(float val, uint8_t leading, uint8_t decimals);
 
   bool isImuHealthy();
+
+  IMUDebugData getDebugData();
 
   ICM_20948_I2C myICM; // Create an ICM_20948_I2C object
 private:
   void _updateGyro(double deltaTimeMS);
   void _updateAccelerometer(double deltaTimeMS);
+  void _updateHealthDetection();
+  uint8_t _countActiveExternalGyros(uint32_t current_time);
+  double _calculateAverageVelocityDifference(uint32_t current_time, uint8_t active_external_gyros);
+  double _calculateExternalMeanVelocity(uint32_t current_time, uint8_t active_external_gyros);
 
   Point _velocity;
   Point _calibrationAccel;
@@ -63,10 +64,15 @@ private:
   float (ICM_20948::*_gyro_axis)(void) = nullptr;
   float _smoothRotationVelocity = 0;
 
-  float all_velocities[4] = {0.0f};
-  uint32_t lastPacketTimestamp[4] = {0};
-  uint32_t stoppedMovingTimestamp[4] = {0};
-  uint32_t startedMovingTimestamp = 0;
+  float _all_velocities[4] = {0.0f};
+  uint32_t _lastPacketTimestamps[4] = {0};
 
   bool _imu_healthy = true;
+  uint32_t _last_unhealthy_time = 0;
+  
+  // Moving average of velocity differences (used as health indicator)
+  double _avg_velocity_difference = 0.0; // Average difference between our velocity and others
+  uint32_t _last_velocity_diff_update_time = 0;
+
+  IMUDebugData _imuDebugData;
 };

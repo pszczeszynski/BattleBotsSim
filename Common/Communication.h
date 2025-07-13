@@ -120,6 +120,7 @@ enum RobotMessageType : char
 {
     INVALID = 0,
     IMU_DATA,
+    IMU_DEBUG_DATA,
     CAN_DATA,
     RADIO_DATA,
     BOARD_TELEMETRY_DATA,
@@ -135,7 +136,15 @@ struct IMUData
     float accelY;
 };
 
-#define MOTOR_COUNT 4
+struct IMUDebugData
+{
+    float myCurrRotationRad;
+    bool isHealthy;
+    float avgVelocityDifference;
+    float externalMeanVelocity;
+    float percentageError;
+};
+
 enum MotorIndexes
 {
     l_drive = 0,
@@ -192,6 +201,7 @@ struct RobotMessage
     union
     {
         IMUData imuData;
+        IMUDebugData imuDebugData;
         CANData canData;
         RadioData radioData;
         BoardTelemetryData boardTelemetryData;

@@ -51,6 +51,13 @@ RobotMessage IRobotLink::Receive()
             _lastIMUMessageMutex.unlock();
             hadValidMessage = true;
         }
+        else if (msg.type == RobotMessageType::IMU_DEBUG_DATA)
+        {
+            _lastIMUDebugMessageMutex.lock();
+            _lastIMUDebugMessage = msg;
+            _lastIMUDebugMessageMutex.unlock();
+            hadValidMessage = true;
+        }
         else if (msg.type == RobotMessageType::CAN_DATA)
         {
             _lastCANMessageMutex.lock();
@@ -138,6 +145,15 @@ RobotMessage IRobotLink::GetLastBoardTelemetryMessage()
     _lastBoardTelemetryMessageMutex.lock();
     ret = _lastBoardTelemetryMessage;
     _lastBoardTelemetryMessageMutex.unlock();
+    return ret;
+}
+
+RobotMessage IRobotLink::GetLastIMUDebugMessage()
+{
+    RobotMessage ret;
+    _lastIMUDebugMessageMutex.lock();
+    ret = _lastIMUDebugMessage;
+    _lastIMUDebugMessageMutex.unlock();
     return ret;
 }
 

@@ -168,7 +168,8 @@ void IMU::_updateGyro(double deltaTimeMS)
     _rotation += avgRotVelZ * deltaTimeMS / 1000.0;
 
     // check for inf
-    if (abs(_rotation) > 2 * PI * 1000)
+    constexpr double kMaxRotationRad = 2 * PI * 1000;
+    if (abs(_rotation) > kMaxRotationRad)
     {
         _rotation = 0;
     }
@@ -194,9 +195,12 @@ void IMU::_updateAccelerometer(double deltaTimeMS)
     constexpr double kVelocityBleadPeriodMs = 10000;
     
     // get (unfiltered) accelerometer data and set accel
-    _currAcceleration.x = myICM.accX() / (9.81 * 10);
-    _currAcceleration.y = myICM.accY() / (9.81 * 10);
-    _currAcceleration.z = myICM.accZ() / (9.81 * 10) - 9.81;
+    constexpr double kGravityMpss = 9.81;
+    constexpr double kAccelScaleFactor = kGravityMpss * 10;
+    
+    _currAcceleration.x = myICM.accX() / kAccelScaleFactor;
+    _currAcceleration.y = myICM.accY() / kAccelScaleFactor;
+    _currAcceleration.z = myICM.accZ() / kAccelScaleFactor - kGravityMpss;
 
 
     /////////////// ROTATE ACCELERATION BY GYRO //////////////////
@@ -254,7 +258,8 @@ void IMU::Update()
     _prevTimeMS = currTimeMS;
 
     // if the time is too small, don't update
-    if (deltaTimeMS < 0.3)
+    constexpr double kMinUpdateTimeMs = 0.3;
+    if (deltaTimeMS < kMinUpdateTimeMs)
     {
         Serial.println("exiting update not enough time");
         return;
@@ -266,81 +271,8 @@ void IMU::Update()
     // 1. update the gyro
     _updateGyro(deltaTimeMS);
 
-    // Count how many external gyros think the robot is still
-    uint8_t still_gyros = 0;
-    const uint32_t current_time = millis();
-    
-    for(int i = 0; i < 4; i++)
-    {
-        // Skip local gyro
-        if (_placement == i) continue;
-        
-        // Check if this gyro's data is recent (within timeout)
-        const bool boards_data_is_recent = (current_time - lastPacketTimestamp[i] < kStaleAngleSyncTimeoutMs);
-        
-        if (!boards_data_is_recent)
-        {
-            // Reset stopped timestamp if data is stale
-            stoppedMovingTimestamp[i] = 0;
-            continue;
-        }
-        
-        // Check if this gyro has been reporting still for the required duration
-        const bool other_gyro_still = (stoppedMovingTimestamp[i] != 0 && 
-                                      (current_time - stoppedMovingTimestamp[i]) > kStillThresholdTimeoutMs);
-        
-        if (other_gyro_still)
-        {
-            still_gyros++;
-        }
-    }
-
-    // Track local gyro movement state
-    constexpr double kStoppedThreshRadsPerSec = 0.1;
-    constexpr double kStartedMovingThreshRadsPerSec = 0.15;
-    
-    // Check if local gyro thinks robot is stopped
-    if (fabs(_currRotVelZ) < kStoppedThreshRadsPerSec)
-    {
-        if (stoppedMovingTimestamp[_placement] == 0)
-        {
-            stoppedMovingTimestamp[_placement] = current_time;
-        }
-    }
-    else
-    {
-        stoppedMovingTimestamp[_placement] = 0;
-    }
-
-    // Check if local gyro thinks robot started moving
-    if (fabs(_currRotVelZ) > kStartedMovingThreshRadsPerSec)
-    {
-        if (startedMovingTimestamp == 0)
-        {
-            startedMovingTimestamp = current_time;
-        }
-    }
-    else
-    {
-        startedMovingTimestamp = 0;
-    }
-
-    // IMU health detection: if majority of external gyros think robot is still
-    if (still_gyros > 2)
-    {
-        // If local gyro thinks robot is moving but others think it's still, mark as unhealthy
-        if (startedMovingTimestamp != 0 && (current_time - startedMovingTimestamp > kStillThresholdTimeoutMs))
-        {
-            _imu_healthy = false;
-            ForceCalibrate();
-        }
-        // If local gyro also thinks robot is still, mark as healthy
-        else if (stoppedMovingTimestamp[_placement] != 0 && 
-                 (current_time - stoppedMovingTimestamp[_placement]) > kStillThresholdTimeoutMs)
-        {
-            _imu_healthy = true;
-        }
-    }
+    // 2. update health detection
+    _updateHealthDetection();
 
     // 2. update the accelerometer
     _updateAccelerometer(deltaTimeMS);
@@ -383,197 +315,175 @@ double IMU::getRotation()
     return _rotation;
 }
 
-void IMU::plotData(double orient, double vel, double accel)
-{
-    Serial.print("Orientation:");
-    Serial.print(orient);
-    Serial.print(",");
-    Serial.print("Velocity:");
-    Serial.print(vel);
-    Serial.print(",");
-    Serial.print("Acceleration:");
-    Serial.println(accel);
+void IMU::MergeExternalInput(board_placement placement, float rotation,
+                             float rotation_velocity) {                           
+  // only merge external inputs from the drive and weapon boards
+  if (placement != rxDriveLeft && placement != rxDriveRight &&
+      placement != rxWepFront && placement != rxWepRear) {
+    return;
+  }
+
+  constexpr double kExternalGyroMergeWeight = 0.005;
+
+  _all_velocities[placement] = rotation_velocity;
+  _lastPacketTimestamps[placement] = millis();
+
+  if (millis() < BOOT_GYRO_MERGE_MS) {
+    _rotation = rotation;
+  } else {
+    double difference = rotation - _rotation;
+
+    // Angle wrap-around
+    difference = fmod(difference + PI, 2 * PI) - PI;
+
+    _rotation += kExternalGyroMergeWeight * difference;
+  }
 }
 
-void IMU::printScaledAGMT()
+void IMU::_updateHealthDetection()
 {
-    Serial.print("Scaled. Acc (mg) [ ");
-    printFormattedFloat(myICM.accX(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.accY(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.accZ(), 5, 2);
-    Serial.print(" ], Gyr (DPS) [ ");
-    printFormattedFloat(myICM.gyrX(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.gyrY(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.gyrZ(), 5, 2);
-    Serial.print(" ], Mag (uT) [ ");
-    printFormattedFloat(myICM.magX(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.magY(), 5, 2);
-    Serial.print(", ");
-    printFormattedFloat(myICM.magZ(), 5, 2);
-    Serial.print(" ], Tmp (C) [ ");
-    printFormattedFloat(myICM.temp(), 5, 2);
-    Serial.print(" ]");
-    Serial.println();
-}
+    constexpr double kVelocityDifferenceThreshold = 0.3; // rad/s average difference threshold
+    constexpr double kMaxPercentageError = 20.0; // ±20% error threshold
+    constexpr double kVelocityDiffTimeConstantMs = 1000; // 1 second time constant for velocity difference moving average
 
-void IMU::printPaddedInt16b(int16_t val)
-{
-    if (val > 0)
+    const uint32_t current_time = millis();
+    
+    uint8_t active_external_gyros = _countActiveExternalGyros(current_time);
+    
+    // Calculate average velocity difference with external gyros
+    double current_avg_velocity_diff = _calculateAverageVelocityDifference(current_time, active_external_gyros);
+    
+    // Update moving average of velocity differences
+    if (_last_velocity_diff_update_time != 0)
     {
-        Serial.print(" ");
-        if (val < 10000)
-        {
-            Serial.print("0");
-        }
-        if (val < 1000)
-        {
-            Serial.print("0");
-        }
-        if (val < 100)
-        {
-            Serial.print("0");
-        }
-        if (val < 10)
-        {
-            Serial.print("0");
-        }
+        double delta_time_ms = current_time - _last_velocity_diff_update_time;
+        double alpha = delta_time_ms / kVelocityDiffTimeConstantMs;
+        alpha = min(alpha, 1.0); // Clamp to prevent overshooting
+        
+        _avg_velocity_difference = (1.0 - alpha) * _avg_velocity_difference + alpha * current_avg_velocity_diff;
     }
     else
     {
-        Serial.print("-");
-        if (abs(val) < 10000)
-        {
-            Serial.print("0");
-        }
-        if (abs(val) < 1000)
-        {
-            Serial.print("0");
-        }
-        if (abs(val) < 100)
-        {
-            Serial.print("0");
-        }
-        if (abs(val) < 10)
-        {
-            Serial.print("0");
-        }
+        _avg_velocity_difference = current_avg_velocity_diff;
     }
-    Serial.print(abs(val));
+    _last_velocity_diff_update_time = current_time;
+    
+    // Use the smoothed average velocity difference directly as health indicator
+    
+    // Calculate external mean velocity and percentage error for debug data
+    double external_mean_velocity = _calculateExternalMeanVelocity(current_time, active_external_gyros);
+    double percentage_error = 0.0;
+    
+    if (fabs(external_mean_velocity) > 0.01) // Avoid division by very small numbers
+    {
+        percentage_error = (_avg_velocity_difference / external_mean_velocity) * 100.0;
+    }
+    
+    // Populate debug data
+    _imuDebugData.myCurrRotationRad = _rotation;
+    _imuDebugData.avgVelocityDifference = _avg_velocity_difference;
+    _imuDebugData.externalMeanVelocity = external_mean_velocity;
+    _imuDebugData.percentageError = percentage_error;
+    
+    if (active_external_gyros >= 2)
+    {
+        // Check both absolute difference and percentage error thresholds
+        bool absolute_threshold_ok = (abs(_avg_velocity_difference) < kVelocityDifferenceThreshold);
+        bool percentage_threshold_ok = (abs(percentage_error) < kMaxPercentageError);
+        
+        _imu_healthy = absolute_threshold_ok || percentage_threshold_ok;
+    }
+    else
+    {
+        // No external gyros to compare against, assume healthy
+        _imu_healthy = true;
+    }
+    
+    _imuDebugData.isHealthy = _imu_healthy;
 }
 
-void IMU::printRawAGMT(ICM_20948_AGMT_t agmt)
+uint8_t IMU::_countActiveExternalGyros(uint32_t current_time)
 {
-    Serial.print("RAW. Acc [ ");
-    printPaddedInt16b(agmt.acc.axes.x);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.acc.axes.y);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.acc.axes.z);
-    Serial.print(" ], Gyr [ ");
-    printPaddedInt16b(agmt.gyr.axes.x);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.gyr.axes.y);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.gyr.axes.z);
-    Serial.print(" ], Mag [ ");
-    printPaddedInt16b(agmt.mag.axes.x);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.mag.axes.y);
-    Serial.print(", ");
-    printPaddedInt16b(agmt.mag.axes.z);
-    Serial.print(" ], Tmp [ ");
-    printPaddedInt16b(agmt.tmp.val);
-    Serial.print(" ]");
-    Serial.println();
+    constexpr uint32_t kStaleAngleSyncTimeoutMs = 150; // 150ms timeout for stale data
+    
+    uint8_t count = 0;
+    
+    for (int i = 0; i < 4; i++)
+    {
+        // Skip local gyro
+        if (_placement == i) continue;
+        
+        // Check if this gyro's data is recent
+        if (current_time - _lastPacketTimestamps[i] < kStaleAngleSyncTimeoutMs)
+        {
+            count++;
+        }
+    }
+    
+    return count;
 }
 
-void IMU::printFormattedFloat(float val, uint8_t leading, uint8_t decimals)
+double IMU::_calculateAverageVelocityDifference(uint32_t current_time, uint8_t active_external_gyros)
 {
-    float aval = abs(val);
-    if (val < 0)
+    constexpr uint32_t kStaleAngleSyncTimeoutMs = 150; // 150ms timeout for stale data
+    
+    if (active_external_gyros == 0)
     {
-        Serial.print("-");
+        return 0.0; // No external gyros to compare against
     }
-    else
+    
+    double total_difference = 0.0;
+    uint8_t valid_comparisons = 0;
+    
+    for (int i = 0; i < 4; i++)
     {
-        Serial.print(" ");
-    }
-    for (uint8_t indi = 0; indi < leading; indi++)
-    {
-        uint32_t tenpow = 0;
-        if (indi < (leading - 1))
+        // Skip local gyro
+        if (_placement == i) continue;
+        
+        // Check if this gyro's data is recent
+        if (current_time - _lastPacketTimestamps[i] < kStaleAngleSyncTimeoutMs)
         {
-            tenpow = 1;
-        }
-        for (uint8_t c = 0; c < (leading - 1 - indi); c++)
-        {
-            tenpow *= 10;
-        }
-        if (aval < tenpow)
-        {
-            Serial.print("0");
-        }
-        else
-        {
-            break;
+            // Calculate velocity difference (signed, not absolute)
+            double velocity_difference = _currRotVelZ - _all_velocities[i];
+            total_difference += velocity_difference;
+            valid_comparisons++;
         }
     }
-    if (val < 0)
-    {
-        Serial.print(-val, decimals);
-    }
-    else
-    {
-        Serial.print(val, decimals);
-    }
+    
+    // Return average difference (signed, so we can detect systematic bias)
+    return valid_comparisons > 0 ? total_difference / valid_comparisons : 0.0;
 }
 
-void IMU::MergeExternalInput(board_placement placement, float rotation, float rotation_velocity)
+double IMU::_calculateExternalMeanVelocity(uint32_t current_time, uint8_t active_external_gyros)
 {
-    // only merge external inputs from the drive and weapon boards
-    if (placement != rxDriveLeft &&
-        placement != rxDriveRight &&
-        placement != rxWepFront &&
-        placement != rxWepRear)
+    constexpr uint32_t kStaleAngleSyncTimeoutMs = 150; // 150ms timeout for stale data
+    
+    if (active_external_gyros == 0)
     {
-        return;
+        return 0.0; // No external gyros to calculate mean from
     }
-
-    constexpr double kStoppedThreshRadsPerSec = 0.1f;
-    constexpr double kExternalGyroMergeWeight = 0.005;
-
-    all_velocities[placement] = rotation_velocity;
-    lastPacketTimestamp[placement] = millis();
-
-    // record when another board stops moving or starts moving
-    if (fabsf(rotation_velocity) < kStoppedThreshRadsPerSec)
+    
+    double total_velocity = 0.0;
+    uint8_t valid_velocities = 0;
+    
+    for (int i = 0; i < 4; i++)
     {
-        if (stoppedMovingTimestamp[placement] == 0)
+        // Skip local gyro
+        if (_placement == i) continue;
+        
+        // Check if this gyro's data is recent
+        if (current_time - _lastPacketTimestamps[i] < kStaleAngleSyncTimeoutMs)
         {
-            stoppedMovingTimestamp[placement] = millis();
+            total_velocity += _all_velocities[i];
+            valid_velocities++;
         }
     }
-    else
-    {
-        stoppedMovingTimestamp[placement] = 0;
-    }
 
-    if (millis() < BOOT_GYRO_MERGE_MS)
-    {
-        _rotation = rotation;
-    }
-    else
-    {
-        double difference = rotation - _rotation;
+    // Return mean velocity of external gyros
+    return valid_velocities > 0 ? total_velocity / valid_velocities : 0.0;
+}
 
-        // Angle wrap-around
-        difference = fmod(difference + PI, 2*PI) - PI;
-
-        _rotation += kExternalGyroMergeWeight*difference;
-    }
+IMUDebugData IMU::getDebugData()
+{
+    return _imuDebugData;
 }

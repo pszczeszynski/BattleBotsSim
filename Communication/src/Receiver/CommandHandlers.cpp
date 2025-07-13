@@ -19,7 +19,7 @@ extern IMU imu;
 extern Logger logger;
 extern uint32_t lastPacketID;
 extern CANBUS can;
-extern volatile bool shouldResendAuto;
+extern volatile bool isAutoDriving;
 
 #define MSG_MAX_DELAY_RESET 5000000
 #define ENABLE_AUTONOMOUS_DRIVE
@@ -70,7 +70,9 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false) {
 
   // only send the drive command if its the newest one seen sent across the bus
   if ((ignoreMessageID && (msg.timestamp == lastPacketID)) ||
+      // process if it's newer
       (msg.timestamp > lastPacketID) ||
+      // if message id decreased, only process if it's a HUGE jump (wrap around, not just jumbled packets)
       (msg.timestamp < lastPacketID &&
        lastPacketID - msg.timestamp > MSG_MAX_DELAY_RESET)) {
     // send the packet ID over the bus to notify other boards, then send
@@ -83,7 +85,7 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false) {
     lastPacketID = msg.timestamp;
     if (lastMessage.type == AUTO_DRIVE) {
       if (!ignoreMessageID) {
-        shouldResendAuto = true;
+        isAutoDriving = true;
       }
       // drive to the target angle
       DriveCommand command = DriveToAngle(
@@ -139,7 +141,7 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false) {
       digitalWrite(STATUS_3_LED_PIN, HIGH);
 #endif
     } else if (lastMessage.type == DRIVE_COMMAND) {
-      shouldResendAuto = false;
+      isAutoDriving = false;
       // add to the logger
       logger.updateRadioCommandData(
           lastDriveCommand.movement, lastDriveCommand.turn,

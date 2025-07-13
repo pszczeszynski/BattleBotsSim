@@ -142,13 +142,13 @@ void VESC::_SetMotorPower(float power, int motorIndex) {
   }
 
   // // if the power is 0 and we already sent a 0, don't send another 0
-  // if (power == 0 && lastPowers[motorIndex] == 0)
+  // if (power == 0 && _lastPowers[motorIndex] == 0)
   // {
   //     return;
   // }
 
   // save the last power
-  lastPowers[motorIndex] = power;
+  _lastPowers[motorIndex] = power;
 
   long frame_id = 0x00000000;
 
@@ -225,31 +225,31 @@ unsigned char FloatToUnsignedChar(float f) {
 }
 
 void VESC::GetCurrents(unsigned char *outCurrents) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     outCurrents[i] = FloatToUnsignedChar(_currents[i]);
   }
 }
 
 void VESC::GetVolts(unsigned char *outVolts) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     outVolts[i] = FloatToUnsignedChar(_volts[i]);
   }
 }
 
 void VESC::GetRPMs(unsigned char *outRPMs) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     outRPMs[i] = FloatToUnsignedChar(abs(_rpms[i]) / 1000.0);
   }
 }
 
 void VESC::GetFETTemps(unsigned char *outFetTemps) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     outFetTemps[i] = FloatToUnsignedChar(_fet_temps[i]);
   }
 }
 
 void VESC::GetMotorTemps(unsigned char *outMotorTemps) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     outMotorTemps[i] = FloatToUnsignedChar(_motor_temps[i]);
   }
 }

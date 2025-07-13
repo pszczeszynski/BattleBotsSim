@@ -88,10 +88,46 @@ void IMUWidget::Draw()
     // put text
     cv::putText(mat, "IMU", cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255, 255), 2);
     
-    // Show fusion status
-    std::string fusionText = imuData.fusingIMU ? "FUSING" : "NO FUSE";
-    cv::Scalar fusionColor = imuData.fusingIMU ? cv::Scalar(0, 255, 0, 255) : cv::Scalar(255, 0, 0, 255); // Green if fusing, red if not
-    cv::putText(mat, fusionText, cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6, fusionColor, 2);
+    // Get IMU debug data
+    RobotMessage imuDebugMessage = RobotController::GetInstance().GetRobotLink().GetLastIMUDebugMessage();
+    
+    // Show health status
+    std::string healthText = "UNHEALTHY";
+    cv::Scalar healthColor = cv::Scalar(255, 0, 0, 255); // Red by default
+    
+    if (imuDebugMessage.type == RobotMessageType::IMU_DEBUG_DATA)
+    {
+        healthText = imuDebugMessage.imuDebugData.isHealthy ? "HEALTHY" : "UNHEALTHY";
+        healthColor = imuDebugMessage.imuDebugData.isHealthy ? cv::Scalar(0, 255, 0, 255) : cv::Scalar(255, 0, 0, 255);
+    }
+    
+    cv::putText(mat, healthText, cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6, healthColor, 2);
+    
+    // Show IMU debug data as text
+    if (imuDebugMessage.type == RobotMessageType::IMU_DEBUG_DATA)
+    {
+        int yOffset = 90;
+        int lineHeight = 20;
+        
+        // Current rotation
+        std::string rotText = "Rot: " + std::to_string(imuDebugMessage.imuDebugData.myCurrRotationRad * 180.0 / M_PI) + " deg";
+        cv::putText(mat, rotText, cv::Point(10, yOffset), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255, 255), 1);
+        yOffset += lineHeight;
+        
+        // Average velocity difference
+        std::string velDiffText = "Vel Diff: " + std::to_string(imuDebugMessage.imuDebugData.avgVelocityDifference) + " rad/s";
+        cv::putText(mat, velDiffText, cv::Point(10, yOffset), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255, 255), 1);
+        yOffset += lineHeight;
+        
+        // External mean velocity
+        std::string extVelText = "Ext Vel: " + std::to_string(imuDebugMessage.imuDebugData.externalMeanVelocity) + " rad/s";
+        cv::putText(mat, extVelText, cv::Point(10, yOffset), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255, 255), 1);
+        yOffset += lineHeight;
+        
+        // Percentage error
+        std::string errorText = "Error: " + std::to_string(imuDebugMessage.imuDebugData.percentageError) + "%";
+        cv::putText(mat, errorText, cv::Point(10, yOffset), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255, 255), 1);
+    }
 
     // draw circle
     cv::Scalar strokeColor = cv::Scalar(255, 255, 255, 255);

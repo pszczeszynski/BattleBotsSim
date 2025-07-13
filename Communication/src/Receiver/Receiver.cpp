@@ -23,8 +23,6 @@
 #define ARBITRATION_TIMEOUT_MS 500
 
 // these interrupts are ordered by priority highest -> lowest
-#define WATCHDOG_PRIORITY 0x70
-#define WATCHDOG_INTERVAL 10000 // 10000us = 100hz
 
 #define CAN_EVENTS_PRIORITY 0x71
 #define CAN_EVENTS_INTERVAL 100 // 10kHz
@@ -63,7 +61,7 @@ int maxReceiveIntervalMs = 0;
 volatile uint32_t lastPacketID = 0;
 volatile bool receivedPacketSinceBoot = false;
 volatile uint32_t lastAutoSendTime = 0;
-volatile bool shouldResendAuto = false;
+volatile bool isAutoDriving = false;
 RobotMessage lastTelemetryMessage;
 volatile bool resetIMU = false;
 volatile bool fuseIMU = true;
@@ -125,8 +123,8 @@ void ServiceImu() {
 //     }*/
 // }
 
-IntervalTimer packetWatchdogTimer;
-void ServicePacketWatchdog() {
+// Packet watchdog logic moved to main loop to avoid race conditions
+void CheckPacketWatchdog() {
   // NOTE: don't stop robot unless comms are lost on all three boards
   // IE lastReceiveTime must update when another board receives a packet
   // MAKE SURE ESTOP HAS HIGHEST PRIORITY
@@ -139,30 +137,30 @@ void ServicePacketWatchdog() {
       command.frontWeaponPower = 0;
       command.backWeaponPower = 0;
       command.selfRighterPower = 0;
-      command.selfRighterPower = 0;
       Drive(command);
       DriveWeapons(command);
       noPacketWatchdogTrigger = true;
     }
   }
-  /*else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
-          (shouldResendAuto))
-  {
-      DriveWithMessage(lastMessage, true);
-      lastAutoSendTime = millis();
-  }*/
+  // else if ((millis() - lastAutoSendTime > RESEND_AUTO_DRIVE_MS) &&
+  //         (isAutoDriving))
+  // {
+  //     DriveWithMessage(lastMessage, true);
+  //     lastAutoSendTime = millis();
+  // }
 }
 
 IntervalTimer CANEventsTimer;
 void ServiceCANEvents() { can.Update(); }
 
+// Radio message handler
 void HandlePacket() {
   if (!rxRadio.Available())
     return;
   digitalWriteFast(STATUS_1_LED_PIN, HIGH);
   DriverStationMessage msg = rxRadio.Receive();
   resetIMU |= msg.resetIMU;
-  fuseIMU = (msg.fuseIMU & imu.isImuHealthy());
+  fuseIMU = msg.fuseIMU;
   // imu.Update();
   digitalWriteFast(STATUS_2_LED_PIN, HIGH);
 
@@ -324,12 +322,19 @@ RobotMessage GenerateTelemetryPacket() {
     GenerateIMUPacket(msg);
     logger.updateIMUData(msg.imuData.rotation, msg.imuData.rotationVelocity,
                          msg.imuData.accelX, msg.imuData.accelY);
+
+    // Include IMU debug data at low frequency
+    if ((updateCount % 10) == 0) { // Send debug data every 10th packet
+      msg.type = IMU_DEBUG_DATA;
+      msg.imuDebugData = imu.getDebugData();
+    }
   }
   updateCount++;
 
   return msg;
 }
 
+// Called when a CANBus message is received from another Teensy (not VESC)
 void OnTeensyMessage(const CAN_message_t &msg) {
   CANMessage message;
   memcpy(&message, msg.buf, sizeof(CANMessage));
@@ -364,7 +369,7 @@ void OnTeensyMessage(const CAN_message_t &msg) {
       lastReceiveTime = millis();
     }
     lastAutoSendTime = millis();
-    shouldResendAuto = false;
+    isAutoDriving = false;
   /*case CHANNEL_CHANGE:
       if (message.channel.targetTeensyID == CANBUS::GetCanID(placement)) {
           radioChannel = message.channel.newChannel;
@@ -399,9 +404,6 @@ void rx_setup() {
   CANEventsTimer.priority(CAN_EVENTS_PRIORITY);
   CANEventsTimer.begin(ServiceCANEvents, CAN_EVENTS_INTERVAL);
 
-  packetWatchdogTimer.priority(WATCHDOG_PRIORITY);
-  packetWatchdogTimer.begin(ServicePacketWatchdog, WATCHDOG_INTERVAL);
-
   DetermineChannel();
   delay(100);
   rxRadio.InitRadio(radioChannel);
@@ -426,6 +428,10 @@ void rx_setup() {
 
 // CONTINUOUSLY CALLED ON RECEIVER
 void rx_loop() {
+  // Check packet watchdog (moved from interrupt to avoid race conditions)
+  CheckPacketWatchdog();
+  
+  // Radio reinit logic (whenever the radio is not receiving packets)
   if (millis() - lastReceiveTime > STOP_ROBOT_TIMEOUT_MS) {
     if (millis() - lastReinitRadioTime > 1000) {
       lastReinitRadioTime = millis();
