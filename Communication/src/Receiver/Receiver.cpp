@@ -324,13 +324,14 @@ RobotMessage GenerateTelemetryPacket() {
                          msg.imuData.accelX, msg.imuData.accelY);
 
     // Include IMU debug data at low frequency
-    if ((updateCount % 10) == 0) { // Send debug data every 10th packet
+    if ((updateCount % 5) == 0) { // Send debug data every 5th packet
       msg.type = IMU_DEBUG_DATA;
       msg.imuDebugData = imu.getDebugData();
     }
   }
-  updateCount++;
 
+  updateCount++;
+  
   return msg;
 }
 

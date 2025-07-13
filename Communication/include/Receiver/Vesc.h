@@ -29,6 +29,9 @@ public:
 
 private:
   float _lastPowers[5] = {0, 0, 0, 0, 0};
+  uint32_t _lastSelfRighterTime = 0;
+  uint32_t _lastDriveTime = 0;
+  uint32_t _lastWeaponsTime = 0;
 
   void _SetMotorPower(float power, int motorIndex);
   void _SetMotorCurrent(float current_amps, int motorIndex);

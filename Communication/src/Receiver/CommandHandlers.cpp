@@ -82,6 +82,7 @@ void DriveWithMessage(DriverStationMessage &msg, bool ignoreMessageID = false) {
     packetIdMessage.packetID.packetID = msg.timestamp;
     packetIdMessage.packetID.isResentMessage = ignoreMessageID;
     can.SendTeensy(&packetIdMessage);
+
     lastPacketID = msg.timestamp;
     if (lastMessage.type == AUTO_DRIVE) {
       if (!ignoreMessageID) {

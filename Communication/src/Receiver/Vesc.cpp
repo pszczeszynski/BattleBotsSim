@@ -193,20 +193,40 @@ void VESC::_SetMotorCurrent(float current_amps, int motorIndex) {
 
 void VESC::Drive(float leftPower, float rightPower, float selfRighterPower,
                  bool isDutyCycleControl) {
-  _SetMotorPower(leftPower, l_drive);
-  _SetMotorPower(rightPower, r_drive);
+  constexpr uint32_t kDriveRateLimitMs = 10; // 100Hz max
+  constexpr uint32_t kSelfRighterRateLimitMs = 50; // 20Hz max
 
-  if (isDutyCycleControl) {
-    _SetMotorPower(selfRighterPower, self_righter);
-  } else {
-    _SetMotorCurrent(selfRighterPower * SELF_RIGHTER_REVERSE_CURRENT_MAX,
-                     self_righter);
+  // get curr time
+  uint32_t currentTime = millis();
+
+  if (currentTime - _lastDriveTime >= kDriveRateLimitMs) {
+    // set drive powers
+    _SetMotorPower(leftPower, l_drive);
+    _SetMotorPower(rightPower, r_drive);
+    _lastDriveTime = currentTime;
+  }
+
+  if (currentTime - _lastSelfRighterTime >= kSelfRighterRateLimitMs) {
+    if (isDutyCycleControl) {
+      _SetMotorPower(selfRighterPower, self_righter);
+    } else {
+      _SetMotorCurrent(selfRighterPower * SELF_RIGHTER_REVERSE_CURRENT_MAX,
+                      self_righter);
+    }
+    _lastSelfRighterTime = currentTime;
   }
 }
 
 void VESC::DriveWeapons(float frontCurrent_amps, float backPower_amps) {
-  _SetMotorCurrent(frontCurrent_amps, f_weapon);
-  _SetMotorCurrent(backPower_amps, b_weapon);
+  constexpr uint32_t kWeaponsRateLimitMs = 100; // 10Hz max
+  // get curr time
+  uint32_t currentTime = millis();
+
+  if (currentTime - _lastWeaponsTime >= kWeaponsRateLimitMs) {
+    _SetMotorCurrent(frontCurrent_amps, f_weapon);
+    _SetMotorCurrent(backPower_amps, b_weapon);
+    _lastWeaponsTime = currentTime;
+  }
 }
 
 unsigned char FloatToUnsignedChar(float f) {

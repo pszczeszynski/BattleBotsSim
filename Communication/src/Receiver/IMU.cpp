@@ -323,7 +323,7 @@ void IMU::MergeExternalInput(board_placement placement, float rotation,
     return;
   }
 
-  constexpr double kExternalGyroMergeWeight = 0.005;
+  constexpr double kExternalGyroMergeWeight = 0.05;
 
   _all_velocities[placement] = rotation_velocity;
   _lastPacketTimestamps[placement] = millis();
