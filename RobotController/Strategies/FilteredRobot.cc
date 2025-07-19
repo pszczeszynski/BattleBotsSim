@@ -9,10 +9,12 @@
 
 // CONSTRUCTOR
 FilteredRobot::FilteredRobot() { }
-FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float turnSpeed, float turnAccel) {
+FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed, float moveAccel, float turnSpeed, float turnAccel) {
 
     this->pathSpacing = pathSpacing;
     this->pathLength = pathLength;
+    this->maxMoveSpeed = moveSpeed;
+    this->maxMoveAccel = moveAccel;
     this->maxTurnSpeed = turnSpeed;
     this->maxTurnAccel = turnAccel;
 
@@ -138,19 +140,15 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     accBelief = accFiltered;
 
  
-
     // from measurement, find deltas to pos
     std::vector<float> posDelta = {visionPos.x - posBelief[0], visionPos.y - posBelief[1], wrapAngle(visionTheta - posBelief[2])};
 
-    // std::cout << "     delta = " << posDelta[2] << "     ";
-    // std::cout << "     vision theta = " << visionTheta << "     ";
+
 
     // what even are covariances, determines percentage of delta to use
     float positionKalmanGain = std::clamp(deltaTime * 15.0f, 0.05f, 1.0f);
     float turnKalmanGain = std::clamp(deltaTime * 40.0f, 0.05f, 1.0f);
     std::vector<float> kalmanGain = {positionKalmanGain, positionKalmanGain, turnKalmanGain};
-
-    // std::cout << "    gain = " << positionKalmanGain << ",     ";
 
 
 
@@ -188,88 +186,94 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 
 
 // how long to collide with a robot using current velocity and assumed turn speed
-float FilteredRobot::collideETA(FilteredRobot opp) {
+float FilteredRobot::collideETA(FilteredRobot opp, bool forward, float collisionRadius) {
 
     float TO_RAD = 3.14159f / 180.0f;
 
-    float collisionRadius = 70.0f; // radius at which the robots basically collide
-    float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionRadius, 0.0);
 
-   
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 70.0f*TO_RAD;
-    float angleThresh2 = 160.0f*TO_RAD;
-    float velFactor = 1.0f - std::clamp((abs(angleTo(opp.position())) - angleThresh1) / (angleThresh2 - angleThresh1), 0.0f, 1.0f);
+    float angleThresh1 = 50.0f*TO_RAD; // 60.0f
+    float angleThresh2 = 100.0f*TO_RAD; // 160.0f
+
+    float velAngle = atan2(velFiltered[1], velFiltered[0]); // angle we're actually moving in
+    float angleToOppAbs = atan2(opp.position().y - posFiltered[1], opp.position().x - posFiltered[0]);
+    float angleToOppVel = wrapAngle(angleToOppAbs - velAngle);
+    if(cv::norm(moveVel()) == 0.0f) { angleToOppVel = 0.0f; }
+    // float angleToOppPoint = angleTo(opp.position(), forward);
+    // float velWeight = std::clamp(cv::norm(moveVel()) / (maxMoveSpeed * 0.5f), 0.0, 1.0);
+    // float angleToOpp = (velWeight * angleToOppVel) + ((1.0f - velWeight) * angleToOppPoint);
+    float angleToOpp = angleToOppVel;
+
+    // std::cout << "ang=" << angleToOpp*(180.0f / 3.14159f) << " ";
+
+
+    float velFactor = 1.0f - std::clamp((abs(angleToOpp) - angleThresh1) / (angleThresh2 - angleThresh1), 0.0f, 1.0f);
 
     
-    float assumedMinSpeed = 100.0f; // 200
-    float orbUsableSpeed = std::max(cv::norm(moveVel()), (double) assumedMinSpeed) * velFactor;
-    float oppSpeed = cv::norm(opp.moveVel());
-    float oppSpeedAngle = atan2(opp.moveVel().y, opp.moveVel().x);
-    float angleToOrbAbs = atan2(position().y - opp.position().y, position().x - opp.position().x);
-    float oppSpeedTowards = oppSpeed * cos(angleToOrbAbs - oppSpeedAngle);
-    // float collisionSpeed = oppSpeedTowards + orbUsableSpeed;
-    float collisionSpeed = 2.0f*std::min(oppSpeedTowards, 0.0f) + orbUsableSpeed;
+    int velSign = sign(tangentVel(forward)); // measure direction of main drive velocity
+    float orbUsableSpeed = cv::norm(moveVel()) * velSign * velFactor;
+    // float oppSpeed = cv::norm(opp.moveVel());
+    // float oppSpeedAngle = atan2(opp.moveVel().y, opp.moveVel().x);
+    // float angleToOrbAbs = atan2(position().y - opp.position().y, position().x - opp.position().x);
+    // float oppSpeedTowards = oppSpeed * cos(angleToOrbAbs - oppSpeedAngle);
+    // float collisionSpeed = std::min(oppSpeedTowards, 9999999.0f) + orbUsableSpeed;
 
 
-    float angleMargin = 10.0f*TO_RAD;
-    // float turnTime = std::max(abs(angleTo(opp.position())) - 30.0f*TO_RAD, 0.0f) / maxTurnSpeed;
-    // float turnTime = pointETA(opp.position(), 0.0f, angleMargin, angleMargin, true);
-    // float turnTimeCCW = pointETA(opp.position(), 0.0f, angleMargin, angleMargin, false);
-    // if(turnTimeCCW < turnTime) { turnTime = turnTimeCCW; }
-    float turnTime = std::min(pointETASim(opp.position(), 0.0f, true, angleMargin), pointETASim(opp.position(), 0.0f, false, angleMargin));
+    // estimate time to turn to opp
+    float turnTime = turnTimeMin(opp.position(), 0.0f, 30.0f*TO_RAD, forward, false);
 
-    float travelTime = distanceToCollision / std::max(collisionSpeed, 100.0f);
+    // estimate time to drive to opp
+    float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionRadius, 0.0);
+    float moveTime = moveETASim(distanceToCollision, orbUsableSpeed, false);
+
+    // total time is sum of turning and driving
+    return moveTime + turnTime;
+}
 
 
-    return travelTime + turnTime;
+// signed velocity that's actually in the driving direction, positive means it's in the direction of orientation
+float FilteredRobot::tangentVel(bool forward) {
+    float velMag = cv::norm(moveVel());
+    float velAngle = atan2(velFiltered[1], velFiltered[0]);
+    float velAngleOffset = wrapAngle(velAngle - posFiltered[2]);
+    int sign = 1; if(!forward) { sign = -1; }
+    return velMag * cos(velAngleOffset) * sign;
 }
 
 
 
-// how long to turn towards the point using the assumed speed
-// angleMargin1 is the margin in the direction of orbit rotation, so it should be smaller than angleMargin2
-float FilteredRobot::pointETA(cv::Point2f point, float lagTime, float angleMargin1, float angleMargin2, bool CW) {
+// simulates to find the estimated drive time considering max speed and accel
+// simulates to find estimated point time
+float FilteredRobot::moveETASim(float distance, float startVel, bool print) {
 
-    std::vector<std::vector<float>> extrapolated = constAccExtrap(lagTime); // extrapolate robot based on lag time
-    std::vector<float> posExtrap = extrapolated[0];
-    std::vector<float> velExtrap = extrapolated[1];
+    float timeIncrement = 0.001f;
+    float timeSim = 0.0f;
 
+    float velSim = startVel;
+    float distanceTraveled = 0.0f;
 
-    float TO_RAD = 3.14159f / 180.0f;
-    float angle = atan2(point.y - posExtrap[1], point.x - posExtrap[0]); // absolute angle the opp has to face to face us directly
+    // until we've driven the full distance
+    while(true) {
 
-    float averageAngleMargin = 0.5f * (angleMargin1 + angleMargin2);
+        if(distanceTraveled >= distance) { break; } // if we've traveled far enough, break  
+        
+        velSim += maxMoveAccel * timeIncrement; // increment velocity by accel
+        velSim = std::min(maxMoveSpeed, velSim); // clip velocity to the max value
+        distanceTraveled += velSim * timeIncrement; // increment distance traveled by speed
 
-    if(!CW) {
-        angleMargin1 *= -1.0f;
-        angleMargin2 *= -1.0f;
+        timeSim += timeIncrement; // increment time
     }
 
-    float angleOffset = 0.5f * (angleMargin1 - angleMargin2);
-
-
-    // cutoff angles for where we don't want to hit
-    float angle1 = wrapAngle(angle - angleMargin1);
-    float angle2 = wrapAngle(angle + angleMargin2);
-
-
-    // how far we have to turn to the point exactly
-    float turnDistance = wrapAngle(angle - (posExtrap[2] + angleOffset)); 
-    if(abs(turnDistance) < averageAngleMargin) { return 0; } // if opp is already facing us within the margin
-
-
-    // otherwise return the shortest time required to get us into the angle margin
-    float time = lagTime + std::min(timeToTurnToAngle(posExtrap, velExtrap, angle1, true), std::min(timeToTurnToAngle(posExtrap, velExtrap, angle1, false), std::min(timeToTurnToAngle(posExtrap, velExtrap, angle2, true), timeToTurnToAngle(posExtrap, velExtrap, angle2, false))));
-    if(time == lagTime) { time = 0.0f; }
-    return time;
+    return timeSim; // return the final time
 }
+
+
 
 
 // simulates to find estimated point time
-float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin) {
+float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin, bool forward, bool print) {
 
-    float timeIncrement = 0.01f;
+    float timeIncrement = 0.001f;
     float timeSim = 0.0f;
 
     std::vector<float> posSim = posFiltered;
@@ -277,35 +281,43 @@ float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW,
     std::vector<float> accSim = accFiltered;
 
     float targetAngle = atan2(point.y - posSim[1], point.x - posSim[0]); // angle we're trying to point to
+    if(!forward) { targetAngle = wrapAngle(targetAngle + M_PI); }
     if(!turnCW) { angleMargin *= -1; }
     int previousAngleSign = sign(wrapAngle(targetAngle - posSim[2] - angleMargin));
-
-    // if(angleMargin == 0) { std::cout << "angle sign = " << previousAngleSign << std::endl; }
 
 
     // until we're pointing
     while(true) {
         float angleDistance = wrapAngle(targetAngle - posSim[2]);
         int angleSign = sign(wrapAngle(targetAngle - posSim[2] - angleMargin));
-        if((abs(angleDistance) < abs(angleMargin)) || (previousAngleSign == 1 && angleSign == -1 && turnCW) || (previousAngleSign == -1 && angleSign == 1 && !turnCW)) { break; } // if we're pointed already, break the loop
-        // if(abs(angleDistance) < angleMargin) { break; } // if we're pointed already, break the loop       
+        // int angleSign = sign(targetAngle - posSim[2] - angleMargin);
+        if((abs(angleDistance) < abs(angleMargin)) || (previousAngleSign == 1 && angleSign == -1 && turnCW) || (previousAngleSign == -1 && angleSign == 1 && !turnCW)) { 
+            // if(print) { std::cout << "  1 = " << (abs(angleDistance) < abs(angleMargin)) << ", 2 = " << (previousAngleSign == 1 && angleSign == -1 && turnCW) << ", 3 = " << (previousAngleSign == -1 && angleSign == 1 && !turnCW) << ", time = " << timeSim << "   "; }
+            // if(print) { std::cout << "   posSim[2] = " << posSim[2]*(180.0f/3.14159f) << "    "; }
+            break; } // if we're pointed already, break the loop     
         previousAngleSign = angleSign;
+
+        int signCW = 1; if(turnCW) { signCW = -1; } // invert accel direction based on desired turn direction
+        accSim[2] = signCW*0.2f*maxTurnAccel; // be default, assume they're acceling slowly 
+        if(timeSim > lagTime) { accSim[2] = maxTurnAccel*signCW; } // if we're past the lag time, the human inputs correctly
 
         posSim[2] = wrapAngle(posSim[2] + velSim[2]*timeIncrement); // increment position
         velSim[2] += accSim[2]; // increment velocity if we're past the lag time
+        velSim[2] = std::clamp(velSim[2], maxTurnSpeed, -maxTurnSpeed);
 
-        int signCW = 1; if(turnCW) { signCW = -1; } // invert accel direction based on desired turn direction
-
-        accSim[2] = accFiltered[2] + signCW*0.3f*maxTurnAccel; // be default, assume they're acceling slowly 
-        if(timeSim > lagTime) { accSim[2] = maxTurnAccel*signCW; } // if we're past the lag time, the human inputs correctly
-
-        velSim[2] = std::clamp(velSim[2], -maxTurnSpeed, maxTurnSpeed);
-        
         timeSim += timeIncrement;
     }
 
     return timeSim; // return the final time
 }
+
+
+
+// takes the minimum of both turn directions
+float FilteredRobot::turnTimeMin(cv::Point2f point, float lagTime, float angleMargin, bool forward, bool print) {
+    return std::min(pointETASim(point, 0.0f, true, angleMargin, forward, print), pointETASim(point, 0.0f, false, angleMargin, forward, print));
+}
+
 
 
 // returns the sign
@@ -316,50 +328,17 @@ int FilteredRobot::sign(float num) {
 }
 
 
-// how long to turn to an angle assuming you're gonna go in CW or CCW as inputted
-// assumes you're gonna accelerate up to the known turn speed, including if you have to reverse
-float FilteredRobot::timeToTurnToAngle(std::vector<float> pos, std::vector<float> vel, float angle, bool turnCW) {
-    float TO_RAD = 3.14159f / 180.0f;
-
-    float angleDistance = wrapAngle(angle - pos[2]); // how far we have to turn
-    if(!turnCW) { angleDistance *= -1.0f; }
-    if(angleDistance < 0) { angleDistance = 360.0f*TO_RAD + angleDistance; }
-
-    // std::cout << " angle distance = " << angleDistance << "    ";
-
-    float currentTurnVel = vel[2]; if(!turnCW) { currentTurnVel *= -1.0f; } // reverse for positive direction problem
-
-    float constAccelTurnTime = (-currentTurnVel + sqrt(pow(currentTurnVel, 2) - (2 * maxTurnAccel * -angleDistance))) / maxTurnAccel;
-    float constAccelTurnTime2 = (-currentTurnVel - sqrt(pow(currentTurnVel, 2) - (2 * maxTurnAccel * -angleDistance))) / maxTurnAccel;
-
-    // use the lowest positive time
-    if(constAccelTurnTime > 0 && constAccelTurnTime2 > 0 && constAccelTurnTime2 < constAccelTurnTime) { constAccelTurnTime = constAccelTurnTime2; }
-    else if(constAccelTurnTime < 0) { constAccelTurnTime = constAccelTurnTime2; }
-
-    // std::cout << "      constAccelTurnTime = " << constAccelTurnTime << "    ";
-
-    float timeToFullSpeed = std::max((maxTurnSpeed - currentTurnVel) / maxTurnAccel, 0.0f);
-    if(timeToFullSpeed < constAccelTurnTime) { constAccelTurnTime = timeToFullSpeed; }
-
-    float distanceCoveredByAccel = (0.5f * maxTurnAccel * pow(constAccelTurnTime, 2)) + (currentTurnVel * constAccelTurnTime);
-
-    // std::cout << "      time to full speed = " << timeToFullSpeed << "    ";
-    // std::cout << "      distancecoveredbyaccel = " << distanceCoveredByAccel << "    ";
-
-    // any remaining distance is assumed at top speed
-    angleDistance -= distanceCoveredByAccel;
-    float timeAtTopSpeed = abs(angleDistance) / maxTurnSpeed;
-
-    // std::cout << "   time at top speed = " << timeAtTopSpeed << ", constAccelTurnTime = " << constAccelTurnTime;
-
-    return constAccelTurnTime + timeAtTopSpeed;
+// angle to the inputted point from the front of the robot
+float FilteredRobot::angleTo(cv::Point2f point, bool forward) {
+    float rawAngle = atan2(point.y - posFiltered[1], point.x - posFiltered[0]);
+    float offset = 0.0f; if(!forward) { offset = M_PI; } // turn by 180 if its backwards
+    return wrapAngle(rawAngle - posFiltered[2] + offset);
 }
 
 
-// angle to the inputted point from the front of the robot
-float FilteredRobot::angleTo(cv::Point2f point) {
-    float rawAngle = atan2(point.y - posFiltered[1], point.x - posFiltered[0]);
-    return wrapAngle(rawAngle - posFiltered[2]);
+// distance to the inputted point
+float FilteredRobot::distanceTo(cv::Point2f point) {
+    return cv::norm(cv::Point2f(posFiltered[0], posFiltered[1]) - point);
 }
 
 
@@ -403,19 +382,15 @@ void FilteredRobot::pathTangency(float deltaTime, float visionTheta) {
 
     // what direction are we driving
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
-    // float rawOffset = 0.5f * wrapAngle(2 * (velAngle - visionTheta));
     float rawOffset = wrapAngle(velAngle - visionTheta);
 
 
     // how much we factor in the path tangency
-    float velMag = cv::norm(cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]));
-    // float factor = std::clamp((velMag - 110.0f) * 0.002f, 0.0f, 1.0f);
-    float factor = std::clamp((std::max(velMag - 50.0f, 0.0f) / std::max(abs(velFilteredSlow[2]), 0.01f)) * deltaTime * 0.03f, 0.0f, 0.1f);
-
-    // std::cout << "factor = " << factor << "        ";
+    float velMag = cv::norm(moveVel());
+    float factor = std::clamp((velMag / std::max(abs(velFilteredSlow[2]), 0.01f) - 250.0f) * deltaTime * 0.0001f, 0.0f, 0.1f); // 0.03
 
 
-    // weighted average in the vision angle
+    // weighted average in the vision angle, clips to nearest 180deg in case they drive backwards
     visionAngleOffset = wrapAngle(visionAngleOffset + factor * 0.5f * wrapAngle(2.0f * (rawOffset - visionAngleOffset)));
     // posFiltered[2] = wrapAngle(visionTheta + visionAngleOffset);
 }
@@ -425,8 +400,15 @@ void FilteredRobot::pathTangency(float deltaTime, float visionTheta) {
 // get robot data
 cv::Point2f FilteredRobot::position() { return cv::Point2f(posFiltered[0], posFiltered[1]); }
 cv::Point2f FilteredRobot::moveVel() { return cv::Point2f(velFiltered[0], velFiltered[1]); }
-float FilteredRobot::angle() { return posFiltered[2]; }
+
+float FilteredRobot::angle(bool forward) { 
+    int offset = 0.0f; if(!forward) { offset = M_PI; } // offset by 180 if not forwards
+    return wrapAngle(posFiltered[2] + offset); 
+}
+
 float FilteredRobot::turnVel() { return velFiltered[2]; }
+float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
+float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
 

@@ -8,24 +8,25 @@ class FilteredRobot
 public:
 
     FilteredRobot();
-    FilteredRobot(float pathSpacing, float pathLength, float turnSpeed, float turnAccel);
+    FilteredRobot(float pathSpacing, float pathLength, float moveSpeed, float moveAccel, float turnSpeed, float turnAccel);
     
     
     void updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta); // run filter update to find new data
     void updateFiltersOpp(float deltaTime, cv::Point2f visionPos, float visionTheta); // uses path tangency
 
 
-    float collideETA(FilteredRobot opp); // estimated time to collide with a robot
-    float pointETA(cv::Point2f point, float lagTime, float angleMargin1, float angleMargin2, bool CW); // estimated time to face towards a point
-    float pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin); // simulate estimated turn time to point
-    float timeToTurnToAngle(std::vector<float> pos, std::vector<float> vel, float angle, bool turnCW); // estimated time to turn to an angle given a certain turn direction
+    float collideETA(FilteredRobot opp, bool forward, float collisionRadius); // estimated time to collide with a robot
+    float moveETASim(float distance, float startVel, bool print);
+    float pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin, bool forward, bool print); // simulate estimated turn time to point
+    float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin, bool forward, bool print); // minimum time of both turn directions
 
 
     void updatePath();
     void setPos(std::vector<float> pos);
     std::vector<std::vector<float>> constAccExtrap(float time);
     std::vector<std::vector<float>> constVelExtrap(float time);
-    float angleTo(cv::Point2f point);
+    float angleTo(cv::Point2f point, bool forward);
+    float distanceTo(cv::Point2f point);
 
     // get robot data
     cv::Point2f position();
@@ -33,9 +34,12 @@ public:
     std::vector<float> getPosFiltered();
     std::vector<float> getVelFiltered();
     std::vector<float> getAccFiltered();
-    float angle();
+    float angle(bool forward);
     float turnVel();
+    float getMaxTurnSpeed();
+    float moveAccel();
     float turnAccel();
+    float tangentVel(bool forward);
     std::vector<cv::Point2f> getPath();
     void pathTangency(float deltaTime, float visionTheta);
 
@@ -63,6 +67,9 @@ private:
     // data about this robot
     float maxTurnSpeed; // assumed turn speed when doing ETA calcs
     float maxTurnAccel; // assumed turn accel when doing ETA calcs
+
+    float maxMoveSpeed; // fastest we can go
+    float maxMoveAccel; // fastest we can accel
 
 
     std::vector<cv::Point2f> path; // tracks where robot has been

@@ -59,6 +59,8 @@ public class BBLightManager : MonoBehaviour
         }
 
         lightsAnimator = GetComponent<Animator>();
+
+        UpdateQuality(quality.value);
     }
 
     public void UpdateQuality(int newsetting)

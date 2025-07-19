@@ -23,22 +23,19 @@ private:
     FilteredRobot orbFiltered;
     FilteredRobot oppFiltered;
 
-    // for simulating drift
-    float oppAngleDrift;
-    float oppAnglePreviousPerfect;
-
 
 
     std::vector<cv::Point2f> fieldBoundPoints; // list of points that define the field bound lines
     std::vector<Line> fieldBoundLines; // list of lines that defines the outline of the field
     std::vector<cv::Point2f> convexPoints; // list of field bound convex points we could hit while driving
 
-    bool leadingWithBar; // what we're currently leading with
+    bool currForward; // what we're currently leading with
+    bool CW; // which way we're currently going around the circle
 
 
 
-    void displayPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
-    void displayLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
     void displayLineList(std::vector<Line>& lines, cv::Scalar color);
     void displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color);
     void displayPathTangency(FilteredRobot robot, cv::Scalar color);
@@ -46,19 +43,24 @@ private:
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    cv::Point2f tangentPoint(float radius, cv::Point2f oppPos, cv::Point2f orbPos, bool CW);
-    cv::Point2f ppPoint(float radius, cv::Point2f oppPos, cv::Point2f orbPos, bool CW, float ppRadius, float rejoinAngle);
+    cv::Point2f tangentPoint(float radius, bool CW);
+    cv::Point2f ppPoint(float radius, bool CW, float ppRadius);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     cv::Point2f closestBoundPoint(cv::Point2f point);
     bool insideFieldBounds(cv::Point2f point);
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
-    float calculateMovePercent(cv::Point2f orbPos, float orbAngle, cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool leadingWithBar);
-    float radiusEquation(float deltaTime, float ppRadius, bool CW);
-    cv::Point2f followPointDirection(float deltaTime, float ppRadius, bool CW, bool display);
+    float calculateMovePercent(cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool forward);
+    float radiusEquation(bool forward, bool CW);
+    cv::Point2f followPointDirection(bool CW, bool forward);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
-    float closestWallDistance(bool CW);
-    cv::Point2f turnCorrectWay(cv::Point2f followPoint);
-    float ppRad(float radSlow, float radFast, float speedFast, float currSpeed);
-    cv::Point2f avoidBounds(cv::Point2f rawFollowPoint, float ppRadius, float radius, bool CW);
+    float wallScore(bool CW);
+    cv::Point2f turnCorrectWay(cv::Point2f followPointRaw, bool forward);
+    float ppRad();
+    cv::Point2f avoidBounds(cv::Point2f rawFollowPoint);
+    float directionScore(cv::Point2f followPoint, bool CW, bool forward);
+    cv::Point2f followPointInsideCircle(float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
+    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward);
+    cv::Point2f predictDriftStop(bool forward);
+    float piecewise(std::vector<cv::Point2f> points, float x);
 };

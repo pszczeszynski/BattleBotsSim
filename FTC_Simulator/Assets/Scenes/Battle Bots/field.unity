@@ -8753,7 +8753,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Fantastic
+  m_text: Fast
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -11686,7 +11686,7 @@ MonoBehaviour:
   m_Placeholder: {fileID: 0}
   m_ItemText: {fileID: 137231575}
   m_ItemImage: {fileID: 0}
-  m_Value: 2
+  m_Value: 0
   m_Options:
     m_Options:
     - m_Text: Fast
@@ -30893,6 +30893,11 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: 0.17
       objectReference: {fileID: 0}
+    - target: {fileID: 7313640550682892352, guid: 0977e491c1315454d836ae6315e7d45e,
+        type: 3}
+      propertyPath: SPEED
+      value: 6000
+      objectReference: {fileID: 0}
     - target: {fileID: 7969983078744347143, guid: 0977e491c1315454d836ae6315e7d45e,
         type: 3}
       propertyPath: m_LocalPosition.y
@@ -42873,6 +42878,26 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -0.2284825
       objectReference: {fileID: 0}
+    - target: {fileID: 2038610034349255740, guid: 11649669c96bffc408cef9c9e7907694,
+        type: 3}
+      propertyPath: total_weight
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 2038610034349255740, guid: 11649669c96bffc408cef9c9e7907694,
+        type: 3}
+      propertyPath: turn_priority
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2038610034349255740, guid: 11649669c96bffc408cef9c9e7907694,
+        type: 3}
+      propertyPath: rot_inertia_scaler
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2038610034349255740, guid: 11649669c96bffc408cef9c9e7907694,
+        type: 3}
+      propertyPath: rot_inertia_scale_only_body
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2602942841452208282, guid: 11649669c96bffc408cef9c9e7907694,
         type: 3}
       propertyPath: m_Materials.Array.data[0]
@@ -43302,6 +43327,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: BB_OrbitronV4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8507285539748140927, guid: 11649669c96bffc408cef9c9e7907694,
+        type: 3}
+      propertyPath: SPEED
+      value: 9000
       objectReference: {fileID: 0}
     - target: {fileID: 8527099386376650624, guid: 11649669c96bffc408cef9c9e7907694,
         type: 3}
