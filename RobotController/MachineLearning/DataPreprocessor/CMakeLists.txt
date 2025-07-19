@@ -17,8 +17,6 @@ set(JSON_INCLUDE_PATH "../../libs/json/include")
 # Include OpenCV directories
 include_directories(${OpenCV_INCLUDE_DIRS} ${JSON_INCLUDE_PATH})
 
-
-
 # Define the sources
 set(SOURCES 
     DataPreprocessor.cc
@@ -31,3 +29,6 @@ add_executable(DataPreprocessor ${SOURCES})
 
 # Link the necessary libraries
 target_link_libraries(DataPreprocessor ${OpenCV_LIBS})
+
+# Add compile definitions to exclude UI components
+target_compile_definitions(DataPreprocessor PRIVATE MACHINE_LEARNING=1)
