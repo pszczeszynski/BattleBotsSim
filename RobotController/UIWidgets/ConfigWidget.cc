@@ -21,42 +21,22 @@ void ConfigWidget::Draw()
 {
     HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-    ImGui::Begin("Orbit Config");
-    SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
+
+    ImGui::Begin("Kill Config");
     // button for LEAD_WITH_BAR
     if (ImGui::Button("Lead with Bar or Disk?"))
     {
         LEAD_WITH_BAR = !LEAD_WITH_BAR;
     }
     ImGui::SameLine();
-    // text for BAR
     ImGui::Text(LEAD_WITH_BAR ? "BAR" : "DISK");
 
-    ImGui::SliderInt("Angle Extrap switching (ms)", &ORBIT_ANGLE_EXTRAPOLATE_MS, 0, 1000);
-    ImGui::SliderInt("Position Extrapolate (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
-    ImGui::SliderInt("Orbit Radius", &ORBIT_RADIUS, 0, 1000);
-    ImGui::SliderFloat("PP MovAvg Time (sec)", &PP_MOVAVG_TIME, 0, 0.1f);
-    ImGui::SliderInt("PP Radius", &PURE_PURSUIT_RADIUS, 0, 1000);
-    ImGui::SliderFloat("PP Radius Vel Coef", &PP_RADIUS_VEL_SCALE, 0, 0.05);
-    ImGui::SliderInt("Global Opp Pos Extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS, 0, 1000);
-
-
-    // space
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::SliderFloat("Opponent Weapon Offset", &OPPONENT_WEAPON_OFFSET, 0.0, 150.0);
-    ImGui::SliderFloat("Opponent Spiral Start Deg", &OPPONENT_SPIRAL_START_DEG, 0.0, 180.0);
-    ImGui::SliderFloat("Opponent Spiral End Deg", &OPPONENT_SPIRAL_END_DEG, 0.0, 180.0);
-    ImGui::SliderFloat("Preserve momentum factor", &ORBIT_PRESERVE_CURR_ANGLE_WEIGHT, 0.0, 5.0);
-
-    EndSetMaxWidthWithMargin();
-    ImGui::End();
-
-    ImGui::Begin("Kill Config");
+    ImGui::SliderInt("Robot pos extrap (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
     ImGui::SliderInt("Opponent pos extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS_KILL, 0, 1000);
     ImGui::SliderInt("Max extrap time (ms)", &MAX_OPP_EXTRAP_MS_KILL, 0, 2000);
     ImGui::End();
+
+
 
     ImGui::Begin("Vision Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);

@@ -9,7 +9,6 @@
 #include "../Common/Communication.h"
 #include "Extrapolator.h"
 #include "SelfRighter.h"
-#include "Strategies/Orbit.h"
 #include "Strategies/Kill.h"
 #include "Strategies/AStarAttack.h"
 #include "Weapons.h"

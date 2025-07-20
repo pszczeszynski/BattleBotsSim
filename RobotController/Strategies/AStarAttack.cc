@@ -68,6 +68,8 @@ AStarAttack::AStarAttack()
     // initialize filters
     orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 300.0f, 2.0f*360.0f*TO_RAD, 40.0f*360.0f*TO_RAD);
     oppFiltered = FilteredRobot(1.0f, 100.0f, 380.0f, 300.0f, 2.5f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
+    
+    // Note: Radius curve parameters are initialized from RobotConfig defaults
 }
 
 
@@ -91,15 +93,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     OdometryData orbData = RobotController::GetInstance().odometry.Robot();
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
-
     // update filtered positions/velocities and paths
     orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
     // oppFiltered.updateFiltersOpp(deltaTime, oppData.robotPosition, oppData.robotAngle); oppFiltered.updatePath();
-
-
-    
-    
 
 
     // raw follow points in every direction
@@ -124,15 +121,15 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // std::cout << "follow point x = " << followPoint.x << std::endl;
 
 
+#ifdef DEBUG_DISPLAY
     float orbETA = orbFiltered.collideETA(oppFiltered, currForward, 65.0f);
     float angleMargin = 40.0f * TO_RAD;
     float humanLag = 0.05f; // 0.05
     float oppETA = oppFiltered.turnTimeMin(predictDriftStop(currForward), humanLag, angleMargin, currForward, true);
 
-
-
     std::cout << "    orbETA = " << orbETA << ", oppETA = " << oppETA << "       ";
     std::cout << std::endl;
+#endif
     
    
 
@@ -147,7 +144,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     displayPathLines(orbFiltered.getPath(), cv::Scalar(255, 200, 200)); // display orb path
     displayPathLines(oppFiltered.getPath(), cv::Scalar(255, 200, 200)); // display opp path
     cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), predictDriftStop(currForward), cv::Scalar(255, 255, 0), 2);
-
 
 
 
@@ -220,18 +216,25 @@ float AStarAttack::radiusEquation(bool forward, bool CW) {
     float humanLag = 0.05f; // 0.150
     float oppETA = oppFiltered.turnTimeMin(predictDriftStop(forward), humanLag, angleMargin, true, false);
 
+    // 0.0 is good, 1.0 is bad
+    float fraction = 0.0f;
+    if (oppETA == 0.0f) {
+      fraction = 999999999.0f;
+    } else {
+      fraction = std::max((orbETA - oppETA) / oppETA, 0.0f);
+    }
 
-    float fraction = std::max((orbETA - oppETA) / oppETA, 0.0f);
     // float innerFunction = -pow(1.050f, -fraction) + 1.0f; // how rounded the radius function is, lowering makes it rounder
     // return 150.0f * pow(innerFunction, 0.50f); // max radius, when we start to really wrap around, increasing is more aggressive
     // // generally raise and lower the 2 values together
 
 
-    std::vector<float> radiusCurveX = {0.0f, 15.0f, 100.0f};
-    std::vector<float> radiusCurveY = {0.0f, 85.0f, 150.0f};
-
-    std::vector<cv::Point2f> radiusCurve = {};
-    for(int i = 0; i < radiusCurveX.size(); i++) { radiusCurve.emplace_back(cv::Point2f(radiusCurveX[i], radiusCurveY[i])); }
+    // input fraction to output radius using RobotConfig variables
+    std::vector<cv::Point2f> radiusCurve = {
+        cv::Point2f(RADIUS_CURVE_X0, RADIUS_CURVE_Y0),
+        cv::Point2f(RADIUS_CURVE_X1, RADIUS_CURVE_Y1),
+        cv::Point2f(RADIUS_CURVE_X2, RADIUS_CURVE_Y2)
+    };
 
     // std::cout << "    " << fraction << "    "; 
 
@@ -630,9 +633,9 @@ void AStarAttack::displayPathTangency(FilteredRobot robot, cv::Scalar color) {
 
 // calculates pure pursuit radius based on speeds
 float AStarAttack::ppRad() {
-    float radSlow = 60.0f;
-    float radFast = 100.0f;
-    float speedFast = 400.0f;
+    float radSlow = ASTAR_PP_RAD_SLOW;
+    float radFast = ASTAR_PP_RAD_FAST;
+    float speedFast = ASTAR_PP_SPEED_FAST;
     float currSpeed = cv::norm(orbFiltered.moveVel());
     return radSlow + ((radFast - radSlow) / speedFast) * currSpeed;
 }
@@ -928,6 +931,31 @@ std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() {
 void AStarAttack::SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points) {
     fieldBoundPoints = points;
     RegenerateFieldBoundaryLines();
+}
+
+// Radius curve parameter interface implementation
+void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY[3]) {
+    radiusCurveX[0] = RADIUS_CURVE_X0;
+    radiusCurveX[1] = RADIUS_CURVE_X1;
+    radiusCurveX[2] = RADIUS_CURVE_X2;
+    radiusCurveY[0] = RADIUS_CURVE_Y0;
+    radiusCurveY[1] = RADIUS_CURVE_Y1;
+    radiusCurveY[2] = RADIUS_CURVE_Y2;
+}
+
+void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[3], const float radiusCurveY[3]) {
+    RADIUS_CURVE_X0 = radiusCurveX[0];
+    RADIUS_CURVE_X1 = radiusCurveX[1];
+    RADIUS_CURVE_X2 = radiusCurveX[2];
+    RADIUS_CURVE_Y0 = radiusCurveY[0];
+    RADIUS_CURVE_Y1 = radiusCurveY[1];
+    RADIUS_CURVE_Y2 = radiusCurveY[2];
+}
+
+void AStarAttack::ResetRadiusCurveToDefault() {
+    RADIUS_CURVE_X0 = 0.0f;   RADIUS_CURVE_Y0 = 0.0f;
+    RADIUS_CURVE_X1 = 15.0f;  RADIUS_CURVE_Y1 = 85.0f;
+    RADIUS_CURVE_X2 = 100.0f; RADIUS_CURVE_Y2 = 150.0f;
 }
 
 void AStarAttack::RegenerateFieldBoundaryLines() {

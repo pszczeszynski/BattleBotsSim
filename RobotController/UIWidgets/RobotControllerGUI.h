@@ -19,6 +19,7 @@
 #include "ManualControlWidget.h"
 #include "ODataWidget.h"
 #include "CameraWidget.h"
+#include "AStarAttackWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -53,6 +54,7 @@ private:
     ManualControlWidget _manualControlWidget;
     ODataWidget _odoData;
     CameraWidget _cameraWidget;
+    AStarAttackWidget _astarAttackWidget;
 };
 
 static void glfw_error_callback(int error, const char *description)
