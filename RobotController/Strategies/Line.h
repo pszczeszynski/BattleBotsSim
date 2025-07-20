@@ -7,43 +7,30 @@
 #include <algorithm>
 #include "../SafeDrawing.h"
 #include <utility>
-
 class Line {
 public:
-    // Constructor
-    Line(const cv::Point2f& point1_, const cv::Point2f& point2_);
-    float getLength();
-    float howClosePoint(const cv::Point2f& testPoint);
-    bool doesIntersectLine(const Line& otherLine);
-    std::pair<cv::Point2f, cv::Point2f> getLinePoints();
+    /// Construct a segment from p1 to p2
+    Line(const cv::Point2f& p1, const cv::Point2f& p2);
 
-    cv::Point2f closestLinePoint(cv::Point2f testPoint);
+    /// Closest point on the segment to P
+    cv::Point2f closestLinePoint(const cv::Point2f& P) const;
 
+    /// Distance from P to the segment
+    float howClosePoint(const cv::Point2f& P) const;
+
+    /// Length of the segment
+    float getLength() const;
+
+    /// Does this segment intersect another?
+    bool doesIntersectLine(const Line& other) const;
+
+    /// Return the endpoints as a pair
+    std::pair<cv::Point2f, cv::Point2f> getLinePoints() const;
 
 private:
-
-    cv::Point2f point1; // start of the line
-    cv::Point2f point2; // end of the line
-
-    // min and max coords on each dimension
-    float minX;
-    float maxX;
-    float minY;
-    float maxY;
-
-    float length; // length of line
-
-    // saves for exception cases
-    bool isVertical;
-    bool isHorizontal;
-
-    bool doesIntersectVerticalVertical(Line line1, Line line2);
-    bool doesIntersectHorizontalHorizontal(Line line1, Line line2);
-    bool doesIntersectVerticalHorizontal(Line verticalLine, Line horizontalLine);
-    bool doesIntersectVerticalDiagonal(Line verticalLine, Line diagonalLine);
-    bool doesIntersectHorizontalDiagonal(Line horizontalLine, Line diagonalLine);
-    bool doesIntersectDiagonalDiagonal(Line line1, Line line2);
-    bool inYRange(float yValue);
-    bool inXRange(float xValue);
+    cv::Point2f point1, point2;  // endpoints
+    cv::Point2f _d;              // = point2 - point1
+    float       _len2;           // squared length of _d
+    float       length;          // = sqrt(_len2)
 };
-
+    

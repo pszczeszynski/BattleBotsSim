@@ -816,6 +816,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.GetAngleFrameTime(),
                                 _dataOpponent.GetAngleVelocity(), true);
     }
+
 #ifdef FORCE_SIM_DATA
     _dataRobot.robotPosValid = true;
     _dataRobot.robotPosition = robotPosSim;
@@ -825,8 +826,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     _dataOpponent.robotPosValid = true;
     _dataOpponent.robotPosition = opponentPosSim;
     _dataOpponent.robotVelocity = opponentVelSim;
-    _dataOpponent.robotAngle = Angle(opponentRotationSim);
-    _dataOpponent.robotAngleVelocity = opponentRotationVelSim;
+    _dataOpponent.SetAngle(Angle(opponentRotationSim), opponentRotationVelSim, simReceiveLastTime, true);
     _dataOpponent.time = simReceiveLastTime;
 #endif
 

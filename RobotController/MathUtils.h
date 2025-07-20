@@ -10,6 +10,7 @@
 double AngleBetweenPoints(double x1, double y1, double x2, double y2);
 
 double angle_wrap(double angle_rad);
+float angle_wrap(float angle_rad);
 
 cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad);
 

@@ -19,6 +19,20 @@ double angle_wrap(double angle_rad)
     return angle_rad;
 }
 
+float angle_wrap(float angle_rad)
+{
+    angle_rad = fmod(angle_rad, 2 * M_PI);
+    if (angle_rad <= -M_PI)
+    {
+        angle_rad += 2 * M_PI;
+    }
+    else if (angle_rad > M_PI)
+    {
+        angle_rad -= 2 * M_PI;
+    }
+    return angle_rad;
+}
+
 double norm(Point2f p)
 {
     return std::sqrt(p.x * p.x + p.y * p.y);

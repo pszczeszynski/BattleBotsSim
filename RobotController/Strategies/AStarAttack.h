@@ -15,7 +15,14 @@ class AStarAttack : public Strategy
 public:
     AStarAttack();
     virtual DriverStationMessage Execute(Gamepad& gamepad) override;
-
+    
+    // Field boundary editing interface
+    std::vector<cv::Point2f>& GetFieldBoundaryPoints();
+    void SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points);
+    void RegenerateFieldBoundaryLines();
+    void ResetFieldBoundariesToDefault();
+    
+    static AStarAttack* GetInstance();
 
 private:
 
@@ -31,6 +38,8 @@ private:
 
     bool currForward; // what we're currently leading with
     bool CW; // which way we're currently going around the circle
+    
+    static AStarAttack* _instance;
 
 
 

@@ -204,6 +204,8 @@ void RobotController::Run()
 
         _trackingWidget.Update();
 
+        // Draw field boundary editor handles before updating the field widget
+        _fieldWidget.DrawFieldBoundaryEditor();
         _fieldWidget.UpdateMat(drawingImage);
     }
 }

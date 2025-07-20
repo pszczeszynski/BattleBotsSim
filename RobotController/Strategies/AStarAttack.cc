@@ -8,10 +8,14 @@
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
 #include "../UIWidgets/ClockWidget.h"
+#include "../MathUtils.h"
 #include <cstdlib>
+
+AStarAttack* AStarAttack::_instance = nullptr;
 
 AStarAttack::AStarAttack()
 {
+    _instance = this;
     // define the field
     float minX = 65.0f;
     float maxX = 675.0f;
@@ -29,27 +33,6 @@ AStarAttack::AStarAttack()
     float gateY = 615.0f;
     float gateX1 = 115.0f;
     float gateX2 = 620.0f;
-    // fieldBoundPoints = {
-    //     cv::Point(minX, minY),
-    //     cv::Point2f(shelfStartX, minY),
-    //     cv::Point2f(shelfStartX, shelfY),
-    //     cv::Point2f(shelfEndX, shelfY),
-    //     cv::Point2f(shelfEndX, minY),
-    //     cv::Point2f(maxX, minY),
-    //     cv::Point2f(maxX, screwY1),
-    //     cv::Point2f(screwX2, screwY2),
-    //     cv::Point2f(screwX2, screwY3),
-    //     cv::Point2f(maxX, screwY4),
-    //     cv::Point2f(maxX, gateY),
-    //     cv::Point2f(gateX2, maxY),
-    //     cv::Point2f(gateX1, maxY),
-    //     cv::Point2f(minX, gateY),
-    //     cv::Point2f(minX, screwY4),
-    //     cv::Point2f(screwX1, screwY3),
-    //     cv::Point2f(screwX1, screwY2),
-    //     cv::Point2f(minX, screwY1),
-    //     cv::Point2f(minX, minY), // include first point again to complete last line
-    // };
 
     // no shelf corners
     fieldBoundPoints = {
@@ -74,10 +57,6 @@ AStarAttack::AStarAttack()
 
 
     // points that stick out
-    // convexPoints.emplace_back(cv::Point2f(shelfStartX, shelfY));
-    // convexPoints.emplace_back(cv::Point2f(shelfEndX, shelfY));
-    // convexPoints.emplace_back(cv::Point2f(screwX2, screwY2));
-    // convexPoints.emplace_back(cv::Point2f(screwX1, screwY2));
     convexPoints.emplace_back(cv::Point2f(screwX2, screwY3));
     convexPoints.emplace_back(cv::Point2f(screwX1, screwY3));
 
@@ -105,6 +84,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     double deltaTime = updateClock.getElapsedTime(); // reset every loop so elapsed time is loop time
     if(deltaTime == 0) { deltaTime = 0.001; } // broski what
     updateClock.markStart(); // reset for next loop
+
 
 
     // get odometry data for orb and opp
@@ -625,7 +605,7 @@ cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPointRaw, bool forward
 
     if(timeDif > -0.15f) { 
         float followPointDist = cv::norm(orbFiltered.position() - followPoint);
-        float followPointAngle = angleWrap(orbFiltered.angle(forward) - signPoint * 170.0f*TO_RAD);
+        float followPointAngle = angle_wrap(orbFiltered.angle(forward) - signPoint * 170.0f*TO_RAD);
         return cv::Point2f(orbFiltered.position().x + followPointDist*cos(followPointAngle), orbFiltered.position().y + followPointDist*sin(followPointAngle));
     }
 
@@ -934,4 +914,72 @@ cv::Point2f AStarAttack::predictDriftStop(bool forward) {
     // return the angle from the opponent to the point where we stop drifting
     // return angle(oppFiltered.position(), endDriftPoint);
     return endDriftPoint;
+}
+
+// Field boundary editing interface implementation
+AStarAttack* AStarAttack::GetInstance() {
+    return _instance;
+}
+
+std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() {
+    return fieldBoundPoints;
+}
+
+void AStarAttack::SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points) {
+    fieldBoundPoints = points;
+    RegenerateFieldBoundaryLines();
+}
+
+void AStarAttack::RegenerateFieldBoundaryLines() {
+    fieldBoundLines.clear();
+    
+    // Regenerate lines from connected adjacent points
+    for(int i = 0; i < fieldBoundPoints.size() - 1; i++) {
+        Line addLine = Line(fieldBoundPoints[i], fieldBoundPoints[i + 1]);
+        fieldBoundLines.emplace_back(addLine);
+    }
+    
+    // Update convex points (points that stick out)
+    convexPoints.clear();
+    if (fieldBoundPoints.size() >= 11) {
+        // Assuming the same structure as the original field bounds
+        convexPoints.emplace_back(fieldBoundPoints[2]); // screwX2, screwY3
+        convexPoints.emplace_back(fieldBoundPoints[9]); // screwX1, screwY3
+    }
+}
+
+void AStarAttack::ResetFieldBoundariesToDefault() {
+    // Restore default field boundaries
+    float minX = 65.0f;
+    float maxX = 675.0f;
+    float minY = 55.0f;
+    float maxY = 655.0f;
+    float shelfStartX = 210.0f;
+    float shelfEndX = 525.0f;
+    float shelfY = 215.0f;
+    float screwX1 = 110.0f;
+    float screwX2 = 620.0f;
+    float screwY1 = 140.0f;
+    float screwY2 = 220.0f;
+    float screwY3 = 470.0f;
+    float screwY4 = 560.0f;
+    float gateY = 615.0f;
+    float gateX1 = 115.0f;
+    float gateX2 = 620.0f;
+
+    fieldBoundPoints = {
+        cv::Point(screwX1, shelfY),
+        cv::Point2f(screwX2, shelfY),
+        cv::Point2f(screwX2, screwY3),
+        cv::Point2f(maxX, screwY4),
+        cv::Point2f(maxX, gateY),
+        cv::Point2f(gateX2, maxY),
+        cv::Point2f(gateX1, maxY),
+        cv::Point2f(minX, gateY),
+        cv::Point2f(minX, screwY4),
+        cv::Point2f(screwX1, screwY3),
+        cv::Point2f(screwX1, shelfY), // include first point again to complete last line
+    };
+    
+    RegenerateFieldBoundaryLines();
 }
