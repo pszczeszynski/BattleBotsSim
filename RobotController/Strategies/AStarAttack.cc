@@ -98,7 +98,10 @@ AStarAttack::AStarAttack()
 DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 {
     // track loop time
-    static Clock updateClock; 
+    static Clock updateClock;
+    static ClockWidget processingTimeVisualizer("A Star Attack");
+    processingTimeVisualizer.markStart();
+
     double deltaTime = updateClock.getElapsedTime(); // reset every loop so elapsed time is loop time
     if(deltaTime == 0) { deltaTime = 0.001; } // broski what
     updateClock.markStart(); // reset for next loop
@@ -110,8 +113,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.robotAngle); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.robotAngle); 
+    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
     // oppFiltered.updateFiltersOpp(deltaTime, oppData.robotPosition, oppData.robotAngle); oppFiltered.updatePath();
 
 
@@ -172,6 +175,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Forward; if(!currForward) { direction = RobotMovement::DriveDirection::Backward; } // set drive direction based on the auto switch variable
     DriverStationMessage ret = RobotMovement::HoldAngle(orbFiltered.position(), followPoint, KILL_KD_PERCENT, TURN_THRESH_1_DEG_KILL, TURN_THRESH_2_DEG_KILL, MAX_TURN_POWER_PERCENT_KILL, MIN_TURN_POWER_PERCENT_KILL, SCALE_DOWN_MOVEMENT_PERCENT_KILL, direction); // hold angle to the follow point
     ret.autoDrive.movement = gamepad.GetRightStickY() * calculateMovePercent(followPoint, 40.0f*TO_RAD, 70.0F*TO_RAD, currForward); // scale movement based on angle error 
+    
+    processingTimeVisualizer.markEnd();
     return ret;
 }
 
