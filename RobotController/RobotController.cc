@@ -119,25 +119,12 @@ void RobotController::Run()
     std::cout << "Starting odometry threads..." << std::endl;
 
     // Start the odometry threads
-    // Do blob detection
     odometry.Run(OdometryAlg::Blob);
-
-    // Do Heuristic
     odometry.Run(OdometryAlg::Heuristic);
-
-    // Do IMU
     odometry.Run(OdometryAlg::IMU);
-
-    // Do Neural
     odometry.Run(OdometryAlg::Neural);
-
-    // Do Human
     odometry.Run(OdometryAlg::Human);
-
-    // Do Neural Rotation
     odometry.Run(OdometryAlg::NeuralRot);
-
-    // Do OpenCV Tracking
     odometry.Run(OdometryAlg::OpenCV);
 
 

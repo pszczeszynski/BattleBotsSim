@@ -13,7 +13,10 @@
 #include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/Neural/CVPosition.h"
+
+#ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
+#endif
 #include "UIWidgets/ImageWidget.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
@@ -73,7 +76,9 @@ public:
     CVPosition& GetNeuralOdometry();
     BlobDetection& GetBlobOdometry();
     CVRotation& GetNeuralRotOdometry();
+#ifdef USE_OPENCV_TRACKER
     OpenCVTracker& GetOpenCVOdometry();
+#endif
 
     void _AdjustAngleWithArrowKeys();
 
@@ -112,9 +117,11 @@ private:
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;
 
+#ifdef USE_OPENCV_TRACKER
     OpenCVTracker _odometry_opencv;
     OdometryData _dataRobot_opencv;
     OdometryData _dataOpponent_opencv;
+#endif
 
 
     // Final Data

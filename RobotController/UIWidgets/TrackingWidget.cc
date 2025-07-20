@@ -307,15 +307,19 @@ void TrackingWidget::_DrawAlgorithmData()
     BlobDetection &_odometry_Blob = odometry.GetBlobOdometry();
     HeuristicOdometry &_odometry_Heuristic = odometry.GetHeuristicOdometry();
     CVPosition& _odometry_Neural = odometry.GetNeuralOdometry();
+#ifdef USE_OPENCV_TRACKER
     OpenCVTracker& _odometry_opencv = odometry.GetOpenCVOdometry();
+#endif
 
 
     // go through every odometry algorithm and draw the tracking results
+#ifdef USE_OPENCV_TRACKER
     if (_odometry_opencv.IsRunning() && showOpencv )
     {    
         _DrawPositions(_odometry_opencv.GetData(false) , _odometry_opencv.GetData(true), _trackingMat, opencvColor);  
         _DrawAngles(_odometry_opencv.GetData(false), _odometry_opencv.GetData(true), _trackingMat, opencvColor);
     }
+#endif
 
     if (_odometry_Blob.IsRunning() && showBlob)
     {
@@ -354,6 +358,7 @@ void TrackingWidget::_DrawAlgorithmData()
             }
 
 
+#ifdef USE_OPENCV_TRACKER
             if (EDITING_OPENCV)
             {
                 if (InputState::GetInstance().IsMouseDown(0))
@@ -365,6 +370,7 @@ void TrackingWidget::_DrawAlgorithmData()
                     _odometry_opencv.SetPosition(GetMousePos(), true);
                 }
             }
+#endif
             if (EDITING_BLOB)
             {
                 if (InputState::GetInstance().IsMouseDown(0))
@@ -611,7 +617,9 @@ void TrackingWidget::_RenderFrames()
         {"Neural", showNeural},
         {"Fusion", showFusion},
         {"NeuralRot", showNeuralRot},
+#ifdef USE_OPENCV_TRACKER
         {"Opencv", showOpencv}  
+#endif
     };
 
     // Use the camera image size as the output size
@@ -746,7 +754,9 @@ void TrackingWidget::DrawGUI() {
     _DrawShowButton("Heuristic", showHeuristic);
     _DrawShowButton("Neural", showNeural);
     _DrawShowButton("NeuralRot", showNeuralRot);
+#ifdef USE_OPENCV_TRACKER
     _DrawShowButton("Opencv", showOpencv);
+#endif
     _DrawShowButton("Fusion", showFusion);
 
     // Add two line spacers

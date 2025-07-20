@@ -34,8 +34,10 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
                                                              _odometry_Neural(&videoSource),
                                                              _odometry_Human(&videoSource, "11118", false),
                                                              _odometry_Human_Heuristic(&videoSource, "11119", true),
-                                                             _odometry_NeuralRot(&videoSource),
-                                                             _odometry_opencv(&videoSource)
+                                                             _odometry_NeuralRot(&videoSource)
+#ifdef USE_OPENCV_TRACKER
+                                                             ,_odometry_opencv(&videoSource)
+#endif
 {
 }
 
@@ -128,10 +130,12 @@ void RobotOdometry::MatchStart(bool partOfAuto)
     _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(), true);
     _odometry_Blob.SetVelocity(_dataOpponent.robotVelocity, true);
 
+#ifdef USE_OPENCV_TRACKER
     _odometry_opencv.ForcePosition(_dataOpponent.robotPosition, true);
     _odometry_opencv.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(),
                               true);
     _odometry_opencv.SetVelocity(_dataOpponent.robotVelocity, true);
+#endif
 
     fusionStateMachine = FUSION_NORMAL;
 
@@ -176,6 +180,7 @@ void RobotOdometry::Update(int videoID)
         }
     }
 
+#ifdef USE_OPENCV_TRACKER
     if (_odometry_opencv.IsRunning())
     {
         bool newdata = false;
@@ -201,6 +206,7 @@ void RobotOdometry::Update(int videoID)
             _odometry_opencv.GetDebugImage(trackingInfo->GetDebugImage("Opencv"), trackingInfo->GetDebugOffset("Opencv"));
         }
     }
+#endif
 
     // Get Heuristic detection
     if (_odometry_Heuristic.IsRunning())
@@ -1006,7 +1012,9 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos, cv::Point2f newV
     _odometry_Heuristic.SetPosition(newPos, opponentRobot);
     _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
 
+#ifdef USE_OPENCV_TRACKER
     _odometry_opencv.SetPosition(newPos, opponentRobot);
+#endif
 
     // Update our own data
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -1058,8 +1066,10 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Run();
 
+#ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.Run();
+#endif
     default:
         break;
     }
@@ -1090,8 +1100,10 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Stop();
 
+#ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.Stop();
+#endif
     }
 
     return false;
@@ -1120,8 +1132,10 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.IsRunning();
     
+#ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.IsRunning();
+#endif
     default:
         break;
     }
@@ -1154,10 +1168,12 @@ CVRotation &RobotOdometry::GetNeuralRotOdometry()
     return _odometry_NeuralRot;
 }
 
+#ifdef USE_OPENCV_TRACKER
 OpenCVTracker &RobotOdometry::GetOpenCVOdometry()
 {
     return _odometry_opencv;
 }
+#endif
 
 
 std::string getCurrentDateTime() {
@@ -1285,10 +1301,12 @@ void RobotOdometry::ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool
     {
         _odometry_Neural.SetPosition(pos, opponent);
     }
+#ifdef USE_OPENCV_TRACKER
     else if (alg == OdometryAlg::OpenCV)
     {
         _odometry_opencv.SetPosition(pos, opponent);
     }
+#endif
 }
 
 
@@ -1321,10 +1339,12 @@ void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool
     {
         std::cerr << "ERROR: Cannot set velocity for NeuralRot" << std::endl;
     }
+#ifdef USE_OPENCV_TRACKER
     else if (alg == OdometryAlg::OpenCV)
     {
         std::cerr << "ERROR: Cannot set velocity for opencv" << std::endl;
     }
+#endif
 }
 
 void RobotOdometry::GetDebugImage(cv::Mat &debugImage,  cv::Point offset)
