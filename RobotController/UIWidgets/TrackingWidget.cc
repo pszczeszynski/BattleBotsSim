@@ -516,7 +516,6 @@ void TrackingWidget::Update()
 
     // Save to video (if enabled)
     SaveToVideo();
-
 }
 
 // New function to store an image with a given label
@@ -621,6 +620,9 @@ void TrackingWidget::_RenderFrames()
     // Initialize output image as a black color image (CV_8UC3)
     _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);
 
+    // Pre-allocate working matrices to avoid repeated allocations
+    cv::Mat colorized, mask, temp3channel;
+
     // Iterate through each variant to overlay images
     for (const auto& variant : variants) {
         const std::string& label = variant.first;
@@ -640,60 +642,73 @@ void TrackingWidget::_RenderFrames()
         // Get the color for this variant (default to white if not found)
         ImVec4 color = variantColors.count(label) ? variantColors[label] : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
         cv::Scalar bgrColor(color.z * 255, color.y * 255, color.x * 255); // Convert RGB to BGR for OpenCV
+        float alpha = color.w; // Use the alpha value from ImVec4
 
-        // Create a colorized version of the source image
-        cv::Mat colorized;
+        // Create a colorized version of the source image using vectorized operations
         if (srcImage.type() == CV_8UC1) { // Grayscale or binary mask
-            // Convert single-channel image to 3-channel color image
-            cv::Mat temp;
-            cv::cvtColor(srcImage, temp, cv::COLOR_GRAY2BGR);
-            colorized = cv::Mat::zeros(srcImage.size(), CV_8UC3);
-            for (int y = 0; y < srcImage.rows; y++) {
-                for (int x = 0; x < srcImage.cols; x++) {
-                    uchar intensity = srcImage.at<uchar>(y, x);
-                    if (intensity > 0) { // Apply color only to non-zero pixels
-                        colorized.at<cv::Vec3b>(y, x) = cv::Vec3b(
-                            bgrColor[0] * (intensity / 255.0),
-                            bgrColor[1] * (intensity / 255.0),
-                            bgrColor[2] * (intensity / 255.0)
-                        );
-                    }
-                }
-            }
+            // Convert grayscale to 3-channel
+            cv::cvtColor(srcImage, temp3channel, cv::COLOR_GRAY2BGR);
+            
+            // Create colored version by multiplying each channel
+            std::vector<cv::Mat> channels(3);
+            cv::split(temp3channel, channels);
+            
+            // Apply color scaling to each channel using vectorized operations
+            channels[0] *= (bgrColor[0] / 255.0); // Blue
+            channels[1] *= (bgrColor[1] / 255.0); // Green  
+            channels[2] *= (bgrColor[2] / 255.0); // Red
+            
+            cv::merge(channels, colorized);
+            
+            // Create mask for non-zero pixels
+            cv::threshold(srcImage, mask, 0, 255, cv::THRESH_BINARY);
+            
         } else if (srcImage.type() == CV_8UC3) { // Already a color image
-            colorized = srcImage.clone(); // Use as is or apply color tint if needed
-            // Optionally apply color tint (multiply with color)
-            for (int y = 0; y < srcImage.rows; y++) {
-                for (int x = 0; x < srcImage.cols; x++) {
-                    cv::Vec3b pixel = colorized.at<cv::Vec3b>(y, x);
-                    colorized.at<cv::Vec3b>(y, x) = cv::Vec3b(
-                        pixel[0] * (bgrColor[0] / 255.0),
-                        pixel[1] * (bgrColor[1] / 255.0),
-                        pixel[2] * (bgrColor[2] / 255.0)
-                    );
-                }
-            }
+            // Apply color tint using vectorized multiplication
+            srcImage.copyTo(colorized);
+            
+            std::vector<cv::Mat> channels(3);
+            cv::split(colorized, channels);
+            
+            // Apply color scaling to each channel
+            channels[0] *= (bgrColor[0] / 255.0); // Blue
+            channels[1] *= (bgrColor[1] / 255.0); // Green
+            channels[2] *= (bgrColor[2] / 255.0); // Red
+            
+            cv::merge(channels, colorized);
+            
+            // Create mask for non-zero pixels (any channel > 0)
+            cv::Mat grayTemp;
+            cv::cvtColor(srcImage, grayTemp, cv::COLOR_BGR2GRAY);
+            cv::threshold(grayTemp, mask, 0, 255, cv::THRESH_BINARY);
+            
         } else {
             continue; // Unsupported image type
         }
 
-        // Blend the colorized image onto the output using alpha
-        float alpha = color.w; // Use the alpha value from ImVec4
-        for (int y = 0; y < _trackingMat.rows; y++) {
-            for (int x = 0; x < _trackingMat.cols; x++) {
-                cv::Vec3b& outPixel = _trackingMat.at<cv::Vec3b>(y, x);
-                cv::Vec3b srcPixel = colorized.at<cv::Vec3b>(y, x);
-                // Blend only if the source pixel is non-zero
-                if (srcPixel[0] > 0 || srcPixel[1] > 0 || srcPixel[2] > 0) {
-                    outPixel = cv::Vec3b(
-                        outPixel[0] * (1.0 - alpha) + srcPixel[0] * alpha,
-                        outPixel[1] * (1.0 - alpha) + srcPixel[1] * alpha,
-                        outPixel[2] * (1.0 - alpha) + srcPixel[2] * alpha
-                    );
-                }
-            }
+        // Blend using OpenCV's optimized functions
+        if (alpha >= 0.99f) {
+            // Full opacity - just copy over the mask
+            colorized.copyTo(_trackingMat, mask);
+        } else {
+            // Partial opacity - use addWeighted for blending
+            cv::Mat maskedColorized = cv::Mat::zeros(colorized.size(), colorized.type());
+            colorized.copyTo(maskedColorized, mask);
+            
+            // Create inverse mask for existing content
+            cv::Mat inverseMask;
+            cv::bitwise_not(mask, inverseMask);
+            
+            cv::Mat existing = cv::Mat::zeros(_trackingMat.size(), _trackingMat.type());
+            _trackingMat.copyTo(existing, inverseMask);
+            
+            // Blend the regions
+            cv::Mat blended;
+            cv::addWeighted(_trackingMat, 1.0 - alpha, maskedColorized, alpha, 0, blended);
+            
+            // Copy back only the masked region
+            blended.copyTo(_trackingMat, mask);
         }
-
     }
 }
 
