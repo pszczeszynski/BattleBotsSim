@@ -69,7 +69,7 @@ RobotMessage IRobotLink::Receive()
             
             // Replace the reported angle with our integrated angle
             msg.imuData.rotation = _integratedAngle;
-                        
+
             _lastIMUMessageMutex.lock();
             _lastIMUMessage = msg;
             _lastIMUMessageMutex.unlock();
