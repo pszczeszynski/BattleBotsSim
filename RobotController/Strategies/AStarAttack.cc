@@ -66,7 +66,7 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 300.0f, 2.0f*360.0f*TO_RAD, 40.0f*360.0f*TO_RAD);
+    orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 150.0f, 2.0f*360.0f*TO_RAD, 40.0f*360.0f*TO_RAD);
     oppFiltered = FilteredRobot(1.0f, 100.0f, 380.0f, 300.0f, 2.5f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
     
     // Note: Radius curve parameters are initialized from RobotConfig defaults
@@ -113,11 +113,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // choose which way to circle the opp/drive
     cv::Point2f followPoint = chooseBestPoint(followPoints, pointsCW, pointsForward, CW, currForward);
     followPoint = avoidBounds(followPoint); // make sure we don't hit any walls
-    // followPoint = turnCorrectWay(followPoint, currForward); // force that we turn away from the opp if needed
+    followPoint = turnCorrectWay(followPoint, currForward); // force that we turn away from the opp if needed
 
 
 
-    std::cout << "CW = " << CW << ", forward = " << currForward;
+    // std::cout << "CW = " << CW << ", forward = " << currForward;
     // std::cout << "follow point x = " << followPoint.x << std::endl;
 
 
@@ -527,10 +527,8 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 // totals wall distances to opponent by incrementing around them
 float AStarAttack::wallScore(bool CW) {
 
-    // angle to sweep around the opp to total up the score
-    float angleAround = oppFiltered.angleTo(orbFiltered.position(), true);
-    if(CW) { angleAround = 180.0f*TO_RAD - angleAround; }
-    else { angleAround = 180.0f*TO_RAD + angleAround; }
+    // angular range to scan for wall distances
+    float sweepRange = 80.0f*TO_RAD;
 
     std::vector<cv::Point2f> scanPoints;
     std::vector<Line> scanLines = {};
@@ -538,14 +536,13 @@ float AStarAttack::wallScore(bool CW) {
 
     // float startAngle = oppFiltered.angle(true) + 180.0f*TO_RAD - angleAround;
     float startAngle = angle(oppFiltered.position(), orbFiltered.position());
-    float endAngle = startAngle + angleAround;
+    float endAngle = startAngle + sweepRange;
 
     float closestDistance = 9999.0f;
-    float totalScore = 0.0f;
 
     // sweep through the whole angle around by incrementing
     float angleOffset = 0.0f;
-    while(abs(angleOffset) < abs(angleAround)) {
+    while(abs(angleOffset) < abs(sweepRange)) {
         float currAngle = startAngle + angleOffset;
         cv::Point2f testPoint = clipPointInBounds(oppFiltered.position());
 
@@ -564,9 +561,7 @@ float AStarAttack::wallScore(bool CW) {
         
 
         float pointDistance = std::min(cv::norm(oppFiltered.position() - testPoint), 250.0);
-        float pointScore = -pointDistance * std::max(M_PI - abs(angleOffset), 0.0);
         if(pointDistance < closestDistance) { closestDistance = pointDistance; }
-        totalScore += pointScore;
 
         angleOffset += sweepIncrement;
     }
@@ -577,9 +572,67 @@ float AStarAttack::wallScore(bool CW) {
     displayPathPoints(scanPoints, color);
     // displayLineList(scanLines, color);
 
-    // return closestDistance;
-    return totalScore;
+    return closestDistance;
 }
+
+
+
+// // totals wall distances to opponent by incrementing around them
+// float AStarAttack::wallScore(bool CW) {
+
+//     // angle to sweep around the opp to total up the score
+//     float angleAround = oppFiltered.angleTo(orbFiltered.position(), true);
+//     if(CW) { angleAround = 180.0f*TO_RAD - angleAround; }
+//     else { angleAround = 180.0f*TO_RAD + angleAround; }
+
+//     std::vector<cv::Point2f> scanPoints;
+//     std::vector<Line> scanLines = {};
+//     float sweepIncrement = 1.0f*TO_RAD; if(!CW) { sweepIncrement *= -1.0f; } // how much to increment sweep angle for each point
+
+//     // float startAngle = oppFiltered.angle(true) + 180.0f*TO_RAD - angleAround;
+//     float startAngle = angle(oppFiltered.position(), orbFiltered.position());
+//     float endAngle = startAngle + angleAround;
+
+//     float closestDistance = 9999.0f;
+//     float totalScore = 0.0f;
+
+//     // sweep through the whole angle around by incrementing
+//     float angleOffset = 0.0f;
+//     while(abs(angleOffset) < abs(angleAround)) {
+//         float currAngle = startAngle + angleOffset;
+//         cv::Point2f testPoint = clipPointInBounds(oppFiltered.position());
+
+//         // increment the point outwards until it's out of bounds
+//         for(int i = 0; i < 400; i++) {
+//             float increment = 5.0f;
+//             testPoint.x += increment * cos(currAngle);
+//             testPoint.y += increment * sin(currAngle);
+
+//             if(!insideFieldBounds(testPoint)) { break; }
+//         }
+        
+//         testPoint = closestBoundPoint(testPoint);
+//         scanPoints.emplace_back(testPoint);
+//         scanLines.emplace_back(Line(oppFiltered.position(), testPoint));
+        
+
+//         float pointDistance = std::min(cv::norm(oppFiltered.position() - testPoint), 250.0);
+//         float pointScore = -pointDistance * std::max(M_PI - abs(angleOffset), 0.0);
+//         if(pointDistance < closestDistance) { closestDistance = pointDistance; }
+//         totalScore += pointScore;
+
+//         angleOffset += sweepIncrement;
+//     }
+
+//     cv::Scalar color = cv::Scalar(200, 255, 200);
+//     if(!CW) { color = cv::Scalar(200, 200, 255); }
+
+//     displayPathPoints(scanPoints, color);
+//     // displayLineList(scanLines, color);
+
+//     // return closestDistance;
+//     return totalScore;
+// }
 
 
 
@@ -753,24 +806,29 @@ cv::Point2f AStarAttack::avoidBounds(cv::Point2f rawFollowPoint) {
 // score function for determining how good a follow point is, used for CW/CCW decision
 float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward) {
 
+    // rough scale to decide when we're reasonably far from the opponent that turning delays and stuff aren't a risk
+    float farAway = 500.0f;
+    float closeness = std::clamp(1.0f - (orbFiltered.distanceTo(oppFiltered.position()) / farAway), 0.0f, 1.0f);
+
+
     // how far the robot has to turn to this point
     float angleToPoint = orbFiltered.angleTo(followPoint, forward);
-    float turnGain = 50.0f * std::max(1.0f - orbFiltered.distanceTo(oppFiltered.position())/400.0f, 0.0f); // 40.0
+    float turnGain = 40.0f * closeness; // 40.0
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*oppFiltered.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 10.0f; // 10.0
+    float goAroundGain = 15.0f; // 10.0
 
 
     // how close is the nearest wall in this direction
     float wallWeight = wallScore(CW);
-    float wallGain = 0.002f; // 0.002
+    float wallGain = -0.3f; // 0.0025
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float tanVel = orbFiltered.tangentVel(forward);
-    float momentumWeight = 0.4f;
+    float momentumWeight = 0.7f * closeness;
 
 
     // penalty for using the back bc we want to use front more often
@@ -794,10 +852,10 @@ cv::Point2f AStarAttack::followPointInsideCircle(float radius, float ppRadius, b
     float distanceToOpp = cv::norm(orbFiltered.position() - oppFiltered.position());
 
     // first define parameters at collision radius
-    float minAngleFront = -40.0f*TO_RAD; // -70
+    float minAngleFront = -80.0f*TO_RAD; // -70
     float maxAngleFront = 10.0f*TO_RAD;
 
-    float minAngleSide = -40.0f*TO_RAD; // -185
+    float minAngleSide = -80.0f*TO_RAD; // -185
     float maxAngleSide = -10.0f*TO_RAD; // -60
 
     float sideAngle = -100.0f*TO_RAD;
