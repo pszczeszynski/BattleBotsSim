@@ -41,13 +41,18 @@ RobotMessage IRobotLink::Receive()
     bool hadValidMessage = false;
 
     // go through all the new messages
+    int messageIndex = 0;
     for (RobotMessage &msg : newMessages)
     {
         // save the latest message of each type
         if (msg.type == RobotMessageType::IMU_DATA)
         {            
             double currentTimestamp;
-            if (msg.timestamp > 0) {
+            
+            // Use receive time if available, otherwise fall back to message timestamp
+            if (messageIndex < _lastMessageReceiveTimes.size()) {
+                currentTimestamp = _lastMessageReceiveTimes[messageIndex];
+            } else if (msg.timestamp > 0) {
                 // Convert to seconds from microseconds
                 currentTimestamp = static_cast<double>(msg.timestamp) / 1000000.0;
             } else {
@@ -106,6 +111,7 @@ RobotMessage IRobotLink::Receive()
             _lastBoardTelemetryMessageMutex.unlock();
             hadValidMessage = true;
         }
+        messageIndex++;
     }
 
     // if didn't get a single valid message
@@ -379,12 +385,19 @@ void RobotLinkReal::RadioThreadRecvFunction(
                             _outstandingPackets.end())
                         {
                             _outstandingPackets.erase(msg.timestamp);
+                            
+                            // Record the receive time
+                            auto elapsed = std::chrono::high_resolution_clock::now() - _startTime;
+                            double receiveTime = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() / 1000000.0;
+
                             messageMutex->lock();
                             messageQueue->push_back(msg);
+                            
+                            // Add receive time to the queue (this is _unconsumedMessages)
+                            if (messageQueue == &_unconsumedMessages) {
+                                _messageReceiveTimes.push_back(receiveTime);
+                            }
                             messageMutex->unlock();
-                            auto elapsed =
-                                std::chrono::high_resolution_clock::now() -
-                                _startTime;
                             packetRoundTrip.AddData(
                                 float(std::chrono::duration_cast<
                                           std::chrono::microseconds>(elapsed)
@@ -789,8 +802,17 @@ std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
     // reset unconsumed messages since we have copied them over
     _unconsumedMessages.clear();
 
+    // Also copy and clear the receive times
+    std::vector<double> receiveTimes;
+    std::copy(_messageReceiveTimes.begin(), _messageReceiveTimes.end(),
+              std::back_inserter(receiveTimes));
+    _messageReceiveTimes.clear();
+
     // unlock mutex
     _unconsumedMessagesMutex.unlock();
+
+    // Store receive times for use in IMU integration
+    _lastMessageReceiveTimes = receiveTimes;
 
     // return the new messages
     return ret;
@@ -919,6 +941,10 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl()
     opponentRotationVelSim = message.opponent_rotation_velocity; // * TO_RAD;
     lastReceiveClock.markStart();
     simReceiveLastTime = Clock::programClock.getElapsedTime();
+
+    // Record the receive time for simulation
+    double receiveTime = Clock::programClock.getElapsedTime();
+    _lastMessageReceiveTimes = {receiveTime};
 
     // return the message
     return {ret};

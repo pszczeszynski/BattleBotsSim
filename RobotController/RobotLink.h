@@ -47,6 +47,11 @@ protected:
     RobotMessage _lastIMUDebugMessage;
     std::mutex _lastIMUDebugMessageMutex;
 
+    // Queue to track receive times for messages (matches _unconsumedMessages)
+    std::deque<double> _messageReceiveTimes;
+    // Store receive times for the last batch of messages
+    std::vector<double> _lastMessageReceiveTimes;
+
     Clock _receiveClock; // for tracking the receive rate information (so public)
     Clock _sendClock; // for tracking the send rate information (so public)
     bool _transmitterConnected = false;
