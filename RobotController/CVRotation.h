@@ -6,7 +6,7 @@
 
 
 // MachineLearning/rotation_model_hoop.onnx
-#define MODEL_PATH "MachineLearning/rotation_model_hoop.onnx"
+#define MODEL_PATH "MachineLearning/rotationDetectorV5.onnx"
 
 class CVRotation : public OdometryBase
 {
