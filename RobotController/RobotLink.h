@@ -51,6 +51,10 @@ protected:
     Clock _sendClock; // for tracking the send rate information (so public)
     bool _transmitterConnected = false;
     bool _secondaryTransmitterConnected = false;
+    
+    // IMU angle integration from angular velocity
+    double _integratedAngle = 0.0;
+    double _lastIMUTimestamp = 0.0;
 };
 
 /**

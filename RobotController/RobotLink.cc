@@ -45,7 +45,31 @@ RobotMessage IRobotLink::Receive()
     {
         // save the latest message of each type
         if (msg.type == RobotMessageType::IMU_DATA)
-        {
+        {            
+            double currentTimestamp;
+            if (msg.timestamp > 0) {
+                // Convert to seconds from microseconds
+                currentTimestamp = static_cast<double>(msg.timestamp) / 1000000.0;
+            } else {
+                // Use current program time as fallback
+                currentTimestamp = Clock::programClock.getElapsedTime();
+            }
+            
+            double deltaTime = currentTimestamp - _lastIMUTimestamp;
+            
+            // Sanity check on delta time to prevent huge jumps
+            if (deltaTime > 0.0 && deltaTime < 0.5) {  // Between 0 and 500ms
+                // Integrate angular velocity to get angle change
+                // rotationVelocity is in rad/s, deltaTime is in seconds
+                double angleChange = msg.imuData.rotationVelocity * deltaTime;
+                _integratedAngle = _integratedAngle + angleChange;
+            }
+            
+            _lastIMUTimestamp = currentTimestamp;
+            
+            // Replace the reported angle with our integrated angle
+            msg.imuData.rotation = _integratedAngle;
+                        
             _lastIMUMessageMutex.lock();
             _lastIMUMessage = msg;
             _lastIMUMessageMutex.unlock();
