@@ -169,11 +169,11 @@ public class VisionAITrainer : MonoBehaviour
 
     private void RandomizeLights()
     {
-        // // randomly disable or enable lights
-        // foreach (Transform light in lights)
-        // {
-        //     light.gameObject.SetActive(Random.Range(0, 4) != 0);
-        // }
+        // randomly disable or enable lights
+        foreach (Transform light in lights)
+        {
+            light.gameObject.SetActive(Random.Range(0, 4) != 0);
+        }
 
         // random rotation
         lights.rotation = Quaternion.Euler(Random.Range(-10, 10), Random.Range(0, 360), Random.Range(-10, 10));
