@@ -460,6 +460,27 @@ void ConfigWidget::Draw()
     {
         FUSE_IMU = !FUSE_IMU;
     }
+    
+    ImGui::PopStyleColor();
+
+    
+    ImGui::SameLine();
+
+    if(INTEGRATE_GYRO_VEL)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+    }
+
+    if(ImGui::Button("Use IMU Vel"))
+    {
+        INTEGRATE_GYRO_VEL = !INTEGRATE_GYRO_VEL;
+    }
+
+    
 
     
     ImGui::PopStyleColor();

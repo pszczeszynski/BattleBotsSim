@@ -81,6 +81,7 @@ extern int RADIO_CHANNEL;
 extern int SECONDARY_RADIO_CHANNEL;
 extern bool AUTO_SWITCH_CHANNEL;
 extern bool FUSE_IMU;
+extern bool INTEGRATE_GYRO_VEL;
 extern int MAX_AVERAGE_DELAY_MS;
 extern int SWITCH_COOLDOWN_MS;
 extern int GO_AROUND_RADIUS;
