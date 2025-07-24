@@ -15,8 +15,8 @@ enum board_placement {
 };
 
 ///////////////////////////COMMON BOARD PINOUTS///////////////////////////
-#define FIRMWARE_SELECT_MSB_PIN 0
-#define FIRMWARE_SELECT_LSB_PIN 1
+#define FIRMWARE_SELECT_MSB_PIN 1
+#define FIRMWARE_SELECT_LSB_PIN 0
 
 // status leds
 #define STATUS_1_LED_PIN 3
