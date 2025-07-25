@@ -131,64 +131,56 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     // copy to shared memory
     frame.copyTo(sharedImage);
 
-    CVPositionData data = _GetDataFromPython();
+    bool pythonResponded = true;
+    CVPositionData data = _GetDataFromPython(pythonResponded);
 
-    // make sure the data is newer than the last data
-    if (data.frameID <= _lastData.frameID || data.center.x <= 0 ||
-        data.center.y <= 0 || data.center.x >= frame.cols ||
-        data.center.y >= frame.rows || std::isnan(data.center.x) ||
-        std::isnan(data.center.y) || std::isinf(data.center.x) ||
-        std::isinf(data.center.y)) {
-      data.valid = false;
+    if (!pythonResponded) {
+        return;
     }
+
+    // // make sure the data is newer than the last data
+    // if (data.center.x <= 0 ||
+    //     data.center.y <= 0 || data.center.x >= frame.cols ||
+    //     data.center.y >= frame.rows || std::isnan(data.center.x) ||
+    //     std::isnan(data.center.y) || std::isinf(data.center.x) ||
+    //     std::isinf(data.center.y)) {
+    //   data.valid = false;
+    //   std::cout << "invalid 0" << std::endl;
+    // }
 
     cv::Point2f velocity = cv::Point2f(0, 0);
 
     if (data.valid) {
-        // If lastpos isn't invalid, set to current position (0 velocity)
-        if (_lastPos.x < 0 || _lastPos.y < 0 || _lastPos.x > frame.cols ||
-            _lastPos.y > frame.rows) {
-            _lastPos = data.center;
+        // If lastData isn't invalid, set to current position (0 velocity)
+        if (_lastData.center.x <= 0 || _lastData.center.y <= 0 || _lastData.center.x >= frame.cols ||
+            _lastData.center.y >= frame.rows) {
+            _lastData.center = data.center;
         }
 
+        _lastDataMutex.lock();
         // if we ever skip too much distance, reset to invalid
-        if (abs(norm(data.center - _lastPos)) > _max_distance_thresh ||
+        if (cv::norm(data.center - _lastData.center) > _max_distance_thresh ||
             data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES) {
           data.valid = false;
-        }
+          std::cout << "invalid 1" << std::endl;
 
-        if (data.valid) {
-            double deltaTime = (data.time_millis - _lastData.time_millis) / 1000.0;
-            velocity = (data.center - _lastPos) / deltaTime;
-    
-            // We're updating every 10ms, so lets filter over 50ms
-            double timeconst = 0.05;
-            double interp = min(deltaTime / timeconst, 1.0);
-            velocity = velocity * interp + _lastVelocity * (1.0 - interp);
-    
-            // force 0 velocity if there has been more than 0.1 seconds since the last data
-            if (deltaTime > 0.1 || cv::norm(data.center - _lastData.center) > _max_distance_thresh)
-            {
-                velocity = cv::Point2f(0, 0);
-            }
-    
-            _lastPos = data.center;    
+          std::cout << "distance: " << cv::norm(data.center - _lastData.center) << std::endl;
+          std::cout << "frameID: " << data.frameID << " lastFrameID: " << _lastData.frameID << std::endl;
         }
+        // copy over the data
+        _lastData = data;
+        _lastVelocity = velocity;
+        _lastDataMutex.unlock();
     }
     // if the data is valid, increment the valid frames counter
     if (data.valid) {
         _valid_frames_counter++;
     }
 
-    data.valid = data.valid && _valid_frames_counter >= 10;
+    data.valid = data.valid && _valid_frames_counter >= 3;
 
     _UpdateData(data, velocity);
 
-    // copy over the data
-    _lastDataMutex.lock();
-    _lastData = data;
-    _lastVelocity = velocity;
-    _lastDataMutex.unlock();
 }
 
 void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
@@ -211,7 +203,6 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataOpponent.isUs = false; // Make sure this is set
     _currDataOpponent.robotPosValid = false;
     _currDataOpponent.InvalidateAngle();
-
 }
 
 /**
@@ -247,23 +238,36 @@ cv::Point2f CVPosition::GetCenter(int* outFrameID)
     return actualData.center;
 }
 
-CVPositionData CVPosition::_GetDataFromPython()
+CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded)
 {
     // receive from socket
     std::string data = _pythonSocket.receive();
 
-    if (data == "" || data == "invalid")
+    if (data == "")
     {
         CVPositionData ret = _lastData;
         ret.valid = false;
+        std::cout << "invalid -2" << std::endl;
+        outPythonResponded = false;
         return ret;
     }
+    outPythonResponded = true;
 
     // parse using json
     nlohmann::json j = nlohmann::json::parse(data);
     
     // get "bounding_box"
     nlohmann::json boundingBox = j["bounding_box"];
+
+    // check if it's a string and equal to "invalid"
+    if (boundingBox.is_string())
+    {
+        CVPositionData ret = _lastData;
+        ret.valid = false;
+        std::cout << "invalid -3" << std::endl;
+        return ret;
+    }
+
     // it's an array of floats, so we can just cast it to a vector
     std::vector<float> boundingBoxVec = boundingBox.get<std::vector<float>>();
 
@@ -289,6 +293,7 @@ CVPositionData CVPosition::_GetDataFromPython()
     ret.time_millis = time_milliseconds;
     ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
     ret.valid = conf >= NN_MIN_CONFIDENCE;
+    std::cout << "conf valid: " << ret.valid << std::endl;
 
     return ret;
 }

@@ -27,7 +27,6 @@ public:
 
 private:
     void _ProcessNewFrame(cv::Mat frame, double frameTime) override; // Run every time a new frame is available
-    cv::Point2f _lastPos = cv::Point2f(-1,-1);
     std::vector<std::string> classes{"orbitron"};
 
     cv::Size modelShape{};
@@ -36,7 +35,7 @@ private:
     cv::Point2f _lastVelocity;
     std::mutex _lastDataMutex;
 
-    CVPositionData _GetDataFromPython();
+    CVPositionData _GetDataFromPython(bool& outPythonResponded);
 
     void _UpdateData(CVPositionData data, cv::Point2f velocity);
 
