@@ -214,15 +214,17 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
             heuristic.save_background = true;
         }
 
+        RobotOdometry &odometry = RobotController::GetInstance().odometry;
+
         if( start_l_count > _lastStartL)
         {
             odometry.MatchStart();
         }
         
-        RobotOdometry &odometry = RobotController::GetInstance().odometry;
+        
 
 
-        if( aut_recover_count > _lastAutoRecover)
+        if( auto_recover_count > _lastAutoRecover)
         {
              heuristic.RecoverDetection();
         }
@@ -235,7 +237,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         _lastLoadSavedCount = load_saved_count;
         _lastSavedCount = save_count;
         _lastStartL = start_l_count;
-        _lastAutoRecover = aut_recover_count;
+        _lastAutoRecover = auto_recover_count;
 
         // Only do if new data available
         if( new_slider_data > 0)
@@ -255,34 +257,38 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
         if (type == DataType::ROBOT_POSITION)
         {
-            blob.SetPosition(clickPosition, false);
+            
+            //blob.SetPosition(clickPosition, false);
             if (force_pos_bool)
             {
-                heuristic.ForcePosition(clickPosition, false);
+                odometry.UpdateForceSetPosAndVel(clickPosition, cv::Point2f(0,0), false);
+                //heuristic.ForcePosition(clickPosition, false);
             }
             else
             {
-                heuristic.SetPosition(clickPosition, false);
+                odometry.UpdateForceSetPosAndVel(clickPosition, cv::Point2f(0,0), false);
+                //heuristic.SetPosition(clickPosition, false);
             }
         }
         else if (type == DataType::OPPONENT_POSITION)
         {
-            // call set position on blob + heuristic
-            blob.SetPosition(clickPosition, true);
             if (force_pos_bool)
             {
-                heuristic.ForcePosition(clickPosition, true);
+                odometry.UpdateForceSetPosAndVel(clickPosition, cv::Point2f(0,0), true);
+                //heuristic.ForcePosition(clickPosition, false);
             }
             else
             {
-                heuristic.SetPosition(clickPosition, true);
+                odometry.UpdateForceSetPosAndVel(clickPosition, cv::Point2f(0,0), true);
+                //heuristic.SetPosition(clickPosition, false);
             }
         }
         else if (type == DataType::OPPONENT_ANGLE)
         {
             double MIDDLE = WIDTH / 2;
             Angle angle = Angle(atan2(clickPosition.y - MIDDLE, clickPosition.x - MIDDLE));
-            _UpdateData(false, frameTime, nullptr, &angle);
+            odometry.UpdateForceSetAngle(angle, true);
+            //_UpdateData(false, frameTime, nullptr, &angle);
         }
 
  
@@ -317,4 +323,5 @@ void HumanPosition::_UpdateData(bool isUs, double time, cv::Point2f *pos, Angle 
     currData.SetAngle(*angle, 0, time, true);
 
     _updateMutex.unlock();
+    
 }
