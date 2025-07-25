@@ -36,6 +36,8 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
         _socket = new ServerSocket(_port);
     }
 
+    std::cout << "receiving human position data" << std::endl;
+
     if (data_str.size() < NUMBER_OF_FIELDS * 4)
     {
         return data;
