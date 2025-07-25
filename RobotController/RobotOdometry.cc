@@ -32,8 +32,8 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
                                                              _odometry_Blob(&videoSource),
                                                              _odometry_Heuristic(&videoSource),
                                                              _odometry_Neural(&videoSource),
-                                                             _odometry_Human(&videoSource, "11118", false),
-                                                             _odometry_Human_Heuristic(&videoSource, "11119", true),
+                                                             _odometry_Human(&videoSource, "11120", false),
+                                                             _odometry_Human_Heuristic(&videoSource, "11121", true),
                                                              _odometry_NeuralRot(&videoSource)
 #ifdef USE_OPENCV_TRACKER
                                                              ,_odometry_opencv(&videoSource)
