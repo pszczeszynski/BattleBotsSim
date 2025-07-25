@@ -5,6 +5,7 @@
 #include "../RobotController.h"
 #include "../UIWidgets/ImageWidget.h"
 #include "../SafeDrawing.h"
+#include "../RobotMovement.h"
 
 void DrawDeltaAngleGraphic(double value)
 {
@@ -151,7 +152,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     //////////////////////////////////////////////////////////////
 
     // shift the angle to be in the teensy's frame of reference
-    float angleToTargetForTeensy = angle_wrap(angleToTarget + RobotController::GetInstance().odometry.GetIMUOffset());
+    float angleToTargetForTeensy = angle_wrap(angleToTarget);
 
     DriverStationMessage response;
     response.type = AUTO_DRIVE;
@@ -169,6 +170,15 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     response.autoDrive.invertTurn = INVERT_TURN;
     float currAngle = RobotController::GetInstance().odometry.Robot().GetAngle();
     DrawDeltaAngleGraphic(angle_wrap(angleToTarget - currAngle));
-    
+
+    if (MANUAL_AUTODRIVE) {
+      response.driveCommand = DriveToAngle(
+          currAngle, angleToTargetVel, angleToTargetForTeensy, angleToTargetVel,
+          KD_PERCENT, TURN_THRESH_1_DEG, TURN_THRESH_2_DEG,
+          MAX_TURN_POWER_PERCENT, MIN_TURN_POWER_PERCENT,
+          SCALE_DOWN_MOVEMENT_PERCENT, response.autoDrive.movement);
+      response.type = DRIVE_COMMAND;
+    }
+
     return response;
 }

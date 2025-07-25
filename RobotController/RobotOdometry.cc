@@ -460,7 +460,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     bool neuralUsPos_valid = _odometry_Neural.IsRunning() &&
                              _dataRobot_Neural.robotPosValid &&
-                             (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
+                             (_dataRobot_Neural.GetAge() < 0.05);
 
     bool neuralRot_valid = _odometry_NeuralRot.IsRunning() &&
                            _dataRobot_NeuralRot.IsAngleValid() &&
@@ -610,7 +610,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     //           Rule: 1) Heuristic, 2) Blob
     if (heuristicUsPos_valid)
     {
-        debugROStringForVideo_tmp += "Heu";
+        debugROStringForVideo_tmp += "Heu"; 
         _dataRobot.robotVelocity = ext_dataRobot_Heuristic.robotVelocity;
     }
     else if (blobUsPos_valid)
