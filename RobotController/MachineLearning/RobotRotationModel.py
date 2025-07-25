@@ -16,12 +16,12 @@ MODEL_NAME = "rotationDetector.h5"
 DATA_PATH = "./TrainingData/"
 TESTING_PATH = "./TestingData/TestingInputs/"
 IMG_SIZE = (128, 128)
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 7
 REDUCE_LR_PATIENCE = 3
 REDUCE_LR_FACTOR = 0.3
-MAX_TRAINING_SAMPLES = 100
+MAX_TRAINING_SAMPLES = 50000
 
 # Get sorted list of image files and corresponding json files
 img_files = sorted(glob.glob(os.path.join(
@@ -125,7 +125,7 @@ def train_model():
         # Train the model
         model.fit(
             train_gen,
-            epochs=15,
+            epochs=10,
             steps_per_epoch=steps_per_epoch,
             validation_data=val_gen,
             validation_steps=val_steps,
@@ -140,11 +140,11 @@ def train_model():
     print("Training completed and model saved!")
 
 ##### VISUALIZATION #####
-# train_model()
+train_model()
 save_onnx_model(model, "rotationDetector.onnx")
 
 # Call the visualization function after training:
-# visualize_rotation_predictions(train_gen, model, 50, (10, 10), IMG_SIZE)
+visualize_rotation_predictions(train_gen, model, 50, (10, 10), IMG_SIZE)
 
 # # visualize some testing rotations
 # visualize_testing_rotations(model, TESTING_PATH, IMG_SIZE)

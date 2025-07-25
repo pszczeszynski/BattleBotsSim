@@ -116,8 +116,8 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
 // updates the position filters
 void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta) {
 
-    if(pos.x < fieldMin || pos.x > fieldMax || isnan(pos.x)) { return; }
-    if(pos.y < fieldMin || pos.y > fieldMax || isnan(pos.y)) { return; }
+    if(visionPos.x < fieldMin || visionPos.x > fieldMax || std::isnan(visionPos.x)) { return; }
+    if(visionPos.y < fieldMin || visionPos.y > fieldMax || std::isnan(visionPos.y)) { return; }
 
 
     // clip to camera frame
