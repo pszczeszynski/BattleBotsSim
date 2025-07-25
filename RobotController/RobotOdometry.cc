@@ -250,14 +250,14 @@ void RobotOdometry::Update(int videoID)
     // Get Neural
     if (_odometry_Neural.IsRunning())
     {
-        // Update our data
-        if (_odometry_Neural.NewDataValid(_dataRobot_Neural.id, false))
-        {
-            _dataRobot_Neural = _odometry_Neural.GetData(false);
-            newDataArrived = true;
+        // // Update our data
+        // if (_odometry_Neural.NewDataValid(_dataRobot_Neural.id, false))
+        // {
+        _dataRobot_Neural = _odometry_Neural.GetData(false);
+        newDataArrived = true;
 
-            _odometry_Neural.GetDebugImage(trackingInfo->GetDebugImage("Neural"), trackingInfo->GetDebugOffset("Neural"));
-        }
+        _odometry_Neural.GetDebugImage(trackingInfo->GetDebugImage("Neural"), trackingInfo->GetDebugOffset("Neural"));
+        // }
     }
 
     // Get Neural Rot
@@ -399,7 +399,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     double currTime = Clock::programClock.getElapsedTime();
     OdometryData ext_dataRobot_Blob = _dataRobot_Blob.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataRobot_Heuristic = _dataRobot_Heuristic.ExtrapolateBoundedTo(currTime);
-    OdometryData ext_dataRobot_Neural = _dataRobot_Neural.ExtrapolateBoundedTo(currTime);
+    OdometryData ext_dataRobot_Neural = _dataRobot_Neural;
     OdometryData ext_dataRobot_NeuralRot = _dataRobot_NeuralRot.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataRobot_IMU = _dataRobot_IMU.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataRobot_Human = _dataRobot_Human.ExtrapolateBoundedTo(currTime);
@@ -459,8 +459,8 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     bool blobThemAngle_valid = blobValid && _dataOpponent_Blob.IsAngleValid();
 
     bool neuralUsPos_valid = _odometry_Neural.IsRunning() &&
-                             _dataRobot_Neural.robotPosValid &&
-                             (_dataRobot_Neural.GetAge() < 0.05);
+                             _dataRobot_Neural.robotPosValid;// &&
+                            //  (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
 
     bool neuralRot_valid = _odometry_NeuralRot.IsRunning() &&
                            _dataRobot_NeuralRot.IsAngleValid() &&

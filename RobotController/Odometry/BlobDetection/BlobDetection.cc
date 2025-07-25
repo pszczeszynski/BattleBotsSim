@@ -97,20 +97,20 @@ VisionClassification BlobDetection::DoBlobDetection(cv::Mat& currFrame, cv::Mat&
     OdometryData neuralData = neuralOdometry.GetData();
     bool blackOutNeural = false;
 
-    if (neuralOdometry.IsRunning() && neuralData.robotPosValid && neuralData.GetAge() < 0.1)
-    {
-        std::vector<int> boundingBox = neuralOdometry.GetBoundingBox();
-        boundingBox[0] -= boundingBox[2] / 2;
-        boundingBox[1] -= boundingBox[3] / 2;
-        blackOutNeural = true;
-        // imshow
-        cv::Rect neuralRect = cv::Rect(boundingBox[0], boundingBox[1], boundingBox[2], boundingBox[3]);
-        // extrapolate
-        neuralRect.x += neuralData.robotVelocity.x * (Clock::programClock.getElapsedTime() - neuralData.time);
-        neuralRect.y += neuralData.robotVelocity.y * (Clock::programClock.getElapsedTime() - neuralData.time);
+    // if (neuralOdometry.IsRunning() && neuralData.robotPosValid && neuralData.GetAge() < 0.1)
+    // {
+    //     std::vector<int> boundingBox = neuralOdometry.GetBoundingBox();
+    //     boundingBox[0] -= boundingBox[2] / 2;
+    //     boundingBox[1] -= boundingBox[3] / 2;
+    //     blackOutNeural = true;
+    //     // imshow
+    //     cv::Rect neuralRect = cv::Rect(boundingBox[0], boundingBox[1], boundingBox[2], boundingBox[3]);
+    //     // extrapolate
+    //     neuralRect.x += neuralData.robotVelocity.x * (Clock::programClock.getElapsedTime() - neuralData.time);
+    //     neuralRect.y += neuralData.robotVelocity.y * (Clock::programClock.getElapsedTime() - neuralData.time);
 
-        cv::rectangle(grayDiff, neuralRect, cv::Scalar(0), -1);
-    }
+    //     cv::rectangle(grayDiff, neuralRect, cv::Scalar(0), -1);
+    // }
 
     // cv::cvtColor(diff, grayDiff, cv::COLOR_BGR2GRAY); // Image is already grayscale
 
