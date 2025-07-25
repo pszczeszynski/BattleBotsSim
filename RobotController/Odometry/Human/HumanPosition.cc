@@ -36,13 +36,13 @@ std::vector<int> HumanPosition::_GetDataFromSocket()
         _socket = new ServerSocket(_port);
     }
 
-    if (data_str.size() != NUMBER_OF_FIELDS * 4)
+    if (data_str.size() < NUMBER_OF_FIELDS * 4)
     {
         return data;
     }
 
     // parse the 11 values to an int
-    for (int i = 0; i < NUMBER_OF_FIELDS; i ++)
+    for (int i = 0; i < data_str.size(); i ++)
     {
         data.push_back(*(int*)(data_str.c_str() + i * 4));
     }
@@ -144,7 +144,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     std::vector<int> data = _GetDataFromSocket();
     bool password_ok = false;
     int i = 0;
-    if (data.size() == NUMBER_OF_FIELDS)
+    if (data.size() >= NUMBER_OF_FIELDS)
     {
         int password = data[i++];
         if( password == 11115)
@@ -178,6 +178,9 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         const int save_count = data[i++];    
         const int new_slider_data = data[i++];
 
+        const int start_l_count = (data.size() > i) ? data[i++] : 0;
+        const int auto_recover_count = (data.size() > i) ? data[i++] : 0;
+
         // *************************************
         // Do button presses
         HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
@@ -210,6 +213,19 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         {
             heuristic.save_background = true;
         }
+
+        if( start_l_count > _lastStartL)
+        {
+            odometry.MatchStart();
+        }
+        
+        RobotOdometry &odometry = RobotController::GetInstance().odometry;
+
+
+        if( aut_recover_count > _lastAutoRecover)
+        {
+             heuristic.RecoverDetection();
+        }
         
         _lastAutoLCount = auto_l_count;
         _lastAutoRCount = auto_r_count;
@@ -218,6 +234,8 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         _lastLoadStartCount = load_start_count;
         _lastLoadSavedCount = load_saved_count;
         _lastSavedCount = save_count;
+        _lastStartL = start_l_count;
+        _lastAutoRecover = aut_recover_count;
 
         // Only do if new data available
         if( new_slider_data > 0)

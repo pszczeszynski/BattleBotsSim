@@ -33,8 +33,6 @@ reboot_recovery_count = 0
 load_start_count = 0
 load_saved_count = 0
 save_count = 0
-start_l_count = 0
-auto_recover_count = 0
 
 class LastClickData:
     def __init__(self, position: Tuple[int, int] = (0, 0), data_type: int = POSITION):
@@ -58,7 +56,6 @@ def send_data_to_robot_controller() -> None:
     global client_socket
     global auto_l_count, auto_r_count, hard_reboot_count, reboot_recovery_count
     global force_pos_var, force_heal_var, lastSliderTime
-    global load_start_count, load_saved_count, save_count, start_l_count, auto_recover_count
 
     try:
         # Collect UI state
@@ -87,8 +84,6 @@ def send_data_to_robot_controller() -> None:
             + load_saved_count.to_bytes(4, byteorder="little")
             + save_count.to_bytes(4, byteorder="little")
             + new_slider_data.to_bytes(4, byteorder="little")
-            + start_l_count.to_bytes(4, byteorder="little")
-            + auto_recover_count.to_bytes(4, byteorder="little")
         )
 
         if client_socket is not None:
@@ -108,17 +103,6 @@ def on_auto_l_button_press():
 def on_auto_r_button_press():
     global auto_r_count
     auto_r_count += 1
-    send_data_to_robot_controller()
-
-# Start L and Start R buttons
-def on_start_l_button_press():
-    global start_l_count
-    start_l_count += 1
-    send_data_to_robot_controller()
-
-def on_auto_recover_button_press():
-    global auto_recover_count
-    auto_recover_count += 1
     send_data_to_robot_controller()
 
 def on_foreground_min_delta_change(event):
@@ -364,7 +348,7 @@ def crop_image_around_point(
         # Crop the image
         cropped_image = image_padded[
             y1_new : y1_new + crop_size, x1_new : x1_new + crop_size
-       ]
+        ]
 
         return cropped_image
 
@@ -583,12 +567,6 @@ auto_l_button.grid(row=currRow, column=0, padx=5, pady=5)
 auto_r_button.grid(row=currRow, column=1, padx=5, pady=5)
 currRow += 1
 
-start_l_button = tk.Button(side_panel, text="Start Left", bg="lightblue", width=10, command=on_start_l_button_press)
-start_r_button = tk.Button(side_panel, text="Auto Recover", bg="red", width=10, command=on_auto_recover_button_press)
-start_l_button.grid(row=currRow, column=0, padx=5, pady=5)
-start_r_button.grid(row=currRow, column=1, padx=5, pady=5)
-currRow += 1
-
 def on_load_start_button_press():
     global load_start_count
     load_start_count += 1
@@ -624,7 +602,7 @@ load_saved_bg.grid(row=currRow, column=1, padx=5, pady=5)
 currRow += 1
 
 hard_reboot_button = tk.Button(side_panel, text="Reboot", width=10, command=on_hard_reboot_button_press)
-save_bg_button = tk.Button(side_panel, text="Save", width=10, command=on_save_button_press)
+save_bg_button = tk.Button(side_panel, text="Save", width=10, command=on_hard_reboot_button_press)
 hard_reboot_button.grid(row=currRow, column=0, columnspan=1, padx=5, pady=5)
 save_bg_button.grid(row=currRow, column=1, columnspan=1, padx=5, pady=5)
 currRow += 1
@@ -668,10 +646,6 @@ def on_reboot_recovery_button_press():
     global reboot_recovery_count
     reboot_recovery_count += 1
     send_data_to_robot_controller()
-
-auto_recovery_button = tk.Button(side_panel, text="Auto Recover", width=20, command=on_reboot_recovery_button_press)
-auto_recovery_button.grid(row=currRow, column=0, columnspan=2, padx=5, pady=5)
-currRow += 1
 
 def toggle_primary_robot_action():
     global primary_click_action, primary_click_robot_button, primary_click_opp_button
@@ -907,3 +881,10 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 # If it exits for whatever reason, restart it
 while True:
     root.mainloop()
+
+
+
+
+
+
+

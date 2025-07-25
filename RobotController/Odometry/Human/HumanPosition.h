@@ -32,6 +32,8 @@ private:
     int _lastLoadStartCount = 0;
     int _lastLoadSavedCount = 0;
     int _lastSavedCount = 0;
+    int _lastStartL = 0;
+    int _lastAutoRecover = 0;
 
     SOCKADDR last_sender_addr;
     int last_sender_addr_len;
