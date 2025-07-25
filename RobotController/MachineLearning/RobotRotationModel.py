@@ -21,12 +21,18 @@ VALIDATION_SPLIT = 0.1
 EARLY_STOPPING_PATIENCE = 7
 REDUCE_LR_PATIENCE = 3
 REDUCE_LR_FACTOR = 0.3
+MAX_TRAINING_SAMPLES = 100
 
 # Get sorted list of image files and corresponding json files
 img_files = sorted(glob.glob(os.path.join(
     DATA_PATH, "TrainingInputsProjected", "image_*.jpg")))
 json_files = sorted(glob.glob(os.path.join(
     DATA_PATH, "TrainingKeys", "image_*.json")))
+
+# Apply training sample limit if specified
+if MAX_TRAINING_SAMPLES is not None:
+    img_files = img_files[:MAX_TRAINING_SAMPLES]
+    json_files = json_files[:MAX_TRAINING_SAMPLES]
 
 
 # Preload JSON Data
@@ -135,10 +141,10 @@ def train_model():
 
 ##### VISUALIZATION #####
 # train_model()
-save_onnx_model(model, "rotation_model_hoop.onnx")
+save_onnx_model(model, "rotationDetector.onnx")
 
 # Call the visualization function after training:
-visualize_rotation_predictions(train_gen, model, 100, (10, 10), IMG_SIZE)
+# visualize_rotation_predictions(train_gen, model, 50, (10, 10), IMG_SIZE)
 
 # # visualize some testing rotations
 # visualize_testing_rotations(model, TESTING_PATH, IMG_SIZE)
