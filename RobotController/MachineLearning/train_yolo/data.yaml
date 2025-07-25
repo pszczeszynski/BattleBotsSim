@@ -1,5 +1,5 @@
-train: set_2.1_hoop/train/images
-val: set_2.1_hoop/val/images
+train: orbitron_v5/train/images
+val: orbitron_v5/val/images
 
 nc: 1
 names: ["orbitron"]
