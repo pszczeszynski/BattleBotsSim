@@ -830,7 +830,7 @@ float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward
 
     // how close is the nearest wall in this direction
     float wallWeight = wallScore(CW);
-    float wallGain = -0.3f; // 0.0025
+    float wallGain = -0.5f; // 0.0025
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
