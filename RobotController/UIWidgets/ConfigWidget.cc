@@ -480,6 +480,24 @@ void ConfigWidget::Draw()
         INTEGRATE_GYRO_VEL = !INTEGRATE_GYRO_VEL;
     }
 
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    if(MANUAL_AUTODRIVE)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+    }
+
+    if(ImGui::Button("Autodrive Logic on Computer"))
+    {
+        MANUAL_AUTODRIVE = !MANUAL_AUTODRIVE;
+    }
+
     
 
     
