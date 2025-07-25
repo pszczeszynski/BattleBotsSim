@@ -111,7 +111,7 @@ set(SOURCES
     Strategies/Line.cc
     Strategies/Node.cc
     Strategies/FilteredRobot.cc
-    RobotMovement.cc
+    RobotMovement.cpp
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc

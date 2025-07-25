@@ -17,7 +17,7 @@
  * @param threshold2 The second threshold (min power)
  * @param minPower The minimum power to drive at
  */
-double DoubleThreshToTarget(double error, double threshold1, double threshold2,
+static double DoubleThreshToTarget(double error, double threshold1, double threshold2,
                             double minPower, double maxPower)
 
 {
@@ -46,7 +46,7 @@ double DoubleThreshToTarget(double error, double threshold1, double threshold2,
   return ret;
 }
 
-double angle_wrap(double angle_rad) {
+static double angle_wrap(double angle_rad) {
   angle_rad = fmod(angle_rad, 2 * M_PI);
   if (angle_rad <= -M_PI) {
     angle_rad += 2 * M_PI;

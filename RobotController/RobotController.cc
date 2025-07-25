@@ -587,6 +587,7 @@ DriverStationMessage RobotController::RobotLogic()
     }
     else if (ret.type == DRIVE_COMMAND)
     {
+        Weapons& weapons = Weapons::GetInstance();
         ret.driveCommand.frontWeaponPower = weapons.GetFrontWeaponTargetPower();
         ret.driveCommand.backWeaponPower = weapons.GetBackWeaponTargetPower();
     }
