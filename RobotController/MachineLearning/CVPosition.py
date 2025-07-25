@@ -73,7 +73,7 @@ def run_inference_batch(model, imgs: List[np.ndarray]):
 
 def main():
     print("Initializing YOLO model")
-    model = YOLO('train_yolo/model8_orbitron_preprocessed_hoop2.pt') #    #train_yolo/model8_orbitron_preprocessed_hoop2.pt
+    model = YOLO('train_yolo/model9_orbitron_v5.pt') #    #train_yolo/model8_orbitron_preprocessed_hoop2.pt
     model.to('cuda')  # Move model to GPU
     model.half()  # Use half-precision
 
@@ -99,6 +99,8 @@ def main():
 
         # Prepare images for batch inference
         imgs = [img, cv2.flip(img, 1)]
+
+        # imshow
         results = run_inference_batch(model, imgs)
 
         if results is None:
