@@ -585,6 +585,11 @@ DriverStationMessage RobotController::RobotLogic()
             ret.autoDrive.backWeaponCurrent10 = (unsigned char)(manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
         }
     }
+    else if (ret.type == DRIVE_COMMAND)
+    {
+        ret.driveCommand.frontWeaponPower = weapons.GetFrontWeaponTargetPower();
+        ret.driveCommand.backWeaponPower = weapons.GetBackWeaponTargetPower();
+    }
 
     // return the response
     return ret;
