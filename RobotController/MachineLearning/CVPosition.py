@@ -16,7 +16,7 @@ print("Initializing socket")
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 print("Socket initialized")
 
-def send_results_to_rc(bounding_box: list, conf: float, frame_id: int, time_milliseconds: int):
+def send_results_to_rc(bounding_box: list | str, conf: float, frame_id: int, time_milliseconds: int):
     message = json.dumps({
         'bounding_box': bounding_box,
         'conf': conf,
@@ -151,6 +151,8 @@ def main():
         if result and bounding_box is not None:
             bounding_box = bounding_box.tolist()
             send_results_to_rc(bounding_box, max_conf, frame_id, time_milliseconds)
+        else:
+            send_results_to_rc("invalid", -1, frame_id, time_milliseconds)
 
         # Optionally, display the image (comment out to save time)
         """

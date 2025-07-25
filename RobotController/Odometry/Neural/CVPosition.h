@@ -27,7 +27,7 @@ public:
 
 private:
     void _ProcessNewFrame(cv::Mat frame, double frameTime) override; // Run every time a new frame is available
-    cv::Point2f lastPos = cv::Point2f(-1,-1);
+    cv::Point2f _lastPos = cv::Point2f(-1,-1);
     std::vector<std::string> classes{"orbitron"};
 
     cv::Size modelShape{};
@@ -54,5 +54,5 @@ private:
     ServerSocket _pythonSocket;
 
     int _valid_frames_counter = 0;
-    int _min_distance_threshold = 100;
+    int _max_distance_thresh = 100;
 };

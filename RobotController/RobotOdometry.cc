@@ -615,15 +615,15 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     }
     else if (blobUsPos_valid)
     {
-        if (neuralUsPos_valid)
-        {
-            debugROStringForVideo_tmp += "Neu";
-            _dataRobot.robotVelocity = ext_dataRobot_Neural.robotVelocity;
-        }
-        else
+        if (blobUsPos_valid)
         {
             debugROStringForVideo_tmp += "Blob";
             _dataRobot.robotVelocity = ext_dataRobot_Blob.robotVelocity;
+        }
+        else
+        {
+            debugROStringForVideo_tmp += "OldVel";
+            // _dataRobot.robotVelocity = ext_dataRobot_Neural.robotVelocity;
         }
     }
 
