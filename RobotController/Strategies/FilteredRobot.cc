@@ -116,8 +116,12 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
 // updates the position filters
 void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta) {
 
+    if(pos.x < fieldMin || pos.x > fieldMax || isnan(pos.x)) { return; }
+    if(pos.y < fieldMin || pos.y > fieldMax || isnan(pos.y)) { return; }
+
+
     // clip to camera frame
-    visionPos = clipInBounds(visionPos);
+    // visionPos = clipInBounds(visionPos);
 
     // extrapolate each state for new beliefs
     std::vector<std::vector<float>> outputs = constAccExtrap(deltaTime);
@@ -146,11 +150,12 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     std::vector<float> accFilteredNew = {0, 0, 0};
 
     float maxVel = 1000.0f;
-    float maxAccel = 1000000000.0f;
+    float maxAccel = 100000.0f;
 
     for(int i = 0; i < 3; i++) { 
         // update pos
         posFilteredNew[i] = posBelief[i] + (kalmanGain[i] * posDelta[i]); 
+        if(i == 0 || i == 1) { posFilteredNew[i] = std::clamp(posFilteredNew[i], fieldMin, fieldMax); }
         if(i == 2) { posFilteredNew[i] = angle_wrap(posFilteredNew[i]); }
 
         // update vel
