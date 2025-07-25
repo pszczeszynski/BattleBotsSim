@@ -117,7 +117,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    std::cout << "CW = " << CW << ", forward = " << currForward;
+    // std::cout << "CW = " << CW << ", forward = " << currForward;
     // std::cout << "follow point x = " << followPoint.x << std::endl;
 
 
@@ -508,14 +508,21 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 
     cv::Point2f returnPoint = testPoint; 
     if(!insideFieldBounds(returnPoint)) { 
-        cv::Point2f onBoundStart = closestBoundPoint(testPoint); 
+        cv::Point2f onBoundStart = closestBoundPoint(testPoint);
 
         // 8 surrounding points
         double increment = 0.1f;
-        std::vector<cv::Point2f> increments = {cv::Point2f(increment, increment), cv::Point2f(increment, 0), cv::Point2f(increment, -increment), cv::Point2f(0, -increment), cv::Point2f(-increment, -increment), cv::Point2f(-increment, 0.0), cv::Point2f(-increment, increment), cv::Point2f(0.0, increment)};
-        for(int i = 0; i < increments.size(); i++) {
-            cv::Point2f inBound = cv::Point2f(onBoundStart.x + increments[i].x, onBoundStart.y + increments[i].y);
-            if(insideFieldBounds(inBound)) { returnPoint = inBound; }
+        std::vector<cv::Point2f> increments = {
+            cv::Point2f(increment, increment),   cv::Point2f(increment, 0),
+            cv::Point2f(increment, -increment),  cv::Point2f(0, -increment),
+            cv::Point2f(-increment, -increment), cv::Point2f(-increment, 0.0),
+            cv::Point2f(-increment, increment),  cv::Point2f(0.0, increment)};
+        for (int i = 0; i < increments.size(); i++) {
+          cv::Point2f inBound = cv::Point2f(onBoundStart.x + increments[i].x,
+                                            onBoundStart.y + increments[i].y);
+          if (insideFieldBounds(inBound)) {
+            returnPoint = inBound;
+          }
         }
     }
     return returnPoint;
@@ -878,7 +885,8 @@ cv::Point2f AStarAttack::followPointInsideCircle(float radius, float ppRadius, b
 
 
 // returns the best follow point with the best score, also sets CW and forward by reference
-cv::Point2f AStarAttack::chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward) {
+cv::Point2f AStarAttack::chooseBestPoint(std::vector<cv::Point2f> followPoints,
+    std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward) {
 
     if(followPoints.size() == 0) { return cv::Point2f(0, 0); } // no crashy
 

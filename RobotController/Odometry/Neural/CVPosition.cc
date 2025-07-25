@@ -93,8 +93,7 @@ CVPosition::~CVPosition()
 // Returns false if already running
 void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
 {
-
-    // writ the id to the frame
+    // write the id to the frame
     for (int i = 0; i < 4; i++)
     {
         frame.at<uchar>(0, i) = (frameID >> (8 * i)) & 0xFF;
@@ -135,54 +134,50 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
     CVPositionData data = _GetDataFromPython();
 
     // make sure the data is newer than the last data
-    if (data.frameID <= _lastData.frameID || data.center.x <= 0 || data.center.y <= 0 || data.center.x >= frame.cols || data.center.y >= frame.rows ||
-        std::isnan(data.center.x) || std::isnan(data.center.y) || std::isinf(data.center.x) || std::isinf(data.center.y))
-    {
-        return;
+    if (data.frameID <= _lastData.frameID || data.center.x <= 0 ||
+        data.center.y <= 0 || data.center.x >= frame.cols ||
+        data.center.y >= frame.rows || std::isnan(data.center.x) ||
+        std::isnan(data.center.y) || std::isinf(data.center.x) ||
+        std::isinf(data.center.y)) {
+      data.valid = false;
     }
 
-    // compute velocity
-    // If lastpos isn't invalid, set to current position (0 velocity)
-    if ((lastPos.x < 0) || (lastPos.y < 0) || (lastPos.x > frame.cols) || (lastPos.y > frame.rows))
-    {
-        lastPos = data.center;
-    }
+    cv::Point2f velocity = cv::Point2f(0, 0);
 
-    if (abs(norm(data.center - lastPos)) > _min_distance_threshold)
-    {
-        _valid_frames_counter = 0;
+    if (data.valid) {
+        // If lastpos isn't invalid, set to current position (0 velocity)
+        if (_lastPos.x < 0 || _lastPos.y < 0 || _lastPos.x > frame.cols ||
+            _lastPos.y > frame.rows) {
+            _lastPos = data.center;
+        }
+
+        // if we ever skip too much distance, reset to invalid
+        if (abs(norm(data.center - _lastPos)) > _max_distance_thresh ||
+            data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES) {
+          data.valid = false;
+        }
+
+        if (data.valid) {
+            double deltaTime = (data.time_millis - _lastData.time_millis) / 1000.0;
+            velocity = (data.center - _lastPos) / deltaTime;
+    
+            // We're updating every 10ms, so lets filter over 50ms
+            double timeconst = 0.05;
+            double interp = min(deltaTime / timeconst, 1.0);
+            velocity = velocity * interp + _lastVelocity * (1.0 - interp);
+    
+            // force 0 velocity if there has been more than 0.1 seconds since the last data
+            if (deltaTime > 0.1 || cv::norm(data.center - _lastData.center) > _max_distance_thresh)
+            {
+                velocity = cv::Point2f(0, 0);
+            }
+    
+            _lastPos = data.center;    
+        }
     }
-    else
-    {
+    // if the data is valid, increment the valid frames counter
+    if (data.valid) {
         _valid_frames_counter++;
-    }
-
-    double deltaTime = (data.time_millis - _lastData.time_millis) / 1000.0;
-    cv::Point2f velocity = (data.center - lastPos) / deltaTime;
-
-    // We're updating every 10ms, so lets filter over 50ms
-    double timeconst = 0.05;
-    double interp = deltaTime / timeconst;
-    if (interp > 1.0)
-    {
-        interp = 1.0;
-    }
-
-    velocity = velocity * interp + _lastVelocity * (1.0 - interp);
-
-    // force 0 velocity if there has been more than 0.1 seconds since the last data
-    if (deltaTime > 0.1 || cv::norm(data.center - _lastData.center) > 100)
-    {
-        velocity = cv::Point2f(0, 0);
-    }
-
-    lastPos = data.center;
-
-    if (data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES)
-    {
-        // force the velocity to be 0 if the data is too old
-        velocity = cv::Point2f(0, 0);
-        data.valid = false;
     }
 
     data.valid = data.valid && _valid_frames_counter >= 10;
@@ -210,17 +205,13 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataRobot.time = data.time_millis / 1000.0;    // Set to new time
     _currDataRobot.robotPosition = data.center; // Set new position
     _currDataRobot.robotVelocity = velocity;
-    
-    // compute velocity using the last position
-
+    _currDataRobot.InvalidateAngle(); // always invalid angle since just position
 
     _currDataOpponent.Clear();
     _currDataOpponent.isUs = false; // Make sure this is set
     _currDataOpponent.robotPosValid = false;
+    _currDataOpponent.InvalidateAngle();
 
-    // Set our rotation
-    _currDataRobot.InvalidateAngle();
-    
 }
 
 /**
@@ -261,7 +252,7 @@ CVPositionData CVPosition::_GetDataFromPython()
     // receive from socket
     std::string data = _pythonSocket.receive();
 
-    if (data == "")
+    if (data == "" || data == "invalid")
     {
         CVPositionData ret = _lastData;
         ret.valid = false;
