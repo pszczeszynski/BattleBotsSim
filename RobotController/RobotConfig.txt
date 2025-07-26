@@ -94,7 +94,7 @@ ANGLE_FUSE_CONF_THRESH = 0.953
 ANGLE_FUSE_SPEED = 0.469
 CAMERA_GAIN = 4.261
 IMAGE_INTENSITY_TIME_CONSTANT = 1
-IMAGE_INTENSITY_SQR_size = 48
+IMAGE_INTENSITY_SQR_size = 57
 IMAGE_INTENSITY_SQR_1_x = 293
 IMAGE_INTENSITY_SQR_1_y = 0
 IMAGE_INTENSITY_SQR_2_x = 224
@@ -113,4 +113,4 @@ STARTING_RIGHT_BR_x = 688
 STARTING_RIGHT_BR_y = 472
 LOG_ODOMETRY_DATA = 0
 PLAYBACK_PREPROCESS = 0
-VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=1;showNeuralRot=0;showFusion=0;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Neural:0,1,1,1|Camera:1,1,1,1|Blob:0,0,1,0.615686|Heuristic:0.103314,0.898039,0,0.643137|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,-152|Camera:0,0|Fusion:40,633|Heuristic:320,-130|Neural:0,-136|NeuralRot:0,0|Opencv:0,0|;
+VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=1;showNeuralRot=0;showFusion=0;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Neural:0,1,1,1|Blob:0,0,1,0.615686|Heuristic:0.103314,0.898039,0,0.643137|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,-152|Camera:0,0|Fusion:40,633|Heuristic:320,-130|Neural:0,-136|NeuralRot:0,0|Opencv:0,0|;

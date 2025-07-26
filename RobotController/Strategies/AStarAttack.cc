@@ -204,6 +204,25 @@ cv::Point2f AStarAttack::followPointDirection(bool CW, bool forward) {
     return followPoint;
 }
 
+void AdjustRadiusWithBumpers() {
+    static bool prevRightBumper = false;
+    static bool prevLeftBumper = false;
+    bool currRightBumper = RobotController::GetInstance().gamepad.GetRightBumper();
+    bool currLeftBumper = RobotController::GetInstance().gamepad.GetLeftBumper();
+    if (currRightBumper && !prevRightBumper) {
+        RADIUS_CURVE_Y1 += 5;
+    }
+    if (currLeftBumper && !prevLeftBumper) {
+        RADIUS_CURVE_Y1 -= 5;
+    }
+
+    RADIUS_CURVE_Y1 = fmin(RADIUS_CURVE_Y1, RADIUS_CURVE_Y2 - 10);
+    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 80);
+
+    prevRightBumper = currRightBumper;
+    prevLeftBumper = currLeftBumper;
+}
+
 
 
 // equation for determining size of tangent circle
@@ -228,6 +247,7 @@ float AStarAttack::radiusEquation(bool forward, bool CW) {
     // return 150.0f * pow(innerFunction, 0.50f); // max radius, when we start to really wrap around, increasing is more aggressive
     // // generally raise and lower the 2 values together
 
+    AdjustRadiusWithBumpers();
 
     // input fraction to output radius using RobotConfig variables
     std::vector<cv::Point2f> radiusCurve = {
