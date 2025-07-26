@@ -243,9 +243,9 @@ float FilteredRobot::moveETASim(float distance, float startVel, bool print) {
     }
 
     // make sure we didn't reach the max iterations
-    if (i == kMaxIterations) {
-        std::cout << "Warning: moveETASim reached max iterations" << std::endl;
-    }
+    // if (i == kMaxIterations) {
+    //     std::cout << "Warning: moveETASim reached max iterations" << std::endl;
+    // }
 
     return timeSim; // return the final time
 }
@@ -287,7 +287,7 @@ float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW,
 
         posSim[2] = angle_wrap(posSim[2] + velSim[2]*timeIncrement); // increment position
         velSim[2] += accSim[2]; // increment velocity if we're past the lag time
-        velSim[2] = std::clamp(velSim[2], maxTurnSpeed, -maxTurnSpeed);
+        velSim[2] = std::clamp(velSim[2], -maxTurnSpeed, maxTurnSpeed);
 
         timeSim += timeIncrement;
     }
