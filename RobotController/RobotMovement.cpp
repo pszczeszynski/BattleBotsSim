@@ -1,60 +1,8 @@
 #include "RobotMovement.h"
 #include "../Common/Communication.h"
-#include <math.h>
 #include "Clock.h"
-
-#define M_PI 3.14159265358979323846
-#define TO_RAD (M_PI / 180.0)
-
-/**
- * Uses the error between a currentPos and targetPos
- * and returns a power to drive towards the target at (with 2 thresholds)
- *
- * SHOULD BE THE SAME METHOD AS IN THE DRIVER STATION
- *
- * @param error The target position
- * @param threshold1 The first threshold (full power)
- * @param threshold2 The second threshold (min power)
- * @param minPower The minimum power to drive at
- */
-static double DoubleThreshToTarget(double error, double threshold1, double threshold2,
-                            double minPower, double maxPower)
-
-{
-  double distance = abs(error);
-  double ret = 0;
-
-  if (distance > threshold2) {
-    // Scale linearly from maxPower to minPower, but even may exceed maxPower
-    ret = ((distance - threshold2) / (threshold1 - threshold2)) *
-              (maxPower - minPower) +
-          minPower;
-  } else {
-    // Scale linearly from minPower to 0
-    ret = (distance / threshold2) * minPower;
-  }
-
-  if (distance > threshold1) {
-    ret = maxPower;
-  }
-
-  // invert if we need to
-  if (error < 0) {
-    ret *= -1;
-  }
-
-  return ret;
-}
-
-static double angle_wrap(double angle_rad) {
-  angle_rad = fmod(angle_rad, 2 * M_PI);
-  if (angle_rad <= -M_PI) {
-    angle_rad += 2 * M_PI;
-  } else if (angle_rad > M_PI) {
-    angle_rad -= 2 * M_PI;
-  }
-  return angle_rad;
-}
+#include "MathUtils.h"
+#include "UIWidgets/GraphWidget.h"
 
 /**
  * Drives the robot to a target angle given
@@ -93,20 +41,23 @@ DriveCommand DriveToAngle(double currAngle, double angularVelocity,
   ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
   ret.movement = movement;
   // clip turn
+  ret.turn = std::clamp(ret.turn, -1.0f, 1.0f);
 
   float total = abs(ret.movement) + abs(ret.turn);
   if (total > 1) {
-    ret.turn = std::min(1.0f, ret.turn);
-    ret.turn = std::max(-1.0f, ret.turn);
+    float remaining_for_movement = 1.0f - std::abs(ret.turn);
+    float fully_clamped_movement = std::clamp(ret.movement, -remaining_for_movement, remaining_for_movement);
+    float fully_clamped_turn = ret.turn;
+    float fixed_scale_movement = ret.movement * (1.0 / total);
+    float fixed_scale_turn = ret.turn * (1.0 / total);
 
-    int positive_movement = ret.movement > 0 ? 1 : -1;
-    int positive_turn = ret.turn > 0 ? 1 : -1;
+    float scale_down_movement_frac = SCALE_DOWN_MOVEMENT_PERCENT / 100.0f;
+    float interpolated_movement = Interpolate(fixed_scale_movement, fully_clamped_movement, scale_down_movement_frac);
+    float interpolated_turn = Interpolate(fixed_scale_turn, fully_clamped_turn, scale_down_movement_frac);
 
-    ret.movement = (1.0 - abs(ret.turn)) * positive_movement;
+    ret.movement = interpolated_movement;
+    ret.turn = interpolated_turn;
   }
-
-  // Serial.println("auto movement: " + String(ret.movement));
-  // Serial.println("auto turn: " + String(ret.turn));
 
   return ret;
 }
