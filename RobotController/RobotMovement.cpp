@@ -17,13 +17,22 @@
  * 9. The min power to turn at (100 is full power)
  * 10. The scale down movement percent (100 is full power)
  */
-DriveCommand DriveToAngle(double currAngle, double angularVelocity,
-                          float targetAngle, float targetAngleVelocity,
-                          unsigned short KD_PERCENT, short TURN_THRESH_1_DEG,
-                          short TURN_THRESH_2_DEG, short MAX_TURN_POWER_PERCENT,
+DriveCommand DriveToAngle(double currAngle,
+                          float targetAngle,
+                          unsigned short KD_PERCENT,
+                          short TURN_THRESH_1_DEG,
+                          short TURN_THRESH_2_DEG,
+                          short MAX_TURN_POWER_PERCENT,
                           short MIN_TURN_POWER_PERCENT,
-                          short SCALE_DOWN_MOVEMENT_PERCENT, float movement) {
+                          short SCALE_DOWN_MOVEMENT_PERCENT,
+                          float movement) {
+
+  static GraphWidget stickX("Applied Movement", -1, 1, "");
+  static GraphWidget stickY("Applied Turn", -1, 1, "");
+  static GraphWidget derivative("Derivative", -1, 1, "");
+
   static double lastTime = Clock::programClock.getElapsedTime();
+  static double lastError = 0.0;
   double currTime = Clock::programClock.getElapsedTime();
   double deltaTimeSeconds = currTime - lastTime;
   lastTime = currTime;
@@ -37,7 +46,11 @@ DriveCommand DriveToAngle(double currAngle, double angularVelocity,
       deltaAngleRad, TURN_THRESH_1_DEG * TO_RAD, TURN_THRESH_2_DEG * TO_RAD,
       MIN_TURN_POWER_PERCENT / 100.0, MAX_TURN_POWER_PERCENT / 100.0);
 
-  double deltaAngleVel = targetAngleVelocity - angularVelocity;
+  // Calculate derivative term from error change over time
+  double errorChange = deltaAngleRad - lastError;
+  double deltaAngleVel = deltaTimeSeconds > 0 ? errorChange / deltaTimeSeconds : 0.0;
+  
+  lastError = deltaAngleRad;
   ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
   ret.movement = movement;
   // clip turn
@@ -58,6 +71,10 @@ DriveCommand DriveToAngle(double currAngle, double angularVelocity,
     ret.movement = interpolated_movement;
     ret.turn = interpolated_turn;
   }
+
+  stickX.AddData(ret.movement);
+  stickY.AddData(ret.turn);
+  derivative.AddData(deltaAngleVel * (KD_PERCENT / 100.0));
 
   return ret;
 }

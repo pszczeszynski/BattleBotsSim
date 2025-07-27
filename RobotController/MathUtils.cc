@@ -239,10 +239,10 @@ double DoubleThreshToTarget(double error,
         ret = (distance / threshold2) * minPower;
     }
 
-    if (distance > threshold1)
-    {
-        ret = maxPower;
-    }
+    // if (distance > threshold1)
+    // {
+    //     ret = maxPower;
+    // }
 
     // invert if we need to
     if (error < 0)

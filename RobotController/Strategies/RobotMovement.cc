@@ -65,8 +65,9 @@ void DrawDeltaAngleGraphic(double value)
                                             MAX_TURN_POWER_PERCENT / 100.0);
         int y = 100 - abs(power) * 100;
 
-        y = max(0, min(199, y));
-        threshCurve.at<cv::Vec3b>(y, i) = cv::Vec3b(255, 255, 255);
+        if (y < 199 && y > 0) {
+          threshCurve.at<cv::Vec3b>(y, i) = cv::Vec3b(255, 255, 255);
+        }
     }
 
     double power = DoubleThreshToTarget(value, TURN_THRESH_1_DEG * TO_RAD,
@@ -132,8 +133,6 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
     static double lastAngleToTarget = 0;
     static double lastAngleToTargetVel = 0;
     static Clock lastCallClock;
-    double deltaTargetAngle = angle_wrap(angleToTarget - lastAngleToTarget) /
-                              lastCallClock.getElapsedTime();
 
     double angleToTargetVel = angle_wrap(angleToTarget - lastAngleToTarget) / lastCallClock.getElapsedTime();
     // low pass filter the velocity
@@ -173,7 +172,7 @@ DriverStationMessage RobotMovement::HoldAngle(cv::Point2f currPos,
 
     if (MANUAL_AUTODRIVE) {
       response.driveCommand = DriveToAngle(
-          currAngle, angleToTargetVel, angleToTargetForTeensy, angleToTargetVel,
+          currAngle, angleToTargetForTeensy,
           KD_PERCENT, TURN_THRESH_1_DEG, TURN_THRESH_2_DEG,
           MAX_TURN_POWER_PERCENT, MIN_TURN_POWER_PERCENT,
           SCALE_DOWN_MOVEMENT_PERCENT, response.autoDrive.movement);
