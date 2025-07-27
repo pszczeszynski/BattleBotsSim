@@ -140,8 +140,8 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 
 
     // what even are covariances, determines percentage of delta to use
-    float positionKalmanGain = std::clamp(deltaTime * 15.0f, 0.05f, 1.0f);
-    float turnKalmanGain = std::clamp(deltaTime * 40.0f, 0.05f, 1.0f);
+    float positionKalmanGain = std::clamp(deltaTime * 30.0f, 0.05f, 1.0f); // 15.0f
+    float turnKalmanGain = std::clamp(deltaTime * 50.0f, 0.05f, 1.0f); // 40.0f
     std::vector<float> kalmanGain = {positionKalmanGain, positionKalmanGain, turnKalmanGain};
 
 
@@ -175,7 +175,7 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     accFiltered = accFilteredNew;
 
     // update slow filters
-    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += std::clamp(deltaTime * 5.0f, 0.0f, 0.2f) * (velFiltered[i] - velFilteredSlow[i]); }
+    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += std::clamp(deltaTime * 10.0f, 0.0f, 0.2f) * (velFiltered[i] - velFilteredSlow[i]); }
 }
 
 
@@ -210,8 +210,8 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisio
 
 // signed velocity that's actually in the driving direction, positive means it's in the direction of orientation
 float FilteredRobot::tangentVel(bool forward) {
-    float velMag = cv::norm(moveVel());
-    float velAngle = atan2(velFiltered[1], velFiltered[0]);
+    float velMag = cv::norm(cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]));
+    float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
     float velAngleOffset = angle_wrap(velAngle - posFiltered[2]);
     int sign = 1; if(!forward) { sign = -1; }
     return velMag * cos(velAngleOffset) * sign;
@@ -420,4 +420,8 @@ std::vector<float> FilteredRobot::getVelFiltered() {
 }
 std::vector<float> FilteredRobot::getAccFiltered() {
     return accFiltered;
+}
+
+std::vector<float> FilteredRobot::getVelFilteredSlow() {
+    return velFilteredSlow;
 }

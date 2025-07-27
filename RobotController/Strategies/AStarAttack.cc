@@ -7,6 +7,7 @@
 #include "../SafeDrawing.h"
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
+#include "../UIWidgets/GraphWidget.h"
 #include "../UIWidgets/ClockWidget.h"
 #include "../MathUtils.h"
 #include <cstdlib>
@@ -555,7 +556,8 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 float AStarAttack::wallScore(bool CW) {
 
     // angular range to scan for wall distances
-    float sweepRange = 80.0f*TO_RAD;
+    float sweepRange = 90.0f*TO_RAD;
+    float sweepStart = 60.0f*TO_RAD;
 
     std::vector<cv::Point2f> scanPoints;
     std::vector<Line> scanLines = {};
@@ -568,7 +570,7 @@ float AStarAttack::wallScore(bool CW) {
     float closestDistance = 9999.0f;
 
     // sweep through the whole angle around by incrementing
-    float angleOffset = 0.0f;
+    float angleOffset = sweepStart; if(!CW) { angleOffset *= -1.0f; }
     while(abs(angleOffset) < abs(sweepRange)) {
         float currAngle = startAngle + angleOffset;
         cv::Point2f testPoint = clipPointInBounds(oppFiltered.position());
@@ -678,7 +680,7 @@ cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPointRaw, bool forward
     if(signOpp != signPoint) { return followPoint; }
 
     // if we don't have to turn past the opp anyway, return the same follow point
-    if(abs(angleToPoint) < abs(angleToOpp) + 20.0f*TO_RAD) { return followPoint; }
+    if(abs(angleToPoint) < abs(angleToOpp) + 35.0f*TO_RAD) { return followPoint; }
 
     // if the point is basically the same time in both directions, enforce that we turn away from opp
     float angleToPointABS = angle(orbFiltered.position(), followPoint);
@@ -686,9 +688,10 @@ cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPointRaw, bool forward
     float timeNeg = orbFiltered.pointETASim(followPoint, 0.0f, false, 0.0f, forward, false);
     float timeDif = signPoint*timePos - signPoint*timeNeg;
 
-    if(timeDif > -0.15f) { 
+    // if(timeDif > 0.15f) { // 0.15
+    if(true) {
         float followPointDist = cv::norm(orbFiltered.position() - followPoint);
-        float followPointAngle = angle_wrap(orbFiltered.angle(forward) - signPoint * 170.0f*TO_RAD);
+        float followPointAngle = angle_wrap(orbFiltered.angle(forward) - signPoint * 150.0f*TO_RAD);
         return cv::Point2f(orbFiltered.position().x + followPointDist*cos(followPointAngle), orbFiltered.position().y + followPointDist*sin(followPointAngle));
     }
 
@@ -716,7 +719,7 @@ float AStarAttack::ppRad() {
     float radSlow = ASTAR_PP_RAD_SLOW;
     float radFast = ASTAR_PP_RAD_FAST;
     float speedFast = ASTAR_PP_SPEED_FAST;
-    float currSpeed = cv::norm(orbFiltered.moveVel());
+    float currSpeed = cv::norm(cv::Point2f(orbFiltered.getVelFilteredSlow()[0], orbFiltered.getVelFilteredSlow()[1]));
     return radSlow + ((radFast - radSlow) / speedFast) * currSpeed;
 }
 
@@ -832,6 +835,7 @@ cv::Point2f AStarAttack::avoidBounds(cv::Point2f rawFollowPoint) {
 
 // score function for determining how good a follow point is, used for CW/CCW decision
 float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward) {
+    static GraphWidget angleToPointGraph("wallWeight*wallGain", -100, 100, "deg");
 
     // rough scale to decide when we're reasonably far from the opponent that turning delays and stuff aren't a risk
     float farAway = 500.0f;
@@ -839,8 +843,9 @@ float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward
 
 
     // how far the robot has to turn to this point
-    float angleToPoint = orbFiltered.angleTo(followPoint, forward);
+    float angleToPoint = orbFiltered.angleTo(followPoint, forward);    
     float turnGain = 40.0f * closeness; // 40.0
+
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!CW) { directionSign = -1.0f; }
@@ -850,16 +855,21 @@ float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward
 
     // how close is the nearest wall in this direction
     float wallWeight = wallScore(CW);
-    float wallGain = -0.5f; // 0.0025
+    float wallGain = -0.38f; // 0.0025
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float tanVel = orbFiltered.tangentVel(forward);
-    float momentumWeight = 0.7f * closeness;
+    if (abs(tanVel) < 50.0f) {
+        tanVel = 0.0f;
+    }
+    float momentumWeight = 0.5f * closeness;
 
 
     // penalty for using the back bc we want to use front more often
-    float backWeight = 40.0f;
+    float backWeight = 999.0f; // 40.0f
+
+    angleToPointGraph.AddData(wallWeight*wallGain);
 
     
     // sum up components for score

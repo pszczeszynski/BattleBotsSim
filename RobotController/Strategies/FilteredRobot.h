@@ -49,6 +49,7 @@ class FilteredRobot
   std::vector<cv::Point2f> getPath();
 //   void pathTangency(float deltaTime, float visionTheta);
 
+  std::vector<float> getVelFilteredSlow();
  private:
   float fieldMax = WIDTH;
   float fieldMin = 0.0f;

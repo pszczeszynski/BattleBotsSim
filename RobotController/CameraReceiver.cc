@@ -15,6 +15,7 @@
 #include "UIWidgets/TrackingWidget.h"
 #include "UIWidgets/ClockWidget.h"
 #include "RobotConfig.h"
+#include "RobotController.h"
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -29,7 +30,6 @@ ICameraReceiver& ICameraReceiver::GetInstance()
     if (!_instance)
     {
         std::cerr << "ERROR: CameraReceiver not initialized!" << std::endl;
-        exit(1);
     }
     return *_instance;
 }
@@ -478,8 +478,20 @@ bool CameraReceiver::_CaptureFrame()
 
     unsigned char *img_data = (unsigned char *)pResultImage->GetData();
 
+    // if (InputState::GetInstance().IsKeyDown(ImGuiKey_U)) {
+    //     // randomly flip bits in the image data
+    //     for (int i = 0; i < pcam_image_width * pcam_image_height; i++) {
+    //         img_data[i] = img_data[i] ^ (rand() % 255);
+    //     }
+    // }
+
     // Create a Mat with the data
     cv::Mat bayerImage(pcam_image_height, pcam_image_width, CV_8UC1, img_data);
+
+    // if (InputState::GetInstance().IsKeyDown(ImGuiKey_U)) {
+    //     // make image fully white
+    //     bayerImage.setTo(cv::Scalar(255, 255, 255));
+    // }
 
     // Apply processing to it
     cv::Mat finalImage;
@@ -932,6 +944,7 @@ bool CameraReceiverVideo::_InitializeCamera()
     // Set the frame rate
     MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
     _maxFrameCount = _cap.get(cv::CAP_PROP_FRAME_COUNT);
+    _maxFrameCount = 30000;
     if (_maxFrameCount <= 0)
     {
         // Alternative: Seek to end to estimate duration (backend-dependent)

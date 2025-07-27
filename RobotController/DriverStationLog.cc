@@ -71,6 +71,10 @@ void DriverStationLog::UpdateTxLog(uint32_t timestamp, DriverStationMessage comm
     line += "," + std::to_string(command.valid);
 
     _outFileTx << line << std::endl;
+    _outFileTx.flush();  // Flush stream buffer
+    _outFileTx.sync_with_stdio();  // Forces OS to write all buffered data to disk
+    _outFileBinTx.flush();
+    _outFileBinTx.sync_with_stdio();
 }
 
 void DriverStationLog::UpdateRxLog(uint32_t timestamp, RobotMessage message)
@@ -121,6 +125,10 @@ void DriverStationLog::UpdateRxLog(uint32_t timestamp, RobotMessage message)
     line += "," + std::to_string(message.valid);
 
     _outFileRx << line << std::endl;
+    _outFileBinRx.flush();
+    _outFileBinRx.sync_with_stdio();
+    _outFileRx.flush();  // Flush stream buffer
+    _outFileRx.sync_with_stdio();  // Forces OS to write all buffered data to disk
 }
 
 std::string DriverStationLog::GetLogDirectory()
