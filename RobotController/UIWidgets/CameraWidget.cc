@@ -70,7 +70,7 @@ void CameraWidget::Draw()
 
         if (abs(LAST_CAMERA_GAIN - CAMERA_GAIN) > 0.001)
         {
-            ICameraReceiver* camreceiver = &ICameraReceiver::GetInstance();
+            ICameraReceiver* camreceiver = ICameraReceiver::GetInstance();
             if( (camreceiver != nullptr) && (camreceiver->GetType() == CameraType::REAL_CAMERA ) )
             {
                 ((CameraReceiver*) camreceiver)->SetCameraGain(CAMERA_GAIN);

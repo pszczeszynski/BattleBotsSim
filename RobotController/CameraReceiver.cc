@@ -25,13 +25,14 @@ double MAX_CAP_FPS = 160.0;
 // TODO: add a way to save video with the UI
 ICameraReceiver* _instance = nullptr;
 
-ICameraReceiver& ICameraReceiver::GetInstance()
+ICameraReceiver* ICameraReceiver::GetInstance()
 {
     if (!_instance)
     {
         std::cerr << "ERROR: CameraReceiver not initialized!" << std::endl;
+        return nullptr;
     }
-    return *_instance;
+    return _instance;
 }
 
 ICameraReceiver::ICameraReceiver()
@@ -39,6 +40,11 @@ ICameraReceiver::ICameraReceiver()
     // Disable hardware transforms so it takes less time to initialize
     putenv("OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS=0");
     _instance = this;
+}
+
+ICameraReceiver::~ICameraReceiver()
+{
+    _instance = nullptr;
 }
 
 void ICameraReceiver::_StartCaptureThread()

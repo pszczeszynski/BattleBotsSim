@@ -44,7 +44,7 @@ ROTATION_NET_ENABLED = 0
 GYRO_ENABLED = 1
 HEU_BACKGROUND_AVGING = 170
 HEU_UNTRACKED_MOVING_BLOB_AVGING = 108
-HEU_FOREGROUND_THRESHOLD = 30
+HEU_FOREGROUND_THRESHOLD = 25
 HEU_FOREGROUND_THRESHOLD_INIT = 10
 HEU_FOREGROUND_MINSIZE = 32
 HEU_FOREGROUND_MAXSIZE = 300
@@ -61,7 +61,7 @@ HEU_VELOCITY_AVERAGING = 10
 HEU_VEL_TO_ANGLE_MIN = 30
 HEU_VEL_TO_ANGLE_K = 25
 HEU_ROT_GAIN = 1
-HEU_FOREGROUND_RATIO = 20
+HEU_FOREGROUND_RATIO = 30
 HEU_ROBOT_PROCESSORS = 8
 RADIO_CHANNEL = 60
 SECONDARY_RADIO_CHANNEL = 105
@@ -113,4 +113,4 @@ STARTING_RIGHT_BR_x = 688
 STARTING_RIGHT_BR_y = 464
 LOG_ODOMETRY_DATA = 0
 PLAYBACK_PREPROCESS = 0
-VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=1;showNeuralRot=1;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Neural:0,0.5,0.5,1|Blob:0,0.20354,1,1|Heuristic:0.105652,0.898039,0,1|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:-7,-263|Camera:0,0|Fusion:13,835|Heuristic:435,0|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;
+VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=1;showNeuralRot=1;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Neural:0,0.5,0.5,1|Camera:1,1,1,1|Blob:0,0.20354,1,1|Heuristic:0.105652,0.898039,0,1|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:-7,-263|Camera:0,0|Fusion:13,835|Heuristic:435,0|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;

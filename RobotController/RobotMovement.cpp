@@ -3,6 +3,7 @@
 #include "Clock.h"
 #include "MathUtils.h"
 #include "UIWidgets/GraphWidget.h"
+#include "RobotConfig.h"
 
 /**
  * Drives the robot to a target angle given
@@ -33,6 +34,8 @@ DriveCommand DriveToAngle(double currAngle,
 
   static double lastTime = Clock::programClock.getElapsedTime();
   static double lastError = 0.0;
+  static double lastDerivative = 0.0;
+
   double currTime = Clock::programClock.getElapsedTime();
   double deltaTimeSeconds = currTime - lastTime;
   lastTime = currTime;
@@ -49,9 +52,16 @@ DriveCommand DriveToAngle(double currAngle,
   // Calculate derivative term from error change over time
   double errorChange = deltaAngleRad - lastError;
   double deltaAngleVel = deltaTimeSeconds > 0 ? errorChange / deltaTimeSeconds : 0.0;
-  
+
+
+  double currDerivative = deltaAngleVel;
+  if (KD_FILTER_TIME_CONSTANT > 0) {
+    currDerivative = Interpolate(lastDerivative, deltaAngleVel, deltaTimeSeconds / KD_FILTER_TIME_CONSTANT);
+  }
+  lastDerivative = currDerivative;
+
   lastError = deltaAngleRad;
-  ret.turn += deltaAngleVel * (KD_PERCENT / 100.0); // add the D term
+  ret.turn += currDerivative * (KD_PERCENT / 100.0) * 0.3; // add the D term
   ret.movement = movement;
   // clip turn
   ret.turn = std::clamp(ret.turn, -1.0f, 1.0f);
@@ -74,7 +84,7 @@ DriveCommand DriveToAngle(double currAngle,
 
   stickX.AddData(ret.movement);
   stickY.AddData(ret.turn);
-  derivative.AddData(deltaAngleVel * (KD_PERCENT / 100.0));
+  derivative.AddData(currDerivative * (KD_PERCENT / 100.0) * 0.3);
 
   return ret;
 }

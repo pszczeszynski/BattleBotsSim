@@ -70,10 +70,10 @@ void TrackingWidget::_GrabFrame()
     static int last_id = 0;
 
     // 1. populate the tracking mat (for display purposes)
-    static ICameraReceiver &camera = ICameraReceiver::GetInstance();
-    if (camera.NewFrameReady(last_id))
+    static ICameraReceiver *camera = ICameraReceiver::GetInstance();
+    if (camera != nullptr && camera->NewFrameReady(last_id))
     {
-        last_id = camera.GetFrame(GetDebugImage("Camera"), last_id);      
+        last_id = camera->GetFrame(GetDebugImage("Camera"), last_id);      
     }
 }
 

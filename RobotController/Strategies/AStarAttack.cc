@@ -150,7 +150,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     RobotMovement::DriveDirection direction = RobotMovement::DriveDirection::Forward; if(!currForward) { direction = RobotMovement::DriveDirection::Backward; } // set drive direction based on the auto switch variable
-    DriverStationMessage ret = RobotMovement::HoldAngle(orbFiltered.position(), followPoint, KILL_KD_PERCENT, TURN_THRESH_1_DEG_KILL, TURN_THRESH_2_DEG_KILL, MAX_TURN_POWER_PERCENT_KILL, MIN_TURN_POWER_PERCENT_KILL, SCALE_DOWN_MOVEMENT_PERCENT_KILL, direction); // hold angle to the follow point
+    DriverStationMessage ret = RobotMovement::HoldAngle(orbFiltered.position(), followPoint, ORBIT_KD_PERCENT, TURN_THRESH_1_DEG_ORBIT, TURN_THRESH_2_DEG_ORBIT, MAX_TURN_POWER_PERCENT_ORBIT, MIN_TURN_POWER_PERCENT_ORBIT, SCALE_DOWN_MOVEMENT_PERCENT_ORBIT, direction); // hold angle to the follow point
     ret.autoDrive.movement = gamepad.GetRightStickY() * calculateMovePercent(followPoint, 40.0f*TO_RAD, 70.0F*TO_RAD, currForward); // scale movement based on angle error 
     
     processingTimeVisualizer.markEnd();

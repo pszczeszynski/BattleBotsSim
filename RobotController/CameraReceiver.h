@@ -30,8 +30,12 @@ class ICameraReceiver
 public:
     virtual long GetFrame(cv::Mat &output, long old_id, double* frameTime = NULL, bool blockUntilReady = true);
     virtual bool NewFrameReady(long old_id);
-    static ICameraReceiver& GetInstance();
+    static ICameraReceiver* GetInstance();
     virtual CameraType GetType();
+
+    // destructor
+    virtual ~ICameraReceiver();
+
 
 protected:
     void _StartCaptureThread();
