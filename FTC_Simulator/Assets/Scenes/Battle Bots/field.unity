@@ -30326,13 +30326,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   robotTransform: {fileID: 1268204943}
   robotBoundsColliderForks: {fileID: 1268204940}
-  robotBoundsColliderNoForks: {fileID: 1864264020}
+  robotBoundsColliderNoForks: {fileID: 1268204940}
   captureCamera: {fileID: 1820725278}
-  lights: {fileID: 11334292}
+  lights: {fileID: 1181460806}
   postProcessingVolume: {fileID: 1826500114}
   numberOfCaptures: 50000
   movementBoundsX: {x: -8, y: 8}
-  movementBoundsY: {x: -9, y: 9}
+  movementBoundsY: {x: -7, y: 9}
   CAMERA_POSITION_ORIENTATION_RANDOMNESS: {x: 0, y: 0, z: 0}
   CAMERA_WIDTH: 1280
   CAMERA_HEIGHT: 720
@@ -40306,12 +40306,6 @@ PrefabInstance:
 --- !u!4 &1864264019 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8908582675643048299, guid: 904ab1321de345b49b7fbfab071776d4,
-    type: 3}
-  m_PrefabInstance: {fileID: 1864264018}
-  m_PrefabAsset: {fileID: 0}
---- !u!65 &1864264020 stripped
-BoxCollider:
-  m_CorrespondingSourceObject: {fileID: 3903577760467188768, guid: 904ab1321de345b49b7fbfab071776d4,
     type: 3}
   m_PrefabInstance: {fileID: 1864264018}
   m_PrefabAsset: {fileID: 0}
