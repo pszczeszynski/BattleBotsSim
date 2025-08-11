@@ -293,7 +293,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &12792710
 Transform:
   m_ObjectHideFlags: 0
@@ -1946,7 +1946,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 309096c89886e5d42ae23499a6f3f572,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7620,7 +7620,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1501763154005038, guid: 4611b705315b9d2488eac58f8b8a147e, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1513895556740696, guid: 4611b705315b9d2488eac58f8b8a147e, type: 3}
       propertyPath: m_Layer
@@ -12413,7 +12413,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 060dc75e3a4eed146a9f31946613b5bf,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -14735,7 +14735,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: d7b147ca58cd75d4fa68e0e8ef3041e0,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -30326,13 +30326,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   robotTransform: {fileID: 1268204943}
   robotBoundsColliderForks: {fileID: 1268204940}
-  robotBoundsColliderNoForks: {fileID: 1268204940}
+  robotBoundsColliderNoForks: {fileID: 1864264020}
   captureCamera: {fileID: 1820725278}
-  lights: {fileID: 1181460806}
+  lights: {fileID: 11334292}
   postProcessingVolume: {fileID: 1826500114}
   numberOfCaptures: 50000
   movementBoundsX: {x: -8, y: 8}
-  movementBoundsY: {x: -7, y: 9}
+  movementBoundsY: {x: -9, y: 9}
   CAMERA_POSITION_ORIENTATION_RANDOMNESS: {x: 0, y: 0, z: 0}
   CAMERA_WIDTH: 1280
   CAMERA_HEIGHT: 720
@@ -40241,7 +40241,7 @@ PrefabInstance:
     - target: {fileID: 8136443301539052497, guid: 904ab1321de345b49b7fbfab071776d4,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8908582675643048299, guid: 904ab1321de345b49b7fbfab071776d4,
         type: 3}
@@ -40306,6 +40306,12 @@ PrefabInstance:
 --- !u!4 &1864264019 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8908582675643048299, guid: 904ab1321de345b49b7fbfab071776d4,
+    type: 3}
+  m_PrefabInstance: {fileID: 1864264018}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1864264020 stripped
+BoxCollider:
+  m_CorrespondingSourceObject: {fileID: 3903577760467188768, guid: 904ab1321de345b49b7fbfab071776d4,
     type: 3}
   m_PrefabInstance: {fileID: 1864264018}
   m_PrefabAsset: {fileID: 0}
@@ -41459,7 +41465,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: a082faa1b75f56040a636f126ab91454,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -43662,7 +43668,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: df25233cf60c5ff47a26b0636625c799,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -47573,7 +47579,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: d886ba8be46f26f40910d4b6fa5f0409,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

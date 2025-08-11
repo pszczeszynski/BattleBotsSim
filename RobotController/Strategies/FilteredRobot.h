@@ -37,6 +37,7 @@ class FilteredRobot
   // get robot data
   cv::Point2f position();
   cv::Point2f moveVel();
+  cv::Point2f moveVelSlow();
   std::vector<float> getPosFiltered();
   std::vector<float> getVelFiltered();
   std::vector<float> getAccFiltered();

@@ -182,10 +182,10 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 // how long to collide with a robot using current velocity and assumed turn speed
 float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisionRadius) {
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 50.0f*TO_RAD; // 60.0f
-    float angleThresh2 = 100.0f*TO_RAD; // 160.0f
+    float angleThresh1 = 70.0f*TO_RAD; // 50.0f
+    float angleThresh2 = 180.0f*TO_RAD; // 100.0f
 
-    float velAngle = atan2(velFiltered[1], velFiltered[0]); // angle we're actually moving in
+    float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]); // angle we're actually moving in
     float angleToOppAbs = atan2(opp.position().y - posFiltered[1], opp.position().x - posFiltered[0]);
     float angleToOppVel = angle_wrap(angleToOppAbs - velAngle);
     if(cv::norm(moveVel()) == 0.0f) { angleToOppVel = 0.0f; }
@@ -194,7 +194,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisio
     // how good can our velocity be used to drive directly to the opponent if we turn directly towards them
     float velFactor = 1.0f - std::clamp((abs(angleToOpp) - angleThresh1) / (angleThresh2 - angleThresh1), 0.0f, 1.0f);    
     int velSign = sign(tangentVel(forward)); // measure direction of main drive velocity
-    float orbUsableSpeed = cv::norm(moveVel()) * velSign * velFactor;
+    float orbUsableSpeed = cv::norm(moveVelSlow()) * velSign * velFactor;
 
     // estimate time to turn to opp
     float turnTime = turnTimeMin(opp.position(), 0.0f, 30.0f*TO_RAD, forward, false);
@@ -388,6 +388,7 @@ void FilteredRobot::updatePath() {
 // get robot data
 cv::Point2f FilteredRobot::position() { return cv::Point2f(posFiltered[0], posFiltered[1]); }
 cv::Point2f FilteredRobot::moveVel() { return cv::Point2f(velFiltered[0], velFiltered[1]); }
+cv::Point2f FilteredRobot::moveVelSlow() { return cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]); }
 
 float FilteredRobot::angle(bool forward) { 
     int offset = 0.0f; if(!forward) { offset = M_PI; } // offset by 180 if not forwards
