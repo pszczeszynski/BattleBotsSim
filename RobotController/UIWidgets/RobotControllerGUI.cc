@@ -53,7 +53,10 @@ bool RobotControllerGUI::Update()
     // make sure to clear the last frame's textures
     ClearLastFrameTextures();
 
-    // draw all the widgets
+    // draw all the clock widgets (including Profiling) FIRST - this makes them secondary tabs
+    ClockWidget::DrawAll();
+
+    // draw all the image widgets (including Orbit) SECOND - this makes them primary tabs
     for (ImageWidget* widget : ImageWidget::Instances())
     {
         widget->Draw();
@@ -65,7 +68,6 @@ bool RobotControllerGUI::Update()
     _configWidget.Draw();
     _robotTelemetryWidget.Draw();
     _variantsWidget.Draw();
-    _odoData.Draw();
     _cameraWidget.Draw();
     TrackingWidget::GetInstance()->DrawGUI();
     FieldWidget::GetInstance()->DrawGUI();
@@ -78,8 +80,6 @@ bool RobotControllerGUI::Update()
 
 
     _manualControlWidget.Draw();
-
-    ClockWidget::DrawAll();
 
     timeSinceLastRender.markStart();
     ImVec4 clear_color = ColorScheme::BG_DARK;

@@ -51,17 +51,26 @@ namespace ColorScheme
     ImVec4 GetVariantColor(const std::string& variant)
     {
         static const std::map<std::string, ImVec4> variantColors = {
-            {"Camera", PRIMARY_GREEN},
-            {"Blob", PRIMARY_BLUE},
-            {"Heuristic", PRIMARY_RED},
-            {"Neural", PRIMARY_PURPLE},
-            {"Fusion", PRIMARY_ORANGE},
-            {"NeuralRot", PRIMARY_PURPLE},
-            {"Opencv", PRIMARY_BLUE}
+            {"Camera", PRIMARY_BLUE},
+            {"Blob", PRIMARY_GREEN},
+            {"Heuristic", PRIMARY_ORANGE}
         };
         
         auto it = variantColors.find(variant);
         return (it != variantColors.end()) ? it->second : PRIMARY_BLUE;
+    }
+
+    ImVec4 GetInterpolatedColor(float value)
+    {
+        // Clamp value to 0.0 - 1.0 range
+        value = std::clamp(value, 0.0f, 1.0f);
+        
+        // Interpolate between red (0.0) and green (1.0)
+        float red = 0.7f * (1.0f - value);    // Start with STATUS_ERROR red
+        float green = 0.55f * value;           // End with STATUS_SUCCESS green
+        float blue = 0.2f * value;             // Add some blue for green
+        
+        return ImVec4(red, green, blue, 1.0f);
     }
     
     // ===== COLOR PUSH/POP FUNCTIONS =====

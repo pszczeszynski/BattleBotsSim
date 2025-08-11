@@ -17,7 +17,6 @@
 #include "VariantsWidget.h"
 #include "PlaybackWidget.h"
 #include "ManualControlWidget.h"
-#include "ODataWidget.h"
 #include "CameraWidget.h"
 #include "AStarAttackWidget.h"
 
@@ -52,7 +51,6 @@ private:
     VariantsWidget _variantsWidget;
     PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
-    ODataWidget _odoData;
     CameraWidget _cameraWidget;
     AStarAttackWidget _astarAttackWidget;
 };

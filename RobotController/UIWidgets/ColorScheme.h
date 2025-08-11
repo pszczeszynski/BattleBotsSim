@@ -59,6 +59,9 @@ namespace ColorScheme
     ImVec4 GetStatusColor(const std::string& status);
     ImVec4 GetVariantColor(const std::string& variant);
     
+    // Get interpolated color based on value (0.0 = red, 1.0 = green)
+    ImVec4 GetInterpolatedColor(float value);
+    
     // Push/pop color pairs for common UI patterns
     void PushButtonColors(const ImVec4& baseColor);
     void PopButtonColors();

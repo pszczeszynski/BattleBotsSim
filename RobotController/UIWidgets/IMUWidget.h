@@ -1,11 +1,10 @@
 #pragma once
 
-// IMUWiget.h
-// The imu widget is an opencv mat that visualizes the imu data
-// There is a circle outline (filling up the mat) and a crosshair in the middle
-// There is a small dot that shows the current acceleration as a 2d vector
+// IMUWidget.h
+// The IMU widget now uses ImGui native drawing to create a modern, visually stunning interface
+// Features include: acceleration vector visualization, rotation indicators, health status,
+// and comprehensive debug data display with our custom color scheme
 
-#include <opencv2/opencv.hpp>
 #include <mutex>
 #include "ImageWidget.h"
 

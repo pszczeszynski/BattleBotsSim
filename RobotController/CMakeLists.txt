@@ -96,7 +96,6 @@ set(SOURCES
     UIWidgets/VariantsWidget.cc
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
-    UIWidgets/ODataWidget.cc
     UIWidgets/CameraWidget.cc
     UIWidgets/ColorScheme.cc
     UIWidgets/AStarAttackWidget.cc
