@@ -244,7 +244,6 @@ enum DriverStationMessageType : char
 {
     INVALID_DS = 0,
     DRIVE_COMMAND,
-    AUTO_DRIVE,
     LOCAL_PING_REQUEST,
 };
 

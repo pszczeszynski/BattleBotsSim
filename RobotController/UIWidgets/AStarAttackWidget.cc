@@ -8,7 +8,7 @@
 
 AStarAttackWidget* AStarAttackWidget::_instance = nullptr;
 
-AStarAttackWidget::AStarAttackWidget() : ImageWidget("AStar Attack", false)
+AStarAttackWidget::AStarAttackWidget() : ImageWidget("Orbit", false)
 {
     _instance = this;
     
@@ -131,7 +131,7 @@ void AStarAttackWidget::_DrawCurveVisualization()
 
 void AStarAttackWidget::DrawGUI()
 {
-    ImGui::Text("AStar Attack Parameters");
+    ImGui::Text("Orbit Parameters");
     ImGui::Separator();
     
     // Radius curve section

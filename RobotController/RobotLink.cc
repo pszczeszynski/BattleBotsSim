@@ -6,7 +6,6 @@
 #include "Odometry/OdometryBase.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
-#include "Strategies/DriveToAngleSimulation.h"
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
 
@@ -725,12 +724,6 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
         stickY.AddData(command.driveCommand.turn /
                        (MASTER_TURN_SCALE_PERCENT / 100.00));
     }
-    else if (command.type == AUTO_DRIVE)
-    {
-        stickX.AddData(command.autoDrive.movement /
-                       (MASTER_MOVE_SCALE_PERCENT / 100.0));
-        stickY.AddData(command.autoDrive.targetAngle);
-    }
     else if (command.type == INVALID_DS)
     {
         std::cerr << "ERROR: invalid driver station message type" << std::endl;
@@ -842,27 +835,7 @@ void RobotLinkSim::Drive(DriverStationMessage &msg)
     {
         command = msg.driveCommand;
     }
-    else if (msg.type == AUTO_DRIVE)
-    {
-        float imu_rotation =
-            RobotController::GetInstance().GetIMUData().rotation;
-        float imu_rotation_velocity =
-            RobotController::GetInstance().GetIMUData().rotationVelocity;
 
-        AutoDrive lastAutoCommand = msg.autoDrive;
-
-        // drive to the target angle
-        command = DriveToAngle(
-            imu_rotation, imu_rotation_velocity, lastAutoCommand.targetAngle,
-            lastAutoCommand.targetAngleVelocity, lastAutoCommand.KD_PERCENT,
-            lastAutoCommand.TURN_THRESH_1_DEG,
-            lastAutoCommand.TURN_THRESH_2_DEG,
-            lastAutoCommand.MAX_TURN_POWER_PERCENT,
-            lastAutoCommand.MIN_TURN_POWER_PERCENT,
-            lastAutoCommand.SCALE_DOWN_MOVEMENT_PERCENT);
-
-        command.movement = lastAutoCommand.movement;
-    }
     Gamepad &gamepad2 = RobotController::GetInstance().GetGamepad2();
 
     // send the opponent movement and turn just in sim mode

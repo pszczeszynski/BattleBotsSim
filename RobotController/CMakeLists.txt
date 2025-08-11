@@ -106,12 +106,9 @@ set(SOURCES
     Strategies/Field.cc
     Strategies/ScoreRegion.cc
     Strategies/AStar.cc
-    Strategies/RobotMovement.cc
-    Strategies/DriveToAngleSimulation.cc
     Strategies/Line.cc
     Strategies/Node.cc
     Strategies/FilteredRobot.cc
-    RobotMovement.cpp
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc

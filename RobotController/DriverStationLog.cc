@@ -50,21 +50,6 @@ void DriverStationLog::UpdateTxLog(uint32_t timestamp, DriverStationMessage comm
         line += "," + std::to_string(command.driveCommand.selfRighterPower);
         line += "," + std::to_string(command.driveCommand.selfRighterDuty);
     }
-    else if (command.type == AUTO_DRIVE)
-    {
-        line += "," + std::to_string(command.autoDrive.movement);
-        line += "," + std::to_string(command.autoDrive.targetAngle);
-        line += "," + std::to_string(command.autoDrive.targetAngleVelocity);
-        line += "," + std::to_string(command.autoDrive.KD_PERCENT);
-        line += "," + std::to_string(command.autoDrive.TURN_THRESH_1_DEG);
-        line += "," + std::to_string(command.autoDrive.TURN_THRESH_2_DEG);
-        line += "," + std::to_string(command.autoDrive.MAX_TURN_POWER_PERCENT);
-        line += "," + std::to_string(command.autoDrive.MIN_TURN_POWER_PERCENT);
-        line += "," + std::to_string(command.autoDrive.SCALE_DOWN_MOVEMENT_PERCENT);
-        line += "," + std::to_string(command.autoDrive.invertTurn);
-        line += "," + std::to_string(command.autoDrive.frontWeaponCurrent10);
-        line += "," + std::to_string(command.autoDrive.backWeaponCurrent10);
-    }
     
     line += "," + std::to_string(command.resetIMU);
     line += "," + std::to_string(command.fuseIMU);

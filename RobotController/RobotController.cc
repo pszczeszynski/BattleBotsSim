@@ -9,7 +9,6 @@
 #include "UIWidgets/RobotControllerGUI.h"
 #include "imgui.h"
 #include "Strategies/Kill.h"
-#include "Strategies/RobotMovement.h"
 #include "UIWidgets/ClockWidget.h"
 #include "Input/InputState.h"
 #include "SafeDrawing.h"
@@ -434,73 +433,6 @@ DriverStationMessage RobotController::ManualMode()
     bool leftBumper = gamepad.GetLeftBumper();
     bool rightBumper = gamepad.GetRightBumper();
 
-
-    // // don't allow auto turning when using orbit or kill modes
-    // bool canAutoTurn = true;
-    // if ((gamepad.GetLeftStickY() > 0.7 || _guiOrbit) ||
-    //     (gamepad.GetLeftStickY() < -0.7 || _guiKill))
-    // {
-    //     canAutoTurn = false;
-    // }
-    // //////////////// 180 degrees if left bumper //////////////////
-    // if (canAutoTurn && (leftBumper || rightBumper))
-    // {
-    //     // initiated press
-    //     if (!lastLeftBumper && leftBumper)
-    //     {
-    //         // record the target angle
-    //         spinTargetAngle = angle_wrap(odometry.Robot().robotAngle - M_PI);
-    //         // record the intermediary angle (90 degrees from target)
-    //         spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle - M_PI / 2);
-    //     }
-    //     // initiated press
-    //     if (!lastRightBumper && rightBumper)
-    //     {
-    //         // record the target angle
-    //         spinTargetAngle = angle_wrap(odometry.Robot().robotAngle + M_PI);
-    //         // record the intermediary angle (90 degrees from target)
-    //         spinIntermediaryAngle = angle_wrap(odometry.Robot().robotAngle + M_PI / 2);
-    //     }
-
-    //     // default to the final target
-    //     float currTargetAngle = spinTargetAngle;
-
-    //     // check delta angle to target
-    //     double deltaAngle = angle_wrap(odometry.Robot().robotAngle - spinTargetAngle);
-
-    //     // if we are more than 90 degrees from the target angle
-    //     if (abs(deltaAngle) > TO_RAD * 135)
-    //     {
-    //         // aim at only 90 degrees away
-    //         currTargetAngle = spinIntermediaryAngle;
-    //     }
-    //     // else
-    //     // {
-    //     //     std::cout << "delta angle: " << deltaAngle << std::endl;
-    //     // }
-
-    //     double originalMovement = ret.driveCommand.movement;
-    //     cv::Point2f currPoint = odometry.Robot().robotPosition;
-    //     cv::Point2f lookAtPoint = currPoint + cv::Point2f{cos(currTargetAngle) * 100, sin(currTargetAngle) * 100};
-    //     // draw the points
-    //     safe_circle(drawingImage, currPoint, 10, cv::Scalar(0, 255, 0), 2);
-    //     safe_circle(drawingImage, lookAtPoint, 10, cv::Scalar(0, 0, 255), 2);
-
-    //     RobotMovement::DriveDirection direction = LEAD_WITH_BAR ? RobotMovement::DriveDirection::Forward : RobotMovement::DriveDirection::Backward;
-
-    //     ret = RobotMovement::HoldAngle(currPoint,
-    //                                    lookAtPoint,
-    //                                    KILL_KD_PERCENT,
-    //                                    TURN_THRESH_1_DEG_KILL,
-    //                                    TURN_THRESH_2_DEG_KILL,
-    //                                    MAX_TURN_POWER_PERCENT_KILL,
-    //                                    MIN_TURN_POWER_PERCENT_KILL,
-    //                                    SCALE_DOWN_MOVEMENT_PERCENT_KILL,
-    //                                    direction);
-    //     ret.autoDrive.frontWeaponCurrent10 = weapons.GetFrontWeaponTargetPower() * MAX_FRONT_WEAPON_SPEED / 10;
-    //     ret.autoDrive.backWeaponCurrent10 = weapons.GetBackWeaponTargetPower() * MAX_BACK_WEAPON_SPEED / 10;
-    // }
-
     lastLeftBumper = leftBumper;
     lastRightBumper = rightBumper;
     return ret;
@@ -566,7 +498,7 @@ DriverStationMessage RobotController::RobotLogic()
     // draw on drawing image if we are orbiting
     if (_orbiting)
     {
-        cv::putText(drawingImage, "A star", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+        cv::putText(drawingImage, "Orbit", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
     }
     else if (_killing)
     {
@@ -593,21 +525,7 @@ DriverStationMessage RobotController::RobotLogic()
         }
     }
 
-    if (ret.type == AUTO_DRIVE)
-    {
-        if (manual.type == AUTO_DRIVE)
-        {
-            ret.autoDrive.frontWeaponCurrent10 = manual.autoDrive.frontWeaponCurrent10;
-            ret.autoDrive.backWeaponCurrent10 = manual.autoDrive.backWeaponCurrent10;
-        }
-        else if (manual.type == DRIVE_COMMAND)
-        {
-            // convert weapon powers
-            ret.autoDrive.frontWeaponCurrent10 = (unsigned char)(manual.driveCommand.frontWeaponPower * MAX_FRONT_WEAPON_SPEED / 10);
-            ret.autoDrive.backWeaponCurrent10 = (unsigned char)(manual.driveCommand.backWeaponPower * MAX_BACK_WEAPON_SPEED / 10);
-        }
-    }
-    else if (ret.type == DRIVE_COMMAND)
+    if (ret.type == DRIVE_COMMAND)
     {
         Weapons& weapons = Weapons::GetInstance();
         ret.driveCommand.frontWeaponPower = weapons.GetFrontWeaponTargetPower();
@@ -665,31 +583,6 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg)
             command.selfRighterDuty = true;
             command.selfRighterPower *= -1;
         }
-    }
-    else if (msg.type == DriverStationMessageType::AUTO_DRIVE)
-    {
-        AutoDrive& autoDrive = msg.autoDrive;
-        // force command to be between -1 and 1
-        autoDrive.movement = std::max(-1.0f, std::min(1.0f, autoDrive.movement));
-
-        // scale command by the master scales
-        autoDrive.movement *= MASTER_MOVE_SCALE_PERCENT / 100.0;
-
-        // check if should invert movements
-        if (INVERT_MOVEMENT)
-        {
-            autoDrive.movement *= -1;
-        }
-
-        // invert the turn if necessary
-        if (INVERT_TURN)
-        {
-            autoDrive.invertTurn = true;
-        }
-        
-        // weapon speed scaling for auto_drive is applied in robotlogic
-        //autoDrive.backWeaponPowerPercent *= MAX_BACK_WEAPON_SPEED;
-        //autoDrive.frontWeaponPowerPercent *= MAX_FRONT_WEAPON_SPEED;
     }
 }
 

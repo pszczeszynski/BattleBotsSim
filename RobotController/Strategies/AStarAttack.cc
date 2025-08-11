@@ -1,6 +1,5 @@
 #include "AStarAttack.h"
 #include "../RobotOdometry.h"
-#include "RobotMovement.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
 #include "Extrapolate.h"
@@ -82,7 +81,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 {
     // track loop time
     static Clock updateClock;
-    static ClockWidget processingTimeVisualizer("A Star Attack");
+    static ClockWidget processingTimeVisualizer("Orbit");
     processingTimeVisualizer.markStart();
 
     double deltaTime = updateClock.getElapsedTime(); // reset every loop so elapsed time is loop time
