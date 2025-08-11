@@ -1,8 +1,12 @@
 #include "PlaybackWidget.h"
+#include <imgui.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 #include <filesystem>
 #include "../RobotConfig.h"
-#include "../Globals.h"
+#include "ColorScheme.h"
 
 PlaybackWidget::PlaybackWidget()
 {
@@ -48,7 +52,7 @@ void PlaybackWidget::Draw()
         if (playback_pause)
         {
             // Change the button color to green when isHighlighted is true
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+            ColorScheme::PushSuccessColors();
             popStyle = true;
         }
 
@@ -59,7 +63,7 @@ void PlaybackWidget::Draw()
         
         if (popStyle)
         {
-            ImGui::PopStyleColor(); 
+            ColorScheme::PopStatusColors(); 
             popStyle = false;
         }
 
@@ -77,7 +81,7 @@ void PlaybackWidget::Draw()
         if (playback_goback)
         {
             // Change the button color to green when isHighlighted is true
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+            ColorScheme::PushSuccessColors();
             popStyle = true;
         }
 
@@ -88,7 +92,7 @@ void PlaybackWidget::Draw()
 
         if (popStyle)
         {
-            ImGui::PopStyleColor(); 
+            ColorScheme::PopStatusColors(); 
             popStyle = false;
         }
 

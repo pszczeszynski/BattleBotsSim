@@ -5,6 +5,7 @@
 #include "UIUtilities.h"
 #include "ImageWidget.h"
 #include "../Globals.h"
+#include "ColorScheme.h"
 
 VariantsWidget::VariantsWidget()
 {
@@ -18,13 +19,9 @@ void VariantsWidget::_DrawStartStopButton(const char* label, bool& enabledFlag, 
     
     // Set button color based on running state
     if (isRunning) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f)); // Green when running
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+        ColorScheme::PushSuccessColors();
     } else {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f)); // Red when stopped
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.0f, 0.0f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+        ColorScheme::PushErrorColors();
     }
 
     if (ImGui::Button(isRunning ? "Running" : "Stopped"))
@@ -32,7 +29,7 @@ void VariantsWidget::_DrawStartStopButton(const char* label, bool& enabledFlag, 
         enabledFlag = !enabledFlag;
     }
 
-    ImGui::PopStyleColor(3);
+    ColorScheme::PopStatusColors();
 
     ImGui::SameLine();
     ImGui::Text(label);
@@ -94,15 +91,15 @@ void VariantsWidget::Draw()
     // Helper for edit buttons
     auto DrawEditButton = [](const char* label, bool& state) {
         if (state) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.0f, 1.0f)); // Yellow when active
+            ColorScheme::PushButtonColors(ColorScheme::PRIMARY_ORANGE);
         } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.0f)); // Grey when inactive
+            ColorScheme::PushButtonColors(ColorScheme::TEXT_DISABLED);
         }
 
         if (ImGui::Button(label)) {
             state = !state;
         }
-        ImGui::PopStyleColor();
+        ColorScheme::PopButtonColors();
     };
 
     DrawEditButton("Heuristic", EDITING_HEU);

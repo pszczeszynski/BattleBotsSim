@@ -6,6 +6,7 @@
 #include "../Odometry/Heuristic1/HeuristicOdometry.h"
 #include "../../Common/Communication.h"
 #include "FieldWidget.h"
+#include "ColorScheme.h"
 
 
 
@@ -231,7 +232,7 @@ void ConfigWidget::Draw()
         }
         else if (RADIO_CHANNEL == TEENSY_RADIO_1)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ColorScheme::PushSuccessColors();
         }
 
         if (ImGui::Button("Tx1->Rx1"))
@@ -246,7 +247,7 @@ void ConfigWidget::Draw()
         }
         else if (RADIO_CHANNEL == TEENSY_RADIO_1)
         {
-            ImGui::PopStyleColor();
+            ColorScheme::PopStatusColors();
         }
 
         ImGui::SameLine();
@@ -258,7 +259,7 @@ void ConfigWidget::Draw()
         }
         else if (RADIO_CHANNEL == TEENSY_RADIO_2)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ColorScheme::PushSuccessColors();
         }
 
         if (ImGui::Button("Tx1->Rx2"))

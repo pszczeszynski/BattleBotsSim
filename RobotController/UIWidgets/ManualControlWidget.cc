@@ -3,6 +3,7 @@
 #include "../RobotConfig.h"
 #include "../RobotLink.h"
 #include "../RobotController.h"
+#include "ColorScheme.h"
 
 ManualControlWidget::ManualControlWidget()
 {
@@ -20,17 +21,11 @@ void ManualControlWidget::Draw()
     // Toggle button to enable/disable keyboard control
     if (WASD_ENABLED)
     {
-        // Change button color to green when keyboard is enabled
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));        // Green
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.7f, 0.2f, 1.0f)); // Slightly lighter green
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));  // Darker green
+        ColorScheme::PushSuccessColors();
     }
     else
     {
-        // Change button color to red when keyboard is disabled
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));        // Red
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.2f, 0.2f, 1.0f)); // Slightly lighter red
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.0f, 0.0f, 1.0f));  // Darker red
+        ColorScheme::PushErrorColors();
     }
 
     // Button logic for toggling keyboard
@@ -41,7 +36,7 @@ void ManualControlWidget::Draw()
     }
 
     // Pop the color styles to revert to default styling after the button
-    ImGui::PopStyleColor(3);
+    ColorScheme::PopStatusColors();
 
     // draw the buttons
     if (ImGui::Button("STOP", ImVec2(ImGui::GetWindowWidth(), 20)))
@@ -101,9 +96,12 @@ void ManualControlWidget::Draw()
     ImVec4 killColor = isKilling ? ImVec4(1.0f, 0.5f, 0.0f, 1.0f) : ImVec4(1.0f, 0.65f, 0.0f, 1.0f); // Orange
 
     // Button for orbit
-    ImGui::PushStyleColor(ImGuiCol_Button, orbitColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.0f, 0.6f, 1.0f)); // Slightly lighter purple when hovered
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.0f, 0.4f, 1.0f)); // Slightly darker purple when active
+    if (isOrbiting) {
+        ColorScheme::PushButtonColors(ColorScheme::PRIMARY_PURPLE);
+    } else {
+        ColorScheme::PushButtonColors(ColorScheme::WithAlpha(ColorScheme::PRIMARY_PURPLE, 0.7f));
+    }
+    
     if (ImGui::Button("Orbit", ImVec2(ImGui::GetWindowWidth(), 20)))
     {
         // Toggle the orbiting state
@@ -121,12 +119,15 @@ void ManualControlWidget::Draw()
             robotController.StopForceOrbit();
         }
     }
-    ImGui::PopStyleColor(3);
+    ColorScheme::PopButtonColors();
 
     // Button for kill
-    ImGui::PushStyleColor(ImGuiCol_Button, killColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.6f, 0.0f, 1.0f)); // Slightly lighter orange when hovered
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.4f, 0.0f, 1.0f)); // Slightly darker orange when active
+    if (isKilling) {
+        ColorScheme::PushButtonColors(ColorScheme::PRIMARY_ORANGE);
+    } else {
+        ColorScheme::PushButtonColors(ColorScheme::WithAlpha(ColorScheme::PRIMARY_ORANGE, 0.7f));
+    }
+    
     if (ImGui::Button("Kill", ImVec2(ImGui::GetWindowWidth(), 20)))
     {
         // Toggle the killing state
@@ -144,7 +145,7 @@ void ManualControlWidget::Draw()
             robotController.StopForceKill();
         }
     }
-    ImGui::PopStyleColor(3);
+    ColorScheme::PopButtonColors();
 
 
 

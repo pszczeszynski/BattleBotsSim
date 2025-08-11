@@ -4,6 +4,7 @@
 #include "imgui_internal.h"
 #include "GraphWidget.h"
 #include "UIUtilities.h"
+#include "ColorScheme.h"
 
 RobotTelemetryWidget::RobotTelemetryWidget()
 {
@@ -44,23 +45,27 @@ void DrawCANDataTable()
             // Check if motor data is valid (non-zero temperature indicates active motor)
             if (data.motorVoltage[i] == 0)
             {
-                // Motor not active - set gray color
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0, 0, 0, 255));
+                // Motor not active - set dark background
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 
+                    IM_COL32(ColorScheme::BG_DARK.x * 255, ColorScheme::BG_DARK.y * 255, ColorScheme::BG_DARK.z * 255, 255));
             }
             else if (data.escFETTemp[i] > 80 || data.motorVoltage[i] <= 57) // data.motorTemp[i] > 90 || 
             {
-                // Set row color to red
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(255, 0, 0, 255));
+                // Set row color to error red
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 
+                    IM_COL32(ColorScheme::STATUS_ERROR.x * 255, ColorScheme::STATUS_ERROR.y * 255, ColorScheme::STATUS_ERROR.z * 255, 255));
             }
             else if (data.escFETTemp[i] > 60) // || data.motorTemp[i] > 60
             {
-                // Set row color to yellow
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(150, 150, 0, 255));
+                // Set row color to warning orange
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 
+                    IM_COL32(ColorScheme::STATUS_WARNING.x * 255, ColorScheme::STATUS_WARNING.y * 255, ColorScheme::STATUS_WARNING.z * 255, 255));
             }
             else
             {
-                // Set row color to green
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0, 150, 0, 255));
+                // Set row color to success green
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 
+                    IM_COL32(ColorScheme::STATUS_SUCCESS.x * 255, ColorScheme::STATUS_SUCCESS.y * 255, ColorScheme::STATUS_SUCCESS.z * 255, 255));
             }
 
             // Your existing code to set row data

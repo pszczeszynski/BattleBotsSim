@@ -5,6 +5,7 @@
 #include "../Input/InputState.h"
 #include "CameraWidget.h"
 #include "../SafeDrawing.h"
+#include "ColorScheme.h"
 
 TrackingWidget *TrackingWidget::_instance = nullptr;
 cv::Point2f TrackingWidget::robotMouseClickPoint = cv::Point2f(0, 0);
@@ -38,15 +39,14 @@ TrackingWidget::TrackingWidget() : // initialize the mask to all white
         }
     }
 
-    // Initialize default colors for each variant
-    // Using ImVec4 (RGBA), with alpha = 1.0f for opaque color
-    variantColors["Camera"] = ImVec4(0.0f, 0.7f, 0.0f, 1.0f); // Default: Green
+    // Initialize default colors for each variant using our color scheme
+    variantColors["Camera"] = ColorScheme::GetVariantColor("Camera");
     variantOffsets["Camera"] = cv::Point(0, 0); // No offset for Camera
 
-    variantColors["Blob"] = ImVec4(0.0f, 0.0f, 0.5f, 1.0f);   // Default: Blue
+    variantColors["Blob"] = ColorScheme::GetVariantColor("Blob");
     variantOffsets["Blob"] = cv::Point(0, 0); // No offset for Blob
 
-    variantColors["Heuristic"] = ImVec4(0.8f, 0.0f, 0.0f, 1.0f); // Default: Red
+    variantColors["Heuristic"] = ColorScheme::GetVariantColor("Heuristic");
     variantOffsets["Heuristic"] = cv::Point(0, 0); // No offset for Heuristic
 
     variantColors["Neural"] = ImVec4(0.0f, 0.5f, 0.5f, 1.0f);   // Default: Cyan
@@ -562,13 +562,9 @@ void TrackingWidget::_DrawShowButton(const char* label, bool& enabledFlag)
 
     // Apply button colors based on enabled state
     if (enabledFlag) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));        // Green
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.7f, 0.2f, 1.0f)); // Slightly lighter green
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));  // Darker green
+        ColorScheme::PushSuccessColors();
     } else {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.7f, 1.0f));        // Blue
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.2f, 0.7f, 1.0f)); // Slightly lighter blue
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.5f, 1.0f));  // Darker blue
+        ColorScheme::PushButtonColors(ColorScheme::PRIMARY_BLUE);
     }
 
     // Draw the toggle button
@@ -576,7 +572,7 @@ void TrackingWidget::_DrawShowButton(const char* label, bool& enabledFlag)
         enabledFlag = !enabledFlag;
     }
 
-    ImGui::PopStyleColor(3); // Pop the button colors
+    ColorScheme::PopButtonColors(); // Pop the button colors
 
     // Draw the label
     ImGui::SameLine();
@@ -785,7 +781,7 @@ void TrackingWidget::DrawGUI() {
     cv::Point2f leftStart = cv::Point2f((STARTING_LEFT_TL_x+STARTING_LEFT_BR_x)/2, (STARTING_LEFT_TL_y+STARTING_LEFT_BR_y)/2);
     cv::Point2f rightStart = cv::Point2f((STARTING_RIGHT_TL_x+STARTING_RIGHT_BR_x)/2, (STARTING_RIGHT_TL_y+STARTING_RIGHT_BR_y)/2);
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::PRIMARY_BLUE);
     if (ImGui::Button("Auto Start Left", ImVec2(150, 40)))
     {
         AutoMatchStart(true);
@@ -796,7 +792,7 @@ void TrackingWidget::DrawGUI() {
     ImGui::SameLine();
     ImGui::Text("        ");
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::PRIMARY_RED);
     if (ImGui::Button("Auto Start Right", ImVec2(150, 40)))
     {
         AutoMatchStart(false);
@@ -804,7 +800,7 @@ void TrackingWidget::DrawGUI() {
 
     ImGui::PopStyleColor();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::PRIMARY_BLUE);
     if (ImGui::Button("Start Left", ImVec2(150, 40)))
     {
         odometry.MatchStart();
@@ -814,7 +810,7 @@ void TrackingWidget::DrawGUI() {
     ImGui::SameLine();
     ImGui::Text("        ");
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::PRIMARY_RED);
     if (ImGui::Button("Start Right", ImVec2(150, 40)))
     {
         odometry.MatchStart();
@@ -827,7 +823,7 @@ void TrackingWidget::DrawGUI() {
     ImGui::Text("   ");
     ImGui::SameLine();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 1.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::PRIMARY_BLUE);
     if (ImGui::Button("Auto Recover", ImVec2(150, 40)))
     {
         heuristic.RecoverDetection();
@@ -854,7 +850,7 @@ void TrackingWidget::DrawGUI() {
     // Add button to toggle save_video_enabled
     if (save_video_enabled) {
         // Push red color for button background when recording
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f)); // Red color (RGBA)
+        ColorScheme::PushErrorColors();
         doPopStyle = true;
     }
     if (ImGui::Button(save_video_enabled ? "Stop Recording" : "Start Recording")) {
@@ -863,7 +859,7 @@ void TrackingWidget::DrawGUI() {
 
     if (doPopStyle) {
         // Pop the custom color after rendering the button
-        ImGui::PopStyleColor();
+        ColorScheme::PopStatusColors();
     }
 
 

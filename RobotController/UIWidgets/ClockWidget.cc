@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "imgui_internal.h"
 #include <iostream>
+#include "ColorScheme.h"
 
 std::vector<ClockWidget*>& ClockWidget::Instances()
 {
@@ -37,12 +38,10 @@ void DrawProgressBarWithTarget(float currentValue, float maxValue, float targetV
     float currentPercentage = currentValue / maxValue;
     float targetPercentage = targetValue / maxValue;
 
-    ImU32 barColor = IM_COL32(255, 225, 0, 255);
-
-    // Draw the progress bar
-    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
+    // Draw the progress bar with our color scheme
+    ColorScheme::PushProgressBarColors(ColorScheme::PRIMARY_ORANGE);
     ImGui::ProgressBar(currentPercentage, size, "");
-    ImGui::PopStyleColor();
+    ColorScheme::PopProgressBarColors();
 
     // Calculate the position for the target line
     ImVec2 min = ImGui::GetItemRectMin();

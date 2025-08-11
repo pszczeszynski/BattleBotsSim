@@ -98,6 +98,7 @@ set(SOURCES
     UIWidgets/ManualControlWidget.cc
     UIWidgets/ODataWidget.cc
     UIWidgets/CameraWidget.cc
+    UIWidgets/ColorScheme.cc
     UIWidgets/AStarAttackWidget.cc
     CVRotation.cc
     Odometry/Neural/CVPosition.cc

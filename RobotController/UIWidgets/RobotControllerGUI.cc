@@ -7,6 +7,7 @@
 #include "ClockWidget.h"
 #include "GraphWidget.h"
 #include "../Input/InputState.h"
+#include "ColorScheme.h"
 
 // #include <algorithm>
 
@@ -19,7 +20,7 @@ RobotControllerGUI::RobotControllerGUI()
     SetupIMGUI(window);
     ImGuiIO &io = ImGui::GetIO();
 
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ColorScheme::BG_DARK;
 }
 
 RobotControllerGUI& RobotControllerGUI::GetInstance()
@@ -81,7 +82,7 @@ bool RobotControllerGUI::Update()
     ClockWidget::DrawAll();
 
     timeSinceLastRender.markStart();
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ColorScheme::BG_DARK;
     // render the ImGui frame
     Render(window, clear_color);
 
@@ -154,21 +155,16 @@ void RobotControllerGUI::SetupIMGUI(GLFWwindow *window)
     // io.ConfigViewportsNoAutoMerge = true; io.ConfigViewportsNoTaskBarIcon =
     // true;
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-
-    // set window background to black
+    // Apply our custom color scheme
+    ColorScheme::ApplyColorScheme();
 
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform
     // windows can look identical to regular ones.
     ImGuiStyle &style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-        style.Colors[ImGuiCol_WindowBg].x = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].y = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].z = 0.0f;
+        style.WindowRounding = 6.0f; // Keep our rounded corners
+        style.Colors[ImGuiCol_WindowBg] = ColorScheme::BG_DARK;
     }
 
     // Setup Platform/Renderer backends

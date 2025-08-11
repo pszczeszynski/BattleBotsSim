@@ -22,11 +22,6 @@ std::vector<cv::Point2f> CirclesIntersect(cv::Point2f center1, float r1, cv::Poi
 
 std::vector<cv::Point2f> CircleLineSegmentIntersect(cv::Point2f circleCenter, float circleRadius, cv::Point2f lineStart, cv::Point2f lineEnd);
 
-double DoubleThreshToTarget(double error,
-                            double threshold1, double threshold2,
-                            double minPower, double maxPower);
-
-
 float distance(cv::Point2f point1, cv::Point2f point2 );
 
 class Point2f
