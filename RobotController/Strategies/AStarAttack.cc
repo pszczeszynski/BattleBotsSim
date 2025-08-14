@@ -34,6 +34,7 @@ AStarAttack::AStarAttack()
     float gateX1 = 115.0f;
     float gateX2 = 620.0f;
 
+
     // no shelf corners
     fieldBoundPoints = {
         cv::Point(screwX1, shelfY),
@@ -67,8 +68,8 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 150.0f, 2.0f*360.0f*TO_RAD, 40.0f*360.0f*TO_RAD);
-    oppFiltered = FilteredRobot(1.0f, 100.0f, 380.0f, 300.0f, 2.5f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
+    orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 90.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD);
+    oppFiltered = FilteredRobot(1.0f, 100.0f, 380.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
     
     // Note: Radius curve parameters are initialized from RobotConfig defaults
 }
@@ -97,7 +98,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // update filtered positions/velocities and paths
     orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
-    // oppFiltered.updateFiltersOpp(deltaTime, oppData.robotPosition, oppData.robotAngle); oppFiltered.updatePath();
 
 
     // raw follow points in every direction
@@ -116,7 +116,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // choose which way to circle the opp/drive
     cv::Point2f followPoint = chooseBestPoint(followPoints, pointsCW, pointsForward, CW, currForward);
     followPoint = avoidBounds(followPoint); // make sure we don't hit any walls
-    followPoint = turnCorrectWay(followPoint, currForward); // force that we turn away from the opp if needed
+    int turnDirection = enforceTurnDirection(followPoint, currForward); // force that we turn away from the opp if needed
 
 
 
@@ -151,9 +151,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller
-    std::vector<float> driveInputs = curvatureController(followPoint, gamepad.GetRightStickY(), deltaTime);
+    std::vector<float> driveInputs = curvatureController(followPoint, gamepad.GetRightStickY(), deltaTime, turnDirection);
 
 
+    // create and send drive command
     DriverStationMessage ret;
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
     ret.driveCommand.movement = driveInputs[0];
@@ -214,9 +215,12 @@ cv::Point2f AStarAttack::followPointDirection(bool CW, bool forward) {
 
 
 // calculates move and turn speeds to follow the followPoint
-std::vector<float> AStarAttack::curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime) {
+std::vector<float> AStarAttack::curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection) {
 
     float angleError = orbFiltered.angleTo(followPoint, currForward); // how far off we are from target
+    if(turnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+    if(turnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+
     float angleErrorChange = (angleError - prevAngleError) / deltaTime; // how the error is changing per time
     prevAngleError = angleError; // save for next time
 
@@ -224,7 +228,7 @@ std::vector<float> AStarAttack::curvatureController(cv::Point2f followPoint, flo
     float currSpeed = cv::norm(cv::Point2f(orbFiltered.getVelFilteredSlow()[0], orbFiltered.getVelFilteredSlow()[1]));
 
     // 320
-    float maxCurveGrip = pow(320.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
+    float maxCurveGrip = pow(290.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
     float maxCurveScrub = currSpeed * 0.02f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
     float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the boundary
 
@@ -272,7 +276,7 @@ float AStarAttack::radiusEquation(bool forward, bool CW) {
     float orbETA = orbFiltered.collideETA(oppFiltered, forward, 65.0f);
 
 
-    float angleMargin = 50.0f * TO_RAD;
+    float angleMargin = 50.0f * TO_RAD; // 50
     float humanLag = 0.01f; // 0.05
     float oppETA = oppFiltered.turnTimeMin(predictDriftStop(forward), humanLag, angleMargin, true, false);
 
@@ -585,7 +589,7 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 
 
 
-// totals wall distances to opponent by incrementing around them
+// finds closest wall distances to opponent by incrementing around them
 float AStarAttack::wallScore(bool CW) {
 
     // angular range to scan for wall distances
@@ -698,40 +702,51 @@ float AStarAttack::wallScore(bool CW) {
 
 
 
-// makes us preferentially turn away from the opponent if turning around
-cv::Point2f AStarAttack::turnCorrectWay(cv::Point2f followPointRaw, bool forward) {
+// returns sign of the input
+int AStarAttack::sign(float num) {
+    if(num < 0) { return -1; }
+    return 1;
+}
 
-    cv::Point2f followPoint = followPointRaw;
+
+// enforces (or doesn't) a turn direction so we turn away from the op when desired
+// 1 = always turn right, -1 = always turn left
+int AStarAttack::enforceTurnDirection(cv::Point2f followPoint, bool forward) {
 
     float angleToOpp = orbFiltered.angleTo(oppFiltered.position(), forward);
     float angleToPoint = orbFiltered.angleTo(followPoint, forward);
 
-    float signOpp = angleToOpp / abs(angleToOpp);
-    float signPoint = angleToPoint / abs(angleToPoint);
-
     // if we naturally turn away from the opp, return the same follow point
-    if(signOpp != signPoint) { return followPoint; }
+    if(sign(angleToOpp) != sign(angleToPoint)) { return 0; }
 
-    // if we don't have to turn past the opp anyway, return the same follow point
-    if(abs(angleToPoint) < abs(angleToOpp) + 35.0f*TO_RAD) { return followPoint; }
+    // if we turn by the opp in the first few degrees anyway just turn normally
+    if(abs(angleToOpp) < 15.0f*TO_RAD) { return 0; } // 20.0f
 
-    // if the point is basically the same time in both directions, enforce that we turn away from opp
-    float angleToPointABS = angle(orbFiltered.position(), followPoint);
-    float timePos = orbFiltered.pointETASim(followPoint, 0.0f, true, 0.0f, forward, false);
-    float timeNeg = orbFiltered.pointETASim(followPoint, 0.0f, false, 0.0f, forward, false);
-    float timeDif = signPoint*timePos - signPoint*timeNeg;
+    // if we don't have to turn past the opp anyway (or just barely turn past) just turn normally
+    if(abs(angleToPoint) < abs(angleToOpp) + 40.0f*TO_RAD) { return 0; }
 
-    // if(timeDif > 0.15f) { // 0.15
-    if(true) {
-        float followPointDist = cv::norm(orbFiltered.position() - followPoint);
-        float followPointAngle = angle_wrap(orbFiltered.angle(forward) - signPoint * 150.0f*TO_RAD);
-        return cv::Point2f(orbFiltered.position().x + followPointDist*cos(followPointAngle), orbFiltered.position().y + followPointDist*sin(followPointAngle));
-    }
+    // // if the point is basically the same time in both directions, enforce that we turn away from opp
+    // float angleToPointABS = angle(orbFiltered.position(), followPoint);
+    // float timePos = orbFiltered.pointETASim(followPoint, 0.0f, true, 0.0f, forward, false);
+    // float timeNeg = orbFiltered.pointETASim(followPoint, 0.0f, false, 0.0f, forward, false);
+    // float timeDif = signPoint*timePos - signPoint*timeNeg;
+
+    // // if(timeDif > 0.15f) { // 0.15
+    // if(true) {
+    //     float followPointDist = cv::norm(orbFiltered.position() - followPoint);
+    //     float followPointAngle = angle_wrap(orbFiltered.angle(forward) - signPoint * 175.0f*TO_RAD);
+    //     return cv::Point2f(orbFiltered.position().x + followPointDist*cos(followPointAngle), orbFiltered.position().y + followPointDist*sin(followPointAngle));
+    // }
+
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 10, cv::Scalar(255, 255, 255), 5);
+
+
+    return -sign(angleToPoint);
 
     // only return updated follow point if it's in the field bounds
     // if(insideFieldBounds(followPoint)) { followPointRaw = followPoint; }
-    followPointRaw = followPoint;
-    return followPointRaw;
+    // followPointRaw = followPoint;
+    // return followPointRaw;
 }
 
 
@@ -877,18 +892,18 @@ float AStarAttack::directionScore(cv::Point2f followPoint, bool CW, bool forward
 
     // how far the robot has to turn to this point
     float angleToPoint = orbFiltered.angleTo(followPoint, forward);    
-    float turnGain = 23.0f * closeness; // 40.0
+    float turnGain = 20.0f * closeness; // 23
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*oppFiltered.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 21.0f; // 15.0
+    float goAroundGain = 10.0f; // 21
 
 
     // how close is the nearest wall in this direction
-    float wallWeight = wallScore(CW);
-    float wallGain = -0.38f; // 0.0025
+    float wallWeight = pow(wallScore(CW), 0.5f);
+    float wallGain = -11.0f; // -0.38
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly

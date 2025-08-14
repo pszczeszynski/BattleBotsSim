@@ -182,7 +182,7 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 // how long to collide with a robot using current velocity and assumed turn speed
 float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisionRadius) {
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 70.0f*TO_RAD; // 50.0f
+    float angleThresh1 = 90.0f*TO_RAD; // 50.0f
     float angleThresh2 = 180.0f*TO_RAD; // 100.0f
 
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]); // angle we're actually moving in

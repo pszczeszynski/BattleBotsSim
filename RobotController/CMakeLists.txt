@@ -103,11 +103,7 @@ set(SOURCES
     Odometry/Neural/CVPosition.cc
     Strategies/Kill.cc
     Strategies/AStarAttack.cc
-    Strategies/Field.cc
-    Strategies/ScoreRegion.cc
-    Strategies/AStar.cc
     Strategies/Line.cc
-    Strategies/Node.cc
     Strategies/FilteredRobot.cc
     Weapons.cc
     hid/hid.cc

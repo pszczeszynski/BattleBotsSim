@@ -2,8 +2,6 @@
 
 #include "Strategy.h"
 #include "../Input/Gamepad.h"
-#include "ScoreRegion.h"
-#include "AStar.h"
 #include "../PurePursuit.h"
 #include <algorithm>
 #include <cmath>
@@ -74,7 +72,7 @@ private:
     cv::Point2f followPointDirection(bool CW, bool forward);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(bool CW);
-    cv::Point2f turnCorrectWay(cv::Point2f followPointRaw, bool forward);
+    int enforceTurnDirection(cv::Point2f followPoint, bool forward);
     float ppRad();
     cv::Point2f avoidBounds(cv::Point2f rawFollowPoint);
     float directionScore(cv::Point2f followPoint, bool CW, bool forward);
@@ -82,5 +80,6 @@ private:
     cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward);
     cv::Point2f predictDriftStop(bool forward);
     float piecewise(std::vector<cv::Point2f> points, float x);
-    std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime);
+    std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection);
+    int sign(float num);
 };
