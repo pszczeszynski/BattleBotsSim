@@ -82,4 +82,5 @@ private:
     float piecewise(std::vector<cv::Point2f> points, float x);
     std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection);
     int sign(float num);
+    cv::Point2f commitToTarget(cv::Point2f followPoint, double deltaTime, float targetTime);
 };

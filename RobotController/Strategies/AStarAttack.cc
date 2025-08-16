@@ -69,7 +69,7 @@ AStarAttack::AStarAttack()
 
     // initialize filters
     orbFiltered = FilteredRobot(1.0f, 100.0f, 430.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // calibrated at roughly 2.5 and 80
+    oppFiltered = FilteredRobot(1.0f, 100.0f, 400.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // calibrated at roughly 2.5 and 80
     
     // Note: Radius curve parameters are initialized from RobotConfig defaults
 }
@@ -117,6 +117,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     cv::Point2f followPoint = chooseBestPoint(followPoints, pointsCW, pointsForward, CW, currForward);
     followPoint = avoidBounds(followPoint); // make sure we don't hit any walls
     int turnDirection = enforceTurnDirection(followPoint, currForward); // force that we turn away from the opp if needed
+    followPoint = commitToTarget(followPoint, deltaTime, 1.0f);
+
+
+
 
 
 
@@ -134,8 +138,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     std::cout << std::endl;
 #endif
 
-
-    std::cout << "speed = " << cv::norm(orbFiltered.moveVelSlow()) << "     " << std::endl;
     
    
 
@@ -220,6 +222,36 @@ cv::Point2f AStarAttack::followPointDirection(bool CW, bool forward) {
 }
 
 
+// if we ever directly target the opp, enforce that we keep targetting them for a minimum time
+cv::Point2f AStarAttack::commitToTarget(cv::Point2f followPoint, double deltaTime, float targetTime) {
+
+    static bool enforceTarget = false; // if we're currently running the clock to force target the opp
+    static float timeTargetting = 0.0f; // how long we've been force targetting the opp
+
+    // if the follow point is basically right on the opp, turn on force targeting and reset the clock
+    if(cv::norm(followPoint - oppFiltered.position()) < oppFiltered.getSizeRadius() * 0.7f) { 
+        enforceTarget = true;
+        timeTargetting = 0.0f;
+    }
+
+    // if we've been targetting for long enough, don't enforce the target anymore and reset clock
+    if(timeTargetting > targetTime) { 
+        enforceTarget = false;
+        timeTargetting = 0.0f;
+    }
+
+    // if we're currently enforcing target, then set followPoint and increment the clock
+    if(enforceTarget) { 
+        followPoint = oppFiltered.position(); 
+        timeTargetting += deltaTime;
+    }
+
+    std::cout << "timeTargetting = " << timeTargetting << "     " << std::endl;
+
+    return followPoint;
+}
+
+
 // calculates move and turn speeds to follow the followPoint
 std::vector<float> AStarAttack::curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection) {
 
@@ -239,7 +271,7 @@ std::vector<float> AStarAttack::curvatureController(cv::Point2f followPoint, flo
     float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the boundary
 
     // pd controller that increases path curvature with angle error
-    float curvature = std::clamp(0.8f*angleError + 0.06f*angleErrorChange, -maxCurve, maxCurve); // 0.6f, 0.04f
+    float curvature = std::clamp(0.6f*angleError + 0.04f*angleErrorChange, -maxCurve, maxCurve); // 0.8f, 0.06f
 
     // reverese the input if we're going backwards
     if(!currForward) { moveSpeed *= -1.0f; }
