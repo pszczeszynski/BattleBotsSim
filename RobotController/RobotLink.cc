@@ -25,11 +25,11 @@
  */
 RobotMessage IRobotLink::Receive()
 {
-    std::cerr << "RobotLink::Receive" << std::endl;
+    // std::cerr << "RobotLink::Receive" << std::endl;
     static GraphWidget recvIntervalTime("Received Packet Interval Time", 0, 50,
                                         "ms");
 
-    std::cerr << "RobotLink::Receive 0.01" << std::endl;
+    // std::cerr << "RobotLink::Receive 0.01" << std::endl;
     // get all new messages
     std::vector<RobotMessage> newMessages = _ReceiveImpl();
 
@@ -38,7 +38,7 @@ RobotMessage IRobotLink::Receive()
         return RobotMessage{RobotMessageType::INVALID};
     }
 
-    std::cerr << "RobotLink::Receive 0.02" << std::endl;
+    // std::cerr << "RobotLink::Receive 0.02" << std::endl;
 
     // go through each message, save the latest IMU and CAN message
     bool hadValidMessage = false;
@@ -117,7 +117,7 @@ RobotMessage IRobotLink::Receive()
         messageIndex++;
     }
 
-    std::cerr << "RobotLink::Receive 0.03" << std::endl;
+    // std::cerr << "RobotLink::Receive 0.03" << std::endl;
 
     // if didn't get a single valid message
     if (!hadValidMessage)
@@ -136,7 +136,7 @@ RobotMessage IRobotLink::Receive()
         _receiveClock.markStart();
     }
 
-    std::cerr << "RobotLink::Receive 0.03" << std::endl;
+    // std::cerr << "RobotLink::Receive 0.03" << std::endl;
 
     // return the last message
     return newMessages.back();

@@ -153,7 +153,7 @@ void RobotController::Run()
     {
         try 
         {
-            std::cerr << "main loop START" << std::endl;
+            // std::cerr << "main loop START" << std::endl;
             loopCount ++;
 
             loopClock.markEnd();
@@ -162,15 +162,15 @@ void RobotController::Run()
             // init drawing image to latest frame from camera
             videoID = UpdateDrawingImage();
 
-            std::cerr << "main loop 1.00" << std::endl;
+            // std::cerr << "main loop 1.00" << std::endl;
             // update the gamepad
             gamepad.Update();
             gamepad2.Update();
 
-            std::cerr << "main loop 1.01" << std::endl;
+            // std::cerr << "main loop 1.01" << std::endl;
             // receive the latest message
             RobotMessage msg = robotLink.Receive();
-            std::cerr << "main loop 1.02" << std::endl;
+            // std::cerr << "main loop 1.02" << std::endl;
             // save the specific type information in a last struct
             if (msg.type == RobotMessageType::IMU_DATA)
             {
@@ -189,31 +189,31 @@ void RobotController::Run()
                 _lastCanMessageMutex.unlock();
             }
 
-            std::cerr << "main loop 1.03" << std::endl;
+            // std::cerr << "main loop 1.03" << std::endl;
             // Update all our odometry data
             odometry.Update(videoID);
-            std::cerr << "main loop 1.04" << std::endl;
+            // std::cerr << "main loop 1.04" << std::endl;
 
             // run our robot controller loop
             DriverStationMessage response = RobotLogic();
-            std::cerr << "main loop 1.05" << std::endl;
+            // std::cerr << "main loop 1.05" << std::endl;
             // enforce valid ranges and allow scaling down the movement via sliders
             ApplyMoveScales(response);
-            std::cerr << "main loop 1.06" << std::endl;
+            // std::cerr << "main loop 1.06" << std::endl;
             // send the response to the robot
             robotLink.Drive(response);
-            std::cerr << "main loop 1.07" << std::endl;
+            // std::cerr << "main loop 1.07" << std::endl;
             DrawStatusIndicators();
-            std::cerr << "main loop 1.08" << std::endl;
+            // std::cerr << "main loop 1.08" << std::endl;
             // ClickOnHeuristic();
 
             _trackingWidget.Update();
-            std::cerr << "main loop 1.09" << std::endl;
+            // std::cerr << "main loop 1.09" << std::endl;
             // Draw field boundary editor handles before updating the field widget
             _fieldWidget.DrawFieldBoundaryEditor();
-            std::cerr << "main loop 1.10" << std::endl;
+            // std::cerr << "main loop 1.10" << std::endl;
             _fieldWidget.UpdateMat(drawingImage);
-            std::cerr << "main loop 1.11" << std::endl;
+            // std::cerr << "main loop 1.11" << std::endl;
         }
         catch (const std::exception& e)
         {
@@ -253,7 +253,7 @@ int RobotController::UpdateDrawingImage()
 {
     static Clock videoWriteClock;
 
-    std::cerr << "main loop 0.00" << std::endl;
+    // std::cerr << "main loop 0.00" << std::endl;
     cv::Mat failsafeImage {WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
 
     int retId = -1;
@@ -264,7 +264,7 @@ int RobotController::UpdateDrawingImage()
         retId = videoSource.GetFrame(drawingImage, 0);
     }
 
-    std::cerr << "main loop 0.01" << std::endl;
+    // std::cerr << "main loop 0.01" << std::endl;
 
     // If the frame is empty then keep old image
     if (retId == -1 || drawingImage.empty())
@@ -272,7 +272,7 @@ int RobotController::UpdateDrawingImage()
         failsafeImage.copyTo(drawingImage);
     }
 
-    std::cerr << "main loop 0.02" << std::endl;
+    // std::cerr << "main loop 0.02" << std::endl;
 
     // Convert the drawingImage to RGB
     if (drawingImage.channels() == 1)
@@ -280,7 +280,7 @@ int RobotController::UpdateDrawingImage()
         cv::cvtColor(drawingImage, drawingImage, cv::COLOR_GRAY2BGR);
     }
 
-    std::cerr << "main loop 0.03" << std::endl;
+    // std::cerr << "main loop 0.03" << std::endl;
     // if save video is enabled, save the frame
 #ifdef SAVE_VIDEO
     if (videoWriteClock.getElapsedTime() > 1.0 / 60.0 && _saving)
@@ -292,7 +292,7 @@ int RobotController::UpdateDrawingImage()
     }
 #endif
 
-    std::cerr << "main loop 0.04" << std::endl;
+    // std::cerr << "main loop 0.04" << std::endl;
 
     return retId;
 }

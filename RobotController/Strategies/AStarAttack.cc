@@ -68,8 +68,8 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 90.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD);
-    oppFiltered = FilteredRobot(1.0f, 100.0f, 380.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD); // calibrated at roughly 2.5 and 80
+    orbFiltered = FilteredRobot(1.0f, 100.0f, 430.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 100.0f, 500.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // calibrated at roughly 2.5 and 80
     
     // Note: Radius curve parameters are initialized from RobotConfig defaults
 }
@@ -133,6 +133,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     std::cout << "    orbETA = " << orbETA << ", oppETA = " << oppETA << "       ";
     std::cout << std::endl;
 #endif
+
+
+    std::cout << "speed = " << cv::norm(orbFiltered.moveVelSlow()) << "     " << std::endl;
     
    
 
@@ -141,6 +144,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), radiusEquation(currForward, CW), cv::Scalar(0, 255, 0), 2); // draw radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(), cv::Scalar(255, 0, 0), 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, cv::Scalar(0, 0, 255), 2); // draw dot on the opp
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppFiltered.getSizeRadius(), cv::Scalar(190, 190, 255), 2); // draw op size
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), cv::Scalar(255, 190, 190), 2); // draw op size
+
     displayPathTangency(oppFiltered, cv::Scalar{255, 255, 255}); // display opp path tangency
     displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
     displayPathPoints(convexPoints, cv::Scalar(0, 0, 255)); // draw field bound points
@@ -262,7 +268,7 @@ void AdjustRadiusWithBumpers() {
     }
 
     RADIUS_CURVE_Y1 = fmin(RADIUS_CURVE_Y1, RADIUS_CURVE_Y2 - 10);
-    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 80);
+    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 30);
 
     prevRightBumper = currRightBumper;
     prevLeftBumper = currLeftBumper;
@@ -273,14 +279,17 @@ void AdjustRadiusWithBumpers() {
 // equation for determining size of tangent circle
 float AStarAttack::radiusEquation(bool forward, bool CW) {
 
-    float orbETA = orbFiltered.collideETA(oppFiltered, forward, 65.0f);
+    
+    // float angleMargin = 50.0f * TO_RAD; // 50
+    // float humanLag = 0.01f; // 0.05
+    // float oppETA = oppFiltered.turnTimeMin(predictDriftStop(forward), humanLag, angleMargin, true, false);
+    
 
 
-    float angleMargin = 50.0f * TO_RAD; // 50
-    float humanLag = 0.01f; // 0.05
-    float oppETA = oppFiltered.turnTimeMin(predictDriftStop(forward), humanLag, angleMargin, true, false);
+    float orbETA = orbFiltered.collideETA(oppFiltered, forward);
+    float oppETA = oppFiltered.turnTimeSimple(predictDriftStop(forward), oppFiltered.getWeaponAngleReach(), true, false);
 
-    // 0.0 is good, 1.0 is bad
+
     float fraction = 999999999.0f;
     if (oppETA != 0.0f) { fraction = std::max((orbETA - oppETA) / oppETA, 0.0f); }
 
@@ -298,7 +307,6 @@ float AStarAttack::radiusEquation(bool forward, bool CW) {
 
     // radius is piecewise output
     return piecewise(radiusCurve, fraction);
-
 }
 
 
@@ -1045,19 +1053,54 @@ cv::Point2f AStarAttack::chooseBestPoint(std::vector<cv::Point2f> followPoints,
 // predicts at what angle orb will drive into opp if we decide to kill rn
 cv::Point2f AStarAttack::predictDriftStop(bool forward) {
 
-    // determine how far we'll drift while turning
+    // // determine how far we'll drift while turning
+    // float angleToOpp = orbFiltered.angleTo(oppFiltered.position(), forward);
+    // float driftDistance = (orbFiltered.tangentVel(true) / (0.5f * orbFiltered.getMaxTurnSpeed())) * abs(sin(angleToOpp));
+    // if((orbFiltered.tangentVel(true) < 0 && forward) || (orbFiltered.tangentVel(false) < 0 && !forward)) { driftDistance = 0.0f; } // if we're gonna reverse, assume no drift
+    // driftDistance = std::min(orbFiltered.distanceTo(oppFiltered.position()) * 1.1f, driftDistance);
+
+    // // determine point at which we'll stop drifting
+    // cv::Point2f endDriftPoint = cv::Point2f(orbFiltered.position().x + driftDistance*cos(orbFiltered.angle(true)), orbFiltered.position().y + driftDistance*sin(orbFiltered.angle(true)));
+
+    // return endDriftPoint;
+
+
+
+
+    cv::Point2f relativeVel = orbFiltered.moveVelSlow() - oppFiltered.moveVelSlow(); // relative velocity between us and opp
+    float relativeSpeed = cv::norm(relativeVel); // relative speed
+    float relativeSpeedAngle = atan2(relativeVel.y, relativeVel.x); // direction of relative speed
+
+    // whether the net speed is pointed CW or CCW around the opp
+    float absAngleToOrb = angle(oppFiltered.position(), orbFiltered.position());
+    int speedCW = 1;
+    if(angleWrapRad(relativeSpeedAngle - absAngleToOrb) < 0.0f) { speedCW = -1; }
+
     float angleToOpp = orbFiltered.angleTo(oppFiltered.position(), forward);
-    float driftDistance = (orbFiltered.tangentVel(true) / (0.5f * orbFiltered.getMaxTurnSpeed())) * abs(sin(angleToOpp));
-    if((orbFiltered.tangentVel(true) < 0 && forward) || (orbFiltered.tangentVel(false) < 0 && !forward)) { driftDistance = 0.0f; } // if we're gonna reverse, assume no drift
-    driftDistance = std::min(orbFiltered.distanceTo(oppFiltered.position()) * 1.1f, driftDistance);
 
-    // determine point at which we'll stop drifting
-    cv::Point2f endDriftPoint = cv::Point2f(orbFiltered.position().x + driftDistance*cos(orbFiltered.angle(true)), orbFiltered.position().y + driftDistance*sin(orbFiltered.angle(true)));
-    // cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), endDriftPoint, cv::Scalar(255, 255, 255), 2);
+    // what distance we'll drift around the opp as we complete the turn towards them
+    float distanceToOrb = oppFiltered.distanceTo(orbFiltered.position());
+    float driftDistance = (relativeSpeed / (0.5f * orbFiltered.getMaxTurnSpeed())) * sin(std::min((double) abs(angleToOpp), 90.0f*TO_RAD));
+    driftDistance = std::min(distanceToOrb * 1.1f, driftDistance); // limit to be less than our distance away from the opp (covers edge case)
 
-    // return the angle from the opponent to the point where we stop drifting
-    // return angle(oppFiltered.position(), endDriftPoint);
-    return endDriftPoint;
+
+
+
+    // calculate the radians around the opponent we'll drift
+    float angleToOrbAbs = abs(oppFiltered.angleTo(orbFiltered.position(), true));
+    float driftScaleAngle = std::clamp((angleToOrbAbs - oppFiltered.getWeaponDriftScaleReach()) / (oppFiltered.getWeaponAngleReach() - oppFiltered.getWeaponDriftScaleReach()), 0.0f, 1.0f); // scale factor for the drift angle
+
+    float collisionRadius = orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius();
+    float driftScaleRadius = std::clamp((distanceToOrb - collisionRadius) / (85.0f - collisionRadius), 0.0f, 1.0f);
+
+    float driftAngle = speedCW * driftScaleAngle * driftScaleRadius * (driftDistance / distanceToOrb); // how many radians we'll drift around opp
+
+    
+
+    // generate a point with the correct offset angle
+    float collisionAngle = angleWrapRad(absAngleToOrb + driftAngle);
+    cv::Point2f delta = cv::Point2f(distanceToOrb * cos(collisionAngle), distanceToOrb * sin(collisionAngle));
+    return oppFiltered.position() + delta;
 }
 
 // Field boundary editing interface implementation

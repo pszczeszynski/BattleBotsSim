@@ -9,16 +9,14 @@ class FilteredRobot
   FilteredRobot();
   // pathSpacing and pathLength are visual params
   FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
-                float moveAccel, float turnSpeed, float turnAccel);
+                float moveAccel, float turnSpeed, float turnAccel, float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius);
 
   void updateFilters(float deltaTime, cv::Point2f visionPos,
                      float visionTheta);  // run filter update to find new data
-//   void updateFiltersOpp(float deltaTime, cv::Point2f visionPos,
-//                         float visionTheta);  // uses path tangency
+
 
   float collideETA(
-      FilteredRobot& opp, bool forward,
-      float collisionRadius);  // estimated time to collide with a robot
+      FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
@@ -26,6 +24,7 @@ class FilteredRobot
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
                     bool print);  // minimum time of both turn directions
+  float turnTimeSimple(cv::Point2f point, float angleMargin, bool forward, bool print);
 
   void updatePath();
   void setPos(std::vector<float> pos);
@@ -48,10 +47,18 @@ class FilteredRobot
   float tangentVel(bool forward);
   float angle(bool forward);
   std::vector<cv::Point2f> getPath();
-//   void pathTangency(float deltaTime, float visionTheta);
-
   std::vector<float> getVelFilteredSlow();
+  float getWeaponAngleReach();
+  float getWeaponDriftScaleReach();
+  float getSizeRadius();
+  float velAwayFromPoint(cv::Point2f point);
+
+
+
+
+
  private:
+
   float fieldMax = WIDTH;
   float fieldMin = 0.0f;
 
@@ -63,9 +70,7 @@ class FilteredRobot
   // extra filtered for threshold use
   std::vector<float> velFilteredSlow;
 
-  // tracks how far off the relative angle is from true heading based on path
-  // tangency
-//   float visionAngleOffset;
+
 
   // data about this robot
   float maxTurnSpeed;  // assumed turn speed when doing ETA calcs
@@ -77,6 +82,11 @@ class FilteredRobot
   std::vector<cv::Point2f> path;  // tracks where robot has been
   float pathSpacing;  // how far apart are the points in the tracked path
   float pathLength;   // how long the total tracked path is
+
+  float weaponAngleReach; // how many degrees (plus or minus) the weapon reaches from the centerline
+  float weaponDriftScaleReach; // how many degrees at which we stop scaling down drift stop calculations
+  float sizeRadius; // radius of the frame, used for collision radius calc
+
 
   int sign(float num);
   cv::Point2f clipInBounds(cv::Point2f point);

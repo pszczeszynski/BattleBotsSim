@@ -6,7 +6,9 @@
 
 // CONSTRUCTOR
 FilteredRobot::FilteredRobot() { }
-FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed, float moveAccel, float turnSpeed, float turnAccel) {
+FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
+                float moveAccel, float turnSpeed, float turnAccel, float weaponAngleReach, 
+                float weaponDriftScaleReach, float sizeRadius) {
 
     this->pathSpacing = pathSpacing;
     this->pathLength = pathLength;
@@ -14,6 +16,9 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     this->maxMoveAccel = moveAccel;
     this->maxTurnSpeed = turnSpeed;
     this->maxTurnAccel = turnAccel;
+    this->weaponAngleReach = weaponAngleReach;
+    this->weaponDriftScaleReach = weaponDriftScaleReach;
+    this->sizeRadius = sizeRadius;
 
     // visionAngleOffset = 0.0f;
 
@@ -179,11 +184,22 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 }
 
 
+// velocity thats directed away from a given point, positive is away
+float FilteredRobot::velAwayFromPoint(cv::Point2f point) {
+
+    float speed = cv::norm(moveVelSlow());
+    float speedAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
+    float pointToUsAngle = atan2(position().y - point.y, position().x - point.x);
+    return speed * cos(speedAngle - pointToUsAngle);
+}
+
+
 // how long to collide with a robot using current velocity and assumed turn speed
-float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisionRadius) {
+float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
+
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 90.0f*TO_RAD; // 50.0f
-    float angleThresh2 = 180.0f*TO_RAD; // 100.0f
+    float angleThresh1 = 60.0f*TO_RAD; // 50.0f
+    float angleThresh2 = 130.0f*TO_RAD; // 100.0f
 
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]); // angle we're actually moving in
     float angleToOppAbs = atan2(opp.position().y - posFiltered[1], opp.position().x - posFiltered[0]);
@@ -196,11 +212,20 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward, float collisio
     int velSign = sign(tangentVel(forward)); // measure direction of main drive velocity
     float orbUsableSpeed = cv::norm(moveVelSlow()) * velSign * velFactor;
 
+    // subtract out the opponents velocity away from us so we don't get overconfident
+    float oppVelAway = opp.velAwayFromPoint(position());
+    orbUsableSpeed -= oppVelAway;
+
+    // clip just in case
+    orbUsableSpeed = std::clamp(orbUsableSpeed, 1.0f, maxMoveSpeed);
+
     // estimate time to turn to opp
-    float turnTime = turnTimeMin(opp.position(), 0.0f, 30.0f*TO_RAD, forward, false);
+    // float turnTime = turnTimeMin(opp.position(), 0.0f, 30.0f*TO_RAD, forward, false);
+    float turnTime = turnTimeSimple(opp.position(), weaponAngleReach, forward, false);
 
     // estimate time to drive to opp
-    float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionRadius, 0.0);
+    float collisionDistance = sizeRadius + opp.getSizeRadius();
+    float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionDistance, 0.0);
     float moveTime = moveETASim(distanceToCollision, orbUsableSpeed, false);
 
     // total time is sum of turning and driving
@@ -306,6 +331,16 @@ float FilteredRobot::turnTimeMin(cv::Point2f point, float lagTime,
                   pointETASim(point, 0.0f, false, angleMargin, forward, print));
 }
 
+// calculates time to turn assuming constant vel
+float FilteredRobot::turnTimeSimple(cv::Point2f point, float angleMargin, bool forward, bool print) {
+
+    float angleError = angleTo(point, forward);
+    if(abs(angleError) < angleMargin) { return 0.0f; } // if we're already facing then return 0 seconds
+
+    float angleToTurn = abs(angleError) - angleMargin;
+    return angleToTurn / maxTurnSpeed;
+}
+
 // returns the sign
 int FilteredRobot::sign(float num) {
     int returnSign = 1;
@@ -326,6 +361,7 @@ float FilteredRobot::angleTo(cv::Point2f point, bool forward) {
 float FilteredRobot::distanceTo(cv::Point2f point) {
     return cv::norm(cv::Point2f(posFiltered[0], posFiltered[1]) - point);
 }
+
 
 
 
@@ -354,34 +390,6 @@ void FilteredRobot::updatePath() {
   }
 }
 
-// // runs additional path tangency stuff for opp
-// void FilteredRobot::updateFiltersOpp(float deltaTime, cv::Point2f visionPos, float visionTheta) {
-
-//     // add our increment
-//     pathTangency(deltaTime, visionTheta);
-//     float actualThetaMeasured = angle_wrap(visionTheta + visionAngleOffset);
-
-//     updateFilters(deltaTime, visionPos, actualThetaMeasured);
-// }
-
-
-// // averages in path tangency
-// void FilteredRobot::pathTangency(float deltaTime, float visionTheta) {
-
-//     // what direction are we driving
-//     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
-//     float rawOffset = angle_wrap(velAngle - visionTheta);
-
-
-//     // how much we factor in the path tangency
-//     float velMag = cv::norm(moveVel());
-//     float factor = std::clamp((velMag / std::max(abs(velFilteredSlow[2]), 0.01f) - 250.0f) * deltaTime * 0.0001f, 0.0f, 0.1f); // 0.03
-
-
-//     // weighted average in the vision angle, clips to nearest 180deg in case they drive backwards
-//     visionAngleOffset = angle_wrap(visionAngleOffset + factor * 0.5f * angle_wrap(2.0f * (rawOffset - visionAngleOffset)));
-//     // posFiltered[2] = angle_wrap(visionTheta + visionAngleOffset);
-// }
 
 
 
@@ -400,6 +408,9 @@ float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
 float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
+float FilteredRobot::getWeaponAngleReach() { return weaponAngleReach; }
+float FilteredRobot::getWeaponDriftScaleReach() { return weaponDriftScaleReach; }
+float FilteredRobot::getSizeRadius() { return sizeRadius; }
 
 
 

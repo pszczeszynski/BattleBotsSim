@@ -7,7 +7,7 @@ XBox::XBox(int index) : _controllerIndex(index){}
 
 void XBox::Update()
 {
-    std::cerr << "XBox::Update" << std::endl;
+    // std::cerr << "XBox::Update" << std::endl;
     ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
     XInputGetState(_controllerIndex, &_controllerState);
 }
