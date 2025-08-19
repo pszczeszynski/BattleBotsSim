@@ -6,6 +6,7 @@
 
 // CONSTRUCTOR
 FilteredRobot::FilteredRobot() { }
+
 FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
                 float moveAccel, float turnSpeed, float turnAccel, float weaponAngleReach, 
                 float weaponDriftScaleReach, float sizeRadius) {
@@ -20,10 +21,29 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     this->weaponDriftScaleReach = weaponDriftScaleReach;
     this->sizeRadius = sizeRadius;
 
-    // visionAngleOffset = 0.0f;
 
     // initialize
     posFiltered = {0, 0, 0};
+    velFiltered = {0, 0, 0};
+    accFiltered = {0, 0, 0};
+
+    velFilteredSlow = {0, 0, 0};
+}
+
+FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) {
+
+    pathSpacing = 0.0f;
+    pathLength = 0.0f;
+    maxMoveSpeed = 0.0f;
+    maxMoveAccel = 0.0f;
+    maxTurnSpeed = 0.0f;
+    maxTurnAccel = 0.0f;
+    weaponAngleReach = 0.0f;
+    weaponDriftScaleReach = 0.0f;
+
+    this->sizeRadius = sizeRadius;
+
+    posFiltered = {position.x, position.y, 0.0f};
     velFiltered = {0, 0, 0};
     accFiltered = {0, 0, 0};
 
@@ -225,7 +245,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
     // estimate time to drive to opp
     float collisionDistance = sizeRadius + opp.getSizeRadius();
-    float distanceToCollision = std::max(cv::norm(position() - opp.position()) - collisionDistance, 0.0);
+    float distanceToCollision = std::max(distanceTo(opp.position()) - collisionDistance, 0.0f);
     float moveTime = moveETASim(distanceToCollision, orbUsableSpeed, false);
 
     // total time is sum of turning and driving

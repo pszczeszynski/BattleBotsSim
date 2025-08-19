@@ -70,11 +70,11 @@ MAX_AVERAGE_DELAY_MS = 100
 SWITCH_COOLDOWN_MS = 500
 GO_AROUND_RADIUS = 30
 RADIUS_CURVE_X0 = 0
-RADIUS_CURVE_X1 = 3
-RADIUS_CURVE_X2 = 124.8
+RADIUS_CURVE_X1 = 2.2
+RADIUS_CURVE_X2 = 94.6
 RADIUS_CURVE_Y0 = 0
-RADIUS_CURVE_Y1 = 72
-RADIUS_CURVE_Y2 = 145
+RADIUS_CURVE_Y1 = 57.5
+RADIUS_CURVE_Y2 = 154.7
 ASTAR_PP_RAD_SLOW = 60
 ASTAR_PP_RAD_FAST = 100
 ASTAR_PP_SPEED_FAST = 400
@@ -113,4 +113,4 @@ STARTING_RIGHT_BR_x = 695
 STARTING_RIGHT_BR_y = 483
 LOG_ODOMETRY_DATA = 0
 PLAYBACK_PREPROCESS = 0
-VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=0;showNeuralRot=0;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Neural:0,0.5,0.5,1|Camera:1,1,1,1|Blob:0,0.973452,1,1|Heuristic:0.101961,0.898039,0,1|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,472|Camera:0,0|Fusion:40,-388|Heuristic:365,556|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;
+VISION_TRACKING_GUI = showCamera=1;showBlob=1;showHeuristic=1;showNeural=0;showNeuralRot=0;showFusion=1;showOpencv=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Neural:0,0.5,0.5,1|Blob:0,0.973452,1,1|Heuristic:0.101961,0.898039,0,1|Fusion:1,1,1,1|Opencv:0.2,0.2,0.2,1|NeuralRot:0.5,0.5,0.5,1|;variantOffsets=Blob:0,472|Camera:0,0|Fusion:40,-388|Heuristic:365,556|Neural:0,0|NeuralRot:0,0|Opencv:0,0|;

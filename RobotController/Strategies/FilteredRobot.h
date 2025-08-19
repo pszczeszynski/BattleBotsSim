@@ -1,15 +1,22 @@
+#pragma once
+
 #include <cmath>
 #include <opencv2/core.hpp>
 #include "../Globals.h"
 
-// kalman filterd robot data
+// kalman filtered robot data
 class FilteredRobot
 {
  public:
   FilteredRobot();
+
   // pathSpacing and pathLength are visual params
   FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
-                float moveAccel, float turnSpeed, float turnAccel, float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius);
+                float moveAccel, float turnSpeed, float turnAccel, 
+                float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius);
+
+  // for virtual opp with zero speed
+  FilteredRobot(cv::Point2f position, float sizeRadius);
 
   void updateFilters(float deltaTime, cv::Point2f visionPos,
                      float visionTheta);  // run filter update to find new data

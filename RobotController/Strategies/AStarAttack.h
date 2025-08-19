@@ -41,7 +41,6 @@ private:
 
     bool currForward; // what we're currently leading with
     bool CW; // which way we're currently going around the circle
-    float prevAngleError;
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
     // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
@@ -75,9 +74,9 @@ private:
     int enforceTurnDirection(cv::Point2f followPoint, bool forward);
     float ppRad();
     cv::Point2f avoidBounds(cv::Point2f rawFollowPoint);
-    float directionScore(cv::Point2f followPoint, bool CW, bool forward);
+    float directionScore(cv::Point2f followPoint, bool CW, bool forward, bool forwardInput);
     cv::Point2f followPointInsideCircle(float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
-    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward);
+    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput);
     cv::Point2f predictDriftStop(bool forward);
     float piecewise(std::vector<cv::Point2f> points, float x);
     std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection);
