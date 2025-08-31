@@ -35,10 +35,12 @@ class FilteredRobot
 
   void updatePath();
   void setPos(std::vector<float> pos);
+  void setVel1(std::vector<float> vel);
   std::vector<std::vector<float>> constAccExtrap(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
+  bool inWeaponRegion(cv::Point2f point);
 
   // get robot data
   cv::Point2f position();
@@ -48,6 +50,7 @@ class FilteredRobot
   std::vector<float> getVelFiltered();
   std::vector<float> getAccFiltered();
   float turnVel();
+  float getMaxMoveSpeed();
   float getMaxTurnSpeed();
   float moveAccel();
   float turnAccel();
@@ -55,6 +58,7 @@ class FilteredRobot
   float angle(bool forward);
   std::vector<cv::Point2f> getPath();
   std::vector<float> getVelFilteredSlow();
+  float moveSpeedSlow();
   float getWeaponAngleReach();
   float getWeaponDriftScaleReach();
   float getSizeRadius();

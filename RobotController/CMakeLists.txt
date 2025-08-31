@@ -105,6 +105,7 @@ set(SOURCES
     Strategies/AStarAttack.cc
     Strategies/Line.cc
     Strategies/FilteredRobot.cc
+    Strategies/FieldState.cc
     Weapons.cc
     hid/hid.cc
     Input/InputState.cc

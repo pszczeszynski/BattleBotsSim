@@ -10,6 +10,7 @@
 #include "../UIWidgets/ClockWidget.h"
 #include "../MathUtils.h"
 #include <cstdlib>
+#include "FieldState.h"
 
 AStarAttack* AStarAttack::_instance = nullptr;
 
@@ -97,50 +98,40 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
 
 
-    // raw follow points in every direction
-    std::vector<bool> pointsCW = {true, true, false, false};
-    std::vector<bool> pointsForward = {true, false, true, false};
-    // std::vector<bool> pointsCW = {true, false};
-    // std::vector<bool> pointsForward = {false, false};
+    // // raw follow points in every direction
+    // std::vector<bool> pointsCW = {true, true, false, false};
+    // std::vector<bool> pointsForward = {true, false, true, false};
+    // // std::vector<bool> pointsCW = {true, false};
+    // // std::vector<bool> pointsForward = {false, false};
 
-    // generate every possible follow point
-    std::vector<cv::Point2f> followPoints = {};
-    for(int i = 0; i < pointsCW.size(); i++) {
-        followPoints.emplace_back(followPointDirection(pointsCW[i], pointsForward[i]));
-    }
-
-
-    // choose which way to circle the opp/drive
-    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f);
-    cv::Point2f followPoint = chooseBestPoint(followPoints, pointsCW, pointsForward, CW, currForward, forwardInput);
-    followPoint = avoidBounds(followPoint); // make sure we don't hit any walls
-    followPoint = commitToTarget(followPoint, deltaTime, 0.5f);
-    int turnDirection = enforceTurnDirection(followPoint, currForward); // force that we turn away from the opp if needed
+    // // generate every possible follow point
+    // std::vector<cv::Point2f> followPoints = {};
+    // for(int i = 0; i < pointsCW.size(); i++) {
+    //     followPoints.emplace_back(followPointDirection(pointsCW[i], pointsForward[i]));
+    // }
 
 
+    // // choose which way to circle the opp/drive
+    // bool forwardInput = (gamepad.GetRightStickY() >= 0.0f);
+    // cv::Point2f followPoint = chooseBestPoint(followPoints, pointsCW, pointsForward, CW, currForward, forwardInput);
+    // followPoint = avoidBounds(followPoint); // make sure we don't hit any walls
+    // followPoint = commitToTarget(followPoint, deltaTime, 0.5f);
+    // int turnDirection = enforceTurnDirection(followPoint, currForward); // force that we turn away from the opp if needed
 
 
 
-
-    // std::cout << "CW = " << CW << ", forward = " << currForward;
-    // std::cout << "follow point x = " << followPoint.x << std::endl;
-
-
-    
-    // cv::Point2f bound = closestBoundPoint(orbFiltered.position());
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(), bound, 5, cv::Scalar(255, 230, 230), 3);
 
    
 
     // display things we want
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), radiusEquation(currForward, CW), cv::Scalar(0, 255, 0), 2); // draw radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(), cv::Scalar(255, 0, 0), 2); // draw pp radius
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), radiusEquation(currForward, CW), cv::Scalar(0, 255, 0), 2); // draw radius
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(), cv::Scalar(255, 0, 0), 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, cv::Scalar(0, 0, 255), 2); // draw dot on the opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppFiltered.getSizeRadius(), cv::Scalar(190, 190, 255), 2); // draw op size
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), cv::Scalar(255, 190, 190), 2); // draw op size
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), cv::Scalar(255, 190, 190), 2); // draw orb size
 
-    displayPathTangency(oppFiltered, cv::Scalar{255, 255, 255}); // display opp path tangency
+    // displayPathTangency(oppFiltered, cv::Scalar{255, 255, 255}); // display opp path tangency
     displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
     displayPathPoints(convexPoints, cv::Scalar(0, 0, 255)); // draw field bound points
     displayPathLines(orbFiltered.getPath(), cv::Scalar(255, 200, 200)); // display orb path
@@ -150,14 +141,26 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller
-    std::vector<float> driveInputs = curvatureController(followPoint, gamepad.GetRightStickY(), deltaTime, turnDirection);
+    // std::vector<float> driveInputs = curvatureController(followPoint, gamepad.GetRightStickY(), deltaTime, turnDirection);
+
+
+
+    FieldState currentState = FieldState(orbFiltered, oppFiltered, 0.0f, 0.03f, 0.14f, 5);
+
+
+    // std::cout << "input = " << currentState.calculateChildTurn(2) << std::endl;
+
+
+    float turnInput = currentState.chooseInput();
+
+    float speedScale = gamepad.GetRightStickY();
 
 
     // create and send drive command
     DriverStationMessage ret;
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
-    ret.driveCommand.movement = driveInputs[0];
-    ret.driveCommand.turn = driveInputs[1];
+    ret.driveCommand.movement = (1.0f - abs(turnInput)) * speedScale;
+    ret.driveCommand.turn = turnInput * speedScale;
     
     
     processingTimeVisualizer.markEnd();

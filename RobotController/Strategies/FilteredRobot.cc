@@ -51,12 +51,9 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) {
 }
 
 
-// hard sets the pos
-void FilteredRobot::setPos(std::vector<float> pos) {
-    posFiltered = pos;
-    velFiltered = {0, 0, 0};
-    accFiltered = {0, 0, 0};
-}
+// hard sets stuff
+void FilteredRobot::setPos(std::vector<float> pos) { posFiltered = pos; }
+void FilteredRobot::setVel1(std::vector<float> vel) { velFiltered = vel; }
 
 
 
@@ -264,6 +261,23 @@ float FilteredRobot::tangentVel(bool forward) {
 
 
 
+// abs speed of the robot in XY using slow filtered vel
+float FilteredRobot::moveSpeedSlow() {
+    return cv::norm(cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]));
+}
+
+
+// if a point is in the region of this robot's weapon
+bool FilteredRobot::inWeaponRegion(cv::Point2f point) {
+
+    float angleToPoint = angleTo(point, true);
+    float distanceToPoint = cv::norm(position() - point);
+
+    if(abs(angleToPoint) < weaponAngleReach && distanceToPoint < 90.0f) { return true; }
+    return false;
+}
+
+
 // simulates to find the estimated drive time considering max speed and accel
 // simulates to find estimated point time
 float FilteredRobot::moveETASim(float distance, float startVel, bool print) {
@@ -424,6 +438,7 @@ float FilteredRobot::angle(bool forward) {
 }
 
 float FilteredRobot::turnVel() { return velFiltered[2]; }
+float FilteredRobot::getMaxMoveSpeed() { return maxMoveSpeed; }
 float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
 float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
