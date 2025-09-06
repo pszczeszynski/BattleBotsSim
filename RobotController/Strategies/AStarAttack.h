@@ -41,6 +41,8 @@ private:
 
     bool currForward; // what we're currently leading with
     bool CW; // which way we're currently going around the circle
+    float prevFraction = 0.0f;
+    float prevDeficit = 0.0f;
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
     // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
@@ -67,19 +69,20 @@ private:
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     float calculateMovePercent(cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool forward);
-    float radiusEquation(bool forward, bool CW);
-    cv::Point2f followPointDirection(bool CW, bool forward);
+    float radiusEquation(float deltaTime, bool forward, bool CW);
+    cv::Point2f followPointDirection(float deltaTime, bool CW, bool forward);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(bool CW);
     int enforceTurnDirection(cv::Point2f followPoint, bool forward);
     float ppRad();
-    cv::Point2f avoidBounds(cv::Point2f rawFollowPoint);
-    float directionScore(cv::Point2f followPoint, bool CW, bool forward, bool forwardInput);
+    cv::Point2f avoidBounds(float deltaTime, cv::Point2f rawFollowPoint);
+    float directionScore(cv::Point2f followPoint, float deltaTime, bool CW, bool forward, bool forwardInput);
     cv::Point2f followPointInsideCircle(float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
-    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput);
+    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput, float deltaTime);
     cv::Point2f predictDriftStop(bool forward);
     float piecewise(std::vector<cv::Point2f> points, float x);
     std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection);
     int sign(float num);
     cv::Point2f commitToTarget(cv::Point2f followPoint, double deltaTime, float targetTime);
+    float orbETASim();
 };

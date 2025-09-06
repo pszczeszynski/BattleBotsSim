@@ -52,11 +52,9 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) {
 
 
 // hard sets the pos
-void FilteredRobot::setPos(std::vector<float> pos) {
-    posFiltered = pos;
-    velFiltered = {0, 0, 0};
-    accFiltered = {0, 0, 0};
-}
+void FilteredRobot::setPos(std::vector<float> pos) { posFiltered = pos; }
+void FilteredRobot::setVel(std::vector<float> vel) { velFiltered = vel; }
+void FilteredRobot::setAccel(std::vector<float> acc) { accFiltered = acc; }
 
 
 
@@ -218,8 +216,8 @@ float FilteredRobot::velAwayFromPoint(cv::Point2f point) {
 float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
     // how much orb velocity towards the opp do we actually count
-    float angleThresh1 = 60.0f*TO_RAD; // 50.0f
-    float angleThresh2 = 130.0f*TO_RAD; // 100.0f
+    float angleThresh1 = 50.0f*TO_RAD; // 60.0f
+    float angleThresh2 = 140.0f*TO_RAD; // 130.0f
 
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]); // angle we're actually moving in
     float angleToOppAbs = atan2(opp.position().y - posFiltered[1], opp.position().x - posFiltered[0]);
@@ -417,6 +415,7 @@ void FilteredRobot::updatePath() {
 cv::Point2f FilteredRobot::position() { return cv::Point2f(posFiltered[0], posFiltered[1]); }
 cv::Point2f FilteredRobot::moveVel() { return cv::Point2f(velFiltered[0], velFiltered[1]); }
 cv::Point2f FilteredRobot::moveVelSlow() { return cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]); }
+float FilteredRobot::moveSpeedSlow() { return cv::norm(moveVelSlow()); }
 
 float FilteredRobot::angle(bool forward) { 
     int offset = 0.0f; if(!forward) { offset = M_PI; } // offset by 180 if not forwards
@@ -425,6 +424,7 @@ float FilteredRobot::angle(bool forward) {
 
 float FilteredRobot::turnVel() { return velFiltered[2]; }
 float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
+float FilteredRobot::getMaxMoveSpeed() { return maxMoveSpeed; }
 float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
@@ -444,16 +444,7 @@ cv::Point2f FilteredRobot::clipInBounds(cv::Point2f point) {
 }
 
 
-std::vector<float> FilteredRobot::getPosFiltered() {
-    return posFiltered;
-}
-std::vector<float> FilteredRobot::getVelFiltered() {
-    return velFiltered;
-}
-std::vector<float> FilteredRobot::getAccFiltered() {
-    return accFiltered;
-}
-
-std::vector<float> FilteredRobot::getVelFilteredSlow() {
-    return velFilteredSlow;
-}
+std::vector<float> FilteredRobot::getPosFiltered() { return posFiltered; }
+std::vector<float> FilteredRobot::getVelFiltered() { return velFiltered; }
+std::vector<float> FilteredRobot::getAccFiltered() { return accFiltered; }
+std::vector<float> FilteredRobot::getVelFilteredSlow() { return velFilteredSlow; }

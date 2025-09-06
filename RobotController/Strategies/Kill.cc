@@ -114,16 +114,16 @@ std::vector<float> Kill::curvatureController(cv::Point2f followPoint, float move
     if(turnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 
     static float prevAngleError = 0.0f; // track how error is changing
-    float angleErrorChange = (angleError - prevAngleError) / deltaTime; // how the error is changing per time
+    float angleErrorChange = angleWrapRad(angleError - prevAngleError) / deltaTime; // how the error is changing per time
     prevAngleError = angleError; // save for next time
 
     // determine desired path curvature/drive radius using pd controller and magic limits
-    float currSpeed = cv::norm(cv::Point2f(orbFiltered.getVelFilteredSlow()[0], orbFiltered.getVelFilteredSlow()[1]));
+    float currSpeed = orbFiltered.moveSpeedSlow();
 
-    // 320
-    float maxCurveGrip = pow(290.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
+    // 290
+    float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
     float maxCurveScrub = currSpeed * 0.01f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
-    float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the boundary
+    float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
 
     // pd controller that increases path curvature with angle error
     float curvature = std::clamp(0.8f*angleError + 0.06f*angleErrorChange, -maxCurve, maxCurve); // 0.8f, 0.07f
