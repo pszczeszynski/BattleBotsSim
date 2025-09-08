@@ -106,7 +106,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // std::vector<cv::Point2f> dummyPath = {};
     // oppExtrap.constVelExtrapWrite(std::min(orbFiltered.ETASim(oppFiltered, dummyPath, false, false), 0.2f));
     // oppExtrap.constVelExtrapWrite(std::clamp(distanceToCollision * 0.006f, 0.0f, 0.2f));
-    oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, true, 0.3f, 0.000f); // ADD BACKWARDS DIRECTION
+    oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, true, 0.25f, 0.000f); // ADD BACKWARDS DIRECTION
 
 
 

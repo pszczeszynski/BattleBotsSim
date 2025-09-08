@@ -187,10 +187,10 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, f
         simTime += timeIncrement; // increment sim time
         std::vector<std::vector<float>> oppExtrap = virtualOpp.constVelExtrap(timeIncrement); // extrapolate opp another time step
 
-        float velLeft1Sec = 0.3f; // what percent of velocity is left after each second
+        float velLeft1Sec = 0.1f; // what percent of velocity is left after each second
         float velPercent = pow(velLeft1Sec, timeIncrement); // what percent of velocity is left after this timestep
 
-        float turnLeft1Sec = 0.3f; 
+        float turnLeft1Sec = 0.1f; 
 
         // if facing orb predict the opp will slow down
         // if(abs(virtualOpp.angleTo(position(), true)) < virtualOpp.getWeaponAngleReach()) { turnLeft1Sec = 0.05f; }
