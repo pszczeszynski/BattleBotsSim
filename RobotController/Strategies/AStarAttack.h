@@ -31,7 +31,6 @@ private:
 
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
-    FilteredRobot oppExtrap; // opp robot extrapolated into future
 
 
 
@@ -60,26 +59,27 @@ private:
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    cv::Point2f tangentPoint(float radius, bool CW);
-    cv::Point2f ppPoint(float radius, bool CW, float ppRadius);
+    cv::Point2f tangentPoint(FilteredRobot opp, float radius, bool CW);
+    cv::Point2f ppPoint(FilteredRobot opp, float radius, bool CW, float ppRadius);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     cv::Point2f closestBoundPoint(cv::Point2f point);
     bool insideFieldBounds(cv::Point2f point);
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     float calculateMovePercent(cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool forward);
-    float radiusEquation(float deltaTime, bool forward, bool CW);
-    cv::Point2f followPointDirection(float deltaTime, bool CW, bool forward);
+    float radiusEquation(FilteredRobot opp, float deltaTime, bool forward, bool CW);
+    cv::Point2f followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
-    float wallScore(bool CW);
-    int enforceTurnDirection(cv::Point2f followPoint, bool forward);
+    float wallScore(FilteredRobot opp, bool CW);
+    int enforceTurnDirection(FilteredRobot opp, cv::Point2f followPoint, bool forward);
     float ppRad();
-    cv::Point2f avoidBounds(float deltaTime, cv::Point2f rawFollowPoint);
-    float directionScore(cv::Point2f followPoint, float deltaTime, bool CW, bool forward, bool forwardInput);
-    cv::Point2f followPointInsideCircle(float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
-    cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput, float deltaTime);
-    cv::Point2f predictDriftStop(bool forward);
+    cv::Point2f avoidBounds(FilteredRobot opp, float deltaTime, cv::Point2f rawFollowPoint);
+    float directionScore(FilteredRobot opp, cv::Point2f followPoint, float deltaTime, bool CW, bool forward, bool forwardInput);
+    cv::Point2f followPointInsideCircle(FilteredRobot opp, float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
+    cv::Point2f chooseBestPoint(FilteredRobot oppForward, FilteredRobot oppBackward, std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput, float deltaTime);
+    cv::Point2f predictDriftStop(FilteredRobot opp, bool forward);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
-    cv::Point2f commitToTarget(cv::Point2f followPoint, double deltaTime, float targetTime);
+    cv::Point2f commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime);
+    void emote();
 };

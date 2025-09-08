@@ -495,15 +495,15 @@ DriverStationMessage RobotController::RobotLogic()
         _orbiting = false;
     }
 
-    // draw on drawing image if we are orbiting
-    if (_orbiting)
-    {
-        cv::putText(drawingImage, "Orbit", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
-    }
-    else if (_killing)
-    {
-        cv::putText(drawingImage, "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-    }
+    // // draw on drawing image if we are orbiting
+    // if (_orbiting)
+    // {
+    //     cv::putText(drawingImage, "Orbit", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+    // }
+    // else if (_killing)
+    // {
+    //     cv::putText(drawingImage, "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+    // }
 
     // wonky shit happens if we try to do 180 turns and orbit/kill
     // make sure we can only do one at once

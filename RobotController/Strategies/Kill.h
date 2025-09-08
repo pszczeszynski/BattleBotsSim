@@ -18,8 +18,8 @@ private:
 
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
-    FilteredRobot oppExtrap; // opp robot extrapolated into future
 
 
     void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
+    void emote();
 };
