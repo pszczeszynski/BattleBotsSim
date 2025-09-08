@@ -29,9 +29,9 @@ public:
 
 private:
 
-    // filtered data for orb and opp
-    FilteredRobot orbFiltered;
-    FilteredRobot oppFiltered;
+    FilteredRobot orbFiltered; // orb robot
+    FilteredRobot oppFiltered; // opp robot
+    FilteredRobot oppExtrap; // opp robot extrapolated into future
 
 
 
@@ -41,8 +41,7 @@ private:
 
     bool currForward; // what we're currently leading with
     bool CW; // which way we're currently going around the circle
-    float prevFraction = 0.0f;
-    float prevDeficit = 0.0f;
+    float prevRadius = 0.0f;
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
     // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
@@ -81,8 +80,6 @@ private:
     cv::Point2f chooseBestPoint(std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput, float deltaTime);
     cv::Point2f predictDriftStop(bool forward);
     float piecewise(std::vector<cv::Point2f> points, float x);
-    std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection);
     int sign(float num);
     cv::Point2f commitToTarget(cv::Point2f followPoint, double deltaTime, float targetTime);
-    float orbETASim();
 };

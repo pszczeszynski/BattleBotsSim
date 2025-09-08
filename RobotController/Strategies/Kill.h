@@ -16,14 +16,10 @@ public:
 
 private:
 
-    // filtered data for orb and opp
-    FilteredRobot orbFiltered;
-    FilteredRobot oppFiltered;
+    FilteredRobot orbFiltered; // orb robot
+    FilteredRobot oppFiltered; // opp robot
+    FilteredRobot oppExtrap; // opp robot extrapolated into future
 
 
-
-
-    std::vector<float> curvatureController(cv::Point2f followPoint, float moveSpeed, float deltaTime, int turnDirection, bool forward);
-    cv::Point2f collidePoint(bool forward);
-    int sign(float num);
+    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
 };

@@ -22,8 +22,8 @@ class FilteredRobot
                      float visionTheta);  // run filter update to find new data
 
 
-  float collideETA(
-      FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
+  float collideETA(FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
+  float ETASim(FilteredRobot target, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace); // simulate time to collide with a robot
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
@@ -40,6 +40,8 @@ class FilteredRobot
   void setAccel(std::vector<float> acc);
   std::vector<std::vector<float>> constAccExtrap(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
+  void constVelExtrapWrite(float time);
+  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, float timeOffsetFactor);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
 
@@ -64,6 +66,7 @@ class FilteredRobot
   float getWeaponDriftScaleReach();
   float getSizeRadius();
   float velAwayFromPoint(cv::Point2f point);
+  std::vector<float> curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward);
 
 
 
@@ -73,6 +76,8 @@ class FilteredRobot
 
   float fieldMax = WIDTH;
   float fieldMin = 0.0f;
+
+  float prevAngleError = 0.0f; // previous angle error for curvature controller
 
   // each are 3 big, XYT
   std::vector<float> posFiltered;  // current pos
