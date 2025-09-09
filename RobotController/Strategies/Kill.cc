@@ -4,6 +4,7 @@
 #include "../RobotController.h"
 #include "Extrapolate.h"
 #include "../SafeDrawing.h"
+#include "DisplayUtils.h"
 
 Kill::Kill()
 {
@@ -77,8 +78,8 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppExtrap.position(), oppExtrap.getSizeRadius(), colorOpp, 2); // draw op size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
 
-    displayPathPoints(orbSimPath, colorOrb); // display orb's simulated path
-    displayPathPoints(oppSimPath, colorOppLight); // display opp's simulated path
+    DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
+    DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
 
     std::string forwardStatus = "Forward"; 
     if(!forward) { forwardStatus = "Backward"; }
@@ -104,15 +105,6 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
 
-
-
-// display a path of points as points
-void Kill::displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color) {
-    for (int i = 0; i < path.size(); i++) {
-        cv::Point centerInt(round(path[i].x), round(path[i].y));
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), centerInt, 3, color, 2);
-    }
-}
 
 
 // WEWEWEWEWEEE

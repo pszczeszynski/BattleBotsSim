@@ -10,6 +10,7 @@
 #include "../UIWidgets/ClockWidget.h"
 #include "../MathUtils.h"
 #include <cstdlib>
+#include "DisplayUtils.h"
 
 AStarAttack* AStarAttack::_instance = nullptr;
 
@@ -225,12 +226,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
 
     displayPathTangency(targetOpp, cv::Scalar{255, 255, 255}); // display opp path tangency
-    displayPathPoints(orbSimPath, colorOrb); // display orb's simulated path
-    displayPathPoints(oppSimPath, colorOppLight); // display opp's simulated path
+    DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
+    DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
     displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
-    displayPathPoints(convexPoints, cv::Scalar(0, 0, 255)); // draw field bound points
-    displayPathLines(orbFiltered.getPath(), cv::Scalar(255, 200, 200)); // display orb path
-    displayPathLines(targetOpp.getPath(), cv::Scalar(255, 200, 200)); // display opp path
+    DisplayUtils::displayPoints(convexPoints, cv::Scalar(0, 0, 255), cv::Scalar(0, 0, 255), 4); // draw field bound points
+    DisplayUtils::displayPath(orbFiltered.getPath(), cv::Scalar(100, 100, 100), colorOrbLight, 3); // display orb path
+    DisplayUtils::displayPath(targetOpp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
     // cv::line(RobotController::GetInstance().GetDrawingImage(), targetOpp.position(), predictDriftStop(targetOpp, currForward), cv::Scalar(255, 255, 0), 2);
 
     std::string forwardStatus = "Forward"; 
@@ -503,28 +504,6 @@ bool AStarAttack::intersectsAnyBound(Line testLine) {
 }
 
 
-// display a path of points as points
-void AStarAttack::displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color) {
-    for (int i = 0; i < path.size(); i++) {
-        cv::Point centerInt(round(path[i].x), round(path[i].y));
-        safe_circle(RobotController::GetInstance().GetDrawingImage(), centerInt, 3, color, 2);
-    }
-}
-
-
-// displays a path of points as lines
-void AStarAttack::displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color) {
-
-    if(path.size() < 1) { return; } // no crashy
-
-    for (int i = 0; i < path.size() - 1; i++) {
-        cv::Point centerInt(round(path[i].x), round(path[i].y));
-        cv::Point centerInt2(round(path[i + 1].x), round(path[i + 1].y));
-        cv::line(RobotController::GetInstance().GetDrawingImage(), centerInt, centerInt2, color, 2);
-    }
-}
-
-
 
 // generates a list of arc points from the center
 std::vector<cv::Point2f> AStarAttack::arcPointsFromCenter(float radius, float angle, float pointSpacing) {
@@ -722,7 +701,7 @@ float AStarAttack::wallScore(FilteredRobot opp, bool CW) {
     cv::Scalar color = cv::Scalar(200, 255, 200);
     if(!CW) { color = cv::Scalar(200, 200, 255); }
 
-    displayPathPoints(scanPoints, color);
+    DisplayUtils::displayPoints(scanPoints, color, color, 3);
     // displayLineList(scanLines, color);
 
     return closestDistance;

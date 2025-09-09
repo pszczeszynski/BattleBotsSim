@@ -19,7 +19,5 @@ private:
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
 
-
-    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
     void emote();
 };

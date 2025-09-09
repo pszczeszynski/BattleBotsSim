@@ -111,6 +111,7 @@ set(SOURCES
     PurePursuit.cc
     Strategies/Extrapolate.cc
     SafeDrawing.cc
+    Strategies/DisplayUtils.cc
 )
 
 # Check for opencv_tracking module

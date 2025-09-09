@@ -50,8 +50,7 @@ private:
 
 
 
-    void displayPathPoints(std::vector<cv::Point2f>& path, cv::Scalar color);
-    void displayPathLines(std::vector<cv::Point2f>& path, cv::Scalar color);
+
     void displayLineList(std::vector<Line>& lines, cv::Scalar color);
     void displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color);
     void displayPathTangency(FilteredRobot robot, cv::Scalar color);
