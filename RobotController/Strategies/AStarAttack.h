@@ -40,7 +40,6 @@ private:
 
     bool currForward; // what we're currently leading with
     bool CW; // which way we're currently going around the circle
-    float prevRadius = 0.0f;
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
     // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
@@ -50,10 +49,6 @@ private:
 
 
 
-
-    void displayLineList(std::vector<Line>& lines, cv::Scalar color);
-    void displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color);
-    void displayPathTangency(FilteredRobot robot, cv::Scalar color);
 
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
@@ -65,7 +60,6 @@ private:
     bool insideFieldBounds(cv::Point2f point);
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
-    float calculateMovePercent(cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool forward);
     float radiusEquation(FilteredRobot opp, float deltaTime, bool forward, bool CW);
     cv::Point2f followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
@@ -80,5 +74,5 @@ private:
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     cv::Point2f commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime);
-    void emote();
+
 };

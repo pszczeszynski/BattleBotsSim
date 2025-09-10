@@ -206,7 +206,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     if(colliding && facing && !oppFacing) { 
         colorOpp = cv::Scalar(200, 255, 200); 
         colorOppLight = cv::Scalar(200, 255, 200); 
-        emote(); // DO NOT DELETE
+        DisplayUtils::emote(); // DO NOT DELETE
     }
 
     // turn orb red if we get hit
@@ -225,10 +225,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     safe_circle(RobotController::GetInstance().GetDrawingImage(), targetOpp.position(), targetOpp.getSizeRadius(), colorOpp, 2); // draw op size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
 
-    displayPathTangency(targetOpp, cv::Scalar{255, 255, 255}); // display opp path tangency
     DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
     DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
-    displayLineList(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
+    DisplayUtils::displayLines(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
     DisplayUtils::displayPoints(convexPoints, cv::Scalar(0, 0, 255), cv::Scalar(0, 0, 255), 4); // draw field bound points
     DisplayUtils::displayPath(orbFiltered.getPath(), cv::Scalar(100, 100, 100), colorOrbLight, 3); // display orb path
     DisplayUtils::displayPath(targetOpp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
@@ -414,27 +413,6 @@ float AStarAttack::piecewise(std::vector<cv::Point2f> points, float x) {
 }
 
 
-// calculates move percent with a gain down based on angle error
-float AStarAttack::calculateMovePercent(cv::Point2f followPoint, float angleThresh1, float angleThresh2, bool forward) {
-
-    // how far we have to turn to face the follow point
-    float angleError = orbFiltered.angleTo(followPoint, forward);
-
-    // calculate move percent
-    float movePercent = 1.0f;
-    if(abs(angleError) > angleThresh1) {
-        movePercent = 1.0f - (abs(angleError) - angleThresh1) / (angleThresh2 - angleThresh1);
-    }
-    if(abs(angleError) > angleThresh2) {
-        movePercent = 0.0f;
-    }
-    // invert drive direction if needed
-    if(!forward) { movePercent *= -1; }
-    return movePercent;
-}
-
-
-
 // returns the tangent point of a circle with set radius around the opponent
 cv::Point2f AStarAttack::tangentPoint(FilteredRobot opp, float radius, bool CW) {
 
@@ -463,8 +441,6 @@ cv::Point2f AStarAttack::tangentPoint(FilteredRobot opp, float radius, bool CW) 
 
 // returns intersection of pp radius with circle of set radius around opponent in the correction direction
 cv::Point2f AStarAttack::ppPoint(FilteredRobot opp, float radius, bool CW, float ppRadius) {
-
-    float distanceToOpp = orbFiltered.distanceTo(opp.position());
 
     std::vector<cv::Point2f> circle = arcPointsFromCenter(radius, 2*M_PI, 5.0f);
     transformList(circle, opp.position(), 0.0f);
@@ -547,25 +523,6 @@ float AStarAttack::angle(cv::Point2f point1, cv::Point2f point2) {
     return std::atan2(point2.y - point1.y, point2.x - point1.x);
 }
 
-
-
-// displays a specific set of field bounds
-void AStarAttack::displayFieldBoundIndices(std::vector<int> indices, cv::Scalar color) {
-    for(int i = 0; i < indices.size(); i++) {
-        cv::Point2f point1 = fieldBoundLines[indices[i]].getLinePoints().first;
-        cv::Point2f point2 = fieldBoundLines[indices[i]].getLinePoints().second;
-        cv::line(RobotController::GetInstance().GetDrawingImage(), point1, point2, color, 2);
-    }
-}
-
-
-// displays the lines from a list
-void AStarAttack::displayLineList(std::vector<Line>& lines, cv::Scalar color) {
-    for(int i = 0; i < lines.size(); i++) {
-        std::pair<cv::Point2f, cv::Point2f> linePoints = lines[i].getLinePoints();
-        cv::line(RobotController::GetInstance().GetDrawingImage(), linePoints.first, linePoints.second, color, 2);
-    }
-}
 
 
 // distance to the closest line from the list
@@ -741,18 +698,6 @@ int AStarAttack::enforceTurnDirection(FilteredRobot opp, cv::Point2f followPoint
 }
 
 
-// displays the path tangency data for inputted robot
-void AStarAttack::displayPathTangency(FilteredRobot robot, cv::Scalar color) {
-
-    float angle = robot.angle(true);
-    cv::Point2f position = robot.position();
-
-    float radius = 50.0f;
-    cv::Point2f secondPoint = cv::Point2f(position.x + radius*cos(angle), position.y + radius*sin(angle));
-    cv::line(RobotController::GetInstance().GetDrawingImage(), position, secondPoint, color, 2);
-}
-
-
 // calculates pure pursuit radius based on speeds
 float AStarAttack::ppRad() {
     float radSlow = ASTAR_PP_RAD_SLOW;
@@ -761,7 +706,6 @@ float AStarAttack::ppRad() {
     float currSpeed = cv::norm(cv::Point2f(orbFiltered.getVelFilteredSlow()[0], orbFiltered.getVelFilteredSlow()[1]));
     return radSlow + ((radFast - radSlow) / speedFast) * currSpeed;
 }
-
 
 
 // accounts for all bound stuff, including collisions with wall segments that jut into the field
@@ -785,8 +729,7 @@ cv::Point2f AStarAttack::avoidBounds(FilteredRobot opp, float deltaTime, cv::Poi
         }
     }
 
-    displayFieldBoundIndices(boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
-
+    DisplayUtils::displayLinesIndices(fieldBoundLines, boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
 
     std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
     for(int i = 0; i < boundaryHits.size(); i++) {
@@ -1169,47 +1112,4 @@ void AStarAttack::ResetFieldBoundariesToDefault() {
     };
     
     RegenerateFieldBoundaryLines();
-}
-
-
-// WEWEWEWEWEEE
-void AStarAttack::emote() {
-
-    cv::Mat drawing = RobotController::GetInstance().GetDrawingImage();
-
-    cv::Mat logo = cv::imread("SkullEmote.png", cv::IMREAD_UNCHANGED); // keep alpha
-    if (!logo.empty()) {
-        // Pick top-left corner of where you want it
-        cv::Point topLeft(100, 100);
-
-        // Make sure it fits in the drawing surface
-        cv::Rect roi(topLeft.x, topLeft.y, logo.cols, logo.rows);
-
-        // If PNG has 4 channels (BGRA), split alpha and blend
-        if (logo.channels() == 4) {
-            std::vector<cv::Mat> layers;
-            cv::split(logo, layers);
-            cv::Mat bgr, alpha;
-            cv::merge(std::vector<cv::Mat>{layers[0], layers[1], layers[2]}, bgr);
-            alpha = layers[3];
-
-            // blend PNG into drawing (simple alpha composite)
-            cv::Mat region = drawing(roi);
-            for (int y = 0; y < roi.height; ++y) {
-                for (int x = 0; x < roi.width; ++x) {
-                    float a = alpha.at<uchar>(y, x) / 255.0f;
-                    for (int c = 0; c < 3; ++c) {
-                        region.at<cv::Vec3b>(y, x)[c] =
-                            static_cast<uchar>(a * bgr.at<cv::Vec3b>(y, x)[c] +
-                                            (1.0f - a) * region.at<cv::Vec3b>(y, x)[c]);
-                    }
-                }
-            }
-        } else {
-            // plain BGR copy if no alpha
-            logo.copyTo(drawing(roi));
-        }
-    }
-
-    // std::cout << "Working directory is: " << std::filesystem::current_path() << "\n";
 }

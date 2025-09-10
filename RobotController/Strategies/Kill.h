@@ -19,5 +19,4 @@ private:
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
 
-    void emote();
 };
