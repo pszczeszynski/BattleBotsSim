@@ -843,12 +843,12 @@ float AStarAttack::directionScore(FilteredRobot opp, cv::Point2f followPoint, fl
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(forward);
     float tanVel = pow(raw, 2.0f) * sign(raw);
-    float momentumWeight = 0.2f * closeness; // 0.2
+    float momentumWeight = 0.01f * closeness; // 0.2
 
 
     // penalty for using the back bc we want to use front more often
     int directionInput = 1; if(!forwardInput) { directionInput = -1; }
-    float backWeight = 150.0f*directionInput; // 40.0f
+    float backWeight = 200.0f*directionInput; // 40.0f
 
     // angleToPointGraph.AddData(wallWeight*wallGain);
 
@@ -870,11 +870,11 @@ cv::Point2f AStarAttack::followPointInsideCircle(FilteredRobot opp, float radius
     float distanceToOpp = cv::norm(orbFiltered.position() - opp.position());
 
     // first define parameters at collision radius
-    float minAngleFront = -60.0f*TO_RAD; // -80
-    float maxAngleFront = 10.0f*TO_RAD;
+    float minAngleFront = -80.0f*TO_RAD; // -60
+    float maxAngleFront = 0.0f*TO_RAD; // 10
 
-    float minAngleSide = -80.0f*TO_RAD; // -185
-    float maxAngleSide = -10.0f*TO_RAD; // -60
+    float minAngleSide = -90.0f*TO_RAD; // -80
+    float maxAngleSide = 0.0f*TO_RAD; // -10
 
     float sideAngle = -100.0f*TO_RAD;
 
