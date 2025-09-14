@@ -34,6 +34,9 @@ class FilteredRobot
                     bool print);  // minimum time of both turn directions
   float turnTimeSimple(cv::Point2f point, float angleMargin, bool forward, bool print);
 
+  bool colliding(FilteredRobot opp, float tolerance);
+  bool facing(FilteredRobot opp, bool forward);
+
   void updatePath();
   void setPos(std::vector<float> pos);
   void setVel(std::vector<float> vel);

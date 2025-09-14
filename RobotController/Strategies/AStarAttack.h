@@ -7,6 +7,8 @@
 #include <cmath>
 #include "Line.h"
 #include "FilteredRobot.h"
+#include "FollowPoint.h"
+
 
 class AStarAttack : public Strategy
 {
@@ -38,8 +40,6 @@ private:
     std::vector<Line> fieldBoundLines; // list of lines that defines the outline of the field
     std::vector<cv::Point2f> convexPoints; // list of field bound convex points we could hit while driving
 
-    bool currForward; // what we're currently leading with
-    bool CW; // which way we're currently going around the circle
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
     // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
@@ -53,24 +53,23 @@ private:
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    cv::Point2f tangentPoint(FilteredRobot opp, float radius, bool CW);
-    cv::Point2f ppPoint(FilteredRobot opp, float radius, bool CW, float ppRadius);
+    void tangentPoint(FollowPoint &follow);
+    cv::Point2f ppPoint(FollowPoint follow);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     cv::Point2f closestBoundPoint(cv::Point2f point);
     bool insideFieldBounds(cv::Point2f point);
     bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
-    float radiusEquation(FilteredRobot opp, float deltaTime, bool forward, bool CW);
-    cv::Point2f followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward);
+    void radiusEquation(FollowPoint &follow);
+    FollowPoint followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward, std::vector<cv::Point2f> oppSimPath);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(FilteredRobot opp, bool CW);
-    int enforceTurnDirection(FilteredRobot opp, cv::Point2f followPoint, bool forward);
+    void enforceTurnDirection(FollowPoint &follow);
     float ppRad();
-    cv::Point2f avoidBounds(FilteredRobot opp, float deltaTime, cv::Point2f rawFollowPoint);
-    float directionScore(FilteredRobot opp, cv::Point2f followPoint, float deltaTime, bool CW, bool forward, bool forwardInput);
-    cv::Point2f followPointInsideCircle(FilteredRobot opp, float radius, float ppRadius, bool CW, bool forward, float collisionRadius);
-    cv::Point2f chooseBestPoint(FilteredRobot oppForward, FilteredRobot oppBackward, std::vector<cv::Point2f> followPoints, std::vector<bool> pointsCW, std::vector<bool> pointsForward, bool& CW, bool& forward, bool forwardInput, float deltaTime);
-    cv::Point2f predictDriftStop(FilteredRobot opp, bool forward);
+    void avoidBounds(FollowPoint &follow, float deltaTime);
+    float directionScore(FollowPoint follow, float deltaTime, bool forwardInput);
+    void followPointInsideCircle(FollowPoint &follow);
+    FollowPoint chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     cv::Point2f commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime);

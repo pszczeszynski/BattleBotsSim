@@ -323,6 +323,19 @@ float FilteredRobot::velAwayFromPoint(cv::Point2f point) {
 }
 
 
+// if we're colliding with another robot within a tolerance
+bool FilteredRobot::colliding(FilteredRobot opp, float tolerance) {
+    return distanceTo(opp.position()) < sizeRadius + opp.getSizeRadius() + tolerance;
+}
+
+
+// if we're facing another robot
+bool FilteredRobot::facing(FilteredRobot opp, bool forward) {
+    return abs(angleTo(opp.position(), forward)) < weaponAngleReach;
+}
+
+
+
 // how long to collide with a robot using current velocity and assumed turn speed
 float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
@@ -379,10 +392,13 @@ float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path
 
     for(int i = 0; i < steps; i++) { // simulate orb's actions through each time step
 
+        path.emplace_back(cv::Point2f(simPos[0], simPos[1])); // add the point to the path
+
         // pasted BS plz fix
         FilteredRobot dummyOrb = *this;
         dummyOrb.setPos(simPos);
         float angleError = dummyOrb.angleTo(target.position(), forward); // how far off we are from target
+
 
 
         // if we're in the opp's weapon range then return a high number so fraction goes high (if we want to stop if hit)
@@ -453,7 +469,6 @@ float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path
 
 
         simTime += timeStep;
-        path.emplace_back(cv::Point2f(simPos[0], simPos[1])); // add the point to the path
     }
 
     return simTime;
@@ -578,7 +593,7 @@ int FilteredRobot::sign(float num) {
 // angle to the inputted point from the front of the robot
 float FilteredRobot::angleTo(cv::Point2f point, bool forward) {
     float rawAngle = atan2(point.y - posFiltered[1], point.x - posFiltered[0]);
-    float offset = 0.0f; if(!forward) { offset = M_PI; } // turn by 180 if its backwards
+    float offset = forward ? 0.0f : M_PI; // turn by 180 if its backwards
     return angle_wrap(rawAngle - posFiltered[2] + offset);
 }
 

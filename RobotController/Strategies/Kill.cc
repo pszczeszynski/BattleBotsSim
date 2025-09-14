@@ -81,8 +81,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
     DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
 
-    std::string forwardStatus = "Forward"; 
-    if(!forward) { forwardStatus = "Backward"; }
+    std::string forwardStatus = forward ? "Forward" : "Backward"; 
 
     cv::putText(RobotController::GetInstance().GetDrawingImage(), "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
     cv::putText(RobotController::GetInstance().GetDrawingImage(), forwardStatus, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);

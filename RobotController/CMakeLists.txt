@@ -112,6 +112,7 @@ set(SOURCES
     Strategies/Extrapolate.cc
     SafeDrawing.cc
     Strategies/DisplayUtils.cc
+    Strategies/FollowPoint.cc
 )
 
 # Check for opencv_tracking module
