@@ -211,10 +211,38 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, f
 }
 
 
-// calculates move and turn speeds to follow the followPoint
-std::vector<float> FilteredRobot::curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward) {
+// simulates us and opp into the future to calculate ETA times and extrapolate appropriately
+void dynamicSim(FilteredRobot& opp, std::vector<cv::Point2f> &path, std::vector<cv::Point2f> oppPath, bool forward) {
 
-    float angleError = angleTo(followPoint, forward); // how far off we are from target
+    float timeIncrement = 0.01f;
+    float simTime = 0.0f;
+
+    
+
+    FilteredRobot virtualOpp = opp; // will return this virtual opp
+    cv::Point2f oppPositionExtrap = opp.position(); // extrapolated opp pos, starts on the opp
+
+}
+
+
+// calculates move and turn speeds to follow the followPoint
+std::vector<float> FilteredRobot::curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward, cv::Point2f oppVel) {
+
+    float oppSpeed = cv::norm(oppVel); // how fast the opp is moving in absolute
+
+    float pointAngle = atan2(followPoint.y - posFiltered[1], followPoint.x - posFiltered[0]); // absolute angle to the point
+
+    float p = oppVel.x*cos(pointAngle) + oppVel.y*sin(pointAngle);
+    float s = sqrt(pow(maxMoveSpeed, 2) - pow(oppVel.x*sin(pointAngle) - oppVel.y*cos(pointAngle), 2));
+
+    float pointSpeed = 0.0f;
+    if(s > p) { pointSpeed = -p + s; } // thanks chat, ensures vector sum is always to maxMoveSpeed
+
+    cv::Point2f pointVel = cv::Point2f(pointSpeed*cos(pointAngle), pointSpeed*sin(pointAngle)); // vector in the direction of the followPoint
+    cv::Point2f totalVel = oppVel + pointVel; // sum the opp's vel with our desired vel in their frame
+    float targetAngle = atan2(totalVel.y, totalVel.x); // target angle is in the direction of the total vector
+
+    float angleError = angle_wrap(targetAngle - posFiltered[2]); // how far off we are from target
     if(turnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
     if(turnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 
@@ -409,7 +437,7 @@ float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path
 
         // if we're close enough to collide and facing opp, then return
         bool colliding = dummyOrb.distanceTo(target.position()) < dummyOrb.getSizeRadius() + target.getSizeRadius();
-        bool facing = abs(dummyOrb.angleTo(target.position(), forward)) < 40.0f*TO_RAD;
+        bool facing = abs(dummyOrb.angleTo(target.position(), forward)) < 80.0f*TO_RAD;
         if(colliding && (facing || !orbNeedsToFace)) { break; }
 
 

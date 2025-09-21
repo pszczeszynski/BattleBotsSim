@@ -28,6 +28,7 @@ class FilteredRobot
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
                     bool print);  // simulate estimated turn time to point
+  void dynamicSim(FilteredRobot& opp, std::vector<cv::Point2f> &path, std::vector<cv::Point2f> oppPath, bool forward);
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
@@ -69,7 +70,8 @@ class FilteredRobot
   float getWeaponDriftScaleReach();
   float getSizeRadius();
   float velAwayFromPoint(cv::Point2f point);
-  std::vector<float> curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward);
+  std::vector<float> curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward, cv::Point2f oppVel);
+
 
 
 

@@ -64,8 +64,8 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 430.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
 }
 
 
@@ -105,10 +105,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // raw follow points in every direction
-    std::vector<bool> pointsCW = {true, true, false, false};
-    std::vector<bool> pointsForward = {true, false, true, false};
-    // std::vector<bool> pointsCW = {true, false};
-    // std::vector<bool> pointsForward = {false, false};
+    // std::vector<bool> pointsCW = {true, true, false, false};
+    // std::vector<bool> pointsForward = {true, false, true, false};
+    std::vector<bool> pointsCW = {true, false};
+    std::vector<bool> pointsForward = {true, true};
     // std::vector<bool> pointsCW = {true};
     // std::vector<bool> pointsForward = {true};
 
@@ -193,6 +193,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     DisplayUtils::displayPath(follow.opp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
 
 
+    // display lines
+    cv::Point2f oppOrientationEnd = cv::Point2f(follow.opp.position().x + follow.opp.getSizeRadius()*cos(follow.opp.angle(true)), follow.opp.position().y + follow.opp.getSizeRadius()*sin(follow.opp.angle(true)));
+    cv::line(RobotController::GetInstance().GetDrawingImage(), follow.opp.position(), oppOrientationEnd, colorOpp, 2);
+
+
     // display text
     std::string forwardStatus = follow.forward ? "Forward" : "Backward"; 
     std::string CWStatus = follow.CW ? "CW" : "CCW";
@@ -205,10 +210,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.8, 0.06
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.point, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    float oppSpeedOffset = 100.0f;
+    cv::Point2f oppVelOffset = cv::Point2f(cos(oppFiltered.angle(true)), sin(oppFiltered.angle(true))) * oppSpeedOffset;
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.point, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward, follow.opp.moveVel() + oppVelOffset);
 
 
-    std::cout << "controllerGain = " << follow.controllerGain << std::endl;
+    // std::cout << "controllerGain = " << follow.controllerGain << std::endl;
 
 
 
@@ -251,11 +258,13 @@ FollowPoint AStarAttack::followPointDirection(FilteredRobot opp, float deltaTime
     FollowPoint follow = FollowPoint(forward, CW, opp, oppSimPath); // create a follow point
     radiusEquation(follow); //  set attack radius
     
+
+    follow.opp = oppFiltered; // extrapolation is only used for radius calc
     
     tangentPoint(follow); // main case is drive towards the tangent point on the attack radius
 
 
-    bool outsideCircle = follow.radius < orbFiltered.distanceTo(opp.position()); // if orb is outside of the attack radius
+    bool outsideCircle = follow.radius < orbFiltered.distanceTo(follow.opp.position()); // if orb is outside of the attack radius
 
     // if we're outside the circle but the tangent point is too close then enforce the pure pursuit radius
     if(outsideCircle && orbFiltered.distanceTo(follow.point) < ppRad()) { follow.point = ppPoint(follow); }
@@ -325,7 +334,7 @@ void AdjustRadiusWithBumpers() {
 void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
-    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, false, follow.forward);
+    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, true, follow.forward);
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
 
@@ -333,8 +342,9 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     float fraction = 999999999.0f;
     if (oppETA != 0.0f) { fraction = std::max((orbETA - oppETA) / oppETA, 0.0f); }
 
-    // let driver adjust aggressiveness with bumpers
-    AdjustRadiusWithBumpers();
+
+    AdjustRadiusWithBumpers(); // let driver adjust aggressiveness with bumpers
+
 
     // input fraction to output radius using RobotConfig variables
     std::vector<cv::Point2f> radiusCurve = {
@@ -345,6 +355,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // radius is piecewise output
     follow.radius = piecewise(radiusCurve, fraction);
+    // follow.radius = 100.0f;
 }
 
 
@@ -855,9 +866,8 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
     // controller gain is less and less the further you get into the circle
-    float minGain = 0.3f;
+    float minGain = 0.3f; // 0.3
     follow.controllerGain = radiusPercent*(1.0f - minGain) + minGain;
-
 
 
     // convert to world angle

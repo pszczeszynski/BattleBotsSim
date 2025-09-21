@@ -88,7 +88,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller
-    std::vector<float> driveInputs = orbFiltered.curvatureController(followPoint, 0.8f, 0.06f, gamepad.GetRightStickY(), deltaTime, 0, forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(followPoint, 0.8f, 0.06f, gamepad.GetRightStickY(), deltaTime, 0, forward, cv::Point2f(0, 0));
 
 
     // create and send drive command
