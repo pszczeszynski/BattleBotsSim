@@ -99,8 +99,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     std::vector<cv::Point2f> oppSimPathForward = {};
     std::vector<cv::Point2f> oppSimPathBackward = {};
 
-    FilteredRobot oppExtrapForward = orbFiltered.createVirtualOpp(oppFiltered, true, 0.25f, 0.000f, oppSimPathForward);
-    FilteredRobot oppExtrapBackward = orbFiltered.createVirtualOpp(oppFiltered, false, 0.25f, 0.000f, oppSimPathBackward);
+    FilteredRobot oppExtrapForward = orbFiltered.createVirtualOpp(oppFiltered, true, 0.25f, oppSimPathForward);
+    FilteredRobot oppExtrapBackward = orbFiltered.createVirtualOpp(oppFiltered, false, 0.25f, oppSimPathBackward);
+
 
 
 
@@ -210,9 +211,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.8, 0.06
-    float oppSpeedOffset = 100.0f;
+    float oppSpeedOffset = 0.0f; // 30
+    float oppSpeedGain = 1.1f;
     cv::Point2f oppVelOffset = cv::Point2f(cos(oppFiltered.angle(true)), sin(oppFiltered.angle(true))) * oppSpeedOffset;
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.point, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward, follow.opp.moveVel() + oppVelOffset);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.point, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward, oppSpeedGain*follow.opp.moveVel() + oppVelOffset);
 
 
     // std::cout << "controllerGain = " << follow.controllerGain << std::endl;
@@ -322,7 +324,7 @@ void AdjustRadiusWithBumpers() {
     }
 
     RADIUS_CURVE_Y1 = fmin(RADIUS_CURVE_Y1, RADIUS_CURVE_Y2 - 10);
-    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 30);
+    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 0);
 
     prevRightBumper = currRightBumper;
     prevLeftBumper = currLeftBumper;
@@ -335,8 +337,9 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
     float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, true, follow.forward);
-    float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
+    float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
+    // float oppETA = oppFiltered.turnTimeSimple(orbFiltered.position(), oppFiltered.getWeaponAngleReach(), true, true);
 
     // fraction is the main metric for radius
     float fraction = 999999999.0f;
@@ -354,8 +357,10 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     };
 
     // radius is piecewise output
-    follow.radius = piecewise(radiusCurve, fraction);
+    // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 100.0f;
+    // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
+    follow.radius = 120.0f * sin(std::min(0.125 * fraction, 90.0f*TO_RAD)); // higher is more conservative
 }
 
 
@@ -799,7 +804,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 10.0f; // 10
+    float goAroundGain = 12.0f; // 10
 
 
     // how close is the nearest wall in this direction

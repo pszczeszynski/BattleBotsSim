@@ -165,22 +165,19 @@ void FilteredRobot::constVelExtrapWrite(float time) {
 
 
 // extrapolates the opp's pos to see what point we'll line up at
-FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, float timeOffsetFactor, std::vector<cv::Point2f> &path) {
+FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, std::vector<cv::Point2f> &path) {
 
     float timeIncrement = 0.01f; // time increment of the simulation
     float simTime = 0.0f; // time in the sim
-    float distanceToCollision = distanceTo(opp.position()) - sizeRadius - opp.getSizeRadius();
-    float timeOffset = timeOffsetFactor * distanceToCollision; // how much we want to lag the opponent to make sure our side doesn't get hit, more lag (higher value) = less likely to lead them but more likely to get side hit
 
     FilteredRobot virtualOpp = opp; // will return this virtual opp
-    cv::Point2f oppPositionExtrap = opp.position(); // extrapolated opp pos, starts on the opp
 
     // run until the sim time is above the max time
     while(simTime < maxExtrapTime) {
 
         std::vector<cv::Point2f> bruh = {};
         float orbETA = ETASim(virtualOpp, bruh, false, false, forward);
-        if(orbETA < simTime + timeOffset) { break; } // break when we arrive at the same time
+        if(orbETA < simTime) { break; } // break when we arrive at the same time
         if(virtualOpp.moveSpeedSlow() < 1.0f && abs(virtualOpp.turnVel()) < 0.01f) { break; } // break if opp's vel has decayed
 
 
@@ -404,14 +401,14 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // simulates orb's path to the opp to calculate the ETA
-float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward) {
+float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward) {
 
     int direction = 1; if(!forward) { direction = -1; }
 
     std::vector<float> simPos = posFiltered;
     float simSpeed = moveSpeedSlow() * direction;
 
-    float timeStep = 0.005f;
+    float timeStep = 0.01f; // 0.005
     float maxTime = 2.0f;
 
     float simTime = 0.0f;
@@ -425,20 +422,19 @@ float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path
         // pasted BS plz fix
         FilteredRobot dummyOrb = *this;
         dummyOrb.setPos(simPos);
-        float angleError = dummyOrb.angleTo(target.position(), forward); // how far off we are from target
+        float angleError = dummyOrb.angleTo(opp.position(), forward); // how far off we are from fully extrapolated opp
 
 
 
         // if we're in the opp's weapon range then return a high number so fraction goes high (if we want to stop if hit)
-        if((abs(target.angleTo(dummyOrb.position(), true)) < target.getWeaponAngleReach()) && stopIfHit) {
+        if(opp.facing(dummyOrb, true) && stopIfHit) {
             simTime = 9999999999.0f;
             break;
         }
 
         // if we're close enough to collide and facing opp, then return
-        bool colliding = dummyOrb.distanceTo(target.position()) < dummyOrb.getSizeRadius() + target.getSizeRadius();
-        bool facing = abs(dummyOrb.angleTo(target.position(), forward)) < 80.0f*TO_RAD;
-        if(colliding && (facing || !orbNeedsToFace)) { break; }
+        bool facing = abs(dummyOrb.angleTo(opp.position(), forward)) < 80.0f*TO_RAD;
+        if(dummyOrb.colliding(opp, 0.0f) && (facing || !orbNeedsToFace)) { break; }
 
 
         // 290
@@ -494,6 +490,8 @@ float FilteredRobot::ETASim(FilteredRobot target, std::vector<cv::Point2f> &path
             simPos[1] + deltaYField,
             (float) angleWrapRad(orientation + turnDistance)
         };
+
+
 
 
         simTime += timeStep;

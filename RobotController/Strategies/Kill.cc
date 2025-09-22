@@ -38,7 +38,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     bool forward = gamepad.GetRightStickY() >= 0.0f; // if we're driving forward to the opp
 
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forward, 1.0f, 0.000f, oppSimPath);
+    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forward, 1.0f, oppSimPath);
 
 
     std::vector<cv::Point2f> orbSimPath = {};

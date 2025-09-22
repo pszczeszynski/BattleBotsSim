@@ -23,7 +23,7 @@ class FilteredRobot
 
 
   float collideETA(FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
-  float ETASim(FilteredRobot target, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward); // simulate time to collide with a robot
+  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward); // simulate time to collide with a robot
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
@@ -45,7 +45,7 @@ class FilteredRobot
   std::vector<std::vector<float>> constAccExtrap(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   void constVelExtrapWrite(float time);
-  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, float timeOffsetFactor, std::vector<cv::Point2f> &path);
+  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, std::vector<cv::Point2f> &path);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
 
