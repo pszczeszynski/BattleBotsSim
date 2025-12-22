@@ -871,7 +871,7 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
     // controller gain is less and less the further you get into the circle
-    float minGain = 0.3f; // 0.3
+    float minGain = 0.6f; // 0.3
     follow.controllerGain = radiusPercent*(1.0f - minGain) + minGain;
 
 
