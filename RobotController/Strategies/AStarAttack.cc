@@ -65,7 +65,7 @@ AStarAttack::AStarAttack()
 
     // initialize filters
     orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 55.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
 }
 
 
@@ -131,8 +131,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     FollowPoint follow = chooseBestPoint(follows, forwardInput, deltaTime);
 
 
-    // avoidBounds(follow, deltaTime); // make sure we don't hit any walls
-    // followPoint = commitToTarget(followPoint, deltaTime, 0.5f);
+    // commitToTarget(follow, deltaTime, 0.5f);
     enforceTurnDirection(follow); // force that we turn away from the opp if needed
 
 
@@ -301,13 +300,13 @@ float AStarAttack::driveAngle(FollowPoint follow) {
 
 
 // if we ever directly target the opp, enforce that we keep targetting them for a minimum time
-cv::Point2f AStarAttack::commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime) {
+void AStarAttack::commitToTarget(FollowPoint &follow, double deltaTime, float targetTime) {
 
     static bool enforceTarget = false; // if we're currently running the clock to force target the opp
     static float timeTargetting = 0.0f; // how long we've been force targetting the opp
 
     // if the follow point is basically right on the opp, turn on force targeting and reset the clock
-    if(opp.distanceTo(followPoint) < opp.getSizeRadius() * 0.2f) { 
+    if(follow.opp.distanceTo(follow.point) < follow.opp.getSizeRadius() * 0.2f) { 
         enforceTarget = true;
         timeTargetting = 0.0f;
     }
@@ -320,13 +319,11 @@ cv::Point2f AStarAttack::commitToTarget(FilteredRobot opp, cv::Point2f followPoi
 
     // if we're currently enforcing target, then set followPoint and increment the clock
     if(enforceTarget) { 
-        followPoint = opp.position(); 
+        follow.point = follow.opp.position(); 
         timeTargetting += deltaTime;
     }
 
     // std::cout << "timeTargetting = " << timeTargetting << "     " << std::endl;
-
-    return followPoint;
 }
 
 
@@ -381,6 +378,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 100.0f;
     // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
+    // follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
     follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
 }
 
@@ -704,10 +702,11 @@ float AStarAttack::ppRad() {
 // pp radius used for walls
 float AStarAttack::ppRadWall() {
     float radSlow = 40.0f;
-    float radFast = 150.0f;
+    float radFast = 110.0f;
     float speedFast = 400.0f;
     return radSlow + ((radFast - radSlow) / speedFast) * orbFiltered.moveSpeedSlow();
 }
+
 
 
 // adjusts drive angle if needed to obey pure pursuit radius on walls
@@ -795,6 +794,7 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
         // std::cout << "using maxPoint = " << maxAngle*TO_DEG << std::endl;
         // return maxAngle;
     }
+
 
 
 
@@ -954,7 +954,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // how close is the nearest wall in this direction
     float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
-    float wallGain = -0.0f; // -30
+    float wallGain = -30.0f; // -30
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly

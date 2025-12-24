@@ -74,7 +74,7 @@ private:
     FollowPoint chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
-    cv::Point2f commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime);
+    void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
     float driveAngle(FollowPoint follow);
 
 };

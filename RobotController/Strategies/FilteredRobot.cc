@@ -424,7 +424,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 
 
         // 290
-        float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(abs(simSpeed), 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
+        float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(abs(simSpeed), 2), 0.1); // 300.0f, max curvature to avoid slipping, faster you go the less curvature you're allowed
         float maxCurveScrub = abs(simSpeed) * 0.01f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
         float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
 
