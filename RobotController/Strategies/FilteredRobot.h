@@ -70,7 +70,7 @@ class FilteredRobot
   float getWeaponDriftScaleReach();
   float getSizeRadius();
   float velAwayFromPoint(cv::Point2f point);
-  std::vector<float> curvatureController(cv::Point2f followPoint, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward, cv::Point2f oppVel);
+  std::vector<float> curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward);
 
 
 

@@ -110,7 +110,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // std::vector<bool> pointsForward = {true, false, true, false};
     std::vector<bool> pointsCW = {true, false};
     std::vector<bool> pointsForward = {true, true};
-    // std::vector<bool> pointsCW = {true};
+    // std::vector<bool> pointsCW = {false};
     // std::vector<bool> pointsForward = {true};
 
 
@@ -131,10 +131,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     FollowPoint follow = chooseBestPoint(follows, forwardInput, deltaTime);
 
 
-    avoidBounds(follow, deltaTime); // make sure we don't hit any walls
+    // avoidBounds(follow, deltaTime); // make sure we don't hit any walls
     // followPoint = commitToTarget(followPoint, deltaTime, 0.5f);
     enforceTurnDirection(follow); // force that we turn away from the opp if needed
 
+
+    float angle = driveAngle(follow);
+    angle = avoidBoundsVector(angle, follow);
 
 
 
@@ -211,13 +214,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.8, 0.06
-    float oppSpeedOffset = 0.0f; // 30
-    float oppSpeedGain = 1.1f;
-    cv::Point2f oppVelOffset = cv::Point2f(cos(oppFiltered.angle(true)), sin(oppFiltered.angle(true))) * oppSpeedOffset;
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.point, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward, oppSpeedGain*follow.opp.moveVel() + oppVelOffset);
-
-
-    // std::cout << "controllerGain = " << follow.controllerGain << std::endl;
+    std::vector<float> driveInputs = orbFiltered.curvatureController(angle, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
 
@@ -275,6 +272,30 @@ FollowPoint AStarAttack::followPointDirection(FilteredRobot opp, float deltaTime
     if(!outsideCircle) { followPointInsideCircle(follow); }
     
     return follow;
+}
+
+
+
+// returns angle to drive along by canceling opponents velocity
+float AStarAttack::driveAngle(FollowPoint follow) {
+
+    cv::Point2f oppVel = follow.opp.moveVel();
+    float oppSpeed = cv::norm(oppVel); // how fast the opp is moving in absolute
+    float maxCancel = orbFiltered.getMaxMoveSpeed() * 0.9f; // reserve some speed margin
+    if(oppSpeed > maxCancel) { oppVel *= abs(maxCancel / oppSpeed); }
+
+    float pointAngle = angle(cv::Point2f(orbFiltered.getPosFiltered()[0], orbFiltered.getPosFiltered()[1]), follow.point); // absolute angle to the point
+
+    float p = oppVel.x*cos(pointAngle) + oppVel.y*sin(pointAngle);
+    float s = sqrt(pow(orbFiltered.getMaxMoveSpeed(), 2) - pow(oppVel.x*sin(pointAngle) - oppVel.y*cos(pointAngle), 2));
+
+    float pointSpeed = 0.0f;
+    if(s > p) { pointSpeed = -p + s; } // thanks chat, ensures vector sum is always to maxMoveSpeed
+
+    cv::Point2f pointVel = cv::Point2f(pointSpeed*cos(pointAngle), pointSpeed*sin(pointAngle)); // vector in the direction of the followPoint
+    cv::Point2f totalVel = oppVel + pointVel; // sum the opp's vel with our desired vel in their frame
+
+    return atan2(totalVel.y, totalVel.x); // target angle is in the direction of the total vector
 }
 
 
@@ -360,7 +381,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 100.0f;
     // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
-    follow.radius = 120.0f * sin(std::min(0.125 * fraction, 90.0f*TO_RAD)); // higher is more conservative
+    follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
 }
 
 
@@ -525,7 +546,7 @@ cv::Point2f AStarAttack::closestBoundPoint(cv::Point2f point) {
     std::pair<cv::Point2f, cv::Point2f> closestLinePoints = fieldBoundLines[closestFieldBound.second].getLinePoints();
 
     // highlight closest line
-    cv::line(RobotController::GetInstance().GetDrawingImage(), closestLinePoints.first, closestLinePoints.second, cv::Scalar(200, 200, 255), 2);
+    cv::line(RobotController::GetInstance().GetDrawingImage(), closestLinePoints.first, closestLinePoints.second, cv::Scalar(220, 220, 255), 2);
     
     cv::Point2f closestWallPoint = fieldBoundLines[closestFieldBound.second].closestLinePoint(point);
     return closestWallPoint;
@@ -676,8 +697,132 @@ float AStarAttack::ppRad() {
     float radSlow = ASTAR_PP_RAD_SLOW;
     float radFast = ASTAR_PP_RAD_FAST;
     float speedFast = ASTAR_PP_SPEED_FAST;
-    float currSpeed = cv::norm(cv::Point2f(orbFiltered.getVelFilteredSlow()[0], orbFiltered.getVelFilteredSlow()[1]));
-    return radSlow + ((radFast - radSlow) / speedFast) * currSpeed;
+    return radSlow + ((radFast - radSlow) / speedFast) * orbFiltered.moveSpeedSlow();
+}
+
+
+// pp radius used for walls
+float AStarAttack::ppRadWall() {
+    float radSlow = 40.0f;
+    float radFast = 150.0f;
+    float speedFast = 400.0f;
+    return radSlow + ((radFast - radSlow) / speedFast) * orbFiltered.moveSpeedSlow();
+}
+
+
+// adjusts drive angle if needed to obey pure pursuit radius on walls
+float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
+
+    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadWall());
+
+    // if we're not hitting a wall and in the field don't change the drive angle
+    if(ppWallPoints.size() == 0 && insideFieldBounds(orbFiltered.position())) { return driveAngle; }
+
+    cv::Point2f boundPoint = closestBoundPoint(orbFiltered.position()); // get the closest point to us thats on a field bound
+
+    // if we're not hitting a wall and fully out of the field then drive back in to closest bound point
+    if(ppWallPoints.size() == 0 && !insideFieldBounds(orbFiltered.position())) { 
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), boundPoint, 8, cv::Scalar(255, 255, 255), 3);
+        follow.enforceTurnDirection = 0; // don't worry about turning away from opp, need to return optimally
+        return angle(orbFiltered.position(), boundPoint);
+    }
+
+    // from here we're guarenteed to have pure pursuit intersections with the wall
+
+
+
+
+
+
+
+    // now let's find which pp points actually define the region
+
+    float angleToBound = angle(orbFiltered.position(), closestBoundPoint(orbFiltered.position())); // angle to the closest bound point
+
+    // min and max offsets from the line to the bound point
+    float mostPosOffset = 0;
+    float mostNegOffset = 0;
+
+    // find the most extreme offsets, those will be the outer ones used for pure pursuit
+    for(int i = 0; i < ppWallPoints.size(); i++) {
+        float pointAngle = angle(orbFiltered.position(), ppWallPoints[i]);
+        float offset = angleWrapRad(pointAngle - angleToBound); // offset from the line to the center of the field
+
+        if(offset > mostPosOffset) { mostPosOffset = offset; }
+        if(offset < mostNegOffset) { mostNegOffset = offset; }
+    }
+
+    // angle region in which drive angle must lie
+    float minAngle = angleWrapRad(angleToBound + mostNegOffset);
+    float maxAngle = angleWrapRad(angleToBound + mostPosOffset);
+
+
+    // points at the min and max angles
+    cv::Point2f minPoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(minAngle), sin(minAngle));
+    cv::Point2f maxPoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(maxAngle), sin(maxAngle));
+
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), minPoint, 8, cv::Scalar(255, 255, 255), 3);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), maxPoint, 8, cv::Scalar(255, 255, 255), 3);
+
+
+
+
+
+
+
+
+
+    // now change the drive angle if needed
+
+    // intersection of pp radius and drive angle
+    cv::Point2f drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(driveAngle), sin(driveAngle));
+
+    // if drive point isn't in the field we need to change it
+    if(!insideFieldBounds(drivePoint)) {
+
+        // set it to the closest bound of the region
+        float minAngleOffset = angleWrapRad(driveAngle - minAngle);
+        float maxAngleOffset = angleWrapRad(driveAngle - maxAngle);
+
+        driveAngle = maxAngle; // default
+
+        if(abs(minAngleOffset) < abs(maxAngleOffset)) { 
+            // safe_circle(RobotController::GetInstance().GetDrawingImage(), minPoint, 8, cv::Scalar(180, 180, 255), 3);
+            // std::cout << "using minPoint = " << minAngle*TO_DEG << std::endl;
+            driveAngle = minAngle;
+        }
+        // safe_circle(RobotController::GetInstance().GetDrawingImage(), maxPoint, 8, cv::Scalar(180, 180, 255), 3);
+        // std::cout << "using maxPoint = " << maxAngle*TO_DEG << std::endl;
+        // return maxAngle;
+    }
+
+
+
+
+
+
+
+
+    // now we need to make sure we turn the right direction to the drive angle
+
+    // stop enforcing direction bc that'll make it go out of bounds
+    follow.enforceTurnDirection = 0;
+
+    // enforce turn direction so we stay inside the field
+    float orbOffset = angleWrapRad(angleToBound - orbFiltered.angle(angleToBound));
+    float driveOffset = angleWrapRad(angleToBound - driveAngle);
+
+    if(orbOffset > 0 && driveOffset < 0) { follow.enforceTurnDirection = -1; }
+    if(orbOffset < 0 && driveOffset > 0) { follow.enforceTurnDirection = 1; }
+
+    if(!insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
+
+    std::cout << "enforcing " << follow.enforceTurnDirection << std::endl;
+
+
+
+
+    return driveAngle;
 }
 
 
@@ -809,7 +954,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // how close is the nearest wall in this direction
     float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
-    float wallGain = -30.0f; // -50
+    float wallGain = -0.0f; // -30
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly

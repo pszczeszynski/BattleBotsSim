@@ -66,12 +66,15 @@ private:
     float wallScore(FilteredRobot opp, bool CW);
     void enforceTurnDirection(FollowPoint &follow);
     float ppRad();
+    float ppRadWall();
     void avoidBounds(FollowPoint &follow, float deltaTime);
+    float avoidBoundsVector(float driveAngle, FollowPoint &follow);
     float directionScore(FollowPoint follow, float deltaTime, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
     FollowPoint chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     cv::Point2f commitToTarget(FilteredRobot opp, cv::Point2f followPoint, double deltaTime, float targetTime);
+    float driveAngle(FollowPoint follow);
 
 };
