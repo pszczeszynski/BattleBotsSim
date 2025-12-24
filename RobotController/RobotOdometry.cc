@@ -414,7 +414,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     bool humanThemAngle_valid = false;
     // Opponent rotation
-    if (_odometry_Human.IsRunning() && _odometry_Heuristic.IsRunning() &&
+    if (_odometry_Human.IsRunning() &&
         ext_dataOpponent_Human.IsAngleValid() && _dataOpponent_Human_is_new)
     {
         // Clear flag
@@ -440,23 +440,19 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     // HELPER VARIABLES
     // ******************************
 
-    // ***********************************************************************
-    // Invalidate old data - we'll let those algorithms still run if they report they're active, we just wont 
-    // use it here.
+    bool heuristicUsValid = _odometry_Heuristic.IsRunning() && (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
+    bool heuristicUsPos_valid = heuristicUsValid && _dataRobot_Heuristic.robotPosValid;
+    bool heuristicUsAngle_valid = heuristicUsValid && _dataRobot_Heuristic.IsAngleValid();
+    bool heuristicThemValid = _odometry_Heuristic.IsRunning() && (_dataOpponent_Heuristic.GetAge() < _dataAgeThreshold);
+    bool heuristicThemPos_valid = heuristicThemValid && _dataOpponent_Heuristic.robotPosValid;
+    bool heuristicThemAngle_valid = heuristicThemValid && _dataOpponent_Heuristic.IsAngleValid();
 
-    bool heuristicValid = _odometry_Heuristic.IsRunning() && (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
-    bool heuristicUsPos_valid = heuristicValid && _dataRobot_Heuristic.robotPosValid;
-    bool heuristicUsAngle_valid = heuristicValid && _dataRobot_Heuristic.IsAngleValid();
-    heuristicValid = _odometry_Heuristic.IsRunning() && (_dataOpponent_Heuristic.GetAge() < _dataAgeThreshold);
-    bool heuristicThemPos_valid = heuristicValid && _dataOpponent_Heuristic.robotPosValid;
-    bool heuristicThemAngle_valid = heuristicValid && _dataOpponent_Heuristic.IsAngleValid();
-
-    bool blobValid = _odometry_Blob.IsRunning() && (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
-    bool blobUsPos_valid = blobValid && _dataRobot_Blob.robotPosValid;
-    bool blobUsAngle_valid = blobValid && _dataRobot_Blob.IsAngleValid();
-    blobValid = _odometry_Blob.IsRunning() && (_dataOpponent_Blob.GetAge() < _dataAgeThreshold);
-    bool blobThemPos_valid = blobValid && _dataOpponent_Blob.robotPosValid;
-    bool blobThemAngle_valid = blobValid && _dataOpponent_Blob.IsAngleValid();
+    bool blobUsValid = _odometry_Blob.IsRunning() && (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
+    bool blobUsPos_valid = blobUsValid && _dataRobot_Blob.robotPosValid;
+    bool blobUsAngle_valid = blobUsValid && _dataRobot_Blob.IsAngleValid();
+    bool blobThemValid = _odometry_Blob.IsRunning() && (_dataOpponent_Blob.GetAge() < _dataAgeThreshold);
+    bool blobThemPos_valid = blobThemValid && _dataOpponent_Blob.robotPosValid;
+    bool blobThemAngle_valid = blobThemValid && _dataOpponent_Blob.IsAngleValid();
 
     bool neuralUsPos_valid = _odometry_Neural.IsRunning() &&
                              _dataRobot_Neural.robotPosValid;// &&
@@ -681,7 +677,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     {
         debugROStringForVideo_tmp += "Heu";
         _dataOpponent.robotPosition = ext_dataOpponent_Heuristic.robotPosition;
-        _dataOpponent.time = _dataRobot_Heuristic.time;
+        _dataOpponent.time = _dataOpponent_Heuristic.time;
         _dataOpponent.robotPosValid = true;
 
         // If blob position isn't inside our rectangle then set position
