@@ -414,7 +414,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     bool humanThemAngle_valid = false;
     // Opponent rotation
-    if (_odometry_Human.IsRunning() && _odometry_Heuristic.IsRunning() &&
+    if (_odometry_Human.IsRunning() &&
         ext_dataOpponent_Human.IsAngleValid() && _dataOpponent_Human_is_new)
     {
         // Clear flag
