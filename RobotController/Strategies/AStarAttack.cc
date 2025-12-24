@@ -376,7 +376,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
-    // follow.radius = 100.0f;
+    // follow.radius = 120.0f;
     // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
     // follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
     follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
@@ -803,132 +803,29 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
 
 
 
-    // now we need to make sure we turn the right direction to the drive angle
+    // make sure we turn the right direction to the drive angle
 
-    // stop enforcing direction bc that'll make it go out of bounds
-    follow.enforceTurnDirection = 0;
-
-    // enforce turn direction so we stay inside the field
     float orbOffset = angleWrapRad(angleToBound - orbFiltered.angle(angleToBound));
     float driveOffset = angleWrapRad(angleToBound - driveAngle);
 
-    if(orbOffset > 0 && driveOffset < 0) { follow.enforceTurnDirection = -1; }
-    if(orbOffset < 0 && driveOffset > 0) { follow.enforceTurnDirection = 1; }
+    // only change the direction enforcement if turning the wrong way would make us go way out of the field
+    if(abs(orbOffset) > 15.0f*TO_RAD) { 
 
-    if(!insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
+        // stop enforcing direction bc that might make it go out
+        follow.enforceTurnDirection = 0;
+
+        if(orbOffset > 0 && driveOffset < 0) { follow.enforceTurnDirection = -1; }
+        if(orbOffset < 0 && driveOffset > 0) { follow.enforceTurnDirection = 1; }
+
+        if(!insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
+    }
 
     std::cout << "enforcing " << follow.enforceTurnDirection << std::endl;
-
-
 
 
     return driveAngle;
 }
 
-
-// accounts for all bound stuff, including collisions with wall segments that jut into the field
-void AStarAttack::avoidBounds(FollowPoint &follow, float deltaTime) {
-
-    // start with a check if the line to the follow point intersects boundary lines
-    // clipped into field, just used as a comparison point for collisions
-    cv::Point2f travelStart = clipPointInBounds(orbFiltered.position());
-    cv::Point2f travelEnd = clipPointInBounds(follow.point);
-
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), travelStart, 5, cv::Scalar(255, 255, 255), 3); // display start point
-
-
-    Line travelLine(travelStart, travelEnd); // line connecting orb pos and follow point
-    std::vector<int> boundaryHits = {}; // indices of lines that intersect travel line
-
-    // find all the convex points that are possibly in the way, the ones that belong to lines that are being collided with
-    for(int i = 0; i < fieldBoundLines.size(); i++) {
-        if(fieldBoundLines[i].doesIntersectLine(travelLine)) { 
-            boundaryHits.emplace_back(i);
-        }
-    }
-
-    DisplayUtils::displayLinesIndices(fieldBoundLines, boundaryHits, cv::Scalar(180, 180, 255)); // highlight lines that are intersecting with traversal path
-
-    std::vector<int> convexCount(convexPoints.size(), 0); // tracks the number of each convex point found
-    for(int i = 0; i < boundaryHits.size(); i++) {
-        // if(boundaryHits[i] == 2 || boundaryHits[i] == 7 || boundaryHits[i] == 15) { continue; } // full field
-        if(boundaryHits[i] == 1 || boundaryHits[i] == 9) { continue; } // no upper corners
-
-        std::pair<cv::Point2f, cv::Point2f> linePoints = fieldBoundLines[boundaryHits[i]].getLinePoints();
-        
-        // find indices in convex list, if they exist
-        int point1Index = vectorPointIndex(convexPoints, linePoints.first);
-        int point2Index = vectorPointIndex(convexPoints, linePoints.second);
-
-        if(point1Index != -1) { convexCount[point1Index]++; }
-        if(point2Index != -1) { convexCount[point2Index]++; }
-    }
-
-
-    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRad());
-
-
-    bool usingConvexPoint = false; // if we're using a convex point as the follow point, don't check for clipping later if we are
-
-    // search for closest convex points with any collision lines associated with it
-    float closestConvex = 999999.9f;
-    for(int i = 0; i < convexCount.size(); i++) {
-        float convexDistance = cv::norm(convexPoints[i] - orbFiltered.position());
-        if(convexCount[i] > 0 && convexDistance < closestConvex) {
-            follow.point = convexPoints[i];
-            closestConvex = convexDistance;
-            usingConvexPoint = true;
-
-            // if this convex point is too close and we have wall intersections to use
-            if(orbFiltered.distanceTo(follow.point) < ppRad() && ppWallPoints.size() > 0) {
-
-                // use the pp point that's closest to opponent. this is cope but works most of the time
-                float closestPP = cv::norm(ppWallPoints[0] - follow.opp.position());
-                follow.point = ppWallPoints[0];
-                for(int i = 1; i < ppWallPoints.size(); i++) {
-                    float newPPDistance = cv::norm(ppWallPoints[i] - follow.opp.position());
-                    if(newPPDistance < closestPP) {
-                        closestPP = newPPDistance;
-                        follow.point = ppWallPoints[i];
-                    }
-                }
-            }
-        }
-    }
-
-    // if the follow point is out of the field, clip it in
-    if(!insideFieldBounds(follow.point) && !usingConvexPoint) {
-
-        // display pp points
-        // for(int i = 0; i < ppWallPoints.size(); i++) {
-        //     safe_circle(RobotController::GetInstance().GetDrawingImage(),
-        //         ppWallPoints[i],
-        //         5.0f, cv::Scalar(255, 50, 50), 2);
-        // }
-
-        if(ppWallPoints.size() > 0) {
-            int bestPointIndex = 0;
-            float bestPointAngle = follow.opp.angleTo(ppWallPoints[0], true);
-
-            // find the most CW or CCW points relative to opp's angle, that's the one to follow
-            for(int i = 1; i < ppWallPoints.size(); i++) {
-                float testAngle = follow.opp.angleTo(ppWallPoints[i], true);
-                if((testAngle < bestPointAngle && !follow.CW) || (testAngle > bestPointAngle && follow.CW)) {
-                    bestPointAngle = testAngle;
-                    bestPointIndex = i;
-                }
-            }
-
-            // set the follow point to the best index if it's more in the correct direction and if it's in the main radius
-            float deltaAnglePP = angleWrapRad(angle(orbFiltered.position(), ppWallPoints[bestPointIndex]) - angle(orbFiltered.position(), follow.point));
-            if(((deltaAnglePP < 0 && !follow.CW) || (deltaAnglePP > 0 && follow.CW)) && follow.opp.distanceTo(ppWallPoints[bestPointIndex]) < follow.radius) {
-                follow.point = ppWallPoints[bestPointIndex];
-            }
-        }
-    } 
-
-    follow.point = clipPointInBounds(follow.point); // make sure it's in bounds one more time
-}
 
 
 // score function for determining how good a follow point is, used for CW/CCW decision
@@ -949,7 +846,8 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 12.0f; // 10
+    float goAroundGain = 10.0f + 0.30f * follow.opp.tangentVel(true); // 12
+
 
 
     // how close is the nearest wall in this direction

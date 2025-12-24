@@ -67,7 +67,6 @@ private:
     void enforceTurnDirection(FollowPoint &follow);
     float ppRad();
     float ppRadWall();
-    void avoidBounds(FollowPoint &follow, float deltaTime);
     float avoidBoundsVector(float driveAngle, FollowPoint &follow);
     float directionScore(FollowPoint follow, float deltaTime, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
