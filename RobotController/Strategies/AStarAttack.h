@@ -64,6 +64,7 @@ private:
     FollowPoint followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward, std::vector<cv::Point2f> oppSimPath);
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(FilteredRobot opp, bool CW);
+    float wallScorePinch(FollowPoint follow);
     void enforceTurnDirection(FollowPoint &follow);
     float ppRad();
     float ppRadWall();

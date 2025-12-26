@@ -223,6 +223,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
     ret.driveCommand.movement = driveInputs[0];
     ret.driveCommand.turn = driveInputs[1];
+
+
+    std::cout << std::endl;
     
     
     processingTimeVisualizer.markEnd();
@@ -610,7 +613,7 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 float AStarAttack::wallScore(FilteredRobot opp, bool CW) {
 
     // angular range to scan for wall distances
-    float sweepRange = 90.0f*TO_RAD;
+    float sweepEnd = 90.0f*TO_RAD;
     float sweepStart = 0.0f*TO_RAD; // 60
 
     std::vector<cv::Point2f> scanPoints;
@@ -619,13 +622,12 @@ float AStarAttack::wallScore(FilteredRobot opp, bool CW) {
 
     // float startAngle = oppFiltered.angle(true) + 180.0f*TO_RAD - angleAround;
     float startAngle = angle(opp.position(), orbFiltered.position());
-    float endAngle = startAngle + sweepRange;
 
     float closestDistance = 9999.0f;
 
     // sweep through the whole angle around by incrementing
     float angleOffset = sweepStart; if(!CW) { angleOffset *= -1.0f; }
-    while(abs(angleOffset) < abs(sweepRange)) {
+    while(abs(angleOffset) < abs(sweepEnd)) {
         float currAngle = startAngle + angleOffset;
         cv::Point2f testPoint = clipPointInBounds(opp.position());
 
@@ -656,6 +658,88 @@ float AStarAttack::wallScore(FilteredRobot opp, bool CW) {
     // displayLineList(scanLines, color);
 
     return closestDistance;
+}
+
+
+
+
+// weighs how bad the walls are based on pinch points
+float AStarAttack::wallScorePinch(FollowPoint follow) {
+
+    // angular range to scan
+    const float sweepEnd = 179.0f*TO_RAD;
+    const float sweepStart = 40.0f*TO_RAD;
+
+    std::vector<cv::Point2f> scanPoints = {}; // all points that scan along the wall
+    std::vector<cv::Point2f> pinchPoints = {}; // points that are a local min distance
+    std::vector<Line> scanLines = {}; // lines that connect to the scan points from the opp
+
+    float startAngle = angle(follow.opp.position(), orbFiltered.position()); // start scanning along the angle connecting us
+
+    // sweep through the whole angle around by incrementing
+    float previousDistance = 0.0f;
+    bool previousDecreasing = false; 
+    float highestScore = 0.0f;
+
+    const float sweepIncrement = follow.CW ? 1.0f*TO_RAD : -1.0f*TO_RAD; // how much to increment sweep angle for each point
+    // scan the specified angle range
+    for (float angleOffset = follow.CW ? sweepStart : -sweepStart; abs(angleOffset) < abs(sweepEnd);
+         angleOffset += follow.CW ? 1.0f*TO_RAD : -1.0f*TO_RAD)
+    {
+        float currAngle = angleWrapRad(startAngle + angleOffset);
+        cv::Point2f testPoint = clipPointInBounds(follow.opp.position());
+
+        constexpr int kMaxRaycastSteps = 400;
+
+        // increment the point outwards until it's out of bounds
+        for(int i = 0; i < kMaxRaycastSteps; i++) {
+
+            testPoint += 5.0f * cv::Point2f(cos(currAngle), sin(currAngle));
+
+            if(!insideFieldBounds(testPoint)) { break; }
+        }
+        
+        testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after.
+        scanPoints.emplace_back(testPoint);
+        scanLines.emplace_back(Line(follow.opp.position(), testPoint));
+
+        float pointDistance = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.01f);
+        
+        // if the points are getting further away
+        if(pointDistance > previousDistance) { 
+            // if it was previously decreasing then it's a pinch point
+            if(previousDecreasing) {
+
+                // track the worst case pinch point
+                float score = (sweepEnd - abs(angleOffset)) / pointDistance;
+                if(score > highestScore) { highestScore = score; }
+
+                pinchPoints.emplace_back(testPoint); 
+            }
+
+            previousDecreasing = false; // mark it wasn't decreasing last time
+        }
+        else {
+            previousDecreasing = true; 
+        }
+
+        previousDistance = pointDistance;
+    }
+
+    cv::Scalar color = cv::Scalar(150, 255, 150, 255);
+    if(!follow.CW) { color = cv::Scalar(150, 150, 255, 255); }
+
+
+    DisplayUtils::displayPoints(scanPoints, color, color, 2);
+    DisplayUtils::displayPoints(pinchPoints, color, color, 10);
+
+    // displayLineList(scanLines, color);
+
+
+    std::cout << "    score CW " << follow.CW << " = " << highestScore << "     ";
+
+    return highestScore;
+
 }
 
 
@@ -840,25 +924,26 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // how far the robot has to turn to this point
     float angleToPoint = orbFiltered.angleTo(follow.point, follow.forward);    
-    float turnGain = 25.0f; // 23
+    float turnGain = 35.0f; // 30
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 10.0f + 0.30f * follow.opp.tangentVel(true); // 12
+    float goAroundGain = 15.0f + 0.5f * follow.opp.tangentVel(true); // 12
 
 
 
     // how close is the nearest wall in this direction
-    float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
-    float wallGain = -30.0f; // -30
+    // float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
+    float wallWeight = wallScorePinch(follow);
+    float wallGain = 000.0f; // -30.0f
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(follow.forward);
     float tanVel = pow(raw, 2.0f) * sign(raw);
-    float momentumWeight = 0.01f * closeness; // 0.2
+    float momentumWeight = -0.01f * closeness; // 0.2
 
 
     // penalty for using the back bc we want to use front more often
@@ -869,7 +954,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     
     // sum up components for score
-    return follow.radius + goAroundAngle*goAroundGain + wallWeight*wallGain + abs(angleToPoint)*turnGain - tanVel*momentumWeight + backWeight*!follow.forward;
+    return follow.radius + goAroundAngle*goAroundGain + wallWeight*wallGain + abs(angleToPoint)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward;
 }
 
 
