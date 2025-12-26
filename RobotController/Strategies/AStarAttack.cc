@@ -610,54 +610,68 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 
 
 // finds closest wall distances to opponent by incrementing around them
-float AStarAttack::wallScore(FilteredRobot opp, bool CW) {
+float AStarAttack::wallScore(FollowPoint follow) {
 
-    // angular range to scan for wall distances
-    float sweepEnd = 90.0f*TO_RAD;
-    float sweepStart = 0.0f*TO_RAD; // 60
+    const float sweepArea = 800.0f; // total area we'll sweep through
+    float sweptArea = 0.0f; // how much area we've swept through so far
 
     std::vector<cv::Point2f> scanPoints;
     std::vector<Line> scanLines = {};
-    float sweepIncrement = 1.0f*TO_RAD; if(!CW) { sweepIncrement *= -1.0f; } // how much to increment sweep angle for each point
+    const float sweepIncrement = follow.CW ? 1.0f*TO_RAD : -1.0f*TO_RAD; // how much to increment sweep angle for each point
 
-    // float startAngle = oppFiltered.angle(true) + 180.0f*TO_RAD - angleAround;
-    float startAngle = angle(opp.position(), orbFiltered.position());
+    float startAngle = angle(follow.opp.position(), orbFiltered.position());
 
-    float closestDistance = 9999.0f;
 
-    // sweep through the whole angle around by incrementing
-    float angleOffset = sweepStart; if(!CW) { angleOffset *= -1.0f; }
-    while(abs(angleOffset) < abs(sweepEnd)) {
-        float currAngle = startAngle + angleOffset;
-        cv::Point2f testPoint = clipPointInBounds(opp.position());
+    float score = 0.0f; // integrated score of all the points
+
+    // scan the specified angle range
+    for (float sweptAngle = 0; abs(sweptAngle) < 2*M_PI; sweptAngle += sweepIncrement) {
+
+        float currAngle = angleWrapRad(startAngle + sweptAngle); // current angle we're scanning at
+
+        cv::Point2f testPoint = clipPointInBounds(follow.opp.position()); // point to ray cast
+        constexpr int kMaxRaycastSteps = 400;
+
 
         // increment the point outwards until it's out of bounds
-        for(int i = 0; i < 400; i++) {
-            float increment = 5.0f;
-            testPoint.x += increment * cos(currAngle);
-            testPoint.y += increment * sin(currAngle);
+        for(int i = 0; i < kMaxRaycastSteps; i++) {
+
+            testPoint += 5.0f * cv::Point2f(cos(currAngle), sin(currAngle));
 
             if(!insideFieldBounds(testPoint)) { break; }
         }
         
-        testPoint = closestBoundPoint(testPoint);
-        scanPoints.emplace_back(testPoint);
-        scanLines.emplace_back(Line(opp.position(), testPoint));
+        testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
+        scanPoints.emplace_back(testPoint); // add to the list to display later
+        scanLines.emplace_back(Line(follow.opp.position(), testPoint));
+
+        
+        float gapSize = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.0f); // how big is the gap to drive in
+        float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
         
 
-        float pointDistance = cv::norm(opp.position() - testPoint);
-        if(pointDistance < closestDistance) { closestDistance = pointDistance; }
+        sweptArea += gapSize * abs(sweepIncrement); // increment swept area
+        float sweptPercent = std::clamp(sweptArea / sweepArea, 0.0f, 1.0f); // what percentage has been swept so far
 
-        angleOffset += sweepIncrement;
+        score += pow(margin, -1.0f) + (1.0f - sweptPercent); // score function is integrated based on how much gap we have
+
+
+        // add up score until we've scanned the right amount of area
+        if(sweptArea > sweepArea) { break; }
     }
 
-    cv::Scalar color = cv::Scalar(200, 255, 200);
-    if(!CW) { color = cv::Scalar(200, 200, 255); }
+    score /= sweepArea; // normalize to sweep area so we can change that without losing tune
 
-    DisplayUtils::displayPoints(scanPoints, color, color, 3);
-    // displayLineList(scanLines, color);
+    cv::Scalar color = cv::Scalar(150, 255, 150, 255);
+    if(!follow.CW) { color = cv::Scalar(150, 150, 255, 255); }
 
-    return closestDistance;
+
+    DisplayUtils::displayPoints(scanPoints, color, color, 2); // display scan points on walls
+
+
+    std::cout << "    score CW " << follow.CW << " = " << score << "     ";
+
+    return score;
 }
 
 
@@ -936,8 +950,8 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // how close is the nearest wall in this direction
     // float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
-    float wallWeight = wallScorePinch(follow);
-    float wallGain = 000.0f; // -30.0f
+    float wallWeight = wallScore(follow);
+    float wallGain = 300.0f; // -30.0f
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
