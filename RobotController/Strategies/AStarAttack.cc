@@ -609,11 +609,10 @@ cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
 
 
 
-// finds closest wall distances to opponent by incrementing around them
+// spirals out from our current radius from opp to see how walls will affect us
 float AStarAttack::wallScore(FollowPoint follow) {
 
-    const float sweepArea = 800.0f; // total area we'll sweep through
-    float sweptArea = 0.0f; // how much area we've swept through so far
+    const float maxPathLength = 500.0f; // length of predicted path we'll sweep
 
     std::vector<cv::Point2f> scanPoints;
     std::vector<Line> scanLines = {};
@@ -623,8 +622,9 @@ float AStarAttack::wallScore(FollowPoint follow) {
 
 
     float score = 0.0f; // integrated score of all the points
+    float pathLength = 0.0f; // accumlated predicted path length
 
-    // scan the specified angle range
+    // scan up to a full circle
     for (float sweptAngle = 0; abs(sweptAngle) < 2*M_PI; sweptAngle += sweepIncrement) {
 
         float currAngle = angleWrapRad(startAngle + sweptAngle); // current angle we're scanning at
@@ -633,34 +633,45 @@ float AStarAttack::wallScore(FollowPoint follow) {
         constexpr int kMaxRaycastSteps = 400;
 
 
-        // increment the point outwards until it's out of bounds
+        // increment the point outwards until it's out of bounds or further than our spiral
         for(int i = 0; i < kMaxRaycastSteps; i++) {
 
             testPoint += 5.0f * cv::Point2f(cos(currAngle), sin(currAngle));
 
-            if(!insideFieldBounds(testPoint)) { break; }
+            // if the ray cast has exited the field
+            if(!insideFieldBounds(testPoint)) {
+                testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
+
+                float gapSize = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.0f); // how big is the gap to drive in
+                float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
+                float sweptPercent = pathLength / maxPathLength; // roughly what percentage has been swept so far
+
+                score += pow(margin, -1.0f) + (1.0f - sweptPercent); // score function is integrated based on how much gap we have
+
+                break;
+            }
+
+            float spiralRadius = abs(sweptAngle)*80.0f + follow.opp.distanceTo(orbFiltered.position()); // slope of predicted spiral
+            
+            // if the point has gotten to the spiral, don't add to score
+            if(follow.opp.distanceTo(testPoint) > spiralRadius) { break; }
+        }
+
+        // total up the path length
+        if(!scanPoints.empty()) {
+            pathLength += cv::norm(scanPoints.back() - testPoint);
         }
         
-        testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
+        
         scanPoints.emplace_back(testPoint); // add to the list to display later
         scanLines.emplace_back(Line(follow.opp.position(), testPoint));
 
-        
-        float gapSize = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.0f); // how big is the gap to drive in
-        float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
-        
+        // if the points are so far away now then stop counting
+        if(pathLength > maxPathLength) { break; }
 
-        sweptArea += gapSize * abs(sweepIncrement); // increment swept area
-        float sweptPercent = std::clamp(sweptArea / sweepArea, 0.0f, 1.0f); // what percentage has been swept so far
-
-        score += pow(margin, -1.0f) + (1.0f - sweptPercent); // score function is integrated based on how much gap we have
-
-
-        // add up score until we've scanned the right amount of area
-        if(sweptArea > sweepArea) { break; }
     }
 
-    score /= sweepArea; // normalize to sweep area so we can change that without losing tune
+    score /= pathLength; // normalize to sweep range so we can change that without losing tune
 
     cv::Scalar color = cv::Scalar(150, 255, 150, 255);
     if(!follow.CW) { color = cv::Scalar(150, 150, 255, 255); }
@@ -951,7 +962,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
     // how close is the nearest wall in this direction
     // float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
     float wallWeight = wallScore(follow);
-    float wallGain = 300.0f; // -30.0f
+    float wallGain = 200.0f; // -30.0f
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
