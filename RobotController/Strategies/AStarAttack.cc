@@ -179,6 +179,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.opp.position(), follow.radius, cv::Scalar(200, 200, 255), 2); // draw radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(), colorOrbLight, 2); // draw pp radius
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRadWall(), colorOrbLight, 1); // draw pp wall radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.opp.position(), 10, colorOpp, 2); // draw dot on the extrap opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.opp.position(), follow.opp.getSizeRadius(), colorOpp, 2); // draw op size
@@ -646,12 +647,14 @@ float AStarAttack::wallScore(FollowPoint follow) {
                 float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
                 float sweptPercent = pathLength / maxPathLength; // roughly what percentage has been swept so far
 
-                score += pow(margin, -1.0f) + (1.0f - sweptPercent); // score function is integrated based on how much gap we have
+                float rangeWeight = cos(-sweptPercent * 0.5f * M_PI);
+
+                score += pow(margin, -0.7f) + rangeWeight; // score function is integrated based on how much gap we have
 
                 break;
             }
 
-            float spiralRadius = abs(sweptAngle)*80.0f + follow.opp.distanceTo(orbFiltered.position()); // slope of predicted spiral
+            float spiralRadius = abs(sweptAngle)*110.0f + follow.opp.distanceTo(orbFiltered.position()); // slope of predicted spiral
             
             // if the point has gotten to the spiral, don't add to score
             if(follow.opp.distanceTo(testPoint) > spiralRadius) { break; }
@@ -918,7 +921,7 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
     float driveOffset = angleWrapRad(angleToBound - driveAngle);
 
     // only change the direction enforcement if turning the wrong way would make us go way out of the field
-    if(abs(orbOffset) > 15.0f*TO_RAD) { 
+    if(abs(orbOffset) > 8.0f*TO_RAD) { 
 
         // stop enforcing direction bc that might make it go out
         follow.enforceTurnDirection = 0;
@@ -948,21 +951,19 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
 
     // how far the robot has to turn to this point
-    float angleToPoint = orbFiltered.angleTo(follow.point, follow.forward);    
+    float angleToPoint = abs(orbFiltered.angleTo(follow.point, follow.forward));    
     float turnGain = 35.0f; // 30
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 15.0f + 0.5f * follow.opp.tangentVel(true); // 12
+    float goAroundGain = 15.0f + 0.4f * follow.opp.tangentVel(true); // 12
 
 
 
     // how close is the nearest wall in this direction
-    // float wallWeight = pow(wallScore(follow.opp, follow.CW), 0.3f); // 0.5
-    float wallWeight = wallScore(follow);
-    float wallGain = 200.0f; // -30.0f
+    float wallGain = 300.0f;
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
@@ -979,7 +980,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     
     // sum up components for score
-    return follow.radius + goAroundAngle*goAroundGain + wallWeight*wallGain + abs(angleToPoint)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward;
+    return follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + angleToPoint*turnGain + tanVel*momentumWeight + backWeight*!follow.forward;
 }
 
 
