@@ -649,7 +649,7 @@ float AStarAttack::wallScore(FollowPoint follow) {
 
                 float rangeWeight = cos(-sweptPercent * 0.5f * M_PI);
 
-                score += pow(margin, -0.7f) + rangeWeight; // score function is integrated based on how much gap we have
+                score += pow(margin, -0.6f) + rangeWeight; // score function is integrated based on how much gap we have
 
                 break;
             }
@@ -963,7 +963,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 300.0f;
+    float wallGain = 260.0f;
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
