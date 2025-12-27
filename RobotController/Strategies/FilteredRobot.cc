@@ -187,7 +187,7 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, f
         float velLeft1Sec = 0.1f; // what percent of velocity is left after each second
         float velPercent = pow(velLeft1Sec, timeIncrement); // what percent of velocity is left after this timestep
 
-        float turnLeft1Sec = 0.1f; 
+        float turnLeft1Sec = 0.005f; // 0.1
         float turnPercent = pow(turnLeft1Sec, timeIncrement);
 
         std::vector<float> newPos = oppExtrap[0]; // pull out new pos

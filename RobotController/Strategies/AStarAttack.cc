@@ -121,27 +121,67 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         FilteredRobot targetOpp = pointsForward[i] ? oppExtrapForward : oppExtrapBackward;
         std::vector<cv::Point2f> oppSimPath = pointsForward[i] ? oppSimPathForward : oppSimPathBackward;
 
-        follows.emplace_back(followPointDirection(targetOpp, deltaTime, pointsCW[i], pointsForward[i], oppSimPath));
+        FollowPoint follow = followPointDirection(targetOpp, deltaTime, pointsCW[i], pointsForward[i], oppSimPath);
+        follow.driveAngle = driveAngle(follow);
+        turnAwayFromOpp(follow); // force that we turn away from the opp if needed
+        avoidBoundsVector(follow);
+
+        follows.emplace_back(follow);
     }
 
 
-
-    // choose which way to circle the opp/drive
-    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f);
-    FollowPoint follow = chooseBestPoint(follows, forwardInput, deltaTime);
-
-
-    // commitToTarget(follow, deltaTime, 0.5f);
-    enforceTurnDirection(follow); // force that we turn away from the opp if needed
-
-
-    float angle = driveAngle(follow);
-    angle = avoidBoundsVector(angle, follow);
+    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if driver is pushing forward or backward
+    FollowPoint follow = chooseBestPoint(follows, forwardInput, deltaTime); // pick which point to use
 
 
 
+    
+    display(follow); // display data
 
 
+
+    // calculate drive inputs based on curvature controller,           0.8, 0.06
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+
+
+    // create and send drive command
+    DriverStationMessage ret;
+    ret.type = DriverStationMessageType::DRIVE_COMMAND;
+    ret.driveCommand.movement = driveInputs[0];
+    ret.driveCommand.turn = driveInputs[1];
+
+
+    std::cout << std::endl;
+    
+    
+    processingTimeVisualizer.markEnd();
+    return ret;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// displays all the data
+void AStarAttack::display(FollowPoint follow) {
 
     bool colliding = orbFiltered.colliding(oppFiltered, 10.0f);
     bool facing = orbFiltered.facing(oppFiltered, follow.forward);
@@ -210,46 +250,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     cv::putText(RobotController::GetInstance().GetDrawingImage(), forwardStatus, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
     cv::putText(RobotController::GetInstance().GetDrawingImage(), CWStatus, cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
 
-
-
-
-    // calculate drive inputs based on curvature controller,           0.8, 0.06
-    std::vector<float> driveInputs = orbFiltered.curvatureController(angle, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
-
-
-
-
-    // create and send drive command
-    DriverStationMessage ret;
-    ret.type = DriverStationMessageType::DRIVE_COMMAND;
-    ret.driveCommand.movement = driveInputs[0];
-    ret.driveCommand.turn = driveInputs[1];
-
-
-    std::cout << std::endl;
-    
-    
-    processingTimeVisualizer.markEnd();
-    return ret;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -683,7 +684,7 @@ float AStarAttack::wallScore(FollowPoint follow) {
     DisplayUtils::displayPoints(scanPoints, color, color, 2); // display scan points on walls
 
 
-    std::cout << "    score CW " << follow.CW << " = " << score << "     ";
+    // std::cout << "    score CW " << follow.CW << " = " << score << "     ";
 
     return score;
 }
@@ -780,26 +781,95 @@ int AStarAttack::sign(float num) {
 }
 
 
-// enforces (or doesn't) a turn direction so we turn away from the op when desired
-// 1 = always turn right, -1 = always turn left
-void AStarAttack::enforceTurnDirection(FollowPoint &follow) {
+
+// true if turning towards this follow point will require it to turn past the opp by default
+bool AStarAttack::willTurnPastOpp(FollowPoint follow) {
+
+    // float angleToOpp = orbFiltered.angleTo(follow.opp.position(), follow.forward);
+    // float targetAngle = orbFiltered.angleTo(follow.point, follow.forward);
+
+    // // if we naturally turn away from the opp then it's false
+    // if(sign(angleToOpp) != sign(targetAngle)) { return false; }
+
+    // // if we turn by the opp in the first few degrees anyway then ignore
+    // if(abs(angleToOpp) < 10.0f*TO_RAD) { return false; } // 15.0f
+
+    // // if we don't have to turn past the opp anyway (or just barely turn past) then ignore
+    // // without this, we wouldn't never want to actually drive towards them
+    // if(abs(targetAngle) < abs(angleToOpp) + 30.0f*TO_RAD) { return false; } // 40
+
+    // // otherwise we'll be turning past them
+    // return true;
+
+
+    // follow.enforceTurnDirection = 1;
+
 
     float angleToOpp = orbFiltered.angleTo(follow.opp.position(), follow.forward);
-    float angleToPoint = orbFiltered.angleTo(follow.point, follow.forward);
+    float targetAngle = orbFiltered.angleTo(follow.point, follow.forward);
 
-    // if we naturally turn away from the opp, leave it as 0
-    if(sign(angleToOpp) != sign(angleToPoint)) { return; }
+    // turn direction is either what's enforced or whatever default direction
+    float turnDirection = follow.enforceTurnDirection;
+    if(turnDirection == 0) { turnDirection = sign(targetAngle); }
 
-    // if we turn by the opp in the first few degrees anyway just turn normally
-    if(abs(angleToOpp) < 15.0f*TO_RAD) { return; } // 20.0f
+    if(turnDirection == 1) { targetAngle = angleWrapRad(targetAngle - M_PI) + M_PI; }
+    if(turnDirection == -1) { targetAngle = angleWrapRad(targetAngle + M_PI) - M_PI; }
 
-    // if we don't have to turn past the opp anyway (or just barely turn past) just turn normally
-    if(abs(angleToPoint) < abs(angleToOpp) + 30.0f*TO_RAD) { return; } // 40
+    // std::cout << "turn direction = " << turnDirection;
 
+    const float startMargin = 10.0f*TO_RAD * turnDirection; // if we turn by the opp in the first few degrees anyway then ignore
+    const float endMargin = 30.0f*TO_RAD * turnDirection; // if we don't have to turn past the opp anyway (or just barely turn past) then ignore
+
+
+    // std::cout << "target = " << targetAngle << ", start = " << startMargin << ", end = " << endMargin;
+
+
+    // if the sweep range is a full circle we don't turn past opp
+    if(turnDirection * (targetAngle - startMargin - endMargin) < 0) { // don't touch
+        // std::cout << "full circle";
+        return false; } 
+
+    float endAngle = angleWrapRad(targetAngle - endMargin); // end of the range we'll turn through
+
+
+    // std::cout << "turn direction = " << turnDirection;
+
+
+
+    float globalStart = angleWrapRad(startMargin + orbFiltered.angle(follow.forward));
+    float globalEnd = angleWrapRad(endAngle + orbFiltered.angle(follow.forward));
+    cv::Point2f startPoint = ppRad() * cv::Point2f(cos(globalStart), sin(globalStart)) + orbFiltered.position();
+    cv::Point2f endPoint = ppRad() * cv::Point2f(cos(globalEnd), sin(globalEnd)) + orbFiltered.position();
+
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), startPoint, cv::Scalar(255, 255, 255), 2);
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), endPoint, cv::Scalar(0, 255, 255), 2);
+
+
+    // rotate everything such the start of the range is on the wrap around line
+    float rotatedEnd = angleWrapRad(endAngle - startMargin + M_PI);
+    float rotatedOpp = angleWrapRad(angleToOpp - startMargin + M_PI);
+
+    // we turn past the opp if it's on the turned-through side of the range
+    if(rotatedOpp*turnDirection < rotatedEnd*turnDirection) { 
+        // std::cout << " turning past opp";
+        return true; }
+
+    // std::cout << "not turning past opp";
+    return false;
+}
+
+
+// enforces (or doesn't) a turn direction so we turn away from the op when desired
+// 1 = always turn right, -1 = always turn left
+void AStarAttack::turnAwayFromOpp(FollowPoint &follow) {
+
+    // if we're not gonna turn past the opp then don't enforce anything
+    if(!willTurnPastOpp(follow)) { return; }
 
     // otherwise enforce a turn direction opposite from what you'd normally do
-    follow.enforceTurnDirection = -sign(angleToPoint);
+    follow.enforceTurnDirection = -sign(orbFiltered.angleTo(follow.point, follow.forward));
 }
+
 
 
 // calculates pure pursuit radius based on speeds
@@ -822,12 +892,12 @@ float AStarAttack::ppRadWall() {
 
 
 // adjusts drive angle if needed to obey pure pursuit radius on walls
-float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
+void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
     std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadWall());
 
     // if we're not hitting a wall and in the field don't change the drive angle
-    if(ppWallPoints.size() == 0 && insideFieldBounds(orbFiltered.position())) { return driveAngle; }
+    if(ppWallPoints.size() == 0 && insideFieldBounds(orbFiltered.position())) { return; }
 
     cv::Point2f boundPoint = closestBoundPoint(orbFiltered.position()); // get the closest point to us thats on a field bound
 
@@ -835,7 +905,8 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
     if(ppWallPoints.size() == 0 && !insideFieldBounds(orbFiltered.position())) { 
         safe_circle(RobotController::GetInstance().GetDrawingImage(), boundPoint, 8, cv::Scalar(255, 255, 255), 3);
         follow.enforceTurnDirection = 0; // don't worry about turning away from opp, need to return optimally
-        return angle(orbFiltered.position(), boundPoint);
+        follow.driveAngle = angle(orbFiltered.position(), boundPoint);
+        return;
     }
 
     // from here we're guarenteed to have pure pursuit intersections with the wall
@@ -886,25 +957,18 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
     // now change the drive angle if needed
 
     // intersection of pp radius and drive angle
-    cv::Point2f drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(driveAngle), sin(driveAngle));
+    cv::Point2f drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(follow.driveAngle), sin(follow.driveAngle));
 
     // if drive point isn't in the field we need to change it
     if(!insideFieldBounds(drivePoint)) {
 
         // set it to the closest bound of the region
-        float minAngleOffset = angleWrapRad(driveAngle - minAngle);
-        float maxAngleOffset = angleWrapRad(driveAngle - maxAngle);
+        float minAngleOffset = angleWrapRad(follow.driveAngle - minAngle);
+        float maxAngleOffset = angleWrapRad(follow.driveAngle - maxAngle);
 
-        driveAngle = maxAngle; // default
-
-        if(abs(minAngleOffset) < abs(maxAngleOffset)) { 
-            // safe_circle(RobotController::GetInstance().GetDrawingImage(), minPoint, 8, cv::Scalar(180, 180, 255), 3);
-            // std::cout << "using minPoint = " << minAngle*TO_DEG << std::endl;
-            driveAngle = minAngle;
-        }
-        // safe_circle(RobotController::GetInstance().GetDrawingImage(), maxPoint, 8, cv::Scalar(180, 180, 255), 3);
-        // std::cout << "using maxPoint = " << maxAngle*TO_DEG << std::endl;
-        // return maxAngle;
+        // set drive angle to the correct bound
+        follow.driveAngle = maxAngle;
+        if(abs(minAngleOffset) < abs(maxAngleOffset)) { follow.driveAngle = minAngle; }
     }
 
 
@@ -918,7 +982,7 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
     // make sure we turn the right direction to the drive angle
 
     float orbOffset = angleWrapRad(angleToBound - orbFiltered.angle(angleToBound));
-    float driveOffset = angleWrapRad(angleToBound - driveAngle);
+    float driveOffset = angleWrapRad(angleToBound - follow.driveAngle);
 
     // only change the direction enforcement if turning the wrong way would make us go way out of the field
     if(abs(orbOffset) > 8.0f*TO_RAD) { 
@@ -932,10 +996,6 @@ float AStarAttack::avoidBoundsVector(float driveAngle, FollowPoint &follow) {
         if(!insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
     }
 
-    std::cout << "enforcing " << follow.enforceTurnDirection << std::endl;
-
-
-    return driveAngle;
 }
 
 
@@ -951,14 +1011,21 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
 
     // how far the robot has to turn to this point
-    float angleToPoint = abs(orbFiltered.angleTo(follow.point, follow.forward));    
-    float turnGain = 35.0f; // 30
+    // float errorPercent = abs(orbFiltered.angleTo(follow.point, follow.forward)) / M_PI;
+    // float angleWeight = -cos(errorPercent * M_PI) + 1.0f;
+    float turnGain = 32.0f; // 32
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 15.0f + 0.4f * follow.opp.tangentVel(true); // 12
+    float goAroundGain = 10.0f + 0.5f * follow.opp.tangentVel(true); // 10 0.5
+
+
+
+    // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
+    bool badTurn = willTurnPastOpp(follow);
+    float badTurnWeight = 100.0f;
 
 
 
@@ -980,9 +1047,22 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     
     // sum up components for score
-    return follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + angleToPoint*turnGain + tanVel*momentumWeight + backWeight*!follow.forward;
+    return follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward + badTurnWeight*badTurn;
 }
 
+
+
+// returns score based on how much we have to turn to face the follow point
+float AStarAttack::turnScore(FollowPoint follow) {
+
+    // how far we need to rotate to match the drive angle, includes enforced turn direction
+    float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2]);
+    if(follow.enforceTurnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+    if(follow.enforceTurnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+
+    // INCREASE GAIN IF WE'RE TURNING PAST THE OPP?
+    return abs(angleError);
+}
 
 
 
@@ -1085,7 +1165,7 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 }
 
 
-// returns the best follow point with the best score, also sets CW and forward by reference
+// returns the best follow point with the lowest score
 FollowPoint AStarAttack::chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime) {
 
     if(follows.size() == 0) { return FollowPoint(); } // no crashy

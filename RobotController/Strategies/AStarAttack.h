@@ -65,10 +65,11 @@ private:
     cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(FollowPoint follow);
     float wallScorePinch(FollowPoint follow);
-    void enforceTurnDirection(FollowPoint &follow);
+    float turnScore(FollowPoint follow);
+    void turnAwayFromOpp(FollowPoint &follow);
     float ppRad();
     float ppRadWall();
-    float avoidBoundsVector(float driveAngle, FollowPoint &follow);
+    void avoidBoundsVector(FollowPoint &follow);
     float directionScore(FollowPoint follow, float deltaTime, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
     FollowPoint chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime);
@@ -76,5 +77,7 @@ private:
     int sign(float num);
     void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
     float driveAngle(FollowPoint follow);
+    void display(FollowPoint follow);
+    bool willTurnPastOpp(FollowPoint follow);
 
 };

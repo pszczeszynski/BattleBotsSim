@@ -22,6 +22,7 @@ public:
 
     float controllerGain; // curvature controller gain to use when following
     float radius; // attack radius corresponding to this point, the XY point doesn't always lie on this (ex if orb is close to the opponent in front of their weapon)
+    float driveAngle; // angle to drive towards the point
 
     int enforceTurnDirection; // 1 = always turn right, -1 left, 0 whatever way is less turn distance
 
