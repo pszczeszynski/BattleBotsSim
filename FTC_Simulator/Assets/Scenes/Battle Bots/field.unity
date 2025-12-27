@@ -5641,7 +5641,6 @@ Transform:
   - {fileID: 772084082}
   - {fileID: 25560852}
   - {fileID: 2068624918}
-  - {fileID: 843811810}
   - {fileID: 1047535894}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -17615,14 +17614,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 843811809}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.008098655, y: -0.92199874, z: 0.38662615, w: -0.019313103}
-  m_LocalPosition: {x: 1.737, y: 6.19, z: 11.701}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 6.74, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1820725279}
-  m_Father: {fileID: 244363715}
-  m_LocalEulerAnglesHint: {x: 45.5, y: -182.4, z: 0}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!45 &843811811
 Skybox:
   m_ObjectHideFlags: 0
@@ -17697,17 +17696,17 @@ Camera:
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 2
   m_GateFitMode: 0
-  m_FOVAxisMode: 1
+  m_FOVAxisMode: 0
   m_Iso: 600
   m_ShutterSpeed: 0.005
   m_Aperture: 1.6
   m_FocusDistance: 0.1
-  m_FocalLength: 2.3
+  m_FocalLength: 2.3543036
   m_BladeCount: 5
   m_Curvature: {x: 2, y: 11}
   m_BarrelClipping: 0.25
   m_Anamorphism: 0
-  m_SensorSize: {x: 4.968, y: 2.656}
+  m_SensorSize: {x: 6.7075, y: 5.6115}
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
@@ -17717,7 +17716,7 @@ Camera:
     height: 1
   near clip plane: 0.1
   far clip plane: 100
-  field of view: 60.00353
+  field of view: 100
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -39574,7 +39573,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1820725275
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -39657,17 +39656,17 @@ Camera:
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 2
   m_GateFitMode: 0
-  m_FOVAxisMode: 1
+  m_FOVAxisMode: 0
   m_Iso: 600
   m_ShutterSpeed: 0.005
   m_Aperture: 1.6
   m_FocusDistance: 0.1
-  m_FocalLength: 2.3
+  m_FocalLength: 2.3543036
   m_BladeCount: 5
   m_Curvature: {x: 2, y: 11}
   m_BarrelClipping: 0.25
   m_Anamorphism: 0
-  m_SensorSize: {x: 4.968, y: 2.656}
+  m_SensorSize: {x: 6.7075, y: 5.6115}
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
@@ -39677,7 +39676,7 @@ Camera:
     height: 1
   near clip plane: 0.1
   far clip plane: 100
-  field of view: 60.00353
+  field of view: 100
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -39735,7 +39734,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1826500113
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -73121,6 +73120,7 @@ SceneRoots:
   - {fileID: 149040366}
   - {fileID: 1753203518}
   - {fileID: 822324294}
+  - {fileID: 843811810}
   - {fileID: 244363715}
   - {fileID: 1826500114}
   - {fileID: 1343574919}

@@ -22,23 +22,6 @@ void ConfigWidget::Draw()
 {
     HeuristicOdometry& heuristic = RobotController::GetInstance().odometry.GetHeuristicOdometry();
 
-
-    ImGui::Begin("Kill Config");
-    // button for LEAD_WITH_BAR
-    if (ImGui::Button("Lead with Bar or Disk?"))
-    {
-        LEAD_WITH_BAR = !LEAD_WITH_BAR;
-    }
-    ImGui::SameLine();
-    ImGui::Text(LEAD_WITH_BAR ? "BAR" : "DISK");
-
-    ImGui::SliderInt("Robot pos extrap (ms)", &POSITION_EXTRAPOLATE_MS, 0, 1000);
-    ImGui::SliderInt("Opponent pos extrap (ms)", &OPPONENT_POSITION_EXTRAPOLATE_MS_KILL, 0, 1000);
-    ImGui::SliderInt("Max extrap time (ms)", &MAX_OPP_EXTRAP_MS_KILL, 0, 2000);
-    ImGui::End();
-
-
-
     ImGui::Begin("Vision Config");
     SetMaxWidthWithMargin(MARGIN_GO_TO_POINT_CONFIG);
     ImGui::SliderInt("Min Robot Blob Size", &MIN_ROBOT_BLOB_SIZE, 0, 1000);
