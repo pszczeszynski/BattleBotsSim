@@ -681,7 +681,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         _dataOpponent.robotPosValid = true;
 
         // If blob position isn't inside our rectangle then set position
-        if (blobThemPos_valid && !_dataOpponent_Heuristic.IsPointInside(ext_dataOpponent_Blob.robotPosition))
+        if (blobThemPos_valid && !ext_dataOpponent_Heuristic.IsPointInside(ext_dataOpponent_Blob.robotPosition))
         {
             ext_dataOpponent_Blob.robotPosValid = false;
         }
