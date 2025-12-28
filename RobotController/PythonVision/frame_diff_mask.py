@@ -76,4 +76,33 @@ class FrameDiffMask:
                 keep_indices.append(i)
         
         return keep_indices
+    
+    def compute_mask_center_near_point(self, center, radius):
+        """Compute the centroid of the diff mask near a given center point."""
+        mask = self.current_mask
+        if mask is None or center is None:
+            return None
+        
+        cx, cy = int(center[0]), int(center[1])
+        h, w = mask.shape
+        
+        # Create a circular mask around center
+        y, x = np.ogrid[:h, :w]
+        dist_sq = (x - cx) ** 2 + (y - cy) ** 2
+        circle_mask = dist_sq <= radius ** 2
+        
+        # Find mask pixels within the circle
+        mask_in_circle = (mask > 0) & circle_mask
+        
+        if not np.any(mask_in_circle):
+            return None
+        
+        # Compute centroid of mask pixels within the circle
+        y_coords, x_coords = np.where(mask_in_circle)
+        if len(x_coords) == 0:
+            return None
+        
+        mask_center_x = float(np.mean(x_coords))
+        mask_center_y = float(np.mean(y_coords))
+        return (mask_center_x, mask_center_y)
 

@@ -29,7 +29,7 @@ def roi_center(roi):
     return (x + w / 2.0, y + h / 2.0)
 
 
-def draw_pose(img, center, angle_deg, color=(255, 0, 255), axis_len=60):
+def draw_pose(img, center, angle_deg, color=(255, 0, 255), axis_len=120):
     """Draw heading (angle_deg) as a crosshair centered at center."""
     cx, cy = center
     ang = math.radians(angle_deg)
@@ -39,7 +39,7 @@ def draw_pose(img, center, angle_deg, color=(255, 0, 255), axis_len=60):
     y2 = cy + axis_len * math.sin(ang)
     x1 = cx - axis_len * 0.6 * math.cos(ang)
     y1 = cy - axis_len * 0.6 * math.sin(ang)
-    cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), color, 2, cv2.LINE_AA)
+    cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), color, 4, cv2.LINE_AA)
 
     # Perpendicular crosshair line
     angp = ang + math.pi / 2.0
@@ -47,7 +47,7 @@ def draw_pose(img, center, angle_deg, color=(255, 0, 255), axis_len=60):
     y3 = cy + axis_len * 0.45 * math.sin(angp)
     x4 = cx - axis_len * 0.45 * math.cos(angp)
     y4 = cy - axis_len * 0.45 * math.sin(angp)
-    cv2.line(img, (int(x4), int(y4)), (int(x3), int(y3)), color, 2, cv2.LINE_AA)
+    cv2.line(img, (int(x4), int(y4)), (int(x3), int(y3)), color, 4, cv2.LINE_AA)
 
     cv2.circle(img, (int(cx), int(cy)), 4, color, -1, cv2.LINE_AA)
 
