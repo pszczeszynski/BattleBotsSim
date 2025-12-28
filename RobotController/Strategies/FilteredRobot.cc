@@ -389,7 +389,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 // simulates orb's path to the opp to calculate the ETA
 float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward) {
 
-    int direction = 1; if(!forward) { direction = -1; }
+    int direction = forward ? 1 : -1;
 
     std::vector<float> simPos = posFiltered;
     float simSpeed = moveSpeedSlow() * direction;
@@ -419,8 +419,13 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         }
 
         // if we're close enough to collide and facing opp, then return
-        bool facing = abs(dummyOrb.angleTo(opp.position(), forward)) < 80.0f*TO_RAD;
-        if(dummyOrb.colliding(opp, 0.0f) && (facing || !orbNeedsToFace)) { break; }
+        if(dummyOrb.colliding(opp, 0.0f) && (dummyOrb.facing(opp, forward) || !orbNeedsToFace)) { break; }
+
+        // if we're close enough to collide (and not facing opp), then return high number
+        if(dummyOrb.colliding(opp, 0.0f) && orbNeedsToFace) { 
+            simTime = 99999999999.0f;
+            break;
+        }
 
 
         // 290

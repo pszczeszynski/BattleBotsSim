@@ -64,8 +64,8 @@ AStarAttack::AStarAttack()
 
 
     // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 45.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 55.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
 }
 
 
@@ -110,7 +110,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     // std::vector<bool> pointsForward = {true, false, true, false};
     std::vector<bool> pointsCW = {true, false};
     std::vector<bool> pointsForward = {true, true};
-    // std::vector<bool> pointsCW = {false};
+    // std::vector<bool> pointsCW = {true};
     // std::vector<bool> pointsForward = {true};
 
 
@@ -140,8 +140,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    // calculate drive inputs based on curvature controller,           0.8, 0.06
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.04f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    // calculate drive inputs based on curvature controller,           0.6, 0.04
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
@@ -249,6 +249,22 @@ void AStarAttack::display(FollowPoint follow) {
     cv::putText(RobotController::GetInstance().GetDrawingImage(), "Orbiting", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
     cv::putText(RobotController::GetInstance().GetDrawingImage(), forwardStatus, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
     cv::putText(RobotController::GetInstance().GetDrawingImage(), CWStatus, cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
+
+
+
+
+    // add lines to show weapon regions
+    cv::Point2f oppWeapon1 = oppFiltered.position() + oppFiltered.getSizeRadius()*cv::Point2f(cos(oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()), sin(oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()));
+    cv::Point2f oppWeapon2 = oppFiltered.position() + oppFiltered.getSizeRadius()*cv::Point2f(cos(oppFiltered.angle(true) - oppFiltered.getWeaponAngleReach()), sin(oppFiltered.angle(true) - oppFiltered.getWeaponAngleReach()));
+    
+    cv::Point2f orbWeapon1 = orbFiltered.position() + orbFiltered.getSizeRadius()*cv::Point2f(cos(orbFiltered.angle(follow.forward) + orbFiltered.getWeaponAngleReach()), sin(orbFiltered.angle(follow.forward) + orbFiltered.getWeaponAngleReach()));
+    cv::Point2f orbWeapon2 = orbFiltered.position() + orbFiltered.getSizeRadius()*cv::Point2f(cos(orbFiltered.angle(follow.forward) - orbFiltered.getWeaponAngleReach()), sin(orbFiltered.angle(follow.forward) - orbFiltered.getWeaponAngleReach()));
+
+    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppWeapon1, colorOppLight, 2);
+    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppWeapon2, colorOppLight, 2);
+
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbWeapon1, colorOrbLight, 2);
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbWeapon2, colorOrbLight, 2);
 
 }
 
@@ -384,7 +400,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // follow.radius = 120.0f;
     // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
     // follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
-    follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
+    follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); 
 }
 
 
@@ -670,19 +686,28 @@ float AStarAttack::wallScore(FollowPoint follow) {
         scanPoints.emplace_back(testPoint); // add to the list to display later
         scanLines.emplace_back(Line(follow.opp.position(), testPoint));
 
+        
+
+        // display scanned points
+        cv::Scalar color = cv::Scalar(150, 255, 150);
+        if(!follow.CW) { color = cv::Scalar(150, 150, 255); }
+
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), testPoint, 2, color, 2);
+
+
+        // // if we have at least 2 points start drawing lines
+        // if(scanPoints.size() > 1) {
+        //     cv::line(RobotController::GetInstance().GetDrawingImage(), scanPoints[scanPoints.size() - 2], testPoint, color, 2);
+        // }
+
+        
+
         // if the points are so far away now then stop counting
         if(pathLength > maxPathLength) { break; }
 
     }
 
     score /= pathLength; // normalize to sweep range so we can change that without losing tune
-
-    cv::Scalar color = cv::Scalar(150, 255, 150, 255);
-    if(!follow.CW) { color = cv::Scalar(150, 150, 255, 255); }
-
-
-    DisplayUtils::displayPoints(scanPoints, color, color, 2); // display scan points on walls
-
 
     // std::cout << "    score CW " << follow.CW << " = " << score << "     ";
 
@@ -785,26 +810,6 @@ int AStarAttack::sign(float num) {
 // true if turning towards this follow point will require it to turn past the opp by default
 bool AStarAttack::willTurnPastOpp(FollowPoint follow) {
 
-    // float angleToOpp = orbFiltered.angleTo(follow.opp.position(), follow.forward);
-    // float targetAngle = orbFiltered.angleTo(follow.point, follow.forward);
-
-    // // if we naturally turn away from the opp then it's false
-    // if(sign(angleToOpp) != sign(targetAngle)) { return false; }
-
-    // // if we turn by the opp in the first few degrees anyway then ignore
-    // if(abs(angleToOpp) < 10.0f*TO_RAD) { return false; } // 15.0f
-
-    // // if we don't have to turn past the opp anyway (or just barely turn past) then ignore
-    // // without this, we wouldn't never want to actually drive towards them
-    // if(abs(targetAngle) < abs(angleToOpp) + 30.0f*TO_RAD) { return false; } // 40
-
-    // // otherwise we'll be turning past them
-    // return true;
-
-
-    // follow.enforceTurnDirection = 1;
-
-
     float angleToOpp = orbFiltered.angleTo(follow.opp.position(), follow.forward);
     float targetAngle = orbFiltered.angleTo(follow.point, follow.forward);
 
@@ -836,13 +841,13 @@ bool AStarAttack::willTurnPastOpp(FollowPoint follow) {
 
 
 
-    float globalStart = angleWrapRad(startMargin + orbFiltered.angle(follow.forward));
-    float globalEnd = angleWrapRad(endAngle + orbFiltered.angle(follow.forward));
-    cv::Point2f startPoint = ppRad() * cv::Point2f(cos(globalStart), sin(globalStart)) + orbFiltered.position();
-    cv::Point2f endPoint = ppRad() * cv::Point2f(cos(globalEnd), sin(globalEnd)) + orbFiltered.position();
+    // float globalStart = angleWrapRad(startMargin + orbFiltered.angle(follow.forward));
+    // float globalEnd = angleWrapRad(endAngle + orbFiltered.angle(follow.forward));
+    // cv::Point2f startPoint = ppRad() * cv::Point2f(cos(globalStart), sin(globalStart)) + orbFiltered.position();
+    // cv::Point2f endPoint = ppRad() * cv::Point2f(cos(globalEnd), sin(globalEnd)) + orbFiltered.position();
 
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), startPoint, cv::Scalar(255, 255, 255), 2);
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), endPoint, cv::Scalar(0, 255, 255), 2);
+    // cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), startPoint, cv::Scalar(255, 255, 255), 2);
+    // cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), endPoint, cv::Scalar(0, 255, 255), 2);
 
 
     // rotate everything such the start of the range is on the wrap around line
@@ -1010,27 +1015,26 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
     float closeness = std::clamp(1.0f - ((orbFiltered.distanceTo(follow.opp.position()) - collisionRadius) / farAway), 0.0f, 1.0f);
 
 
-    // how far the robot has to turn to this point
-    // float errorPercent = abs(orbFiltered.angleTo(follow.point, follow.forward)) / M_PI;
-    // float angleWeight = -cos(errorPercent * M_PI) + 1.0f;
-    float turnGain = 32.0f; // 32
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 10.0f + 0.5f * follow.opp.tangentVel(true); // 10 0.5
+    float goAroundGain = 15.0f + 0.5f * follow.opp.tangentVel(true); // 10 0.5
 
 
+
+    // how far the robot has to turn to this point
+    float turnGain = 40.0f; // 60
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
-    bool badTurn = willTurnPastOpp(follow);
-    float badTurnWeight = 100.0f;
+    // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
+    float turnPastOppGain = 120.0f;
 
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 260.0f;
+    float wallGain = 600.0f;
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
@@ -1047,7 +1051,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     
     // sum up components for score
-    return follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward + badTurnWeight*badTurn;
+    return 2.0f*follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward + turnPastOppGain*willTurnPastOpp(follow);
 }
 
 
@@ -1105,7 +1109,7 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
     // controller gain is less and less the further you get into the circle
-    float minGain = 0.6f; // 0.3
+    float minGain = 1.0f; // 0.6
     follow.controllerGain = radiusPercent*(1.0f - minGain) + minGain;
 
 
