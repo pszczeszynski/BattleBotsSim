@@ -8,6 +8,7 @@
 #include "Line.h"
 #include "FilteredRobot.h"
 #include "FollowPoint.h"
+#include "Field.h"
 
 
 class AStarAttack : public Strategy
@@ -19,8 +20,8 @@ public:
     // Field boundary editing interface
     std::vector<cv::Point2f>& GetFieldBoundaryPoints();
     void SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points);
-    void RegenerateFieldBoundaryLines();
     void ResetFieldBoundariesToDefault();
+    void RegenerateFieldBoundaryLines();
     
     // Radius curve parameter interface
     void GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY[3]);
@@ -35,10 +36,8 @@ private:
     FilteredRobot oppFiltered; // opp robot
 
 
+    Field field; // field object
 
-    std::vector<cv::Point2f> fieldBoundPoints; // list of points that define the field bound lines
-    std::vector<Line> fieldBoundLines; // list of lines that defines the outline of the field
-    std::vector<cv::Point2f> convexPoints; // list of field bound convex points we could hit while driving
 
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
@@ -56,15 +55,10 @@ private:
     void tangentPoint(FollowPoint &follow);
     cv::Point2f ppPoint(FollowPoint follow);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
-    cv::Point2f closestBoundPoint(cv::Point2f point);
-    bool insideFieldBounds(cv::Point2f point);
-    bool intersectsAnyBound(Line testLine);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
     FollowPoint followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward, std::vector<cv::Point2f> oppSimPath);
-    cv::Point2f clipPointInBounds(cv::Point2f testPoint);
     float wallScore(FollowPoint follow);
-    float wallScorePinch(FollowPoint follow);
     float turnScore(FollowPoint follow);
     void turnAwayFromOpp(FollowPoint &follow);
     float ppRad();

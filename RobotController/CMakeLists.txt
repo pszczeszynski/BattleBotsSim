@@ -113,6 +113,7 @@ set(SOURCES
     SafeDrawing.cc
     Strategies/DisplayUtils.cc
     Strategies/FollowPoint.cc
+    Strategies/Field.cc
 )
 
 # Check for opencv_tracking module

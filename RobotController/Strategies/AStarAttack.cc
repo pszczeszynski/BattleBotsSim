@@ -17,55 +17,13 @@ AStarAttack* AStarAttack::_instance = nullptr;
 AStarAttack::AStarAttack()
 {
     _instance = this;
-    // define the field
-    float minX = 65.0f;
-    float maxX = 675.0f;
-    float minY = 55.0f;
-    float maxY = 655.0f;
-    float shelfStartX = 210.0f;
-    float shelfEndX = 525.0f;
-    float shelfY = 215.0f;
-    float screwX1 = 110.0f;
-    float screwX2 = 620.0f;
-    float screwY1 = 140.0f;
-    float screwY2 = 220.0f;
-    float screwY3 = 470.0f;
-    float screwY4 = 560.0f;
-    float gateY = 615.0f;
-    float gateX1 = 115.0f;
-    float gateX2 = 620.0f;
-
-
-    // no shelf corners
-    fieldBoundPoints = {
-        cv::Point(screwX1, shelfY),
-        cv::Point2f(screwX2, shelfY),
-        cv::Point2f(screwX2, screwY3),
-        cv::Point2f(maxX, screwY4),
-        cv::Point2f(maxX, gateY),
-        cv::Point2f(gateX2, maxY),
-        cv::Point2f(gateX1, maxY),
-        cv::Point2f(minX, gateY),
-        cv::Point2f(minX, screwY4),
-        cv::Point2f(screwX1, screwY3),
-        cv::Point2f(screwX1, shelfY), // include first point again to complete last line
-    };
-
-    // lines are defined by connected adjacent points
-    for(int i = 0; i < fieldBoundPoints.size() - 1; i++) {
-        Line addLine = Line(fieldBoundPoints[i], fieldBoundPoints[i + 1]);
-        fieldBoundLines.emplace_back(addLine);
-    }
-
-
-    // points that stick out
-    convexPoints.emplace_back(cv::Point2f(screwX2, screwY3));
-    convexPoints.emplace_back(cv::Point2f(screwX1, screwY3));
-
-
-    // initialize filters
+    
+    // init filters
     orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f); // 25, 15, 25 last three
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
+
+    // init field
+    field = Field();
 }
 
 
@@ -231,8 +189,7 @@ void AStarAttack::display(FollowPoint follow) {
     // display paths
     DisplayUtils::displayPath(follow.orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
     DisplayUtils::displayPath(follow.oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
-    DisplayUtils::displayLines(fieldBoundLines, cv::Scalar(0, 0, 255)); // draw field bound lines
-    DisplayUtils::displayPoints(convexPoints, cv::Scalar(0, 0, 255), cv::Scalar(0, 0, 255), 4); // draw field bound points
+    DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // draw field bound lines
     DisplayUtils::displayPath(orbFiltered.getPath(), cv::Scalar(100, 100, 100), colorOrbLight, 3); // display orb path
     DisplayUtils::displayPath(follow.opp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
 
@@ -482,20 +439,6 @@ cv::Point2f AStarAttack::ppPoint(FollowPoint follow) {
 
 
 
-// does a test line intersect any boundary line
-bool AStarAttack::intersectsAnyBound(Line testLine) {
-    for(int i = 0; i < fieldBoundLines.size(); i++) {
-        float howCloseFirstPoint = fieldBoundLines[i].howClosePoint(testLine.getLinePoints().first);
-        float howCloseSecondPoint = fieldBoundLines[i].howClosePoint(testLine.getLinePoints().second);
-        if(fieldBoundLines[i].doesIntersectLine(testLine) || howCloseFirstPoint < 0.1f || howCloseSecondPoint < 0.1f) { // add tolerance in case point is exactly on line (clipped points often are)
-            return true;
-        }
-    }
-    return false;
-}
-
-
-
 // generates a list of arc points from the center
 std::vector<cv::Point2f> AStarAttack::arcPointsFromCenter(float radius, float angle, float pointSpacing) {
 
@@ -558,36 +501,6 @@ std::pair<float, int> AStarAttack::closestFromLineList(std::vector<Line> lineLis
 }
 
 
-// finds the closest point that's on a boundary line
-cv::Point2f AStarAttack::closestBoundPoint(cv::Point2f point) {
-
-    std::pair<float, int> closestFieldBound = closestFromLineList(fieldBoundLines, point);
-    std::pair<cv::Point2f, cv::Point2f> closestLinePoints = fieldBoundLines[closestFieldBound.second].getLinePoints();
-
-    // highlight closest line
-    cv::line(RobotController::GetInstance().GetDrawingImage(), closestLinePoints.first, closestLinePoints.second, cv::Scalar(220, 220, 255), 2);
-    
-    cv::Point2f closestWallPoint = fieldBoundLines[closestFieldBound.second].closestLinePoint(point);
-    return closestWallPoint;
-}
-
-
-// if the point is inside the shape of the field
-bool AStarAttack::insideFieldBounds(cv::Point2f point) {
-
-    // define horizontal line from point
-    Line testLine(point, cv::Point2f(point.x + 999999.0f, point.y));
-
-    // count the number of intersections with the bounds
-    int intersections = 0;
-    for(int i = 0; i < fieldBoundLines.size(); i++) {
-        if(testLine.doesIntersectLine(fieldBoundLines[i])) { intersections++; }
-    }
-
-    // point is in the field if there's an odd number of intersections
-    return intersections % 2 != 0;
-}
-
 
 // does a point list include this point, returns -1 if not found
 int AStarAttack::vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint) {
@@ -597,33 +510,6 @@ int AStarAttack::vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2
     }
     return -1;
 }
-
-
-// clips a point to be fully in bounds if needed
-cv::Point2f AStarAttack::clipPointInBounds(cv::Point2f testPoint) {
-
-    cv::Point2f returnPoint = testPoint; 
-    if(!insideFieldBounds(returnPoint)) { 
-        cv::Point2f onBoundStart = closestBoundPoint(testPoint);
-
-        // 8 surrounding points
-        double increment = 0.1f;
-        std::vector<cv::Point2f> increments = {
-            cv::Point2f(increment, increment),   cv::Point2f(increment, 0),
-            cv::Point2f(increment, -increment),  cv::Point2f(0, -increment),
-            cv::Point2f(-increment, -increment), cv::Point2f(-increment, 0.0),
-            cv::Point2f(-increment, increment),  cv::Point2f(0.0, increment)};
-        for (int i = 0; i < increments.size(); i++) {
-          cv::Point2f inBound = cv::Point2f(onBoundStart.x + increments[i].x,
-                                            onBoundStart.y + increments[i].y);
-          if (insideFieldBounds(inBound)) {
-            returnPoint = inBound;
-          }
-        }
-    }
-    return returnPoint;
-}
-
 
 
 
@@ -647,7 +533,7 @@ float AStarAttack::wallScore(FollowPoint follow) {
 
         float currAngle = angleWrapRad(startAngle + sweptAngle); // current angle we're scanning at
 
-        cv::Point2f testPoint = clipPointInBounds(follow.opp.position()); // point to ray cast
+        cv::Point2f testPoint = field.clipPointInBounds(follow.opp.position()); // point to ray cast
         constexpr int kMaxRaycastSteps = 400;
 
 
@@ -657,8 +543,8 @@ float AStarAttack::wallScore(FollowPoint follow) {
             testPoint += 5.0f * cv::Point2f(cos(currAngle), sin(currAngle));
 
             // if the ray cast has exited the field
-            if(!insideFieldBounds(testPoint)) {
-                testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
+            if(!field.insideFieldBounds(testPoint)) {
+                testPoint = field.closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
 
                 float gapSize = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.0f); // how big is the gap to drive in
                 float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
@@ -715,96 +601,8 @@ float AStarAttack::wallScore(FollowPoint follow) {
 }
 
 
-
-
-// weighs how bad the walls are based on pinch points
-float AStarAttack::wallScorePinch(FollowPoint follow) {
-
-    // angular range to scan
-    const float sweepEnd = 179.0f*TO_RAD;
-    const float sweepStart = 40.0f*TO_RAD;
-
-    std::vector<cv::Point2f> scanPoints = {}; // all points that scan along the wall
-    std::vector<cv::Point2f> pinchPoints = {}; // points that are a local min distance
-    std::vector<Line> scanLines = {}; // lines that connect to the scan points from the opp
-
-    float startAngle = angle(follow.opp.position(), orbFiltered.position()); // start scanning along the angle connecting us
-
-    // sweep through the whole angle around by incrementing
-    float previousDistance = 0.0f;
-    bool previousDecreasing = false; 
-    float highestScore = 0.0f;
-
-    const float sweepIncrement = follow.CW ? 1.0f*TO_RAD : -1.0f*TO_RAD; // how much to increment sweep angle for each point
-    // scan the specified angle range
-    for (float angleOffset = follow.CW ? sweepStart : -sweepStart; abs(angleOffset) < abs(sweepEnd);
-         angleOffset += follow.CW ? 1.0f*TO_RAD : -1.0f*TO_RAD)
-    {
-        float currAngle = angleWrapRad(startAngle + angleOffset);
-        cv::Point2f testPoint = clipPointInBounds(follow.opp.position());
-
-        constexpr int kMaxRaycastSteps = 400;
-
-        // increment the point outwards until it's out of bounds
-        for(int i = 0; i < kMaxRaycastSteps; i++) {
-
-            testPoint += 5.0f * cv::Point2f(cos(currAngle), sin(currAngle));
-
-            if(!insideFieldBounds(testPoint)) { break; }
-        }
-        
-        testPoint = closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after.
-        scanPoints.emplace_back(testPoint);
-        scanLines.emplace_back(Line(follow.opp.position(), testPoint));
-
-        float pointDistance = std::max(follow.opp.distanceTo(testPoint) - follow.opp.getSizeRadius(), 0.01f);
-        
-        // if the points are getting further away
-        if(pointDistance > previousDistance) { 
-            // if it was previously decreasing then it's a pinch point
-            if(previousDecreasing) {
-
-                // track the worst case pinch point
-                float score = (sweepEnd - abs(angleOffset)) / pointDistance;
-                if(score > highestScore) { highestScore = score; }
-
-                pinchPoints.emplace_back(testPoint); 
-            }
-
-            previousDecreasing = false; // mark it wasn't decreasing last time
-        }
-        else {
-            previousDecreasing = true; 
-        }
-
-        previousDistance = pointDistance;
-    }
-
-    cv::Scalar color = cv::Scalar(150, 255, 150, 255);
-    if(!follow.CW) { color = cv::Scalar(150, 150, 255, 255); }
-
-
-    DisplayUtils::displayPoints(scanPoints, color, color, 2);
-    DisplayUtils::displayPoints(pinchPoints, color, color, 10);
-
-    // displayLineList(scanLines, color);
-
-
-    std::cout << "    score CW " << follow.CW << " = " << highestScore << "     ";
-
-    return highestScore;
-
-}
-
-
-
-
 // returns sign of the input
-int AStarAttack::sign(float num) {
-    if(num < 0) { return -1; }
-    return 1;
-}
-
+int AStarAttack::sign(float num) { return (num < 0)? -1 : 1; }
 
 
 // true if turning towards this follow point will require it to turn past the opp by default
@@ -899,15 +697,15 @@ float AStarAttack::ppRadWall() {
 // adjusts drive angle if needed to obey pure pursuit radius on walls
 void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
-    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), fieldBoundPoints, ppRadWall());
+    std::vector<cv::Point2f> ppWallPoints = PurePursuit::followPath(orbFiltered.position(), field.getBoundPoints(), ppRadWall());
 
     // if we're not hitting a wall and in the field don't change the drive angle
-    if(ppWallPoints.size() == 0 && insideFieldBounds(orbFiltered.position())) { return; }
+    if(ppWallPoints.size() == 0 && field.insideFieldBounds(orbFiltered.position())) { return; }
 
-    cv::Point2f boundPoint = closestBoundPoint(orbFiltered.position()); // get the closest point to us thats on a field bound
+    cv::Point2f boundPoint = field.closestBoundPoint(orbFiltered.position()); // get the closest point to us thats on a field bound
 
     // if we're not hitting a wall and fully out of the field then drive back in to closest bound point
-    if(ppWallPoints.size() == 0 && !insideFieldBounds(orbFiltered.position())) { 
+    if(ppWallPoints.size() == 0 && !field.insideFieldBounds(orbFiltered.position())) { 
         safe_circle(RobotController::GetInstance().GetDrawingImage(), boundPoint, 8, cv::Scalar(255, 255, 255), 3);
         follow.enforceTurnDirection = 0; // don't worry about turning away from opp, need to return optimally
         follow.driveAngle = angle(orbFiltered.position(), boundPoint);
@@ -924,7 +722,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
     // now let's find which pp points actually define the region
 
-    float angleToBound = angle(orbFiltered.position(), closestBoundPoint(orbFiltered.position())); // angle to the closest bound point
+    float angleToBound = angle(orbFiltered.position(), field.closestBoundPoint(orbFiltered.position())); // angle to the closest bound point
 
     // min and max offsets from the line to the bound point
     float mostPosOffset = 0;
@@ -965,7 +763,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
     cv::Point2f drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(follow.driveAngle), sin(follow.driveAngle));
 
     // if drive point isn't in the field we need to change it
-    if(!insideFieldBounds(drivePoint)) {
+    if(!field.insideFieldBounds(drivePoint)) {
 
         // set it to the closest bound of the region
         float minAngleOffset = angleWrapRad(follow.driveAngle - minAngle);
@@ -998,7 +796,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
         if(orbOffset > 0 && driveOffset < 0) { follow.enforceTurnDirection = -1; }
         if(orbOffset < 0 && driveOffset > 0) { follow.enforceTurnDirection = 1; }
 
-        if(!insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
+        if(!field.insideFieldBounds(orbFiltered.position())) { follow.enforceTurnDirection *= -1; } // needs to invert if out of the field
     }
 
 }
@@ -1194,18 +992,15 @@ FollowPoint AStarAttack::chooseBestPoint(std::vector<FollowPoint> follows, bool 
 
 
 // Field boundary editing interface implementation
-AStarAttack* AStarAttack::GetInstance() {
-    return _instance;
-}
+AStarAttack* AStarAttack::GetInstance() { return _instance; }
 
-std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() {
-    return fieldBoundPoints;
-}
+// sets field lines to what the UI changed them to
+void AStarAttack::SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points) { field.setBoundPoints(points); }
 
-void AStarAttack::SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points) {
-    fieldBoundPoints = points;
-    RegenerateFieldBoundaryLines();
-}
+// gets field points for UI
+std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() { return field.getBoundPoints(); }
+
+
 
 // Radius curve parameter interface implementation
 void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY[3]) {
@@ -1217,6 +1012,8 @@ void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY
     radiusCurveY[2] = RADIUS_CURVE_Y2;
 }
 
+
+
 void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[3], const float radiusCurveY[3]) {
     RADIUS_CURVE_X0 = radiusCurveX[0];
     RADIUS_CURVE_X1 = radiusCurveX[1];
@@ -1226,62 +1023,21 @@ void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[3], const float 
     RADIUS_CURVE_Y2 = radiusCurveY[2];
 }
 
+
+
 void AStarAttack::ResetRadiusCurveToDefault() {
     RADIUS_CURVE_X0 = 0.0f;   RADIUS_CURVE_Y0 = 0.0f;
     RADIUS_CURVE_X1 = 15.0f;  RADIUS_CURVE_Y1 = 85.0f;
     RADIUS_CURVE_X2 = 100.0f; RADIUS_CURVE_Y2 = 150.0f;
 }
 
-void AStarAttack::RegenerateFieldBoundaryLines() {
-    fieldBoundLines.clear();
-    
-    // Regenerate lines from connected adjacent points
-    for(int i = 0; i < fieldBoundPoints.size() - 1; i++) {
-        Line addLine = Line(fieldBoundPoints[i], fieldBoundPoints[i + 1]);
-        fieldBoundLines.emplace_back(addLine);
-    }
-    
-    // Update convex points (points that stick out)
-    convexPoints.clear();
-    if (fieldBoundPoints.size() >= 11) {
-        // Assuming the same structure as the original field bounds
-        convexPoints.emplace_back(fieldBoundPoints[2]); // screwX2, screwY3
-        convexPoints.emplace_back(fieldBoundPoints[9]); // screwX1, screwY3
-    }
-}
+
 
 void AStarAttack::ResetFieldBoundariesToDefault() {
-    // Restore default field boundaries
-    float minX = 65.0f;
-    float maxX = 675.0f;
-    float minY = 55.0f;
-    float maxY = 655.0f;
-    float shelfStartX = 210.0f;
-    float shelfEndX = 525.0f;
-    float shelfY = 215.0f;
-    float screwX1 = 110.0f;
-    float screwX2 = 620.0f;
-    float screwY1 = 140.0f;
-    float screwY2 = 220.0f;
-    float screwY3 = 470.0f;
-    float screwY4 = 560.0f;
-    float gateY = 615.0f;
-    float gateX1 = 115.0f;
-    float gateX2 = 620.0f;
-
-    fieldBoundPoints = {
-        cv::Point(screwX1, shelfY),
-        cv::Point2f(screwX2, shelfY),
-        cv::Point2f(screwX2, screwY3),
-        cv::Point2f(maxX, screwY4),
-        cv::Point2f(maxX, gateY),
-        cv::Point2f(gateX2, maxY),
-        cv::Point2f(gateX1, maxY),
-        cv::Point2f(minX, gateY),
-        cv::Point2f(minX, screwY4),
-        cv::Point2f(screwX1, screwY3),
-        cv::Point2f(screwX1, shelfY), // include first point again to complete last line
-    };
-    
-    RegenerateFieldBoundaryLines();
+    field.resetBoundsToDefault();
 }
+
+
+
+// forces field to regenerate bound lines
+void AStarAttack::RegenerateFieldBoundaryLines() { field.generateBoundLines(); }

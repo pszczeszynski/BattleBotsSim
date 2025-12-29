@@ -5,6 +5,7 @@
 #include "../Input/Gamepad.h"
 #include <opencv2/core.hpp>
 #include "FilteredRobot.h"
+#include "Field.h"
 
 class Kill : public Strategy
 {
@@ -18,5 +19,7 @@ private:
 
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
+
+    Field field; // field object
 
 };
