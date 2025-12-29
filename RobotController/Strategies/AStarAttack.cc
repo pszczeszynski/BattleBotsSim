@@ -106,12 +106,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // raw follow points in every direction
-    // std::vector<bool> pointsCW = {true, true, false, false};
-    // std::vector<bool> pointsForward = {true, false, true, false};
-    std::vector<bool> pointsCW = {true, false};
-    std::vector<bool> pointsForward = {true, true};
-    // std::vector<bool> pointsCW = {true};
-    // std::vector<bool> pointsForward = {true};
+    std::vector<bool> pointsCW = {true, true, false, false};
+    std::vector<bool> pointsForward = {true, false, true, false};
+    // std::vector<bool> pointsCW = {true, false};
+    // std::vector<bool> pointsForward = {false, false};
+    // std::vector<bool> pointsCW = {false};
+    // std::vector<bool> pointsForward = {false};
 
 
     // generate every possible follow point
@@ -126,7 +126,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
         turnAwayFromOpp(follow); // force that we turn away from the opp if needed
         avoidBoundsVector(follow);
 
-        follows.emplace_back(follow);
+        follows.emplace_back(follow); // add follow point to the list of follow points
     }
 
 
@@ -889,7 +889,7 @@ float AStarAttack::ppRad() {
 // pp radius used for walls
 float AStarAttack::ppRadWall() {
     float radSlow = 40.0f;
-    float radFast = 110.0f;
+    float radFast = 130.0f;
     float speedFast = 400.0f;
     return radSlow + ((radFast - radSlow) / speedFast) * orbFiltered.moveSpeedSlow();
 }
@@ -986,7 +986,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
     // make sure we turn the right direction to the drive angle
 
-    float orbOffset = angleWrapRad(angleToBound - orbFiltered.angle(angleToBound));
+    float orbOffset = angleWrapRad(angleToBound - orbFiltered.angle(follow.forward));
     float driveOffset = angleWrapRad(angleToBound - follow.driveAngle);
 
     // only change the direction enforcement if turning the wrong way would make us go way out of the field
@@ -1029,7 +1029,7 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
     // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
-    float turnPastOppGain = 120.0f;
+    float turnPastOppGain = 180.0f; // 120
 
 
 
@@ -1039,19 +1039,18 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(follow.forward);
-    float tanVel = pow(raw, 2.0f) * sign(raw);
-    float momentumWeight = -0.01f * closeness; // 0.2
+    float tanVel = pow(abs(raw), 0.5f) * sign(raw);
+    float momentumWeight = -1.5f; // 0.01
 
 
-    // penalty for using the back bc we want to use front more often
-    int directionInput = 1; if(!forwardInput) { directionInput = -1; }
-    float backWeight = 200.0f*directionInput; // 40.0f
+    // subtract score from directions that agree with input while adding to ones that don't
+    int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
+    float directionScore = 150.0f*directionAgreement;
 
-    // angleToPointGraph.AddData(wallWeight*wallGain);
 
     
     // sum up components for score
-    return 2.0f*follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + backWeight*!follow.forward + turnPastOppGain*willTurnPastOpp(follow);
+    return 2.0f*follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + directionScore + turnPastOppGain*willTurnPastOpp(follow);
 }
 
 
@@ -1060,7 +1059,8 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
 float AStarAttack::turnScore(FollowPoint follow) {
 
     // how far we need to rotate to match the drive angle, includes enforced turn direction
-    float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2]);
+    float reverseOffset = follow.forward ? 0 : M_PI;
+    float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2] + reverseOffset);
     if(follow.enforceTurnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
     if(follow.enforceTurnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 

@@ -225,7 +225,8 @@ void dynamicSim(FilteredRobot& opp, std::vector<cv::Point2f> &path, std::vector<
 // calculates move and turn speeds to follow the followPoint
 std::vector<float> FilteredRobot::curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward) {
 
-    float angleError = angle_wrap(targetAngle - posFiltered[2]); // how far off we are from target
+    float reverseOffset = forward ? 0 : M_PI; // add a 180deg offset to target angle if going backward
+    float angleError = angle_wrap(targetAngle - posFiltered[2] + reverseOffset); // how far off we are from target
     if(turnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
     if(turnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 

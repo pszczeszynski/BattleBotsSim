@@ -17605,7 +17605,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &843811810
 Transform:
   m_ObjectHideFlags: 0
@@ -17629,7 +17629,7 @@ Skybox:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 843811809}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CustomSkybox: {fileID: 2100000, guid: 369b9ebe3a62b904dbc19bd332b44086, type: 2}
 --- !u!114 &843811812
 MonoBehaviour:
@@ -17690,7 +17690,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 843811809}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_ClearFlags: 1
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
@@ -39573,7 +39573,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1820725275
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46408,7 +46408,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &2068624915
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46520,13 +46520,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2068624914}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.002437711, y: -0.9838962, z: 0.17412418, w: 0.04028957}
-  m_LocalPosition: {x: 3.711, y: 1.8302581, z: 12.318}
+  m_LocalRotation: {x: 0.007252302, y: -0.95591015, z: 0.2908723, w: 0.039706368}
+  m_LocalPosition: {x: 3.71, y: 2.93, z: 12.19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 244363715}
-  m_LocalEulerAnglesHint: {x: 20.05, y: -175.211, z: 0.563}
+  m_LocalEulerAnglesHint: {x: 33.826, y: -175.049, z: 0.637}
 --- !u!45 &2068624919
 Skybox:
   m_ObjectHideFlags: 0
