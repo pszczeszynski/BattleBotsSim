@@ -19,7 +19,7 @@ import pathlib
 import sys
 
 PROJECT_ROOT = pathlib.Path.cwd()
-DEFAULT_REL_SRC_DIRS = ["./"]
+DEFAULT_REL_SRC_DIRS = ["./", "./Strategies/", "./Odometry/", "./Odometry/BlobDetection/", "./Odometry/", "./Odometry/Heuristic1/", "./Odometry/Human/", "./Odometry/IMU/", "./Odometry/Neural/", "./Odometry/OpenCVTracker/"]
 DEFAULT_ABS_SRC_DIRS = []
 OUTPUT_FILE = "compile_commands.json"
 EXCLUDE_PATTERNS: list[str] = []
@@ -28,14 +28,12 @@ EXCLUDE_PATTERNS: list[str] = []
 INCLUDE_PATHS = [
     # OpenCV include paths
     "C:/opencv/install/include/",
-    "C:/opencv/install_11.2/include/",
     # Workspace include paths
-    str(PROJECT_ROOT),
     str(PROJECT_ROOT / "libs" / "json" / "include" / "nlohmann"),
     str(PROJECT_ROOT / "libs" / "IMGUI"),
     # Spinnaker include paths (may be either one of these)
     "C:/Program Files/FLIR Systems/Spinnaker/include/",
-    "C:/Program Files/Teledyne/Spinnaker/include",
+    "C:/Program Files/Teledyne/Spinnaker/include/",
 ]
 
 
@@ -118,6 +116,16 @@ def should_exclude_file(file_path: pathlib.Path, exclude_patterns: list[str]) ->
     return False
 
 
+def quote_if_contains_spaces(path: str) -> str:
+    """
+    Quote a path if it contains spaces, for proper shell/command parsing.
+    """
+    if " " in path:
+        # Escape any existing quotes and wrap in double quotes
+        return f'"{path}"'
+    return path
+
+
 def build_command(file_path: pathlib.Path) -> str:
     """
     Build a minimal clang++ command for clangd indexing.
@@ -139,10 +147,12 @@ def build_command(file_path: pathlib.Path) -> str:
     for inc_path in INCLUDE_PATHS:
         inc = pathlib.Path(inc_path)
         if inc.exists():
-            parts += ["-I", str(inc)]
+            inc_str = str(inc)
+            parts += ["-I", quote_if_contains_spaces(inc_str)]
 
     # Prevent warnings from breaking clangd parsing
-    parts += ["-w", "-c", str(file_path)]
+    file_str = str(file_path)
+    parts += ["-w", "-c", quote_if_contains_spaces(file_str)]
     return " ".join(parts)
 
 
