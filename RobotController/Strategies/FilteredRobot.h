@@ -28,7 +28,6 @@ class FilteredRobot
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
                     bool print);  // simulate estimated turn time to point
-  void dynamicSim(FilteredRobot& opp, std::vector<cv::Point2f> &path, std::vector<cv::Point2f> oppPath, bool forward);
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
@@ -42,7 +41,8 @@ class FilteredRobot
   void setPos(std::vector<float> pos);
   void setVel(std::vector<float> vel);
   void setAccel(std::vector<float> acc);
-  std::vector<std::vector<float>> constAccExtrap(float time);
+  std::vector<std::vector<float>> kalmanExtrapAccel(float time);
+  std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   void constVelExtrapWrite(float time);
   FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, float maxExtrapTime, std::vector<cv::Point2f> &path);
@@ -57,6 +57,7 @@ class FilteredRobot
   std::vector<float> getVelFiltered();
   std::vector<float> getAccFiltered();
   float turnVel();
+  float moveSpeed();
   float moveSpeedSlow();
   float getMaxTurnSpeed();
   float getMaxMoveSpeed();

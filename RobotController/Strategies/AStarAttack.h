@@ -17,7 +17,7 @@ public:
     AStarAttack();
     virtual DriverStationMessage Execute(Gamepad& gamepad) override;
     
-    // Field boundary editing interface
+    // Field boundary editing interfac
     std::vector<cv::Point2f>& GetFieldBoundaryPoints();
     void SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points);
     void ResetFieldBoundariesToDefault();
@@ -28,6 +28,9 @@ public:
     void SetRadiusCurvePoints(const float radiusCurveX[3], const float radiusCurveY[3]);
     void ResetRadiusCurveToDefault();
     
+    // Get the last computed followPoints (for debugging/display)
+    const std::vector<FollowPoint>& GetFollowPoints() const;
+    
     static AStarAttack* GetInstance();
 
 private:
@@ -37,6 +40,8 @@ private:
 
 
     Field field; // field object
+    
+    std::vector<FollowPoint> _lastFollowPoints; // last computed follow points (for debugging/display)
 
 
     
@@ -64,9 +69,9 @@ private:
     float ppRad();
     float ppRadWall();
     void avoidBoundsVector(FollowPoint &follow);
-    float directionScore(FollowPoint follow, float deltaTime, bool forwardInput);
+    void directionScore(FollowPoint &follow, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
-    FollowPoint chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime);
+    FollowPoint chooseBestPoint(std::vector<FollowPoint>& follows, bool forwardInput);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);

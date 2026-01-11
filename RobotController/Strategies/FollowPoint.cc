@@ -16,7 +16,8 @@ FollowPoint::FollowPoint(bool forward, bool CW, FilteredRobot opp, std::vector<c
     point = cv::Point2f(0, 0); // default
     enforceTurnDirection = 0; // default
     driveAngle = 0; // default
-    
-    std::vector<cv::Point2f> orbSimPath = {}; // default
+
+    directionScores = {}; // default
+    orbSimPath = {}; // default
 
 }

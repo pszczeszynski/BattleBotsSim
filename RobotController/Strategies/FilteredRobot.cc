@@ -66,7 +66,7 @@ void FilteredRobot::setAccel(std::vector<float> acc) { accFiltered = acc; }
 
 
 // incrementally extrapolates with constant accel
-std::vector<std::vector<float>> FilteredRobot::constAccExtrap(float time) {
+std::vector<std::vector<float>> FilteredRobot::kalmanExtrapAccel(float time) {
 
     // start at current values
     std::vector<float> extrapolatedPos = posFiltered;
@@ -103,6 +103,55 @@ std::vector<std::vector<float>> FilteredRobot::constAccExtrap(float time) {
 
     // return final values
     return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel, extrapolatedAcc};
+}
+
+
+
+// incrementally extrapolates with constant vel
+std::vector<std::vector<float>> FilteredRobot::kalmanExtrapVel(float time) {
+
+    float deltaXRobot = 0.0f;
+    float deltaYRobot = 0.0f;
+    float deltaT = velFiltered[2] * time; // Δθ
+
+    float velDirection = atan2(velFiltered[1], velFiltered[0]); // direction of the current vel
+
+
+
+    if (abs(velFiltered[2]) < 1e-6f) { // straight-line motion
+        deltaXRobot = moveSpeed() * time;
+        deltaYRobot = 0.0f;
+
+    } else { // circular arc motion
+        float r = moveSpeed() / turnVel(); // path radius
+        deltaXRobot = r * std::sin(deltaT);
+        deltaYRobot = r * (1.0f - std::cos(deltaT));
+    }
+
+    // rotate from robot frame to field frame
+    float deltaXField = deltaXRobot * cos(velDirection) - deltaYRobot * sin(velDirection);
+    float deltaYField = deltaXRobot * sin(velDirection) + deltaYRobot * cos(velDirection);
+
+    // new pos
+    std::vector<float> extrapolatedPos = {
+        posFiltered[0] + deltaXField,
+        posFiltered[1] + deltaYField,
+        (float) angleWrapRad(posFiltered[2] + deltaT)
+    }; 
+
+    // rotate vel by delta angle
+    float newVelX = velFiltered[0] * cos(deltaT) - velFiltered[1] * sin(deltaT);
+    float newVelY = velFiltered[0] * sin(deltaT) + velFiltered[1] * cos(deltaT);
+
+    // new vel
+    std::vector<float> extrapolatedVel = {
+        newVelX,
+        newVelY,
+        velFiltered[2]
+    };
+
+    // return final values
+    return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel};
 }
 
 
@@ -208,18 +257,7 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, f
 }
 
 
-// simulates us and opp into the future to calculate ETA times and extrapolate appropriately
-void dynamicSim(FilteredRobot& opp, std::vector<cv::Point2f> &path, std::vector<cv::Point2f> oppPath, bool forward) {
 
-    float timeIncrement = 0.01f;
-    float simTime = 0.0f;
-
-    
-
-    FilteredRobot virtualOpp = opp; // will return this virtual opp
-    cv::Point2f oppPositionExtrap = opp.position(); // extrapolated opp pos, starts on the opp
-
-}
 
 
 // calculates move and turn speeds to follow the followPoint
@@ -236,13 +274,16 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
 
-    float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
+
+    float maxCurveGrip = pow(500.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // 300 max curvature to avoid slipping, faster you go the less curvature you're allowed
     float maxCurveScrub = currSpeed * 0.01f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
     float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
 
     // pd controller that increases path curvature with angle error
     float curvature = std::clamp(kP*angleError + kD*angleErrorChange, -maxCurve, maxCurve);
 
+
+    // by default, apply input velocity and turn based on that
     moveInput = abs(moveInput); // just take magnitude of input
     if(!forward) { moveInput *= -1.0f; } // reverese the input if we're going backwards
     float turnInput = abs(moveInput) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
@@ -259,6 +300,74 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
 
 
 
+// // calculates move and turn speeds to follow the followPoint
+// std::vector<float> FilteredRobot::curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward) {
+
+//     float reverseOffset = forward ? 0 : M_PI; // add a 180deg offset to target angle if going backward
+//     float angleError = angle_wrap(targetAngle - posFiltered[2] + reverseOffset); // how far off we are from target
+//     if(turnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+//     if(turnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+
+//     float angleErrorChange = angleWrapRad(angleError - prevAngleError) / deltaTime; // how the error is changing per time
+//     prevAngleError = angleError; // save for next time
+
+
+    
+//     float curvature = kP*angleError + kD*angleErrorChange; // first calculate what the pd controller wants
+
+
+//     // by default, apply input velocity and turn based that
+//     moveInput = abs(moveInput); // just take magnitude of input
+//     if(!forward) { moveInput *= -1.0f; } // reverese the input if we're going backwards
+//     float turnInput = abs(moveInput) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
+
+
+//     // don't demand more than 1.0 speed from either motor, scale everything down since that will maintain the same curvature
+//     float maxInput = abs(moveInput) + abs(turnInput);
+//     if(maxInput > 1.0f) {
+//         moveInput /= maxInput;
+//         turnInput /= maxInput;
+//     }
+
+
+
+//     float ogMove = moveInput;
+
+
+//     float aMax = 30000.0f; // maximum centripetal accel
+
+//     float vMax = 3.0f * sqrt(aMax / abs(curvature)); // fastest move speed allowed for the curvature we wanted
+//     float moveMax = std::clamp(vMax / maxMoveSpeed, -1.0f, 1.0f);
+
+//     float curveMaxGrip = aMax / pow(moveSpeedSlow(), 2.0f); // fastest turn speed allowed given how fast we're currently going
+//     float curveMaxScrub = moveSpeedSlow() * 0.0003f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
+//     float curveMax = std::min(curveMaxGrip, curveMaxScrub); // use the lower of the 2 upper bounds
+
+//     float wMax = moveSpeedSlow() * curveMax; // tightest curvature allowed given how fast we're currently going
+//     float turnMax = std::clamp(wMax / maxTurnSpeed, -1.0f, 1.0f);
+
+
+
+
+//     // clip move and turn commands to make sure we're in those limits
+//     float limitGain = 1.0f;
+//     moveInput = std::clamp(moveInput, -moveMax * limitGain, moveMax * limitGain);
+//     turnInput = std::clamp(turnInput, -turnMax * limitGain, turnMax * limitGain);
+
+
+
+//     std::cout << "move max = " << moveMax << "    ";
+
+//     if(moveInput < ogMove) { std::cout << "   braking   "; }
+
+
+
+
+//     return std::vector<float> {moveInput, turnInput};
+// }
+
+
+
 // updates the position filters
 void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta) {
 
@@ -270,14 +379,12 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     // visionPos = clipInBounds(visionPos);
 
     // extrapolate each state for new beliefs
-    std::vector<std::vector<float>> outputs = constAccExtrap(deltaTime);
+    std::vector<std::vector<float>> outputs = kalmanExtrapAccel(deltaTime);
+    // std::vector<std::vector<float>> outputs = kalmanExtrapVel(deltaTime);
     std::vector<float> posBelief = outputs[0];
     std::vector<float> velBelief = outputs[1];
     std::vector<float> accBelief = outputs[2];
 
-    // for(int i = 0; i < 3; i++) { posBelief[i] = posFiltered[i] + (velFiltered[i] * deltaTime) + 0.5f*(accFiltered[i] * pow(deltaTime, 2)); }
-    // for(int i = 0; i < 3; i++) { velBelief[i] = velFiltered[i] + (accFiltered[i] * deltaTime); }
-    // accBelief = accFiltered;
 
  
     // from measurement, find deltas to pos
@@ -286,8 +393,8 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 
 
     // what even are covariances, determines percentage of delta to use
-    float positionKalmanGain = std::clamp(deltaTime * 30.0f, 0.05f, 1.0f); // 15.0f
-    float turnKalmanGain = std::clamp(deltaTime * 50.0f, 0.05f, 1.0f); // 40.0f
+    float positionKalmanGain = 1 - exp(-deltaTime / 0.05f); // std::clamp(deltaTime * 30.0f, 0.05f, 1.0f);
+    float turnKalmanGain = 1 - exp(-deltaTime / 0.03f); // std::clamp(deltaTime * 50.0f, 0.05f, 1.0f);
     std::vector<float> kalmanGain = {positionKalmanGain, positionKalmanGain, turnKalmanGain};
 
 
@@ -298,7 +405,10 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     float maxVel = 1000.0f;
     float maxAccel = 100000.0f;
 
+
+    // update each axis
     for(int i = 0; i < 3; i++) { 
+
         // update pos
         posFilteredNew[i] = posBelief[i] + (kalmanGain[i] * posDelta[i]); 
         if(i == 0 || i == 1) { posFilteredNew[i] = std::clamp(posFilteredNew[i], fieldMin, fieldMax); }
@@ -321,7 +431,7 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     accFiltered = accFilteredNew;
 
     // update slow filters
-    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += std::clamp(deltaTime * 10.0f, 0.0f, 0.2f) * (velFiltered[i] - velFilteredSlow[i]); }
+    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.01f)) * (velFiltered[i] - velFilteredSlow[i]); } //std::clamp(deltaTime * 10.0f, 0.0f, 0.2f) * (velFiltered[i] - velFilteredSlow[i]); }
 }
 
 
@@ -656,7 +766,6 @@ void FilteredRobot::updatePath() {
 cv::Point2f FilteredRobot::position() { return cv::Point2f(posFiltered[0], posFiltered[1]); }
 cv::Point2f FilteredRobot::moveVel() { return cv::Point2f(velFiltered[0], velFiltered[1]); }
 cv::Point2f FilteredRobot::moveVelSlow() { return cv::Point2f(velFilteredSlow[0], velFilteredSlow[1]); }
-float FilteredRobot::moveSpeedSlow() { return cv::norm(moveVelSlow()); }
 
 float FilteredRobot::angle(bool forward) { 
     int offset = 0.0f; if(!forward) { offset = M_PI; } // offset by 180 if not forwards
@@ -672,6 +781,8 @@ std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
 float FilteredRobot::getWeaponAngleReach() { return weaponAngleReach; }
 float FilteredRobot::getWeaponDriftScaleReach() { return weaponDriftScaleReach; }
 float FilteredRobot::getSizeRadius() { return sizeRadius; }
+float FilteredRobot::moveSpeed() { return cv::norm(moveVel()); }
+float FilteredRobot::moveSpeedSlow() { return cv::norm(moveVelSlow()); }
 
 
 

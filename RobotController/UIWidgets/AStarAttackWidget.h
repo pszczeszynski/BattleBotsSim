@@ -22,6 +22,7 @@ private:
     void _DrawRadiusCurveSliders();
     void _DrawPurePursuitSliders();
     void _UpdateAStarParameters();
+    void _DrawDirectionScoresBreakdown();
     
     // Widget state
     static AStarAttackWidget* _instance;

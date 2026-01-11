@@ -11,6 +11,7 @@
 #include "../MathUtils.h"
 #include <cstdlib>
 #include "DisplayUtils.h"
+#include <limits>
 
 AStarAttack* AStarAttack::_instance = nullptr;
 
@@ -19,7 +20,7 @@ AStarAttack::AStarAttack()
     _instance = this;
     
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 22.0f, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
     oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
 
     // init field
@@ -89,7 +90,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if driver is pushing forward or backward
-    FollowPoint follow = chooseBestPoint(follows, forwardInput, deltaTime); // pick which point to use
+    FollowPoint follow = chooseBestPoint(follows, forwardInput); // pick which point to use
+    
+    // Store the followPoints for debugging/display (after scores have been computed)
+    _lastFollowPoints = follows;
 
 
 
@@ -98,7 +102,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
 
-    // calculate drive inputs based on curvature controller,           0.6, 0.04
+    // calculate drive inputs based on curvature controller,           0.6, 0.05
     std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
@@ -109,6 +113,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     ret.driveCommand.turn = driveInputs[1];
 
 
+    std::cout << "orb speed = " << orbFiltered.moveSpeedSlow();
     std::cout << std::endl;
     
     
@@ -339,7 +344,9 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // fraction is the main metric for radius
     float fraction = 999999999.0f;
-    if (oppETA != 0.0f) { fraction = std::max((orbETA - oppETA) / oppETA, 0.0f); }
+    if (oppETA != 0.0f) { 
+        fraction = std::max((orbETA - oppETA) / oppETA, 0.0f); 
+    }
 
 
     AdjustRadiusWithBumpers(); // let driver adjust aggressiveness with bumpers
@@ -354,10 +361,30 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
-    // follow.radius = 120.0f;
-    // follow.radius = std::max(120.0f * (-pow(1.15f, -fraction) + 1.0f), 0.0f);
-    // follow.radius = 130.0f * sin(std::min(0.16 * fraction, 90.0f*TO_RAD)); // 0.125 higher is more conservative
-    follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); 
+    follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
+
+
+
+    // float mediumRadius = 55.0f;
+    // float slopeStart = 9999.0f;
+
+
+    // follow.radius = 0.0f;
+    // if(fraction > 0.6f) { follow.radius = mediumRadius; }
+    // if(fraction > slopeStart) { follow.radius = std::min(mediumRadius + (fraction - slopeStart) * 10.0f, 130.0f); }
+
+
+    // if(fraction > 8.0f) { follow.radius = 130.0f; }
+    // else if(fraction > 0.6f) { follow.radius = 55.0f;}
+    // else { follow.radius = 0.0f; }
+
+
+    // float medium = 55.0f;
+    // float slopeStart = 8.0f;
+
+    // if(fraction < 0.6f) { follow.radius = 0.0f; }
+    // else if(fraction < slopeStart) { follow.radius = medium; }
+    // else { follow.radius = (130.0f - medium) * sin(std::min(1.0 * (fraction - slopeStart), 90.0f*TO_RAD)) + medium; }
 }
 
 
@@ -804,14 +831,13 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
 
 // score function for determining how good a follow point is, used for CW/CCW decision
-float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forwardInput) {
+void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     static GraphWidget angleToPointGraph("wallWeight*wallGain", -100, 100, "deg");
 
-    // rough scale to decide when we're reasonably far from the opponent that turning delays and stuff aren't a risk
-    float farAway = 500.0f;
-    float collisionRadius = orbFiltered.getSizeRadius() + follow.opp.getSizeRadius();
-    float closeness = std::clamp(1.0f - ((orbFiltered.distanceTo(follow.opp.position()) - collisionRadius) / farAway), 0.0f, 1.0f);
 
+    float radiusScore = 2.0f*follow.radius;
+    // if(follow.radius == 0.0f) { radiusScore = -9999.0f;} // if it's 0 it's really good
+    follow.directionScores.emplace_back(radiusScore);
 
 
 
@@ -819,36 +845,44 @@ float AStarAttack::directionScore(FollowPoint follow, float deltaTime, bool forw
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
     float goAroundGain = 15.0f + 0.5f * follow.opp.tangentVel(true); // 10 0.5
+    follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
 
     // how far the robot has to turn to this point
     float turnGain = 40.0f; // 60
+    follow.directionScores.emplace_back(turnScore(follow)*turnGain);
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
     // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
     float turnPastOppGain = 180.0f; // 120
+    follow.directionScores.emplace_back(turnPastOppGain*willTurnPastOpp(follow));
+
 
 
 
     // how close is the nearest wall in this direction
     float wallGain = 600.0f;
+    follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(follow.forward);
     float tanVel = pow(abs(raw), 0.5f) * sign(raw);
     float momentumWeight = -1.5f; // 0.01
+    follow.directionScores.emplace_back(tanVel*momentumWeight);
 
 
     // subtract score from directions that agree with input while adding to ones that don't
     int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
-    float directionScore = 150.0f*directionAgreement;
+    follow.directionScores.emplace_back(150.0f*directionAgreement);
 
 
-    
-    // sum up components for score
-    return 2.0f*follow.radius + goAroundAngle*goAroundGain + wallScore(follow)*wallGain + turnScore(follow)*turnGain + tanVel*momentumWeight + directionScore + turnPastOppGain*willTurnPastOpp(follow);
+    // sum up the scores and add it as the last entry
+    float totalScore = 0.0f;
+    for(int i = 0; i < follow.directionScores.size(); i++) { totalScore += follow.directionScores[i]; }
+    follow.directionScores.emplace_back(totalScore);
+
 }
 
 
@@ -968,31 +1002,38 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
 // returns the best follow point with the lowest score
-FollowPoint AStarAttack::chooseBestPoint(std::vector<FollowPoint> follows, bool forwardInput, float deltaTime) {
+FollowPoint AStarAttack::chooseBestPoint(std::vector<FollowPoint>& follows, bool forwardInput) {
 
     if(follows.size() == 0) { return FollowPoint(); } // no crashy
 
     // find follow point with best score
     int bestIndex = -1;
-    float bestScore = 0.0f;
+    float bestScore = std::numeric_limits<float>::max();
 
+    // check all the follow points
     for(int i = 0; i < follows.size(); i++) {
 
-        float newScore = directionScore(follows[i], deltaTime, forwardInput);
+        directionScore(follows[i], forwardInput);
+        float newScore = follows[i].directionScores.back(); // last entry is total score
+
+        // WILL ALWAYS CHOOSE INDEX 0 AT FIRST
         if(newScore < bestScore || i == 0) {
             bestScore = newScore;
             bestIndex = i;
         }
     }
 
-    // return best index
-    return follows[bestIndex];
+    return follows[bestIndex]; // return best index
 }
 
 
 
 // Field boundary editing interface implementation
 AStarAttack* AStarAttack::GetInstance() { return _instance; }
+
+const std::vector<FollowPoint>& AStarAttack::GetFollowPoints() const {
+    return _lastFollowPoints;
+}
 
 // sets field lines to what the UI changed them to
 void AStarAttack::SetFieldBoundaryPoints(const std::vector<cv::Point2f>& points) { field.setBoundPoints(points); }
