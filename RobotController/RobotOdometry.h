@@ -13,6 +13,7 @@
 #include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/Neural/CVPosition.h"
+#include "Odometry/LKFlowTracker/LKFlowTracker.h"
 
 #ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
@@ -33,6 +34,7 @@ enum OdometryAlg
     Human,
     NeuralRot,
     OpenCV,
+    LKFlow,
     Gyro
 };
 
@@ -76,6 +78,7 @@ public:
     CVPosition& GetNeuralOdometry();
     BlobDetection& GetBlobOdometry();
     CVRotation& GetNeuralRotOdometry();
+    LKFlowTracker& GetLKFlowOdometry();
 #ifdef USE_OPENCV_TRACKER
     OpenCVTracker& GetOpenCVOdometry();
 #endif
@@ -116,6 +119,9 @@ private:
 
     OdometryIMU _odometry_IMU;
     OdometryData _dataRobot_IMU;
+
+    LKFlowTracker _odometry_LKFlow;
+    OdometryData _dataOpponent_LKFlow;  // Only tracks opponent, robot data always invalid
 
 #ifdef USE_OPENCV_TRACKER
     OpenCVTracker _odometry_opencv;

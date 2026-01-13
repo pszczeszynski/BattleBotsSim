@@ -35,7 +35,7 @@ class FrameDiffMask:
         self.current_mask = mask_final
         return mask_final
     
-    def check_movement_near_center(self, center, radius, threshold_ratio):
+    def check_movement_near_center(self, center: tuple[float, float], radius: float, threshold_ratio: float) -> bool:
         """Check if there's sufficient movement near the center."""
         mask = self.current_mask
         if mask is None or center is None:

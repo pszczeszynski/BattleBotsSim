@@ -1,0 +1,197 @@
+[
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\CameraReceiver.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\CameraReceiver.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Clock.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Clock.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\ConfigureCamera.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\ConfigureCamera.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\CVRotation.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\CVRotation.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\DriverStationLog.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\DriverStationLog.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Globals.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Globals.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\GuiUtils.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\GuiUtils.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\MathUtils.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\MathUtils.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\PurePursuit.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\PurePursuit.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\RobotConfig.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\RobotConfig.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\RobotController.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\RobotController.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\RobotLink.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\RobotLink.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\RobotOdometry.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\RobotOdometry.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\RobotStateParser.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\RobotStateParser.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\SafeDrawing.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\SafeDrawing.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\SelfRighter.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\SelfRighter.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\ServerSocket.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\ServerSocket.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\ThreadPool.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\ThreadPool.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\TrackingUtils.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\TrackingUtils.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\VisionPreprocessor.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\VisionPreprocessor.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Weapons.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Weapons.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\AStarAttack.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\AStarAttack.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\DisplayUtils.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\DisplayUtils.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Extrapolate.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Extrapolate.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\FilteredRobot.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\FilteredRobot.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\FollowPoint.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\FollowPoint.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Kill.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Kill.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Line.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\Line.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\oppModel.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Strategies\\oppModel.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\BlobDetection.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\BlobDetection.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\RobotClassifier.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\RobotClassifier.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1\\HeuristicOdometry.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1\\HeuristicOdometry.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1\\RobotTracker.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1\\RobotTracker.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Human",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Human\\HumanPosition.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Human\\HumanPosition.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\IMU",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\IMU\\OdometryIMU.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\IMU\\OdometryIMU.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Neural",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Neural\\CVPosition.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Neural\\CVPosition.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OpenCVTracker",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OpenCVTracker\\OpenCVTracker.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\install\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OpenCVTracker\\OpenCVTracker.cc"
+  }
+]

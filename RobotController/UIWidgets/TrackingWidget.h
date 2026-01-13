@@ -62,6 +62,7 @@ private:
     bool showNeuralRot = false;
     bool showFusion = false;
     bool showOpencv = false;
+    bool showLKFlow = false;
 
     // Store colors for each variant (label -> ImVec4)
     std::unordered_map<std::string, ImVec4> variantColors;

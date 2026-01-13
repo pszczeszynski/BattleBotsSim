@@ -82,6 +82,7 @@ set(SOURCES
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
     Odometry/IMU/OdometryIMU.cc
+    Odometry/LKFlowTracker/LKFlowTracker.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc

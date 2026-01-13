@@ -1,15 +1,12 @@
 #pragma comment(lib, "legacy_stdio_definitions.lib") // necessary in release builds for imgui to work
 
 #include "RobotControllerGUI.h"
-#include "../RobotConfig.h"
 #include "../GuiUtils.h"
 #include "../RobotController.h"
 #include "ClockWidget.h"
 #include "GraphWidget.h"
 #include "../Input/InputState.h"
 #include "ColorScheme.h"
-
-// #include <algorithm>
 
 RobotControllerGUI::RobotControllerGUI()
 {

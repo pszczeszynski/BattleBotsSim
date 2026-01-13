@@ -34,7 +34,8 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource) : _videoSource(videoS
                                                              _odometry_Neural(&videoSource),
                                                              _odometry_Human(&videoSource, "11120", false),
                                                              _odometry_Human_Heuristic(&videoSource, "11121", true),
-                                                             _odometry_NeuralRot(&videoSource)
+                                                             _odometry_NeuralRot(&videoSource),
+                                                             _odometry_LKFlow(&videoSource)
 #ifdef USE_OPENCV_TRACKER
                                                              ,_odometry_opencv(&videoSource)
 #endif
@@ -129,6 +130,17 @@ void RobotOdometry::MatchStart(bool partOfAuto)
     _odometry_Blob.ForcePosition(_dataOpponent.robotPosition, true);
     _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.time, _dataOpponent.GetAngleVelocity(), true);
     _odometry_Blob.SetVelocity(_dataOpponent.robotVelocity, true);
+
+    // Set ROI for LKFlowTracker (only tracks opponent)
+    if (_odometry_LKFlow.IsRunning())
+    {
+        int roiSize = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 2;
+        if (roiSize < 100) roiSize = 140;
+        cv::Rect roi(static_cast<int>(_dataOpponent.robotPosition.x - static_cast<float>(roiSize) / 2.0f),
+                     static_cast<int>(_dataOpponent.robotPosition.y - static_cast<float>(roiSize) / 2.0f),
+                     roiSize, roiSize);
+        _odometry_LKFlow.SetROI(roi);
+    }
 
 #ifdef USE_OPENCV_TRACKER
     _odometry_opencv.ForcePosition(_dataOpponent.robotPosition, true);
@@ -273,6 +285,24 @@ void RobotOdometry::Update(int videoID)
         }
     }
 
+    // Get LK Flow (only tracks opponent, robot data always invalid)
+    if (_odometry_LKFlow.IsRunning())
+    {
+        bool newdata = false;
+        // Update opponent data only
+        if (_odometry_LKFlow.NewDataValid(_dataOpponent_LKFlow.id, true))
+        {
+            _dataOpponent_LKFlow = _odometry_LKFlow.GetData(true);
+            newDataArrived = true;
+            newdata = true;
+        }
+
+        if (newdata)
+        {
+            _odometry_LKFlow.GetDebugImage(trackingInfo->GetDebugImage("LKFlow"), trackingInfo->GetDebugOffset("LKFlow"));
+        }
+    }
+
     if (_odometry_Human.IsRunning())
     {
         // Update our data
@@ -350,6 +380,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     // NeuralRot |        |        |     X   |          |          |          |           |
     // IMU       |        |        |     X   |    X     |          |          |           |
     // Human     |<Hidden>|        |         |          | <Hidden> |          |     X     |    X
+    // LKFlow    |        |        |         |          |          |          |     X     |
     //
     // TODO: Need to calculate Them A.Vel for human interface
     //
@@ -388,7 +419,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     //            Rule: 1) Heuristic, 2) Blob
     //
     //  THEM ROT:
-    //            Rule: 1) Human, 2) Heuristic, 3) Blob
+    //            Rule: 1) LKFlow, 2) Human, 3) Heuristic, 4) Blob
     //
     //  THEM A. VEL:
     //            Rule: 1) Human, 2) Heuristic, 3) Blob
@@ -406,6 +437,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     OdometryData ext_dataOpponent_Human = _dataOpponent_Human.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataOpponent_Blob = _dataOpponent_Blob.ExtrapolateBoundedTo(currTime);
     OdometryData ext_dataOpponent_Heuristic = _dataOpponent_Heuristic.ExtrapolateBoundedTo(currTime);
+    OdometryData ext_dataOpponent_LKFlow = _dataOpponent_LKFlow.ExtrapolateBoundedTo(currTime);
 
     // ******************************
     // HUMAN OVERRIDES
@@ -454,6 +486,9 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     bool blobThemPos_valid = blobThemValid && _dataOpponent_Blob.robotPosValid;
     bool blobThemAngle_valid = blobThemValid && _dataOpponent_Blob.IsAngleValid();
 
+    bool lkFlowThemValid = _odometry_LKFlow.IsRunning() && (_dataOpponent_LKFlow.GetAge() < _dataAgeThreshold);
+    bool lkFlowThemAngle_valid = lkFlowThemValid && _dataOpponent_LKFlow.IsAngleValid();
+
     bool neuralUsPos_valid = _odometry_Neural.IsRunning() &&
                              _dataRobot_Neural.robotPosValid;// &&
                             //  (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
@@ -478,7 +513,8 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     debugROStringForVideo_tmp += "Blb  " + std::to_string(blobUsPos_valid) + "   " + std::to_string(blobUsPos_valid) + "    " + std::to_string(blobUsAngle_valid) + "    " + std::to_string(blobUsAngle_valid) + "   " + std::to_string(blobThemPos_valid) + "    " + std::to_string(blobThemPos_valid) + "   " + std::to_string(blobThemAngle_valid) + "\n";
     debugROStringForVideo_tmp += "Neu  " + std::to_string(neuralUsPos_valid)    + "\n";
     debugROStringForVideo_tmp += "NeR  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(neuralRot_valid) + "\n";
-    debugROStringForVideo_tmp += "IMU  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(imuUsRot_valid)  + "\n" ;
+    debugROStringForVideo_tmp += "IMU  " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::to_string(imuUsRot_valid)  + "\n";
+    debugROStringForVideo_tmp += "LKFl " + std::string("   ")                   + "   " +    std::string("   ")                + "    " +  std::string("   ")                + "   " + std::string("   ") + "    " + std::string("   ") + "   " + std::to_string(lkFlowThemAngle_valid) + "\n";
 
     // Log the odometry data to file
     std::string logAlgHeader =  "ALG UP UR TP TR";   
@@ -696,6 +732,19 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
         ext_dataOpponent_Heuristic.robotPosValid = false;
     }
 
+    // Set ROI for LKFlowTracker when opponent position is finalized
+    if (_dataOpponent.robotPosValid && _odometry_LKFlow.IsRunning())
+    {
+        // Use opponent blob size to determine ROI size, or default to 140x140
+        int roiSize = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 2;
+        if (roiSize < 100) roiSize = 140;  // Ensure minimum size
+        
+        cv::Rect roi(static_cast<int>(_dataOpponent.robotPosition.x - static_cast<float>(roiSize) / 2.0f),
+                     static_cast<int>(_dataOpponent.robotPosition.y - static_cast<float>(roiSize) / 2.0f),
+                     roiSize, roiSize);
+        _odometry_LKFlow.SetROI(roi);
+    }
+
     debugROStringForVideo_tmp += "\nTHEM VEL = ";
     //  THEM VEL:
     //            Rule: 1) Heuristic, 2) Blob
@@ -712,8 +761,15 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
 
     debugROStringForVideo_tmp += "\nTHEM ROT = ";
     //  THEM ROT:
-    //            Rule: 1) Human, 2) Heuristic
-    if (humanThemAngle_valid)
+    //            Rule: 1) LKFlow, 2) Human, 3) Heuristic, 4) Blob
+    if (lkFlowThemAngle_valid)
+    {
+        debugROStringForVideo_tmp += "LKFlow";
+        _dataOpponent.SetAngle(ext_dataOpponent_LKFlow.GetAngle(),
+                               ext_dataOpponent_LKFlow.GetAngleVelocity(),
+                               ext_dataOpponent_LKFlow.GetAngleFrameTime(), true);
+    }
+    else if (humanThemAngle_valid)
     {
         debugROStringForVideo_tmp += "Human";
         _dataOpponent.SetAngle(ext_dataOpponent_Human.GetAngle(),
@@ -799,7 +855,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     }
 
     // Opponent angle
-    // Heuristic, Blob will need it back annotated
+    // Heuristic, Blob, LKFlow will need it back annotated
     if (!ext_dataOpponent_Heuristic.IsAngleValid() && _dataOpponent.IsAngleValid())
     {
         _odometry_Heuristic.SetAngle(_dataOpponent.GetAngle(), true,
@@ -811,6 +867,12 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID)
     {
         _odometry_Blob.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.GetAngleFrameTime(),
                                 _dataOpponent.GetAngleVelocity(), true);
+    }
+
+    if (!ext_dataOpponent_LKFlow.IsAngleValid() && _dataOpponent.IsAngleValid())
+    {
+        _odometry_LKFlow.SetAngle(_dataOpponent.GetAngle(), true, _dataOpponent.GetAngleFrameTime(),
+                                  _dataOpponent.GetAngleVelocity(), true);
     }
 
 #ifdef FORCE_SIM_DATA
@@ -1062,6 +1124,9 @@ bool RobotOdometry::Run(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Run();
 
+    case OdometryAlg::LKFlow:
+        return _odometry_LKFlow.Run();
+
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.Run();
@@ -1096,6 +1161,9 @@ bool RobotOdometry::Stop(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.Stop();
 
+    case OdometryAlg::LKFlow:
+        return _odometry_LKFlow.Stop();
+
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.Stop();
@@ -1128,6 +1196,9 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm)
     case OdometryAlg::NeuralRot:
         return _odometry_NeuralRot.IsRunning();
     
+    case OdometryAlg::LKFlow:
+        return _odometry_LKFlow.IsRunning();
+
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
         return _odometry_opencv.IsRunning();
@@ -1162,6 +1233,11 @@ BlobDetection &RobotOdometry::GetBlobOdometry()
 CVRotation &RobotOdometry::GetNeuralRotOdometry()
 {
     return _odometry_NeuralRot;
+}
+
+LKFlowTracker &RobotOdometry::GetLKFlowOdometry()
+{
+    return _odometry_LKFlow;
 }
 
 #ifdef USE_OPENCV_TRACKER
