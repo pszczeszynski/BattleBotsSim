@@ -990,7 +990,7 @@ HingeJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 0, y: 0, z: 1}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: -0.28316188, y: 0.16948225, z: -0.026753359}
+  m_ConnectedAnchor: {x: -0.26635846, y: 0.15048692, z: -0.026753359}
   serializedVersion: 2
   m_UseSpring: 0
   m_Spring:
@@ -6567,14 +6567,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1319434403935589828}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.06853342, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0.027887102, w: 0.9996111}
+  m_LocalPosition: {x: -0.0080014, y: 0.04168, z: -5.942898e-10}
+  m_LocalScale: {x: 0.85155, y: 0.78725, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4630676982002627424}
   m_Father: {fileID: 5062691582361162246}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 3.196}
 --- !u!1 &1336886550174137650
 GameObject:
   m_ObjectHideFlags: 0
@@ -32305,14 +32305,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7893126173732891956}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.06853342, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0.035902645, w: 0.9993554}
+  m_LocalPosition: {x: 0.021507, y: 0.042212, z: 0}
+  m_LocalScale: {x: 1, y: 0.69979, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7599437211253323977}
   m_Father: {fileID: 3875482099672134891}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 4.115}
 --- !u!1 &7897171889065856654
 GameObject:
   m_ObjectHideFlags: 0
@@ -32549,7 +32549,7 @@ HingeJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 0, y: 0, z: 1}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: 0.23774861, y: 0.16553706, z: -0.026753336}
+  m_ConnectedAnchor: {x: 0.23774861, y: 0.15267868, z: -0.026753336}
   serializedVersion: 2
   m_UseSpring: 0
   m_Spring:
@@ -33091,7 +33091,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: -0.100188084, w: 0.99496853}
   m_LocalPosition: {x: 0.009, y: -0.056, z: 0}
-  m_LocalScale: {x: 0.13, y: 0.58721, z: 0.043}
+  m_LocalScale: {x: 0.13, y: 0.5142198, z: 0.043}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8391248535689930404}
