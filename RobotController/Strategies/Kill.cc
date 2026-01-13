@@ -46,7 +46,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // generate the extrapolated opp to where we'll collide
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, 1.0f, oppSimPath);
+    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, 1.0f, oppSimPath);
 
     // // if the opp extrapolated out of the field, clip it in
     // if(!field.insideFieldBounds(oppExtrap.position())) {
@@ -57,8 +57,19 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     // recalculate orb sim path for displaying
-    std::vector<cv::Point2f> orbSimPath = {};
-    float orbTime = orbFiltered.ETASim(oppExtrap, orbSimPath, false, false, forwardInput);
+    std::vector<cv::Point2f> orbSimPathCW = {};
+    std::vector<cv::Point2f> orbSimPathCCW = {};
+
+    float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true);
+    float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false);
+
+    std::vector<cv::Point2f> orbSimPath = orbSimPathCW;
+    float orbTime = orbTimeCW;
+
+    if(orbTimeCCW < orbTimeCW) {
+        orbSimPath = orbSimPathCCW;
+        orbTime = orbTimeCCW;
+    }
     // std::cout << "orbTime = " << orbTime << std::endl;
 
 

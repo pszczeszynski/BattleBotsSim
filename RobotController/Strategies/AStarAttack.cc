@@ -55,11 +55,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // extrapolate opp, extrapolate different amounts of time depending on if we attack forward or backward
-    std::vector<cv::Point2f> oppSimPathForward = {};
-    std::vector<cv::Point2f> oppSimPathBackward = {};
+    // std::vector<cv::Point2f> oppSimPathForward = {};
+    // std::vector<cv::Point2f> oppSimPathBackward = {};
 
-    FilteredRobot oppExtrapForward = orbFiltered.createVirtualOpp(oppFiltered, true, 0.25f, oppSimPathForward);
-    FilteredRobot oppExtrapBackward = orbFiltered.createVirtualOpp(oppFiltered, false, 0.25f, oppSimPathBackward);
+    // FilteredRobot oppExtrapForward = orbFiltered.createVirtualOpp(oppFiltered, true, 0.25f, oppSimPathForward);
+    // FilteredRobot oppExtrapBackward = orbFiltered.createVirtualOpp(oppFiltered, false, 0.25f, oppSimPathBackward);
 
 
 
@@ -69,16 +69,21 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     std::vector<bool> pointsForward = {true, false, true, false};
     // std::vector<bool> pointsCW = {true, false};
     // std::vector<bool> pointsForward = {false, false};
-    // std::vector<bool> pointsCW = {false};
-    // std::vector<bool> pointsForward = {false};
+    // std::vector<bool> pointsCW = {true};
+    // std::vector<bool> pointsForward = {true};
 
 
     // generate every possible follow point
     std::vector<FollowPoint> follows = {};
     for(int i = 0; i < pointsCW.size(); i++) {
 
-        FilteredRobot targetOpp = pointsForward[i] ? oppExtrapForward : oppExtrapBackward;
-        std::vector<cv::Point2f> oppSimPath = pointsForward[i] ? oppSimPathForward : oppSimPathBackward;
+        // FilteredRobot targetOpp = pointsForward[i] ? oppExtrapForward : oppExtrapBackward;
+        // std::vector<cv::Point2f> oppSimPath = pointsForward[i] ? oppSimPathForward : oppSimPathBackward;
+
+        std::vector<cv::Point2f> oppSimPath = {};
+        FilteredRobot targetOpp = orbFiltered.createVirtualOpp(oppFiltered, pointsForward[i], pointsCW[i], 0.25f, oppSimPath);
+
+
 
         FollowPoint follow = followPointDirection(targetOpp, deltaTime, pointsCW[i], pointsForward[i], oppSimPath);
         follow.driveAngle = driveAngle(follow);
@@ -103,7 +108,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.6, 0.05
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.55f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
@@ -337,10 +342,10 @@ void AdjustRadiusWithBumpers() {
 void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
-    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, true, follow.forward);
-
+    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, true, follow.forward, follow.CW);
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
-    // float oppETA = oppFiltered.turnTimeSimple(orbFiltered.position(), oppFiltered.getWeaponAngleReach(), true, true);
+
+
 
     // fraction is the main metric for radius
     float fraction = 999999999.0f;
@@ -361,30 +366,10 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
-    follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
+    // follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
+    follow.radius = 130.0f * pow(sin(std::min(0.16 * fraction, 90.0f*TO_RAD)), 1.0f);
 
 
-
-    // float mediumRadius = 55.0f;
-    // float slopeStart = 9999.0f;
-
-
-    // follow.radius = 0.0f;
-    // if(fraction > 0.6f) { follow.radius = mediumRadius; }
-    // if(fraction > slopeStart) { follow.radius = std::min(mediumRadius + (fraction - slopeStart) * 10.0f, 130.0f); }
-
-
-    // if(fraction > 8.0f) { follow.radius = 130.0f; }
-    // else if(fraction > 0.6f) { follow.radius = 55.0f;}
-    // else { follow.radius = 0.0f; }
-
-
-    // float medium = 55.0f;
-    // float slopeStart = 8.0f;
-
-    // if(fraction < 0.6f) { follow.radius = 0.0f; }
-    // else if(fraction < slopeStart) { follow.radius = medium; }
-    // else { follow.radius = (130.0f - medium) * sin(std::min(1.0 * (fraction - slopeStart), 90.0f*TO_RAD)) + medium; }
 }
 
 
@@ -647,8 +632,8 @@ bool AStarAttack::willTurnPastOpp(FollowPoint follow) {
 
     // std::cout << "turn direction = " << turnDirection;
 
-    const float startMargin = 10.0f*TO_RAD * turnDirection; // if we turn by the opp in the first few degrees anyway then ignore
-    const float endMargin = 30.0f*TO_RAD * turnDirection; // if we don't have to turn past the opp anyway (or just barely turn past) then ignore
+    const float startMargin = 10.0f*TO_RAD * turnDirection; // 10    if we turn by the opp in the first few degrees anyway then ignore
+    const float endMargin = 10.0f*TO_RAD * turnDirection; // 30    if we don't have to turn past the opp anyway (or just barely turn past) then ignore
 
 
     // std::cout << "target = " << targetAngle << ", start = " << startMargin << ", end = " << endMargin;
@@ -714,7 +699,7 @@ float AStarAttack::ppRad() {
 // pp radius used for walls
 float AStarAttack::ppRadWall() {
     float radSlow = 40.0f;
-    float radFast = 130.0f;
+    float radFast = 110.0f;
     float speedFast = 400.0f;
     return radSlow + ((radFast - radSlow) / speedFast) * orbFiltered.moveSpeedSlow();
 }
@@ -815,7 +800,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
     float driveOffset = angleWrapRad(angleToBound - follow.driveAngle);
 
     // only change the direction enforcement if turning the wrong way would make us go way out of the field
-    if(abs(orbOffset) > 8.0f*TO_RAD) { 
+    if(abs(orbOffset) > 5.0f*TO_RAD) { 
 
         // stop enforcing direction bc that might make it go out
         follow.enforceTurnDirection = 0;
@@ -835,47 +820,45 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     static GraphWidget angleToPointGraph("wallWeight*wallGain", -100, 100, "deg");
 
 
-    float radiusScore = 2.0f*follow.radius;
-    // if(follow.radius == 0.0f) { radiusScore = -9999.0f;} // if it's 0 it's really good
-    follow.directionScores.emplace_back(radiusScore);
+    follow.directionScores.emplace_back(follow.radius);
 
 
 
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 15.0f + 0.5f * follow.opp.tangentVel(true); // 10 0.5
+    float goAroundGain = 1.0f + 0.1f * follow.opp.tangentVel(true); // 7   0.25
     follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
 
     // how far the robot has to turn to this point
-    float turnGain = 40.0f; // 60
+    float turnGain = 8.0f; // 15
     follow.directionScores.emplace_back(turnScore(follow)*turnGain);
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
     // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
-    float turnPastOppGain = 180.0f; // 120
+    float turnPastOppGain = 0.0f; // 130
     follow.directionScores.emplace_back(turnPastOppGain*willTurnPastOpp(follow));
 
 
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 600.0f;
+    float wallGain = 200.0f; // 450
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(follow.forward);
     float tanVel = pow(abs(raw), 0.5f) * sign(raw);
-    float momentumWeight = -1.5f; // 0.01
+    float momentumWeight = -0.8f; // 1.5
     follow.directionScores.emplace_back(tanVel*momentumWeight);
 
 
     // subtract score from directions that agree with input while adding to ones that don't
     int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
-    follow.directionScores.emplace_back(150.0f*directionAgreement);
+    follow.directionScores.emplace_back(75.0f*directionAgreement); // 170
 
 
     // sum up the scores and add it as the last entry
