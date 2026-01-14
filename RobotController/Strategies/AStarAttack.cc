@@ -108,7 +108,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.6, 0.05
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.55f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
@@ -367,7 +367,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
-    follow.radius = 130.0f * pow(sin(std::min(0.16 * fraction, 90.0f*TO_RAD)), 1.0f);
+    follow.radius = 130.0f * pow(sin(std::min(0.12 * fraction, 90.0f*TO_RAD)), 1.0f);
 
 
 }
@@ -827,7 +827,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 1.0f + 0.1f * follow.opp.tangentVel(true); // 7   0.25
+    float goAroundGain = 2.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
     follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
@@ -838,14 +838,14 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
     // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
-    float turnPastOppGain = 0.0f; // 130
+    float turnPastOppGain = 100.0f; // 130
     follow.directionScores.emplace_back(turnPastOppGain*willTurnPastOpp(follow));
 
 
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 200.0f; // 450
+    float wallGain = 350.0f; // 200
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
@@ -858,7 +858,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // subtract score from directions that agree with input while adding to ones that don't
     int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
-    follow.directionScores.emplace_back(75.0f*directionAgreement); // 170
+    follow.directionScores.emplace_back(45.0f*directionAgreement); // 170
 
 
     // sum up the scores and add it as the last entry
