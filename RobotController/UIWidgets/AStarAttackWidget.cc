@@ -5,6 +5,7 @@
 #include "../RobotConfig.h"
 #include "imgui.h"
 #include <algorithm>
+#include <limits>
 
 AStarAttackWidget* AStarAttackWidget::_instance = nullptr;
 
@@ -166,6 +167,13 @@ void AStarAttackWidget::DrawGUI()
     if (ImGui::CollapsingHeader("Pure Pursuit", ImGuiTreeNodeFlags_DefaultOpen)) {
         _DrawPurePursuitSliders();
     }
+    
+    ImGui::Separator();
+    
+    // Direction Scores Breakdown section
+    if (ImGui::CollapsingHeader("Direction Scores Breakdown")) {
+        _DrawDirectionScoresBreakdown();
+    }
 }
 
 void AStarAttackWidget::_DrawRadiusCurveSliders()
@@ -249,4 +257,113 @@ void AStarAttackWidget::SyncFromAStarAttack()
     if (astar) {
         astar->GetRadiusCurvePoints(_radiusCurveX, _radiusCurveY);
     }
+}
+
+void AStarAttackWidget::_DrawDirectionScoresBreakdown()
+{
+    AStarAttack* astar = AStarAttack::GetInstance();
+    if (!astar) {
+        ImGui::Text("AStarAttack instance not available");
+        return;
+    }
+    
+    const std::vector<FollowPoint>& followPoints = astar->GetFollowPoints();
+    
+    if (followPoints.empty()) {
+        ImGui::Text("No follow points available (waiting for Execute() to run)");
+        return;
+    }
+    
+    // Score names (matching the order in directionScore function)
+    const char* scoreNames[] = {
+        "Radius",
+        "Go Around Angle",
+        "Turn Score",
+        "Turn Past Opp",
+        "Wall Score",
+        "Momentum",
+        "Direction Agreement",
+        "Total Score"
+    };
+    
+    // Find the best (lowest total score) follow point index
+    int bestIndex = -1;
+    float bestScore = (std::numeric_limits<float>::max)();
+    for (size_t i = 0; i < followPoints.size(); i++) {
+        const std::vector<float>& scores = followPoints[i].directionScores;
+        if (!scores.empty()) {
+            float totalScore = scores.back(); // last entry is total score
+            if (totalScore < bestScore) {
+                bestScore = totalScore;
+                bestIndex = (int)i;
+            }
+        }
+    }
+    
+    // Create a table to display the breakdown
+    if (ImGui::BeginTable("DirectionScoresTable", (int)followPoints.size() + 1, 
+                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX)) {
+        
+        // Header row with follow point labels
+        ImGui::TableSetupColumn("Score Component", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        for (size_t i = 0; i < followPoints.size(); i++) {
+            std::string label = "FP" + std::to_string(i);
+            if (followPoints[i].CW) label += " CW";
+            else label += " CCW";
+            if (followPoints[i].forward) label += " Fwd";
+            else label += " Bwd";
+            
+            ImGui::TableSetupColumn(label.c_str(), ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        }
+        ImGui::TableHeadersRow();
+        
+        // Data rows - one for each score component
+        for (int scoreIdx = 0; scoreIdx < 8; scoreIdx++) {
+            ImGui::TableNextRow();
+            
+            // First column: score name
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", scoreNames[scoreIdx]);
+            
+            // Remaining columns: score values for each follow point
+            for (size_t fpIdx = 0; fpIdx < followPoints.size(); fpIdx++) {
+                ImGui::TableSetColumnIndex((int)fpIdx + 1);
+                
+                const std::vector<float>& scores = followPoints[fpIdx].directionScores;
+                
+                if (scoreIdx < (int)scores.size()) {
+                    float value = scores[scoreIdx];
+                    ImGui::Text("%.1f", value);
+                    
+                    // Highlight the chosen column (same green as total score row)
+                    bool isBestColumn = (bestIndex >= 0 && (int)fpIdx == bestIndex);
+                    
+                    // Highlight the total score row with green
+                    if (scoreIdx == 7) {
+                        if (isBestColumn) {
+                            // Brighter green for the chosen column's total score
+                            ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 
+                                                 ImGui::GetColorU32(ImVec4(0.5f, 0.7f, 0.5f, 0.5f)));
+                        } else {
+                            // Normal green for other total scores
+                            ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 
+                                                 ImGui::GetColorU32(ImVec4(0.3f, 0.5f, 0.3f, 0.3f)));
+                        }
+                    } else if (isBestColumn) {
+                        // Highlight the entire chosen column with the same green as total score row
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 
+                                             ImGui::GetColorU32(ImVec4(0.3f, 0.5f, 0.3f, 0.3f)));
+                    }
+                } else {
+                    ImGui::Text("-");
+                }
+            }
+        }
+        
+        ImGui::EndTable();
+    }
+    
+    // Show which point was selected (if we can determine it)
+    ImGui::Spacing();
+    ImGui::Text("Note: Lower total score is better. The selected point has the lowest total score.");
 } 

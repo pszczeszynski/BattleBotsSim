@@ -27,7 +27,7 @@ EXCLUDE_PATTERNS: list[str] = []
 # Include paths for the project
 INCLUDE_PATHS = [
     # OpenCV include paths
-    "C:/opencv/install/include/",
+    "C:/opencv/install/include/", "C:/opencv/build/include/",
     # Workspace include paths
     str(PROJECT_ROOT / "libs" / "json" / "include" / "nlohmann"),
     str(PROJECT_ROOT / "libs" / "IMGUI"),

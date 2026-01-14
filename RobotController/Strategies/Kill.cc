@@ -8,10 +8,15 @@
 
 Kill::Kill()
 {
-    // initialize filters
-    orbFiltered = FilteredRobot(1.0f, 100.0f, 430.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 30.0f*TO_RAD, 10.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 100.0f, 400.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
+    // init filters
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
+
+    // init field
+    field = Field();
 }
+
+
 
 DriverStationMessage Kill::Execute(Gamepad &gamepad)
 {
@@ -35,32 +40,69 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
 
 
-    bool forward = gamepad.GetRightStickY() >= 0.0f; // if we're driving forward to the opp
+    // if we're inputting forward driving direction
+    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f);
 
+
+    // generate the extrapolated opp to where we'll collide
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forward, 1.0f, oppSimPath);
+    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, 1.0f, oppSimPath);
+
+    // // if the opp extrapolated out of the field, clip it in
+    // if(!field.insideFieldBounds(oppExtrap.position())) {
+    //     cv::Point2f clippedPosition = field.closestBoundPoint(oppExtrap.position());
+    //     std::vector<float> clippedPos = {clippedPosition.x, clippedPosition.y, oppFiltered.getPosFiltered()[2]};
+    //     oppExtrap.setPos(clippedPos);
+    // }
 
 
-    std::vector<cv::Point2f> orbSimPath = {};
-    float orbTime = orbFiltered.ETASim(oppExtrap, orbSimPath, false, false, forward);
-    std::cout << "orbTime = " << orbTime << std::endl;
+    // recalculate orb sim path for displaying
+    std::vector<cv::Point2f> orbSimPathCW = {};
+    std::vector<cv::Point2f> orbSimPathCCW = {};
+
+    float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true);
+    float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false);
+
+    std::vector<cv::Point2f> orbSimPath = orbSimPathCW;
+    float orbTime = orbTimeCW;
+
+    if(orbTimeCCW < orbTimeCW) {
+        orbSimPath = orbSimPathCCW;
+        orbTime = orbTimeCCW;
+    }
+    // std::cout << "orbTime = " << orbTime << std::endl;
 
 
-    // it's just atan2
-    cv::Point2f followPoint = oppExtrap.position();
+
+    // calculate drive inputs based on curvature controller (it's just atan2)
+    float targetAngle = atan2(oppExtrap.position().y - orbFiltered.position().y, oppExtrap.position().x - orbFiltered.position().x);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, 0.8f, 0.06f, gamepad.GetRightStickY(), deltaTime, 0, forwardInput);
+
+
+
+    // create and send drive command
+    DriverStationMessage ret;
+    ret.type = DriverStationMessageType::DRIVE_COMMAND;
+    ret.driveCommand.movement = driveInputs[0];
+    ret.driveCommand.turn = driveInputs[1];
+
+
+
+
+
     
    
 
     // colors
     cv::Scalar colorOrb = cv::Scalar(255, 200, 0);
-    if(!forward) { colorOrb = cv::Scalar(0, 200, 255); }
+    if(!forwardInput) { colorOrb = cv::Scalar(0, 200, 255); }
 
     cv::Scalar colorOpp = cv::Scalar(0, 50, 255);
     cv::Scalar colorOppLight = cv::Scalar(200, 200, 255);
 
 
     bool colliding = orbFiltered.distanceTo(oppFiltered.position()) < orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius() + 10.0f;
-    bool facing = abs(orbFiltered.angleTo(oppFiltered.position(), forward)) < orbFiltered.getWeaponAngleReach();
+    bool facing = abs(orbFiltered.angleTo(oppFiltered.position(), forwardInput)) < orbFiltered.getWeaponAngleReach();
     bool oppFacing = abs(oppFiltered.angleTo(orbFiltered.position(), true)) < oppFiltered.getWeaponAngleReach();
 
     // turn opp green if we hit them
@@ -72,7 +114,6 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     // display things we want
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), followPoint, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppExtrap.position(), 10, colorOpp, 2); // draw dot on the extrap opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppExtrap.position(), oppExtrap.getSizeRadius(), colorOpp, 2); // draw op size
@@ -80,25 +121,25 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
     DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
+    // DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // draw field bound lines
 
-    std::string forwardStatus = forward ? "Forward" : "Backward"; 
+
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(3) << orbTime;
+    
+    std::string collisionTime = "Time to Collision: " + oss.str() + "s";
+    std::string forwardStatus = forwardInput ? "Forward" : "Backward"; 
 
     cv::putText(RobotController::GetInstance().GetDrawingImage(), "Killing", cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
     cv::putText(RobotController::GetInstance().GetDrawingImage(), forwardStatus, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
+    cv::putText(RobotController::GetInstance().GetDrawingImage(), collisionTime, cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
 
 
-    // calculate drive inputs based on curvature controller
-    float targetAngle = atan2(oppExtrap.position().y - orbFiltered.position().y, oppExtrap.position().x - orbFiltered.position().x);
-    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, 0.8f, 0.06f, gamepad.GetRightStickY(), deltaTime, 0, forward);
-
-
-    // create and send drive command
-    DriverStationMessage ret;
-    ret.type = DriverStationMessageType::DRIVE_COMMAND;
-    ret.driveCommand.movement = driveInputs[0];
-    ret.driveCommand.turn = driveInputs[1];
     
     
+
+
+
     // processingTimeVisualizer.markEnd();
     return ret;
 }

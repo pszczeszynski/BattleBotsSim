@@ -11,10 +11,13 @@ FollowPoint::FollowPoint(bool forward, bool CW, FilteredRobot opp, std::vector<c
     this->opp = opp;
     this->oppSimPath = oppSimPath;
     
-    radius = 0.0f; // default
+    radius = 0; // default
     controllerGain = 1.0f; // default
     point = cv::Point2f(0, 0); // default
     enforceTurnDirection = 0; // default
-    std::vector<cv::Point2f> orbSimPath = {}; // default
+    driveAngle = 0; // default
+
+    directionScores = {}; // default
+    orbSimPath = {}; // default
 
 }
