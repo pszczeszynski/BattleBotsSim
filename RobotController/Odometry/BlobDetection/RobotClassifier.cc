@@ -11,8 +11,6 @@ RobotClassifier::RobotClassifier(void)
     opponentCalibrationData.diameter = 50;
 }
 
-#define DISTNACE_WEIGHT 1.0
-
 /**
  * Returns a number that is more negative the more we think the robot is us.
  *

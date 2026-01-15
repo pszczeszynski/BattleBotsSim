@@ -2,7 +2,6 @@
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
 #include "../../SafeDrawing.h"
-#include "../../UIWidgets/ImageWidget.h"
 
 // *********************************************************************
 // NOTE:
@@ -223,25 +222,13 @@ void BlobDetection::GetDebugImage(cv::Mat& debugImage, cv::Point offset)
     locker.unlock(); // Unlock mutex after operation
 }
 
-#ifdef SIMULATION
-// #define HARDCODE_SIM
-#endif
-
 void BlobDetection::UpdateData(VisionClassification robotBlobData, double timestamp)
 {
     // Get unique access (already locked from calling function)
     //  std::unique_lock<std::mutex> locker(_updateMutex);
 
-#ifndef HARDCODE_SIM
     MotionBlob* robot = robotBlobData.GetRobotBlob();
     MotionBlob* opponent = robotBlobData.GetOpponentBlob();
-#else
-    // for hardcoding sim:
-    MotionBlob robot;
-    MotionBlob opponent;
-    robot.center = robotPosSim;
-    opponent.center = opponentPosSim;
-#endif
 
     // Increment frame id whether we have a valid blob or not to tell
     // odometry algorithm to consider to result (whether positive or negative)
@@ -249,23 +236,14 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     _currDataRobot.frameID = frameID;
     _currDataRobot.time = timestamp; // Set to new time
 
-#ifndef HARDCODE_SIM
     if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot))
-#else
-    if (true)
-#endif
     {
         // Clear curr data
         _currDataRobot.Clear();
         _currDataRobot.isUs = true; // Make sure this is set
-#ifndef HARDCODE_SIM
         _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
         // Update our robot position/velocity/angle
         _SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot, _prevAngleDataRobot, timestamp);
-#else
-        // Update our robot position/velocity/angle
-        _SetData(&robot, _currDataRobot, _prevDataRobot, timestamp);
-#endif
     }
     else
     {
@@ -288,11 +266,7 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
     _currDataOpponent.frameID = frameID;
     _currDataOpponent.time = timestamp; // Set to new time
 
-#ifndef HARDCODE_SIM
     if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent))
-#else
-    if (true)
-#endif
     {
         // Make a copy of currData for velocity calls
         _prevDataOpponent = _currDataOpponent;
@@ -301,15 +275,10 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData, double timest
         _currDataOpponent.Clear();
         _currDataOpponent.isUs = false; // Make sure this is set
 
-#ifndef HARDCODE_SIM
         _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
         // Update opponent position/velocity info
         _SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent, _prevDataOpponent, _prevAngleDataOpponent,
                  timestamp);
-#else
-        // Update opponent position/velocity info
-        _SetData(&opponent, _currDataOpponent, _prevDataOpponent, _prevAngleDataOpponent, timestamp);
-#endif
     }
     else
     {
