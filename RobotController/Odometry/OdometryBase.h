@@ -1,14 +1,10 @@
 #pragma once
-#include "../Clock.h"
-#include <signal.h>
 #include <windows.h>
 #include <thread>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
 #include "../MathUtils.h"
 #include "../CameraReceiver.h"
-#include "../VisionPreprocessor.h"
-#include <string.h>
 #include <unordered_map>
 
 // The total time to wait stopping the main task in seconds before killing it
