@@ -50,7 +50,7 @@ class LKFlowTracker : public OdometryBase {
                                   double& angleDelta);
   void _UpdateAngleFromRotations(const std::vector<RotationResult>& rotations,
                                  double& angleDelta);
-  bool _RespawnPoints(const cv::Mat& gray, cv::Point2f center, cv::Size roiSize,
+  bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                       std::vector<TrackPt>& tracks, int targetCount);
 
   // Helper functions
@@ -75,7 +75,6 @@ class LKFlowTracker : public OdometryBase {
   cv::Point2f _prevCenter;
   Angle _angle;
   int _targetPointCount;  // Target/baseline number of points to maintain
-  Clock _lastRespawnTime;
   bool _initialized;
 
   // Previous data for velocity calculations
