@@ -108,7 +108,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.6, 0.05
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.03f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
@@ -367,7 +367,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
-    follow.radius = 130.0f * pow(sin(std::min(0.12 * fraction, 90.0f*TO_RAD)), 1.0f);
+    follow.radius = 130.0f * pow(sin(std::min(0.14 * fraction, 90.0f*TO_RAD)), 1.0f);
 
 
 }
@@ -827,13 +827,16 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 2.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
+    float goAroundGain = 0.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
     follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
 
     // how far the robot has to turn to this point
-    float turnGain = 8.0f; // 15
+    float distance = std::max(orbFiltered.distanceTo(oppFiltered.position()) - orbFiltered.getSizeRadius() - oppFiltered.getSizeRadius(), 0.0f);
+    float soFarAway = 300.0f;
+    float closeness = std::max((soFarAway - distance) / soFarAway, 0.0f);
+    float turnGain = 5.0f + 10.0f*closeness; // 15
     follow.directionScores.emplace_back(turnScore(follow)*turnGain);
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
