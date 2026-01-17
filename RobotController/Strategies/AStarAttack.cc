@@ -375,7 +375,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
 
 
-    follow.radius = 130.0f * pow(std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f), 1.5f);
+    follow.radius = 130.0f * pow(std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f), 1.0f);
     if(orbETA + oppETA == 0.0f) { follow.radius = 0.0f; }
     // follow.radius = std::min(follow.radius, 130.0f);
 

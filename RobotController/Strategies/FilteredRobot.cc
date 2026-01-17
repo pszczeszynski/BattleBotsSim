@@ -316,9 +316,9 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     float currSpeed = moveSpeedSlow();
 
 
-    float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // 300 max curvature to avoid slipping, faster you go the less curvature you're allowed
-    float maxCurveScrub = currSpeed * 0.01f; // 0.01 max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
-    float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
+    // float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // 300 max curvature to avoid slipping, faster you go the less curvature you're allowed
+    // float maxCurveScrub = currSpeed * 0.01f; // 0.01 max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
+    // float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
     // maxCurve = std::min(maxCurve, 1.1f);
 
     // pd controller that increases path curvature with angle error
