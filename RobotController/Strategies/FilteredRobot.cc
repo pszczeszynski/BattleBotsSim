@@ -2,7 +2,6 @@
 #include "../MathUtils.h"
 #include <iostream>
 #include <cstdlib>
-#include <winnt.h>
 
 
 #ifndef angleWrapRad
@@ -317,17 +316,21 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     float currSpeed = moveSpeedSlow();
 
 
-    float maxCurveGrip = pow(380.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // 300 max curvature to avoid slipping, faster you go the less curvature you're allowed
+    float maxCurveGrip = pow(300.0f, 2.0f) / std::max(pow(currSpeed, 2), 0.1); // 300 max curvature to avoid slipping, faster you go the less curvature you're allowed
     float maxCurveScrub = currSpeed * 0.01f; // 0.01 max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
     float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
     // maxCurve = std::min(maxCurve, 1.1f);
 
     // pd controller that increases path curvature with angle error
-    // float curvature = std::clamp(0.6f*angleError, -maxCurve, maxCurve);
-    float curvature = 0.50f*pow(abs(angleError), 1.1f) * sign(angleError);
-    if(angleError < 3.0f*TO_RAD) {
-        curvature = 0.0f;
-    }
+    // float curvature = 0.50f*pow(abs(angleError), 1.1f) * sign(angleError);
+
+    float slowGain = 1.05f;
+    float fastGain = 0.32f; // 0.30
+    float fastSpeed = 400.0f;
+    float gain = slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f);
+    gain = std::max(gain, 0.0f);
+
+    float curvature = gain * angleError;
     // curvature = std::clamp(curvature, -maxCurve, maxCurve);
 
 
@@ -348,7 +351,8 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     prevAngleError = turnInput; // save the turn speed wanted for the normal amount of curvature
 
 
-    float turnSpeedOffset = pow(abs(turnSpeedChange), 1.3f) * sign(turnSpeedChange) * 0.14f;
+    // float turnSpeedOffset = pow(abs(turnSpeedChange), 1.3f) * sign(turnSpeedChange) * 0.14f;
+    float turnSpeedOffset = 0.11f * turnSpeedChange;
     turnInput = std::clamp(turnInput + turnSpeedOffset, -1.0f, 1.0f);
 
 
@@ -551,12 +555,12 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 
 
         // 280
-        float maxCurveGrip = pow(280.0f, 2.0f) / std::max(pow(abs(simSpeed), 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
+        float maxCurveGrip = pow(99999.0f, 2.0f) / std::max(pow(abs(simSpeed), 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
         float maxCurveScrub = abs(simSpeed) * 0.01f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
         float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
 
         // pd controller that increases path curvature with angle error
-        float curvature = std::clamp(0.6f*angleError, -maxCurve, maxCurve); // 0.8f, 0.06f
+        float curvature = std::clamp(0.8f*angleError, -maxCurve, maxCurve); // 0.8f, 0.06f
 
         float moveSpeed = 1.0f * direction; // assume full gas
         float turnSpeed = abs(moveSpeed) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
