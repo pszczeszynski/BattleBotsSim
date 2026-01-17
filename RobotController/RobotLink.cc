@@ -6,9 +6,9 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
+#include "RobotStateParser.h"
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
-
 
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
