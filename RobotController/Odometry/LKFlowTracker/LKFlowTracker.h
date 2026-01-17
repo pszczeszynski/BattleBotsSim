@@ -56,6 +56,7 @@ class LKFlowTracker : public OdometryBase {
   // Helper functions
   cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
+  void _FilterPointsByROI(std::vector<TrackPt>& tracks);
 
   // Configuration constants
   static constexpr int LK_MAX_CORNERS = 200;
@@ -65,8 +66,7 @@ class LKFlowTracker : public OdometryBase {
   static constexpr int LK_MAX_LEVEL = 3;
   static constexpr int LK_NUM_PAIRS = 200;
   static constexpr int LK_MIN_TRACK_FRAMES = 5;
-  static constexpr double RESPAWN_INTERVAL = 1.0;  // seconds - increased to reduce respawn frequency
-  static constexpr double RESPAWN_THRESHOLD_RATIO = 0.3;  // Respawn when below 30% of target (was 50%)
+  static constexpr double RESPAWN_INTERVAL = 1.0;  // seconds - respawn interval
 
   // Internal state
   cv::Rect _roi;
@@ -76,6 +76,7 @@ class LKFlowTracker : public OdometryBase {
   Angle _angle;
   int _targetPointCount;  // Target/baseline number of points to maintain
   bool _initialized;
+  double _lastRespawnTime;  // Time of last respawn operation
 
   // Previous data for velocity calculations
   OdometryData _prevDataRobot;

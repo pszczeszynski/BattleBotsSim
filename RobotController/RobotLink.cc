@@ -793,7 +793,6 @@ void RobotLinkReal::Drive(DriverStationMessage &command)
 
 std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
 {
-    std::cerr << "RobotLinkReal::_ReceiveImpl" << std::endl;
     std::vector<RobotMessage> ret = {};
 
     // lock mutex

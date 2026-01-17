@@ -14,8 +14,9 @@ LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
     : OdometryBase(videoSource),
       _roi(0, 0, 0, 0),
       _angle(Angle(0)),
-      _targetPointCount(0),
+      _targetPointCount(40),
       _initialized(false),
+      _lastRespawnTime(0.0),
       _rng(std::random_device{}()) {
   // This tracker only tracks opponent, robot data always invalid
   SetAngle(Angle(0), false, 0, 0, false);
@@ -34,18 +35,19 @@ void LKFlowTracker::_StartCalled(void) {
   _prevGray = cv::Mat();
   _tracks.clear();
   _angle = Angle(0);
+  _lastRespawnTime = 0.0;
 }
 
 // We expect this to be called every frame from the other vision algorithms, and we trust it.
 void LKFlowTracker::SetROI(cv::Rect roi) {
   std::unique_lock<std::mutex> locker(_updateMutex);
   _roi = roi;
+  // Filter out any existing points that are now outside the new ROI
+  _FilterPointsByROI(_tracks);
 }
 
-void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
-  std::cout << "Processing new frame" << std::endl;
-  // Convert to grayscale if needed
-  cv::Mat gray;
+
+void EnforceGrayscale(cv::Mat& currFrame, cv::Mat& gray) {
   if (currFrame.channels() == 1) {
     gray = currFrame;
   } else if (currFrame.channels() == 3) {
@@ -53,32 +55,35 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   } else if (currFrame.channels() == 4) {
     cv::cvtColor(currFrame, gray, cv::COLOR_BGRA2GRAY);
   } else {
-    return;  // Unsupported format
+    std::cerr << "Unsupported frame format: " << currFrame.channels() << std::endl;
+  }
+}
+
+void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
+  // Convert to grayscale if needed
+  cv::Mat gray;
+  EnforceGrayscale(currFrame, gray);
+
+  // Regular interval-based respawn
+  if (_roi.width > 0 && _roi.height > 0 &&
+      ((frameTime - _lastRespawnTime) >= RESPAWN_INTERVAL) &&
+      _RespawnPoints(gray, _roi, _tracks, _targetPointCount)) {
+    _lastRespawnTime = frameTime;
   }
 
   // If previous image is empty, store it for next frame
-  if (_prevGray.empty()) {
-    _prevGray = gray;
-    return;
-  }
+  // OR if we don't have enough points, skip update and force initialization next frame
 
-  // Initialize if we haven't yet and have a valid ROI
-  if ((!_initialized && _roi.width > 0 && _roi.height > 0) &&
-      _InitializePoints(gray, _roi)) {
+  if (_prevGray.empty() || _tracks.size() < 6) {
     _prevGray = gray;
-    return;
-  }
-
-  // If we don't have enough points, skip update and force initialization next frame
-  if (_tracks.size() < 6) {
-    _initialized = false;
-    _prevGray = gray;
+    std::cout << "No points, skipping update" << std::endl;
     return;
   }
 
   // Update tracking
   std::unique_lock<std::mutex> locker(_updateMutex);
   bool success = _UpdateTracking(_prevGray, gray, frameTime);
+  
   locker.unlock();
 
   // Always advance _prevGray to prevent failure spiral
@@ -116,8 +121,8 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray, cv::Rect roi) {
   // Reset state for initialization
   _prevCenter = _ComputeCenterFromPoints(pts);
   _angle = Angle(0);
-  _targetPointCount = 40;  // Set target once during initialization
   _initialized = true;
+  _lastRespawnTime = Clock::programClock.getElapsedTime();
 
   return true;
 }
@@ -151,36 +156,24 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   double angleDelta = 0.0;
   _ComputeRotationsFromPairs(nextPts, status, angleDelta);
 
-  // Single-pass compaction: keep only good points that are within ROI, increment age
+  // Single-pass compaction: keep only good points, increment age
   std::vector<TrackPt> tracksNext;
   tracksNext.reserve(_tracks.size());
   for (size_t i = 0; i < status.size(); ++i) {
     if (status[i] == 1) {
-      // Kill off points that exit the ROI
-      if (_roi.width > 0 && _roi.height > 0) {
-        if (nextPts[i].x < _roi.x || nextPts[i].x >= _roi.x + _roi.width ||
-            nextPts[i].y < _roi.y || nextPts[i].y >= _roi.y + _roi.height) {
-          continue;  // Point is outside ROI, skip it
-        }
-      }
       tracksNext.push_back({nextPts[i], _tracks[i].age + 1});
     }
   }
+  
+  // Filter out points that are outside the ROI using standardized method
+  _FilterPointsByROI(tracksNext);
 
-  // If we have too few points, try emergency respawn before giving up
+  // If we have too few points after tracking, fail (respawn handled in _ProcessNewFrame)
   if (tracksNext.size() < 6) {
-    if (_roi.width > 0 && _roi.height > 0) {
-      _RespawnPoints(currGray, _roi, tracksNext, _targetPointCount);
-      // If respawn recovered enough, continue; otherwise fail
-      if (tracksNext.size() < 6) {
-        return false;
-      }
-    } else {
-      return false;
-    }
+    return false;
   }
 
-  // Extract points for center computation and respawn
+  // Extract points for center computation
   std::vector<cv::Point2f> goodNextPts;
   goodNextPts.reserve(tracksNext.size());
   for (const auto& track : tracksNext) {
@@ -189,19 +182,6 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
   // Compute center from good points
   cv::Point2f center = _ComputeCenterFromPoints(goodNextPts);
-
-  // Check if we need to respawn points (use compacted size)
-  // Respawn when we've lost too many points (below threshold ratio of target)
-  int respawnThreshold =
-      static_cast<int>(_targetPointCount * RESPAWN_THRESHOLD_RATIO);
-  if (static_cast<int>(goodNextPts.size()) < respawnThreshold &&
-      _roi.width > 0 && _roi.height > 0) {
-    if (_RespawnPoints(currGray, _roi, tracksNext, _targetPointCount)) {
-      // Note: _targetPointCount remains fixed at the initial value set during
-      // _InitializePoints() This ensures respawn triggers consistently when we
-      // drop below half of the target
-    }
-  }
 
   // Update angle (angleDelta is already in radians)
   _angle = Angle(_angle + Angle(angleDelta));
@@ -245,7 +225,9 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
   // Update debug image
   std::unique_lock<std::mutex> debugLock(_mutexDebugImage);
-  _debugImage = currGray.clone();
+  // initialize the debug image to zeros
+  _debugImage = cv::Mat::zeros(currGray.size(), CV_8UC1);
+  // _debugImage = currGray.clone();
   for (const auto& track : _tracks) {
     cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
   }
@@ -329,42 +311,35 @@ void LKFlowTracker::_UpdateAngleFromRotations(
     return;
   }
 
-  // Weighted circular mean: more robust for circular data than percentile
-  // Weight by distance (or distance^2) - longer baselines are more stable
-  float sumSin = 0.0f;
-  float sumCos = 0.0f;
-  const float minWeight = 1.0f;    // Minimum weight to avoid division issues
-  const float maxWeight = 100.0f;  // Cap weight to avoid outliers dominating
-
+  // Extract angle deltas and sort them
+  std::vector<float> angles;
+  angles.reserve(rotations.size());
   for (const auto& r : rotations) {
-    // Weight by distance squared (longer baselines = more stable angles)
-    // Clamp to avoid extreme weights
-    float weight =
-        (std::max)(minWeight, (std::min)(maxWeight, r.distance * r.distance));
-
-    sumSin += weight * std::sin(r.angleDelta);
-    sumCos += weight * std::cos(r.angleDelta);
+    angles.push_back(r.angleDelta);
   }
+  std::sort(angles.begin(), angles.end());
 
-  // Compute weighted circular mean
-  angleDelta = static_cast<double>(std::atan2(sumSin, sumCos));
+  // Compute 75th percentile index
+  size_t percentileIndex = static_cast<size_t>(
+      std::floor(0.75 * (angles.size() - 1)));
+  angleDelta = static_cast<double>(angles[percentileIndex]);
 }
 
 bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    std::vector<TrackPt>& tracks,
                                    int targetCount) {
   // Calculate how many points we need to reach the target
-  int currentCount = static_cast<int>(tracks.size());
-  int needed = targetCount - currentCount;
+  const int needed = targetCount - tracks.size();
 
   // If we already have enough points, no need to respawn
   if (needed <= 0) {
+    std::cout << "Already have enough points, no need to respawn" << std::endl;
     return true;  // Success (no action needed)
   }
 
-  // Cap the request to avoid exceeding target (goodFeaturesToTrack may return
-  // more)
-  int maxToRequest = (std::min)(needed, LK_MAX_CORNERS);
+  // Request more points than needed since some may be filtered out for being too close
+  // to existing points
+  int maxToRequest = (std::min)(needed * 2, LK_MAX_CORNERS);
 
   // Ensure ROI is within image bounds
   int imgH = gray.rows;
@@ -386,21 +361,47 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
   cv::goodFeaturesToTrack(roiGray, newPts, maxToRequest, LK_QUALITY_LEVEL,
                           LK_MIN_DISTANCE);
 
-  // Require at least a few points to be useful, but don't fail if we get fewer
-  // than requested
   if (newPts.empty()) {
     return false;
   }
 
-  // Shift to full-image coords and create TrackPt structs
-  int toAdd = (std::min)(static_cast<int>(newPts.size()), needed);
-  for (int i = 0; i < toAdd; ++i) {
-    newPts[i].x += x;
-    newPts[i].y += y;
-    tracks.push_back({newPts[i], 0});  // Initialize with age 0
+  // Shift to full-image coords
+  for (auto& pt : newPts) {
+    pt.x += x;
+    pt.y += y;
   }
 
-  return true;
+  // Filter new points: only add those that are sufficiently far from existing tracks
+  const double minDistSq = LK_MIN_DISTANCE * LK_MIN_DISTANCE;  // Use squared distance for efficiency
+  int added = 0;
+  for (const auto& newPt : newPts) {
+    if (added >= needed) {
+      break;  // We've added enough points
+    }
+
+    // Check distance to all existing tracks
+    bool tooClose = false;
+    for (const auto& track : tracks) {
+      cv::Point2f diff = newPt - track.pt;
+      double distSq = diff.x * diff.x + diff.y * diff.y;
+      if (distSq < minDistSq) {
+        tooClose = true;
+        break;
+      }
+    }
+
+    // Only add if sufficiently far from all existing points
+    if (!tooClose) {
+      tracks.push_back({newPt, 0});  // Initialize with age 0
+      added++;
+    }
+  }
+
+  std::cout << "Respawned " << added << " points (filtered from " << newPts.size() 
+            << " candidates) for a total of " << tracks.size() << " points" << std::endl;
+
+  // Return true if we added at least some points (even if fewer than requested)
+  return added > 0;
 }
 
 cv::Point2f LKFlowTracker::_ComputeCenterFromPoints(
@@ -440,6 +441,24 @@ std::vector<std::pair<int, int>> LKFlowTracker::_GeneratePointPairs(int nPts) {
   }
 
   return pairs;
+}
+
+void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
+  // If ROI is invalid (width or height <= 0), keep all points
+  if (_roi.width <= 0 || _roi.height <= 0) {
+    return;
+  }
+
+  // Remove points that are outside the ROI
+  tracks.erase(
+      std::remove_if(tracks.begin(), tracks.end(),
+                     [this](const TrackPt& track) {
+                       return track.pt.x < _roi.x ||
+                              track.pt.x >= _roi.x + _roi.width ||
+                              track.pt.y < _roi.y ||
+                              track.pt.y >= _roi.y + _roi.height;
+                     }),
+      tracks.end());
 }
 
 void LKFlowTracker::SwitchRobots(void) {

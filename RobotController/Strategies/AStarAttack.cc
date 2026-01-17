@@ -117,9 +117,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     ret.driveCommand.movement = driveInputs[0];
     ret.driveCommand.turn = driveInputs[1];
 
-
-    std::cout << "orb speed = " << orbFiltered.moveSpeedSlow();
-    std::cout << std::endl;
     
     
     processingTimeVisualizer.markEnd();
