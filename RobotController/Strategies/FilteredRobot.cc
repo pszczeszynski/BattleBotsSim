@@ -233,10 +233,10 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
         simTime += timeIncrement; // increment sim time
         std::vector<std::vector<float>> oppExtrap = virtualOpp.constVelExtrap(timeIncrement); // extrapolate opp another time step
 
-        float velLeft1Sec = 0.001f; // 0.1 what percent of velocity is left after each second
+        float velLeft1Sec = 0.01f; // 0.1 what percent of velocity is left after each second
         float velPercent = pow(velLeft1Sec, timeIncrement); // what percent of velocity is left after this timestep
 
-        float turnLeft1Sec = 0.001f; // 0.005
+        float turnLeft1Sec = 0.003f; // 0.005
         float turnPercent = pow(turnLeft1Sec, timeIncrement);
 
         std::vector<float> newPos = oppExtrap[0]; // pull out new pos
@@ -325,7 +325,7 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     // float curvature = 0.50f*pow(abs(angleError), 1.1f) * sign(angleError);
 
     float slowGain = 1.05f;
-    float fastGain = 0.32f; // 0.30
+    float fastGain = 0.40f; // 0.32
     float fastSpeed = 400.0f;
     float gain = slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f);
     gain = std::max(gain, 0.0f);
@@ -560,7 +560,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
 
         // pd controller that increases path curvature with angle error
-        float curvature = std::clamp(0.8f*angleError, -maxCurve, maxCurve); // 0.8f, 0.06f
+        float curvature = std::clamp(0.45f*angleError, -maxCurve, maxCurve); // 0.8f, 0.06f
 
         float moveSpeed = 1.0f * direction; // assume full gas
         float turnSpeed = abs(moveSpeed) * curvature; // curvature = 1/radius so this is the same as w = v/r formula

@@ -77,7 +77,7 @@ void AStarAttackWidget::_DrawCurveVisualization()
     
     // Convert curve points to screen coordinates
     std::vector<cv::Point> screenPoints;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         int screenX = (_radiusCurveX[i] / _maxX) * CURVE_WIDGET_WIDTH;
         int screenY = CURVE_WIDGET_HEIGHT - ((_radiusCurveY[i] / _maxY) * CURVE_WIDGET_HEIGHT);
         screenX = std::clamp(screenX, 0, CURVE_WIDGET_WIDTH - 1);
@@ -144,6 +144,7 @@ void AStarAttackWidget::DrawGUI()
             _radiusCurveX[0] = 0.0f;   _radiusCurveY[0] = 0.0f;
             _radiusCurveX[1] = 15.0f;  _radiusCurveY[1] = 85.0f;
             _radiusCurveX[2] = 100.0f; _radiusCurveY[2] = 150.0f;
+            _radiusCurveX[3] = 200.0f; _radiusCurveY[3] = 150.0f;
             _UpdateAStarParameters();
         }
         
@@ -156,8 +157,8 @@ void AStarAttackWidget::DrawGUI()
         
         // Show current values
         ImGui::Text("Current Points:");
-        for (int i = 0; i < 3; i++) {
-            ImGui::Text("P%d: (%.1f, %.1f)", i, _radiusCurveX[i], _radiusCurveY[i]);
+        for (int i = 0; i < 4; i++) {
+            ImGui::Text("P%d: (%.01f, %.01f)", i, _radiusCurveX[i], _radiusCurveY[i]);
         }
     }
     
@@ -184,24 +185,26 @@ void AStarAttackWidget::_DrawRadiusCurveSliders()
     ImGui::PushItemWidth(200);
     
     // X values
-    if (ImGui::SliderFloat("X0##radiusCurveX0", &_radiusCurveX[0], 0.0f, 50.0f, "%.1f")) changed = true;
-    if (ImGui::SliderFloat("X1##radiusCurveX1", &_radiusCurveX[1], 0.0f, 50.0f, "%.1f")) changed = true;
-    if (ImGui::SliderFloat("X2##radiusCurveX2", &_radiusCurveX[2], 0.0f, 200.0f, "%.1f")) changed = true;
+    if (ImGui::SliderFloat("X0##radiusCurveX0", &_radiusCurveX[0], 0.0f, _maxX, "%.01f")) changed = true;
+    if (ImGui::SliderFloat("X1##radiusCurveX1", &_radiusCurveX[1], 0.0f, _maxX, "%.01f")) changed = true;
+    if (ImGui::SliderFloat("X2##radiusCurveX2", &_radiusCurveX[2], 0.0f, _maxX, "%.01f")) changed = true;
+    if (ImGui::SliderFloat("X3##radiusCurveX3", &_radiusCurveX[3], 0.0f, _maxX, "%.01f")) changed = true;
     
     ImGui::Text("Y Values (Radius):");
     
     // Y values
-    if (ImGui::SliderFloat("Y0##radiusCurveY0", &_radiusCurveY[0], 0.0f, 300.0f, "%.1f")) changed = true;
-    if (ImGui::SliderFloat("Y1##radiusCurveY1", &_radiusCurveY[1], 0.0f, 300.0f, "%.1f")) changed = true;
-    if (ImGui::SliderFloat("Y2##radiusCurveY2", &_radiusCurveY[2], 0.0f, 300.0f, "%.1f")) changed = true;
+    if (ImGui::SliderFloat("Y0##radiusCurveY0", &_radiusCurveY[0], 0.0f, _maxY, "%.1f")) changed = true;
+    if (ImGui::SliderFloat("Y1##radiusCurveY1", &_radiusCurveY[1], 0.0f, _maxY, "%.1f")) changed = true;
+    if (ImGui::SliderFloat("Y2##radiusCurveY2", &_radiusCurveY[2], 0.0f, _maxY, "%.1f")) changed = true;
+    if (ImGui::SliderFloat("Y3##radiusCurveY3", &_radiusCurveY[3], 0.0f, _maxY, "%.1f")) changed = true;
     
     ImGui::PopItemWidth();
     
     // Ensure X values are ordered
     if (changed) {
         // Sort X values while maintaining Y correspondence
-        for (int i = 0; i < 2; i++) {
-            for (int j = i + 1; j < 3; j++) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = i + 1; j < 4; j++) {
                 if (_radiusCurveX[i] > _radiusCurveX[j]) {
                     std::swap(_radiusCurveX[i], _radiusCurveX[j]);
                     std::swap(_radiusCurveY[i], _radiusCurveY[j]);
@@ -219,17 +222,17 @@ void AStarAttackWidget::_DrawPurePursuitSliders()
     ImGui::PushItemWidth(200);
     
     // Slow speed radius
-    if (ImGui::SliderFloat("Slow Speed Radius##ppRadSlow", &ASTAR_PP_RAD_SLOW, 10.0f, 200.0f, "%.1f pixels")) {
+    if (ImGui::SliderFloat("Slow Speed Radius##ppRadSlow", &ASTAR_PP_RAD_SLOW, 10.0f, 200.0f, "%.01f pixels")) {
         // Value automatically updates since it's a reference to the global variable
     }
     
     // Fast speed radius
-    if (ImGui::SliderFloat("Fast Speed Radius##ppRadFast", &ASTAR_PP_RAD_FAST, 10.0f, 300.0f, "%.1f pixels")) {
+    if (ImGui::SliderFloat("Fast Speed Radius##ppRadFast", &ASTAR_PP_RAD_FAST, 10.0f, 300.0f, "%.01f pixels")) {
         // Value automatically updates since it's a reference to the global variable
     }
     
     // Speed threshold for fast radius
-    if (ImGui::SliderFloat("Fast Speed Threshold##ppSpeedFast", &ASTAR_PP_SPEED_FAST, 100.0f, 800.0f, "%.1f px/s")) {
+    if (ImGui::SliderFloat("Fast Speed Threshold##ppSpeedFast", &ASTAR_PP_SPEED_FAST, 100.0f, 800.0f, "%.01f px/s")) {
         // Value automatically updates since it's a reference to the global variable
     }
     

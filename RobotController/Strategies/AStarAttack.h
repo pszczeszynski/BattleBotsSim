@@ -24,8 +24,8 @@ public:
     void RegenerateFieldBoundaryLines();
     
     // Radius curve parameter interface
-    void GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY[3]);
-    void SetRadiusCurvePoints(const float radiusCurveX[3], const float radiusCurveY[3]);
+    void GetRadiusCurvePoints(float radiusCurveX[4], float radiusCurveY[4]);
+    void SetRadiusCurvePoints(const float radiusCurveX[4], const float radiusCurveY[4]);
     void ResetRadiusCurveToDefault();
     
     // Get the last computed followPoints (for debugging/display)
@@ -46,8 +46,8 @@ private:
 
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
-    // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2
-    // RADIUS_CURVE_Y0, RADIUS_CURVE_Y1, RADIUS_CURVE_Y2
+    // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2, RADIUS_CURVE_X3
+    // RADIUS_CURVE_Y0, RADIUS_CURVE_Y1, RADIUS_CURVE_Y2, RADIUS_CURVE_Y3
     
     static AStarAttack* _instance;
 

@@ -20,7 +20,7 @@ AStarAttack::AStarAttack()
     _instance = this;
     
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 22.0f, 80.0f*360.0f*TO_RAD, 70.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 22.0f, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
     oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
 
     // init field
@@ -361,7 +361,8 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     std::vector<cv::Point2f> radiusCurve = {
         cv::Point2f(RADIUS_CURVE_X0, RADIUS_CURVE_Y0),
         cv::Point2f(RADIUS_CURVE_X1, RADIUS_CURVE_Y1),
-        cv::Point2f(RADIUS_CURVE_X2, RADIUS_CURVE_Y2)
+        cv::Point2f(RADIUS_CURVE_X2, RADIUS_CURVE_Y2),
+        cv::Point2f(RADIUS_CURVE_X3, RADIUS_CURVE_Y3)
     };
 
     // radius is piecewise output
@@ -375,9 +376,34 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
 
 
-    follow.radius = 130.0f * pow(std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f), 1.0f);
-    if(orbETA + oppETA == 0.0f) { follow.radius = 0.0f; }
-    // follow.radius = std::min(follow.radius, 130.0f);
+    // float fraction2 = std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f);
+
+    float fraction2 = 0.0f;
+    if(orbETA > 0.01f) { fraction2 = std::max((orbETA - oppETA) / orbETA, 0.0f); }
+
+    // float fraction2 = 0.0f;
+    // if(orbETA + oppETA > 0.01f) { fraction2 = std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f); }
+
+
+
+    // follow.radius = 130.0f * pow(fraction2, 2.8f);
+    // follow.radius = 130.0f * (-cos(0.5f * M_PI * fraction2) + 1.0f);
+
+
+    // std::vector<cv::Point2f> shaper = {
+    //     cv::Point2f(0, 0),
+    //     cv::Point2f(0.2, 0.05),
+    //     cv::Point2f(0.5, 0.1),
+    //     cv::Point2f(1, 1), 
+    // };
+    // follow.radius = 130.0f * piecewise(shaper, fraction2);
+
+
+
+    follow.radius = piecewise(radiusCurve, fraction2);
+
+    // if(fraction2 < 0.1f) { follow.radius = 0.0f; }
+
 
 
 }
@@ -837,7 +863,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 10.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
+    float goAroundGain = 20.0f + 0.06f * follow.opp.tangentVel(true); // 7   0.25
     follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
@@ -846,32 +872,35 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     float distance = std::max(orbFiltered.distanceTo(oppFiltered.position()) - orbFiltered.getSizeRadius() - oppFiltered.getSizeRadius(), 0.0f);
     float soFarAway = 300.0f;
     float closeness = std::max((soFarAway - distance) / soFarAway, 0.0f);
-    float turnGain = 5.0f + 15.0f*closeness; // 15
+    float fast = 400.0f;
+    float slowGain = 70.0f;
+    float fastGain = 16.0f; // 15
+    float turnGain = slowGain + (fastGain - slowGain)*(orbFiltered.moveSpeedSlow() / fast);
     follow.directionScores.emplace_back(turnScore(follow)*turnGain);
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
     // if(willTurnPastOpp(follow)) { turnGain *= 2.0f; } // 10
-    float turnPastOppGain = 100.0f; // 130
+    float turnPastOppGain = 200.0f; // 130
     follow.directionScores.emplace_back(turnPastOppGain*willTurnPastOpp(follow));
 
 
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 350.0f; // 200
+    float wallGain = 700.0f; // 200
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
     // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
     float raw = orbFiltered.tangentVel(follow.forward);
     float tanVel = pow(abs(raw), 0.5f) * sign(raw);
-    float momentumWeight = -0.8f; // 1.5
+    float momentumWeight = -0.16f; // 1.5
     follow.directionScores.emplace_back(tanVel*momentumWeight);
 
 
     // subtract score from directions that agree with input while adding to ones that don't
     int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
-    follow.directionScores.emplace_back(60.0f*directionAgreement); // 170
+    follow.directionScores.emplace_back(120.0f*directionAgreement); // 170
 
 
     // sum up the scores and add it as the last entry
@@ -1039,24 +1068,28 @@ std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() { return field.g
 
 
 // Radius curve parameter interface implementation
-void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[3], float radiusCurveY[3]) {
+void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[4], float radiusCurveY[4]) {
     radiusCurveX[0] = RADIUS_CURVE_X0;
     radiusCurveX[1] = RADIUS_CURVE_X1;
     radiusCurveX[2] = RADIUS_CURVE_X2;
+    radiusCurveX[3] = RADIUS_CURVE_X3;
     radiusCurveY[0] = RADIUS_CURVE_Y0;
     radiusCurveY[1] = RADIUS_CURVE_Y1;
     radiusCurveY[2] = RADIUS_CURVE_Y2;
+    radiusCurveY[3] = RADIUS_CURVE_Y3;
 }
 
 
 
-void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[3], const float radiusCurveY[3]) {
+void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[4], const float radiusCurveY[4]) {
     RADIUS_CURVE_X0 = radiusCurveX[0];
     RADIUS_CURVE_X1 = radiusCurveX[1];
     RADIUS_CURVE_X2 = radiusCurveX[2];
+    RADIUS_CURVE_X3 = radiusCurveX[3];
     RADIUS_CURVE_Y0 = radiusCurveY[0];
     RADIUS_CURVE_Y1 = radiusCurveY[1];
     RADIUS_CURVE_Y2 = radiusCurveY[2];
+    RADIUS_CURVE_Y3 = radiusCurveY[3];
 }
 
 
@@ -1065,6 +1098,7 @@ void AStarAttack::ResetRadiusCurveToDefault() {
     RADIUS_CURVE_X0 = 0.0f;   RADIUS_CURVE_Y0 = 0.0f;
     RADIUS_CURVE_X1 = 15.0f;  RADIUS_CURVE_Y1 = 85.0f;
     RADIUS_CURVE_X2 = 100.0f; RADIUS_CURVE_Y2 = 150.0f;
+    RADIUS_CURVE_X3 = 200.0f; RADIUS_CURVE_Y3 = 150.0f;
 }
 
 
