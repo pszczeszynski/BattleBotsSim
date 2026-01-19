@@ -20,7 +20,7 @@ AStarAttack::AStarAttack()
     _instance = this;
     
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 22.0f, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 22.0f, 80.0f*360.0f*TO_RAD, 70.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
     oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
 
     // init field
@@ -31,7 +31,7 @@ AStarAttack::AStarAttack()
 
 
 
-DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
+DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 {
     // track loop time
     static Clock updateClock;
@@ -94,7 +94,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     }
 
 
-    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if driver is pushing forward or backward
+    bool forwardInput = (rightStickY >= 0.0f); // if driver is pushing forward or backward
     FollowPoint follow = chooseBestPoint(follows, forwardInput); // pick which point to use
     
     // Store the followPoints for debugging/display (after scores have been computed)
@@ -108,7 +108,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.6, 0.05
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.05f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.03f*follow.controllerGain, rightStickY, deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
@@ -339,7 +339,7 @@ void AdjustRadiusWithBumpers() {
 void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
-    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, true, true, follow.forward, follow.CW);
+    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, follow.forward, follow.CW);
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
 
@@ -364,7 +364,17 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // radius is piecewise output
     // follow.radius = piecewise(radiusCurve, fraction);
     // follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f); // baseline
-    follow.radius = 130.0f * pow(sin(std::min(0.12 * fraction, 90.0f*TO_RAD)), 1.0f);
+    follow.radius = 130.0f * pow(sin(std::min(0.18 * fraction, 90.0f*TO_RAD)), 1.0f);
+
+    // follow.radius = 130.0f;
+    // if(fraction < 12.0f) { follow.radius = 60.0f; }
+    // if(fraction < 2.0f) { follow.radius = 0.0f; }
+
+
+
+    follow.radius = 130.0f * pow(std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f), 1.0f);
+    if(orbETA + oppETA == 0.0f) { follow.radius = 0.0f; }
+    // follow.radius = std::min(follow.radius, 130.0f);
 
 
 }
@@ -824,13 +834,16 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     // how far around the circle we have to go for each direction
     float directionSign = 1.0f; if(!follow.CW) { directionSign = -1.0f; }
     float goAroundAngle = M_PI - directionSign*follow.opp.angleTo(orbFiltered.position(), true);
-    float goAroundGain = 2.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
+    float goAroundGain = 10.0f + 0.03f * follow.opp.tangentVel(true); // 7   0.25
     follow.directionScores.emplace_back(goAroundAngle*goAroundGain);
 
 
 
     // how far the robot has to turn to this point
-    float turnGain = 8.0f; // 15
+    float distance = std::max(orbFiltered.distanceTo(oppFiltered.position()) - orbFiltered.getSizeRadius() - oppFiltered.getSizeRadius(), 0.0f);
+    float soFarAway = 300.0f;
+    float closeness = std::max((soFarAway - distance) / soFarAway, 0.0f);
+    float turnGain = 5.0f + 15.0f*closeness; // 15
     follow.directionScores.emplace_back(turnScore(follow)*turnGain);
 
     // sometimes the walls force us to turn past the opponent in a certain direction, we really don't want that
@@ -855,7 +868,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // subtract score from directions that agree with input while adding to ones that don't
     int directionAgreement = (follow.forward == forwardInput)? -1 : 1;
-    follow.directionScores.emplace_back(45.0f*directionAgreement); // 170
+    follow.directionScores.emplace_back(60.0f*directionAgreement); // 170
 
 
     // sum up the scores and add it as the last entry
@@ -876,7 +889,6 @@ float AStarAttack::turnScore(FollowPoint follow) {
     if(follow.enforceTurnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
     if(follow.enforceTurnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 
-    // INCREASE GAIN IF WE'RE TURNING PAST THE OPP?
     return abs(angleError);
 }
 

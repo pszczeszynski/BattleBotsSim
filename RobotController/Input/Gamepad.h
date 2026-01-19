@@ -2,7 +2,6 @@
 #include <windows.h>
 #include <XInput.h>
 // #include "../libs/DS5W/ds5w.h"
-#include <iostream>
 
 class Gamepad
 {
