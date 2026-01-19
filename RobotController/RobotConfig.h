@@ -123,7 +123,7 @@ extern int STARTING_RIGHT_BR_y;
 extern bool LOG_ODOMETRY_DATA;
 extern bool PLAYBACK_PREPROCESS;
 extern std::string VISION_TRACKING_GUI;
-
+extern bool CONTROL_OPPONENT_ENABLED;
 
 template <typename T>
 std::string convertValueToString(const T &value);

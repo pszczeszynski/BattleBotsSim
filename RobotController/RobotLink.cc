@@ -728,11 +728,13 @@ void RobotLinkSim::Drive(DriverStationMessage &msg) {
     command = msg.driveCommand;
   }
 
-  Gamepad &gamepad2 = RobotController::GetInstance().GetGamepad2();
-
-  // send the opponent movement and turn just in sim mode
-  double opponentMoveAmount = gamepad2.GetLeftStickY();
-  double opponentTurnAmount = -gamepad2.GetRightStickX();
+  double opponentMoveAmount = 0;
+  double opponentTurnAmount = 0;
+  if (CONTROL_OPPONENT_ENABLED) {
+    Gamepad &gamepad1 = RobotController::GetInstance().GetGamepad();
+    opponentMoveAmount = gamepad1.GetRightStickY();
+    opponentTurnAmount = -gamepad1.GetLeftStickX();
+  }
 
   UnityDriveCommand message = {command.movement,
                                command.turn,

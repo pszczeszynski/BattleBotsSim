@@ -3,9 +3,8 @@
 // ManualControlWidget.h
 // Allows configuring the manual control configs of the robot
 
-class ManualControlWidget
-{
-public:
-    ManualControlWidget();
-    void Draw();
+class ManualControlWidget {
+ public:
+  ManualControlWidget();
+  void Draw();
 };

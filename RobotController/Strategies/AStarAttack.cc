@@ -31,7 +31,7 @@ AStarAttack::AStarAttack()
 
 
 
-DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
+DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 {
     // track loop time
     static Clock updateClock;
@@ -94,7 +94,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
     }
 
 
-    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if driver is pushing forward or backward
+    bool forwardInput = (rightStickY >= 0.0f); // if driver is pushing forward or backward
     FollowPoint follow = chooseBestPoint(follows, forwardInput); // pick which point to use
     
     // Store the followPoints for debugging/display (after scores have been computed)
@@ -108,7 +108,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad)
 
 
     // calculate drive inputs based on curvature controller,           0.6, 0.05
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.03f*follow.controllerGain, gamepad.GetRightStickY(), deltaTime, follow.enforceTurnDirection, follow.forward);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 0.6f*follow.controllerGain, 0.03f*follow.controllerGain, rightStickY, deltaTime, follow.enforceTurnDirection, follow.forward);
 
 
     // create and send drive command
