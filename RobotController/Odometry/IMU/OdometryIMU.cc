@@ -92,7 +92,7 @@ void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
     // fuse towards the neural rotation if confidence is high
     if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH)
     {
-        double interpolateAmount = std::min(1.0, deltaTime * ANGLE_FUSE_SPEED);
+        double interpolateAmount = (std::min)(1.0, deltaTime * ANGLE_FUSE_SPEED);
         newAngle = InterpolateAngles(newAngle, cvRotData.GetAngle(), interpolateAmount);
     }
 
