@@ -4,14 +4,13 @@
 
 FollowPoint::FollowPoint() { }
 
-FollowPoint::FollowPoint(bool forward, bool CW, bool turnRight, FilteredRobot opp, std::vector<cv::Point2f> oppSimPath, bool exception) {
+FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, FilteredRobot opp, std::vector<cv::Point2f> oppSimPath) {
 
     this->forward = forward;
     this->CW = CW;
-    this->turnRight = turnRight;
+    this->turnAway = turnAway;
     this->opp = opp;
     this->oppSimPath = oppSimPath;
-    this->exception = exception;
     
     radius = 0; // default
     point = cv::Point2f(0, 0); // default

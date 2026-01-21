@@ -46,7 +46,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // generate the extrapolated opp to where we'll collide
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, true, 1.0f, oppSimPath, false);
+    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, true, 1.0f, oppSimPath);
 
     // // if the opp extrapolated out of the field, clip it in
     // if(!field.insideFieldBounds(oppExtrap.position())) {
@@ -60,8 +60,11 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     std::vector<cv::Point2f> orbSimPathCW = {};
     std::vector<cv::Point2f> orbSimPathCCW = {};
 
-    float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true, true, false, -1.0f);
-    float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false, true, false, -1.0f);
+    // float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true, true, false, -1.0f);
+    // float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false, true, false, -1.0f);
+
+    float orbTimeCW = 0.0f;
+    float orbTimeCCW = 0.0f;
 
     std::vector<cv::Point2f> orbSimPath = orbSimPathCW;
     float orbTime = orbTimeCW;
@@ -76,7 +79,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // calculate drive inputs based on curvature controller (it's just atan2)
     float targetAngle = atan2(oppExtrap.position().y - orbFiltered.position().y, oppExtrap.position().x - orbFiltered.position().x);
-    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, 0.8f, 0.06f, gamepad.GetRightStickY(), deltaTime, 0, forwardInput);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, gamepad.GetRightStickY(), deltaTime, 0, forwardInput);
 
 
 

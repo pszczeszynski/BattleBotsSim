@@ -218,9 +218,9 @@ void FilteredRobot::constVelExtrapWrite(float time) {
 
 
 // extrapolates the opp's pos to see what point we'll line up at
-FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnRight, float maxExtrapTime, std::vector<cv::Point2f> &path, bool exception) {
+FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path) {
 
-    float timeIncrement = 0.03f; // 0.01 time increment of incremented opp positions to compare orb times to
+    float timeIncrement = 0.01f; // 0.01 time increment of incremented opp positions to compare orb times to
     float simTime = 0.0f; // time in the sim
 
     FilteredRobot virtualOpp = opp; // will return this virtual opp
@@ -229,7 +229,7 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
     std::vector<cv::Point2f> orbPathGarbage = {};
     while(simTime < maxExtrapTime) {
 
-        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnRight, exception, -1);
+        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway);
         if(orbETA < simTime) { break; } // break when we arrive at the same time
         if(virtualOpp.moveSpeedSlow() < 1.0f && abs(virtualOpp.turnVel()) < 0.01f) { break; } // break if opp's vel has decayed
 
@@ -265,7 +265,7 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
 
 
 // calculates move and turn speeds to follow the followPoint WEIRD PD BS
-std::vector<float> FilteredRobot::curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, bool forward, bool turnRight) {
+std::vector<float> FilteredRobot::curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection) {
 
     float ogMoveInput = moveInput;
 
@@ -273,8 +273,8 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float k
     float angleError = angle_wrap(targetAngle - posFiltered[2] + reverseOffset); // how far off we are from target
 
     // rewrap based on specified turn direction
-    if(turnRight) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-    else { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+    if(enforceTurnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+    if(enforceTurnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
@@ -453,12 +453,11 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // simulates orb's path to the opp to calculate the ETA
-float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnRight, bool exception, float angleErrorStop) {
+float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway) {
 
     int direction = forward ? 1 : -1;
 
     std::vector<float> simPos = posFiltered;
-    // float simSpeed = moveSpeedSlow() * direction;
     float simSpeed = 0.0f; // assume zero at first so it doesn't think we can curve super tight on the first update
 
     float timeStep = 0.01f;
@@ -471,8 +470,6 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
     for(int i = 0; i < steps; i++) { 
 
         path.emplace_back(cv::Point2f(simPos[0], simPos[1])); // add the point to the path
-
-
         FilteredRobot dummyOrb = *this;
         dummyOrb.setPos(simPos);
 
@@ -483,8 +480,17 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
             break;
         }
 
+        // if we're colliding and it's approaching opp wrong, treat it as getting hit
+        bool turningCorrect = (dummyOrb.angleTo(opp.position(), forward) > 0 && CW) || (dummyOrb.angleTo(opp.position(), forward) < 0 && !CW);
+        if(dummyOrb.colliding(opp, 0.0f) && !turningCorrect && orbNeedsToFace) {
+            simTime = 99999999999.0f;
+            break;
+        }
+
         // if we're close enough to collide and facing opp, then return
-        if(dummyOrb.colliding(opp, 0.0f) && (dummyOrb.facing(opp, forward) || !orbNeedsToFace)) { break; }
+        if(dummyOrb.colliding(opp, 0.0f) && (dummyOrb.facing(opp, forward) || !orbNeedsToFace)) { 
+            break; 
+        }
 
         // if we're close enough to collide (and not facing opp), then return high number
         if(dummyOrb.colliding(opp, 0.0f) && orbNeedsToFace) { 
@@ -492,42 +498,41 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
             break;
         }
 
-
-        // how far off we are from fully extrapolated opp
-        float angleError = dummyOrb.angleTo(opp.position(), forward); 
-
-        
-        // rewrap based on the specified turn direction, give a small allowance for rounding errors
-        if(abs(angleError) > 1.0f*TO_RAD) {
-            if(turnRight && !exception) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-            if(!turnRight && !exception) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
-        }
-        
-
-
-        // if we've reached the angle error threshold then return
-        if(abs(angleError) < angleErrorStop) {
-            simTime = 9999999999.0f;
-            break;
-        }
-        
         
 
 
 
-        // 280
-        // float maxCurveGrip = pow(99999.0f, 2.0f) / std::max(pow(abs(simSpeed), 2), 0.1); // max curvature to avoid slipping, faster you go the less curvature you're allowed
-        // float maxCurveScrub = abs(simSpeed) * 0.01f; // max curvature to avoid turning in place when moving slow, faster you go the more curvature you're allowed cuz you're already moving
-        // float maxCurve = std::min(maxCurveGrip, maxCurveScrub); // use the lower value as the (upper) bound
+        float distanceAway = std::max(opp.distanceTo(dummyOrb.position()) - opp.getSizeRadius() - dummyOrb.getSizeRadius(), 0.0f);
+        float radius = distanceAway * 0.5f; // create a curved path as a rough prediction of how we'll approach opp
 
-        // pd controller that increases path curvature with angle error
-        // float curvature = std::clamp(0.7f*angleError, -maxCurve, maxCurve);
+        // calculate tangent point to that circle
+        float d = opp.distanceTo(dummyOrb.position());
+        float theta = acos(radius / d);
+        float alpha = atan2(dummyOrb.position().y - opp.position().y, dummyOrb.position().x - opp.position().x);
+        float theta2 = angleWrapRad(alpha + (CW? 1 : -1)*theta);
+
+        cv::Point2f dummyFollow = opp.position() + radius*(cv::Point2f(cos(theta2), sin(theta2)));
+
+
+
+        // how far off we are from the simulated follow point
+        float angleError = dummyOrb.angleTo(dummyFollow, forward); 
+
+        
+        // force a turn around if necessary
+        if(turnAway && CW && !turningCorrect) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+        if(turnAway && !CW && !turningCorrect) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+        
+
+        
+        
+        // simulate what curvature controller would do
         float curvature = 0.7f*angleError;
 
-        float timeStepStraight = 0.05f;
-        float timeStepSteep = 0.01f;
-        float steep = 4.0f;
-        timeStep = timeStepStraight - (timeStepStraight - timeStepSteep)*(curvature/steep);
+        // float timeStepStraight = 0.05f;
+        // float timeStepSteep = 0.01f;
+        // float steep = 4.0f;
+        // timeStep = timeStepStraight - (timeStepStraight - timeStepSteep)*(curvature/steep);
 
         float moveSpeed = 1.0f * direction; // assume full gas
         float turnSpeed = abs(moveSpeed) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
@@ -544,8 +549,8 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 
 
 
-        simSpeed = controlInput[0] * getMaxMoveSpeed(); // calculate new speed, also saves for next time
-        float simTurnSpeed = controlInput[1] * maxTurnSpeed;
+        simSpeed = controlInput[0] * dummyOrb.getMaxMoveSpeed(); // calculate new speed, also saves for next time
+        float simTurnSpeed = controlInput[1] * dummyOrb.getMaxTurnSpeed();
 
         float deltaXRobot = 0.0f;
         float deltaYRobot = 0.0f;

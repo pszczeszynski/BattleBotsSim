@@ -62,9 +62,8 @@ private:
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
-    FollowPoint createFollowPoint(bool CW, bool forward, bool turnRight, float deltaTime);
-    FollowPoint createFollowPointRaw(bool CW, bool forward, bool turnRight, float deltaTime, bool exception);
-    bool followValid(FollowPoint follow);
+    FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
+    // bool followValid(FollowPoint follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
     // void turnAwayFromOpp(FollowPoint &follow);

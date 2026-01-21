@@ -24,7 +24,7 @@ class FilteredRobot
 
 
   float collideETA(FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
-  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnRight, bool exception, float angleErrorStop); // simulate time to collide with a robot
+  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway);
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
@@ -47,7 +47,7 @@ class FilteredRobot
   std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   void constVelExtrapWrite(float time);
-  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnRight, float maxExtrapTime, std::vector<cv::Point2f> &path, bool exception);
+  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
 
@@ -75,7 +75,7 @@ class FilteredRobot
   float velAwayFromPoint(cv::Point2f point);
   float getTurnPastStartMargin();
   float getTurnPastEndMargin();
-  std::vector<float> curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, bool forward, bool turnRight);
+  std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
 
 
 
