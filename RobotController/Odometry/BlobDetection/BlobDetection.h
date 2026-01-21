@@ -1,7 +1,6 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include "../../Globals.h"
 #include "../OdometryBase.h"
 #include "RobotClassifier.h"
 #include "../../CameraReceiver.h"

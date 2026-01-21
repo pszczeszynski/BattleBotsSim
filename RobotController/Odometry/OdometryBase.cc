@@ -54,7 +54,7 @@ OdometryData OdometryData::_ExtrapolateTo(double newtime)
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime, double maxRelativeTime)
 {
-    return _ExtrapolateTo(std::min(targetTime, time + maxRelativeTime));
+    return _ExtrapolateTo((std::min)(targetTime, time + maxRelativeTime));
 }
 
 /**
