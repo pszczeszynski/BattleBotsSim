@@ -15,7 +15,11 @@ class AStarAttack : public Strategy
 {
 public:
     AStarAttack();
-    virtual DriverStationMessage Execute(Gamepad& gamepad) override;
+    DriverStationMessage Execute(Gamepad& gamepad, double rightStickY);
+    // Call this version if if you want to force the stick y
+    DriverStationMessage Execute(Gamepad& gamepad) override {
+        return Execute(gamepad, gamepad.GetRightStickY());
+    }
     
     // Field boundary editing interfac
     std::vector<cv::Point2f>& GetFieldBoundaryPoints();

@@ -1,12 +1,8 @@
 #pragma once
 
-#include "RobotStateParser.h"
-#include "windows.h"
 #include "ServerSocket.h"
 #include "../Common/Communication.h"
 #include "DriverStationLog.h"
-#include <fstream>
-#include <functional>
 #include "Clock.h"
 #include <deque>
 #include <thread>

@@ -495,6 +495,7 @@ DriverStationMessage RobotController::RobotLogic()
         _orbiting = false;
     }
 
+
     // // draw on drawing image if we are orbiting
     // if (_orbiting)
     // {
@@ -515,13 +516,13 @@ DriverStationMessage RobotController::RobotLogic()
     }
     else
     {
-        DriverStationMessage orbit = aStarMode.Execute(gamepad);
+        double rightStickY = _guiOrbit ? 1.0 : gamepad.GetRightStickY();
+        DriverStationMessage orbit = aStarMode.Execute(gamepad, rightStickY);
         // if driver wants to evade (left bumper)
-        if (_orbiting)
-        {
-            // orbit around them
-            ret = orbit;
-            _orbiting = true;
+        if (_orbiting) {
+          // orbit around them
+          ret = orbit;
+
         }
     }
 

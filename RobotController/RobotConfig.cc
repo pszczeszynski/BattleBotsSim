@@ -1,4 +1,5 @@
 #include "RobotConfig.h"
+
 #include "UIWidgets/TrackingWidget.h"
 
 #ifdef SIMULATION
@@ -10,25 +11,25 @@ std::string SAVE_FILE_NAME = "RobotConfig.txt";
 #endif
 
 #define DEFINE_GLOBAL_VARIABLE(type, name, defaultValue) \
-    type name = defaultValue; \
-    void load##name(const std::string& value) { name = convertValue<type>(value); } \
-    std::string save##name() { return convertValueToString(name); }
+  type name = defaultValue;                              \
+  void load##name(const std::string& value) {            \
+    name = convertValue<type>(value);                    \
+  }                                                      \
+  std::string save##name() { return convertValueToString(name); }
 
-template<typename T>
-std::string convertValueToString(const T& value)
-{
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
+template <typename T>
+std::string convertValueToString(const T& value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
 }
 
-template<typename T>
-T convertValue(const std::string& value)
-{
-    std::istringstream iss(value);
-    T convertedValue;
-    iss >> convertedValue;
-    return convertedValue;
+template <typename T>
+T convertValue(const std::string& value) {
+  std::istringstream iss(value);
+  T convertedValue;
+  iss >> convertedValue;
+  return convertedValue;
 }
 
 DEFINE_GLOBAL_VARIABLE(int, NEURAL_BRIGHTNESS_ADJUST, 0)
@@ -151,6 +152,8 @@ DEFINE_GLOBAL_VARIABLE(bool, PLAYBACK_PREPROCESS, true)
 
 DEFINE_GLOBAL_VARIABLE(std::string, VISION_TRACKING_GUI, "")
 
+DEFINE_GLOBAL_VARIABLE(bool, CONTROL_OPPONENT_ENABLED, false)
+
 GlobalVariable globalVariables[] = {
     DECLARE_GLOBAL_VARIABLE(NEURAL_BRIGHTNESS_ADJUST),
     DECLARE_GLOBAL_VARIABLE(TURN_THRESH_1_DEG_ORBIT),
@@ -265,73 +268,59 @@ GlobalVariable globalVariables[] = {
     DECLARE_GLOBAL_VARIABLE(STARTING_RIGHT_BR_y),
     DECLARE_GLOBAL_VARIABLE(LOG_ODOMETRY_DATA),
     DECLARE_GLOBAL_VARIABLE(PLAYBACK_PREPROCESS),
-    DECLARE_GLOBAL_VARIABLE(VISION_TRACKING_GUI)           
-
+    DECLARE_GLOBAL_VARIABLE(VISION_TRACKING_GUI),
+    DECLARE_GLOBAL_VARIABLE(CONTROL_OPPONENT_ENABLED),
 
 };
 
-void saveGlobalVariablesToFile(const std::string& filename)
-{
-    std::ofstream file(filename);
+void saveGlobalVariablesToFile(const std::string& filename) {
+  std::ofstream file(filename);
 
-    VISION_TRACKING_GUI = TrackingWidget::GetInstance()->SaveGUISettings();
+  VISION_TRACKING_GUI = TrackingWidget::GetInstance()->SaveGUISettings();
 
-    if (file.is_open())
-    {
-        for (const auto& variable : globalVariables)
-        {
-            file << variable.name << " = " << variable.saveFunc() << '\n';
-        }
-
-        file.close();
-        std::cout << "Global variables saved to file: " << filename << std::endl;
+  if (file.is_open()) {
+    for (const auto& variable : globalVariables) {
+      file << variable.name << " = " << variable.saveFunc() << '\n';
     }
-    else
-    {
-        std::cerr << "Unable to open file for writing: " << filename << std::endl;
-    }
+
+    file.close();
+    std::cout << "Global variables saved to file: " << filename << std::endl;
+  } else {
+    std::cerr << "Unable to open file for writing: " << filename << std::endl;
+  }
 }
 
-void loadGlobalVariablesFromFile(const std::string& filename)
-{
-    std::ifstream file(filename);
+void loadGlobalVariablesFromFile(const std::string& filename) {
+  std::ifstream file(filename);
 
-    if (file.is_open())
-    {
-        std::string line;
+  if (file.is_open()) {
+    std::string line;
 
-        while (std::getline(file, line))
-        {
-            std::istringstream iss(line);
-            std::string variableName;
-            std::string equalsSign;
-            std::string variableValue;
+    while (std::getline(file, line)) {
+      std::istringstream iss(line);
+      std::string variableName;
+      std::string equalsSign;
+      std::string variableValue;
 
-            if (iss >> variableName >> equalsSign >> variableValue && equalsSign == "=")
-            {
-                for (auto& variable : globalVariables)
-                {
-                    if (variable.name == variableName)
-                    {
-                        variable.loadFunc(variableValue);
-                        break;
-                    }
-                }
-            }
+      if (iss >> variableName >> equalsSign >> variableValue &&
+          equalsSign == "=") {
+        for (auto& variable : globalVariables) {
+          if (variable.name == variableName) {
+            variable.loadFunc(variableValue);
+            break;
+          }
         }
-
-        file.close();
-        std::cout << "Global variables loaded from file: " << filename << std::endl;
-    }
-    else
-    {
-        std::cerr << "Unable to open file for reading: " << filename << std::endl;
+      }
     }
 
-    if( TrackingWidget::GetInstance() != nullptr )
-    {
-        // Restore GUI settings after loading global variables
-        TrackingWidget::GetInstance()->RestoreGUISettings(VISION_TRACKING_GUI);
-    }
+    file.close();
+    std::cout << "Global variables loaded from file: " << filename << std::endl;
+  } else {
+    std::cerr << "Unable to open file for reading: " << filename << std::endl;
+  }
 
+  if (TrackingWidget::GetInstance() != nullptr) {
+    // Restore GUI settings after loading global variables
+    TrackingWidget::GetInstance()->RestoreGUISettings(VISION_TRACKING_GUI);
+  }
 }
