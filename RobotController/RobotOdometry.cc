@@ -86,16 +86,19 @@ void RobotOdometry::AutoMatchStart() {
 // Just force an auto start (e.g. dont wait for brightness to finish but do
 // everything else)
 void RobotOdometry::MatchStart(bool partOfAuto) {
+  double currTime = Clock::programClock.getElapsedTime();
+
   // Set all the positions and angles
   _dataRobot.robotPosition = TrackingWidget::robotMouseClickPoint;
-  _dataRobot.SetAngle(Angle(TrackingWidget::robotMouseClickAngle), 0,
-                      Clock::programClock.getElapsedTime(), true);
+  _dataRobot.SetAngle(Angle(TrackingWidget::robotMouseClickAngle), 0, currTime,
+                      true);
   _dataOpponent.robotPosition = TrackingWidget::opponentMouseClickPoint;
   _dataOpponent.SetAngle(Angle(TrackingWidget::opponentMouseClickAngle), 0,
-                         Clock::programClock.getElapsedTime(), true);
+                         currTime, true);
   _dataRobot.robotVelocity = cv::Point2f(0, 0);
   _dataOpponent.robotVelocity = cv::Point2f(0, 0);
-  _dataRobot.time = Clock::programClock.getElapsedTime();
+  _dataRobot.time = currTime;
+  _dataOpponent.time = currTime;
   _dataRobot.robotPosValid = true;
   _dataOpponent.robotPosValid = true;
 
