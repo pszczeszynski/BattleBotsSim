@@ -30,6 +30,44 @@ LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
   _currDataRobot.InvalidateAngle();
 }
 
+static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
+  if (tracks.size() < 2) return;
+
+  const float minDistSq = minDist * minDist;
+
+  // Sort for locality to reduce comparisons (x then y)
+  std::sort(tracks.begin(), tracks.end(), [](const TrackPt& a, const TrackPt& b) {
+    if (a.pt.x != b.pt.x) return a.pt.x < b.pt.x;
+    return a.pt.y < b.pt.y;
+  });
+
+  std::vector<TrackPt> out;
+  out.reserve(tracks.size());
+
+  for (const auto& t : tracks) {
+    bool tooClose = false;
+
+    // Because sorted by x, only need to check recent accepted points
+    // (this is a cheap heuristic; still correct-ish for small radii)
+    for (int i = (int)out.size() - 1; i >= 0; --i) {
+      float dx = t.pt.x - out[i].pt.x;
+      if (dx * dx > minDistSq) break; // further back will only be farther in x
+      float dy = t.pt.y - out[i].pt.y;
+      if (dx * dx + dy * dy < minDistSq) {
+        // keep the older one
+        if (t.age > out[i].age) out[i] = t;
+        tooClose = true;
+        break;
+      }
+    }
+
+    if (!tooClose) out.push_back(t);
+  }
+
+  tracks.swap(out);
+}
+
+
 void LKFlowTracker::_StartCalled(void) {
   _initialized = false;
   _prevGray = cv::Mat();
@@ -83,7 +121,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   // Update tracking
   std::unique_lock<std::mutex> locker(_updateMutex);
   bool success = _UpdateTracking(_prevGray, gray, frameTime);
-  
+
   locker.unlock();
 
   // Always advance _prevGray to prevent failure spiral
@@ -154,7 +192,8 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // Compute rotation from point pairs BEFORE compaction
   // (uses original indices that match _tracks)
   double angleDelta = 0.0;
-  _ComputeRotationsFromPairs(nextPts, status, angleDelta);
+  std::vector<std::pair<int, int>> validPairs;
+  _ComputeRotationsFromPairs(nextPts, status, angleDelta, validPairs);
 
   // Single-pass compaction: keep only good points, increment age
   std::vector<TrackPt> tracksNext;
@@ -167,6 +206,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   
   // Filter out points that are outside the ROI using standardized method
   _FilterPointsByROI(tracksNext);
+  DeduplicateTracks(tracksNext, LK_MIN_DISTANCE * 0.8f);  // tune: 0.6–1.0
 
   // If we have too few points after tracking, fail (respawn handled in _ProcessNewFrame)
   if (tracksNext.size() < 6) {
@@ -188,7 +228,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
   // Update position and velocity
   cv::Point2f deltaPos = center - _prevCenter;
-  double deltaTime = frameTime - _currDataRobot.time;
+  double deltaTime = frameTime - _currDataOpponent.time;
 
   // Update opponent data (this tracker only tracks opponent, robot data always
   // invalid)
@@ -228,6 +268,18 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // initialize the debug image to zeros
   _debugImage = cv::Mat::zeros(currGray.size(), CV_8UC1);
   // _debugImage = currGray.clone();
+  
+  // Draw lines connecting pairs used for rotation computation
+  // Note: validPairs contains indices into nextPts, so we use nextPts for drawing
+  for (const auto& pair : validPairs) {
+    int idx1 = pair.first;
+    int idx2 = pair.second;
+    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) &&
+        idx2 >= 0 && idx2 < static_cast<int>(nextPts.size())) {
+      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], cv::Scalar(200), 1);
+    }
+  }
+  
   for (const auto& track : _tracks) {
     cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
   }
@@ -243,8 +295,9 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
 void LKFlowTracker::_ComputeRotationsFromPairs(
     const std::vector<cv::Point2f>& nextPts, const std::vector<uchar>& status,
-    double& angleDelta) {
+    double& angleDelta, std::vector<std::pair<int, int>>& validPairs) {
   std::vector<RotationResult> rotations;
+  validPairs.clear();  // Clear output parameter
 
   // Note: This is called BEFORE compaction, so _tracks.size() should match
   // nextPts.size()
@@ -299,6 +352,8 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
     float rot = angle_wrap(angleNext - anglePrev);
 
     rotations.push_back(RotationResult{rot, distance});
+    // Store this pair as valid for debug drawing
+    validPairs.push_back(pair);
   }
 
   _UpdateAngleFromRotations(rotations, angleDelta);
@@ -311,18 +366,68 @@ void LKFlowTracker::_UpdateAngleFromRotations(
     return;
   }
 
-  // Extract angle deltas and sort them
+  // Extract angle deltas
   std::vector<float> angles;
   angles.reserve(rotations.size());
   for (const auto& r : rotations) {
     angles.push_back(r.angleDelta);
   }
+  if (angles.empty()) {
+    angleDelta = 0.0;
+    return;
+  }
+
+  // Sort to compute median (sign decision)
   std::sort(angles.begin(), angles.end());
 
-  // Compute 75th percentile index
-  size_t percentileIndex = static_cast<size_t>(
-      std::floor(0.75 * (angles.size() - 1)));
-  angleDelta = static_cast<double>(angles[percentileIndex]);
+  const size_t n = angles.size();
+  const size_t mid = n / 2;
+
+  // Median (for even n, average the two middle values)
+  float median = 0.0f;
+  if ((n & 1u) == 1u) {
+    median = angles[mid];
+  } else {
+    median = 0.5f * (angles[mid - 1] + angles[mid]);
+  }
+
+  // Decide sign from median; treat 0 as "no rotation"
+  if (std::abs(median) < 1e-6f) {
+    angleDelta = 0.0;
+    return;
+  }
+  const bool wantPositive = (median > 0.0f);
+
+  // Filter to angles with the chosen sign (ignore zeros)
+  std::vector<float> sameSign;
+  sameSign.reserve(n);
+  for (float a : angles) {
+    if (wantPositive) {
+      if (a > 0.0f) sameSign.push_back(a);
+    } else {
+      if (a < 0.0f) sameSign.push_back(-a);
+    }
+  }
+
+  // If filtering leaves too few, fall back to median
+  if (sameSign.size() < 3) {
+    angleDelta = static_cast<double>(median);
+    return;
+  }
+
+  // Sort filtered set and take 75th percentile *within that sign*
+  std::sort(sameSign.begin(), sameSign.end());
+  const size_t m = sameSign.size();
+  const size_t p75 = static_cast<size_t>(std::floor(0.66 * (m - 1)));
+
+
+  angleDelta = static_cast<double>(sameSign[p75]);
+
+  if(wantPositive) {
+    angleDelta = angleDelta;
+  } else {
+    angleDelta = -angleDelta;
+  }
 }
 
 bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,

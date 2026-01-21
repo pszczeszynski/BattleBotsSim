@@ -47,7 +47,8 @@ class LKFlowTracker : public OdometryBase {
   bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime);
   void _ComputeRotationsFromPairs(const std::vector<cv::Point2f>& nextPts,
                                   const std::vector<uchar>& status,
-                                  double& angleDelta);
+                                  double& angleDelta,
+                                  std::vector<std::pair<int, int>>& validPairs);
   void _UpdateAngleFromRotations(const std::vector<RotationResult>& rotations,
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
@@ -66,7 +67,7 @@ class LKFlowTracker : public OdometryBase {
   static constexpr int LK_MAX_LEVEL = 3;
   static constexpr int LK_NUM_PAIRS = 200;
   static constexpr int LK_MIN_TRACK_FRAMES = 5;
-  static constexpr double RESPAWN_INTERVAL = 1.0;  // seconds - respawn interval
+  static constexpr double RESPAWN_INTERVAL = 0.3;  // seconds - respawn interval
 
   // Internal state
   cv::Rect _roi;
