@@ -7,12 +7,8 @@
 #include "RobotConfig.h"
 #include "RobotController.h"
 #include "SafeDrawing.h"
-#include "UIWidgets/ClockWidget.h"
-#include "UIWidgets/GraphWidget.h"
-#include "UIWidgets/ImageWidget.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
-
 
 std::mutex debugROStringForVideo_mutex;
 std::string debugROStringForVideo = "";
@@ -287,7 +283,9 @@ void RobotOdometry::Update(int videoID) {
       _dataRobot_Human = _odometry_Human.GetData(false);
       _dataRobot_Human_is_new = true;
       newDataArrived = true;
-    } else if (_odometry_Human.NewDataValid(_dataOpponent_Human.id, true)) {
+    }
+
+    if (_odometry_Human.NewDataValid(_dataOpponent_Human.id, true)) {
       _dataOpponent_Human = _odometry_Human.GetData(true);
       _dataOpponent_Human_is_new = true;
       newDataArrived = true;
@@ -920,15 +918,8 @@ bool RobotOdometry::IsTrackingGoodQuality() {
                      _dataRobot_Neural.robotPosValid &&
                      _dataRobot_Neural.GetAge() < 0.1;
 
-  // std::cout << "heuristicValid: " << heuristicValid << std::endl;
-  // std::cout << "blobValid: " << blobValid << std::endl;
-  // std::cout << "neuralValid: " << neuralValid << std::endl;
-  // std::cout << "heuristic robot pos valid? " <<
-  // _dataRobot_Heuristic.robotPosValid << std::endl; std::cout << "heuristic
-  // age: " << _dataRobot_Heuristic.GetAge() << std::endl; if everybody is
   // crying, return false :(
   if (!heuristicValid && !blobValid && !neuralValid) {
-    // std::cout << "case 1" << std::endl;
     return false;
   }
 
@@ -940,8 +931,6 @@ bool RobotOdometry::IsTrackingGoodQuality() {
         cv::norm(_dataOpponent_Heuristic.robotPosition -
                  _dataOpponent_Blob.robotPosition);
 
-    // std::cout << "distBetweenRobot: " << distBetweenRobot << std::endl;
-    // std::cout << "distBetweenOpponent: " << distBetweenOpponent << std::endl;
     // return true if they agree, false otherwise
     return distBetweenRobot < AGREEMENT_DIST_THRESH_PX &&
            distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
@@ -956,14 +945,11 @@ bool RobotOdometry::IsTrackingGoodQuality() {
     double distBetweenOpponent =
         cv::norm(_dataOpponent_Heuristic.robotPosition -
                  _dataOpponent_Blob.robotPosition);
-    // std::cout << "distToRobot: " << distToRobot << std::endl;
-    // std::cout << "distBetweenOpponent: " << distBetweenOpponent << std::endl;
 
     return distToRobot < AGREEMENT_DIST_THRESH_PX &&
            distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
   }
 
-  // std::cout << "default case" << std::endl;
   // otherwise return false, since we don't have enough confidence
   return false;
 }
@@ -986,18 +972,12 @@ OdometryData RobotOdometry::Robot(double currTime) {
  */
 float RobotOdometry::GetIMUOffset() { return _odometry_IMU.GetOffset(); }
 
-/**
- * @brief returns the odometry data extrapolated to current time
- *
- */
 OdometryData RobotOdometry::Opponent(double currTime) {
   std::unique_lock<std::mutex> locker(_updateMutex);
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  double extrapolateTime =
-      min(currTime - currData.time, MAX_EXTRAPOLATION_TIME_S);
-  // currData.Extrapolate(extrapolateTime + currData.time);
+  currData.ExtrapolateBoundedTo(currTime);
 
   return currData;
 }
