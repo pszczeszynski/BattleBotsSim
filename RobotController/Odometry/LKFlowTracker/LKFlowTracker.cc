@@ -36,10 +36,11 @@ static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
   const float minDistSq = minDist * minDist;
 
   // Sort for locality to reduce comparisons (x then y)
-  std::sort(tracks.begin(), tracks.end(), [](const TrackPt& a, const TrackPt& b) {
-    if (a.pt.x != b.pt.x) return a.pt.x < b.pt.x;
-    return a.pt.y < b.pt.y;
-  });
+  std::sort(tracks.begin(), tracks.end(),
+            [](const TrackPt& a, const TrackPt& b) {
+              if (a.pt.x != b.pt.x) return a.pt.x < b.pt.x;
+              return a.pt.y < b.pt.y;
+            });
 
   std::vector<TrackPt> out;
   out.reserve(tracks.size());
@@ -51,7 +52,7 @@ static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
     // (this is a cheap heuristic; still correct-ish for small radii)
     for (int i = (int)out.size() - 1; i >= 0; --i) {
       float dx = t.pt.x - out[i].pt.x;
-      if (dx * dx > minDistSq) break; // further back will only be farther in x
+      if (dx * dx > minDistSq) break;  // further back will only be farther in x
       float dy = t.pt.y - out[i].pt.y;
       if (dx * dx + dy * dy < minDistSq) {
         // keep the older one
@@ -67,7 +68,6 @@ static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
   tracks.swap(out);
 }
 
-
 void LKFlowTracker::_StartCalled(void) {
   _initialized = false;
   _prevGray = cv::Mat();
@@ -76,14 +76,14 @@ void LKFlowTracker::_StartCalled(void) {
   _lastRespawnTime = 0.0;
 }
 
-// We expect this to be called every frame from the other vision algorithms, and we trust it.
+// We expect this to be called every frame from the other vision algorithms, and
+// we trust it.
 void LKFlowTracker::SetROI(cv::Rect roi) {
   std::unique_lock<std::mutex> locker(_updateMutex);
   _roi = roi;
   // Filter out any existing points that are now outside the new ROI
   _FilterPointsByROI(_tracks);
 }
-
 
 void EnforceGrayscale(cv::Mat& currFrame, cv::Mat& gray) {
   if (currFrame.channels() == 1) {
@@ -93,7 +93,8 @@ void EnforceGrayscale(cv::Mat& currFrame, cv::Mat& gray) {
   } else if (currFrame.channels() == 4) {
     cv::cvtColor(currFrame, gray, cv::COLOR_BGRA2GRAY);
   } else {
-    std::cerr << "Unsupported frame format: " << currFrame.channels() << std::endl;
+    std::cerr << "Unsupported frame format: " << currFrame.channels()
+              << std::endl;
   }
 }
 
@@ -110,7 +111,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   }
 
   // If previous image is empty, store it for next frame
-  // OR if we don't have enough points, skip update and force initialization next frame
+  // OR if we don't have enough points, skip update and force initialization
+  // next frame
 
   if (_prevGray.empty() || _tracks.size() < 6) {
     _prevGray = gray;
@@ -127,7 +129,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   // Always advance _prevGray to prevent failure spiral
   // (if we keep old frame, next LK flow will have larger motion and fail more)
   _prevGray = gray;
-  
+
   if (!success) {
     // Force re-initialization on next frame if tracking failed
     _initialized = false;
@@ -137,7 +139,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 bool LKFlowTracker::_InitializePoints(cv::Mat& gray, cv::Rect roi) {
   // Clear existing tracks and initialize with points from ROI
   _tracks.clear();
-  
+
   // Use _RespawnPoints to find points, requesting all available points
   if (!_RespawnPoints(gray, roi, _tracks, LK_MAX_CORNERS)) {
     return false;
@@ -203,12 +205,13 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
       tracksNext.push_back({nextPts[i], _tracks[i].age + 1});
     }
   }
-  
+
   // Filter out points that are outside the ROI using standardized method
   _FilterPointsByROI(tracksNext);
   DeduplicateTracks(tracksNext, LK_MIN_DISTANCE * 0.8f);  // tune: 0.6–1.0
 
-  // If we have too few points after tracking, fail (respawn handled in _ProcessNewFrame)
+  // If we have too few points after tracking, fail (respawn handled in
+  // _ProcessNewFrame)
   if (tracksNext.size() < 6) {
     return false;
   }
@@ -268,18 +271,19 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // initialize the debug image to zeros
   _debugImage = cv::Mat::zeros(currGray.size(), CV_8UC1);
   // _debugImage = currGray.clone();
-  
+
   // Draw lines connecting pairs used for rotation computation
-  // Note: validPairs contains indices into nextPts, so we use nextPts for drawing
+  // Note: validPairs contains indices into nextPts, so we use nextPts for
+  // drawing
   for (const auto& pair : validPairs) {
     int idx1 = pair.first;
     int idx2 = pair.second;
-    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) &&
-        idx2 >= 0 && idx2 < static_cast<int>(nextPts.size())) {
+    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
+        idx2 < static_cast<int>(nextPts.size())) {
       cv::line(_debugImage, nextPts[idx1], nextPts[idx2], cv::Scalar(200), 1);
     }
   }
-  
+
   for (const auto& track : _tracks) {
     cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
   }
@@ -420,10 +424,9 @@ void LKFlowTracker::_UpdateAngleFromRotations(
   const size_t m = sameSign.size();
   const size_t p75 = static_cast<size_t>(std::floor(0.66 * (m - 1)));
 
-
   angleDelta = static_cast<double>(sameSign[p75]);
 
-  if(wantPositive) {
+  if (wantPositive) {
     angleDelta = angleDelta;
   } else {
     angleDelta = -angleDelta;
@@ -442,8 +445,8 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
     return true;  // Success (no action needed)
   }
 
-  // Request more points than needed since some may be filtered out for being too close
-  // to existing points
+  // Request more points than needed since some may be filtered out for being
+  // too close to existing points
   int maxToRequest = (std::min)(needed * 2, LK_MAX_CORNERS);
 
   // Ensure ROI is within image bounds
@@ -476,8 +479,10 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
     pt.y += y;
   }
 
-  // Filter new points: only add those that are sufficiently far from existing tracks
-  const double minDistSq = LK_MIN_DISTANCE * LK_MIN_DISTANCE;  // Use squared distance for efficiency
+  // Filter new points: only add those that are sufficiently far from existing
+  // tracks
+  const double minDistSq =
+      LK_MIN_DISTANCE * LK_MIN_DISTANCE;  // Use squared distance for efficiency
   int added = 0;
   for (const auto& newPt : newPts) {
     if (added >= needed) {
@@ -502,8 +507,9 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
     }
   }
 
-  std::cout << "Respawned " << added << " points (filtered from " << newPts.size() 
-            << " candidates) for a total of " << tracks.size() << " points" << std::endl;
+  std::cout << "Respawned " << added << " points (filtered from "
+            << newPts.size() << " candidates) for a total of " << tracks.size()
+            << " points" << std::endl;
 
   // Return true if we added at least some points (even if fewer than requested)
   return added > 0;
@@ -555,15 +561,14 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
   }
 
   // Remove points that are outside the ROI
-  tracks.erase(
-      std::remove_if(tracks.begin(), tracks.end(),
-                     [this](const TrackPt& track) {
-                       return track.pt.x < _roi.x ||
-                              track.pt.x >= _roi.x + _roi.width ||
-                              track.pt.y < _roi.y ||
-                              track.pt.y >= _roi.y + _roi.height;
-                     }),
-      tracks.end());
+  tracks.erase(std::remove_if(tracks.begin(), tracks.end(),
+                              [this](const TrackPt& track) {
+                                return track.pt.x < _roi.x ||
+                                       track.pt.x >= _roi.x + _roi.width ||
+                                       track.pt.y < _roi.y ||
+                                       track.pt.y >= _roi.y + _roi.height;
+                              }),
+               tracks.end());
 }
 
 void LKFlowTracker::SwitchRobots(void) {
