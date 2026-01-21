@@ -62,21 +62,24 @@ private:
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
-    FollowPoint followPointDirection(FilteredRobot opp, float deltaTime, bool CW, bool forward, std::vector<cv::Point2f> oppSimPath);
+    FollowPoint createFollowPoint(bool CW, bool forward, bool turnRight, float deltaTime);
+    FollowPoint createFollowPointRaw(bool CW, bool forward, bool turnRight, float deltaTime, bool exception);
+    bool followValid(FollowPoint follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
-    void turnAwayFromOpp(FollowPoint &follow);
+    // void turnAwayFromOpp(FollowPoint &follow);
     float ppRad();
     float ppRadWall();
-    void avoidBoundsVector(FollowPoint &follow);
+    // void avoidBoundsVector(FollowPoint &follow);
     void directionScore(FollowPoint &follow, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
     FollowPoint chooseBestPoint(std::vector<FollowPoint>& follows, bool forwardInput);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
-    float driveAngle(FollowPoint follow);
+    void driveAngle(FollowPoint &follow);
     void display(FollowPoint follow);
     bool willTurnPastOpp(FollowPoint follow);
+    float switchPointScore(FollowPoint follow);
 
 };

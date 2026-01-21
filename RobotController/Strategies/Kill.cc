@@ -9,8 +9,8 @@
 Kill::Kill()
 {
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f, 0.0f, 0.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f, 0.0f, 0.0f);
 
     // init field
     field = Field();
@@ -46,7 +46,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // generate the extrapolated opp to where we'll collide
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, 1.0f, oppSimPath);
+    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, true, 1.0f, oppSimPath, false);
 
     // // if the opp extrapolated out of the field, clip it in
     // if(!field.insideFieldBounds(oppExtrap.position())) {
@@ -60,8 +60,8 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     std::vector<cv::Point2f> orbSimPathCW = {};
     std::vector<cv::Point2f> orbSimPathCCW = {};
 
-    float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true);
-    float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false);
+    float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true, true, false, -1.0f);
+    float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false, true, false, -1.0f);
 
     std::vector<cv::Point2f> orbSimPath = orbSimPathCW;
     float orbTime = orbTimeCW;

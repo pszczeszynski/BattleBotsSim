@@ -13,7 +13,8 @@ class FilteredRobot
   // pathSpacing and pathLength are visual params
   FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
                 float moveAccel, float turnSpeed, float turnAccel, 
-                float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius);
+                float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius,
+                float turnPastStartMargin, float turnPastEndMargin);
 
   // for virtual opp with zero speed
   FilteredRobot(cv::Point2f position, float sizeRadius);
@@ -23,7 +24,7 @@ class FilteredRobot
 
 
   float collideETA(FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
-  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW); // simulate time to collide with a robot
+  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnRight, bool exception, float angleErrorStop); // simulate time to collide with a robot
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
@@ -41,11 +42,12 @@ class FilteredRobot
   void setPos(std::vector<float> pos);
   void setVel(std::vector<float> vel);
   void setAccel(std::vector<float> acc);
+  void setSizeRadius(float sizeRadius);
   std::vector<std::vector<float>> kalmanExtrapAccel(float time);
   std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   void constVelExtrapWrite(float time);
-  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, float maxExtrapTime, std::vector<cv::Point2f> &path);
+  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnRight, float maxExtrapTime, std::vector<cv::Point2f> &path, bool exception);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
 
@@ -71,7 +73,9 @@ class FilteredRobot
   float getWeaponDriftScaleReach();
   float getSizeRadius();
   float velAwayFromPoint(cv::Point2f point);
-  std::vector<float> curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, int turnDirection, bool forward);
+  float getTurnPastStartMargin();
+  float getTurnPastEndMargin();
+  std::vector<float> curvatureController(float targetAngle, float kP, float kD, float moveInput, float deltaTime, bool forward, bool turnRight);
 
 
 
@@ -111,6 +115,9 @@ class FilteredRobot
   float weaponAngleReach; // how many degrees (plus or minus) the weapon reaches from the centerline
   float weaponDriftScaleReach; // how many degrees at which we stop scaling down drift stop calculations
   float sizeRadius; // radius of the frame, used for collision radius calc
+
+  float turnPastStartMargin; // margin given at the start of turning past the opp
+  float turnPastEndMargin; // margin given at the end of turning past the opp
 
 
   int sign(float num);
