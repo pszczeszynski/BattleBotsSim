@@ -36,8 +36,7 @@ class LKFlowTracker : public OdometryBase {
                      cv::Point offset = cv::Point(0, 0)) override;
 
   // Set the ROI for point spawning (x, y, width, height)
-  // Optionally provide an ROI-sized mask (same dimensions as roi width/height)
-  void SetROI(cv::Rect roi, const cv::Mat& roiMask = cv::Mat());
+  void SetROI(cv::Rect roi);
 
  private:
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
@@ -73,7 +72,6 @@ class LKFlowTracker : public OdometryBase {
 
   // Internal state
   cv::Rect _roi;
-  cv::Mat _roiMask;  // Single channel mask to further restrict ROI
   cv::Size _imageSize;  // Last known image size for ROI clipping
   cv::Mat _prevGray;
   std::vector<TrackPt> _tracks;  // Replaces _prevPts + _pointTrackCounts

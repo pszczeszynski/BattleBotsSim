@@ -13,7 +13,6 @@ const cv::Size LKFlowTracker::LK_WIN_SIZE(15, 15);
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
     : OdometryBase(videoSource),
       _roi(0, 0, 0, 0),
-      _roiMask(),
       _imageSize(0, 0),
       _angle(Angle(0)),
       _targetPointCount(40),
@@ -73,7 +72,6 @@ static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
 void LKFlowTracker::_StartCalled(void) {
   _initialized = false;
   _prevGray = cv::Mat();
-  _roiMask = cv::Mat();
   _imageSize = cv::Size(0, 0);
   _tracks.clear();
   _angle = Angle(0);
@@ -99,26 +97,11 @@ cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) {
 
 // We expect this to be called every frame from the other vision algorithms, and
 // we trust it.
-void LKFlowTracker::SetROI(cv::Rect roi, const cv::Mat& roiMask) {
+void LKFlowTracker::SetROI(cv::Rect roi) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   // Clip ROI to image bounds
   _roi = _ClipROIToBounds(roi, _imageSize);
-
-  // Store the ROI-sized mask if provided
-  if (roiMask.empty()) {
-    _roiMask = cv::Mat();
-  } else {
-    // Validate that mask dimensions match ROI dimensions
-    if (roiMask.rows == roi.height && roiMask.cols == roi.width) {
-      roiMask.copyTo(_roiMask);
-    } else {
-      _roiMask = cv::Mat();
-      std::cerr << "Warning: LKFlowTracker SetROI mask size (" << roiMask.cols << "x" << roiMask.rows 
-                << ") doesn't match ROI size (" << roi.width << "x" << roi.height 
-                << "). Mask not used." << std::endl;
-    }
-  }
 
   // Filter out any existing points that are now outside the new ROI
   _FilterPointsByROI(_tracks);
@@ -500,20 +483,9 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
   }
   cv::Mat roiGray = gray(validROI);
 
-  // Use the ROI mask if available (it should already be ROI-sized)
-  cv::Mat maskForGoodFeatures;
-  if (!_roiMask.empty()) {
-    // Resize mask to match roiGray if sizes differ
-    if (_roiMask.size() == roiGray.size()) {
-      maskForGoodFeatures = _roiMask;
-    } else {
-      cv::resize(_roiMask, maskForGoodFeatures, roiGray.size(), 0, 0, cv::INTER_NEAREST);
-    }
-  }
-
   std::vector<cv::Point2f> newPts;
   cv::goodFeaturesToTrack(roiGray, newPts, maxToRequest, LK_QUALITY_LEVEL,
-                          LK_MIN_DISTANCE, maskForGoodFeatures);
+                          LK_MIN_DISTANCE);
 
   if (newPts.empty()) {
     return false;
@@ -606,7 +578,7 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
     return;
   }
 
-  // Remove points that are outside the ROI or mask
+  // Remove points that are outside the ROI
   tracks.erase(
       std::remove_if(
           tracks.begin(), tracks.end(),
@@ -615,23 +587,6 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
             if (track.pt.x < _roi.x || track.pt.x >= _roi.x + _roi.width ||
                 track.pt.y < _roi.y || track.pt.y >= _roi.y + _roi.height) {
               return true;
-            }
-
-            // Check mask if it exists (mask is ROI-sized, so convert to ROI-relative coords)
-            if (!_roiMask.empty()) {
-              // Convert to ROI-relative coordinates
-              int x = static_cast<int>(std::round(track.pt.x - _roi.x));
-              int y = static_cast<int>(std::round(track.pt.y - _roi.y));
-
-              // Check mask bounds
-              if (x < 0 || x >= _roiMask.cols || y < 0 || y >= _roiMask.rows) {
-                return true;
-              }
-
-              // Check if mask value is non-zero (valid region)
-              if (_roiMask.at<uchar>(y, x) == 0) {
-                return true;
-              }
             }
 
             return false;
