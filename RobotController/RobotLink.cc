@@ -686,9 +686,9 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
   clockWidget.markEnd();
 }
 
-std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl() {
-  std::cerr << "RobotLinkReal::_ReceiveImpl" << std::endl;
-  std::vector<RobotMessage> ret = {};
+std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
+{
+    std::vector<RobotMessage> ret = {};
 
   // lock mutex
   _unconsumedMessagesMutex.lock();

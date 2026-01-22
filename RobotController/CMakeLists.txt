@@ -56,6 +56,7 @@ set(LIBS hid setupapi)
 # Define the sources and headers
 set(SOURCES 
     RobotController.cc
+    PlaybackController.cc
     DriverStationLog.cc
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
@@ -85,6 +86,7 @@ set(SOURCES
     Odometry/Heuristic1/RobotTracker.cc
     Odometry/Heuristic1/HeuristicOdometry.cc
     Odometry/IMU/OdometryIMU.cc
+    Odometry/LKFlowTracker/LKFlowTracker.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc

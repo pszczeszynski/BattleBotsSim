@@ -1,20 +1,15 @@
 #pragma once
-#include "../Clock.h"
-#include <signal.h>
-#include <windows.h>
 #include <thread>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
 #include "../MathUtils.h"
 #include "../CameraReceiver.h"
-#include "../VisionPreprocessor.h"
-#include <string.h>
 #include <unordered_map>
 
 // The total time to wait stopping the main task in seconds before killing it
 #define ODOMETRY_STOP_TIMEOUT 0.1f
 #define ODO_MUTEX_TIMEOUT std::chrono::milliseconds(250)
-#define MAX_EXTRAPOLATION_TIME_S 0.1
+constexpr float kMaxExtrapTimeS = 0.1;
 
 class OdometryData
 {
@@ -41,7 +36,7 @@ public:
     // returns a new instance of the data extrapolated to the target time
     // the maxRelativeTime is the maximum time to extrapolate forward
     OdometryData ExtrapolateBoundedTo(double targetTime,
-                                      double maxRelativeTime = MAX_EXTRAPOLATION_TIME_S);
+                                      double maxRelativeTime = kMaxExtrapTimeS);
 
     void InvalidatePosition();
     void InvalidateAngle();
@@ -57,7 +52,6 @@ public:
     // The rectangle to draw around us. only valid if robotPosValid is true
     // This should be optional
     cv::Rect rect;
-
 
     // User data for tracking algorithm internals
     std::unordered_map<std::string, double> userDataDouble;

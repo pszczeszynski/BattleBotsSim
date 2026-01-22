@@ -103,6 +103,7 @@ extern bool ODO_BLOB_ENABLED;
 extern bool ODO_HEUR_ENABLED;
 extern bool ODO_IMU_ENABLED;
 extern bool ODO_OPENCV_ENABLED;
+extern bool ODO_LKFLOW_ENABLED;
 extern float NN_MIN_CONFIDENCE;
 extern float TRACKER_MIN_CONFIDENCE;
 extern float ANGLE_FUSE_CONF_THRESH;

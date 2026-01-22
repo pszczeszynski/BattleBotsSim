@@ -1,11 +1,8 @@
 #include "PlaybackWidget.h"
 #include <imgui.h>
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <filesystem>
 #include "../RobotConfig.h"
+#include "../PlaybackController.h"
 #include "ColorScheme.h"
 
 PlaybackWidget::PlaybackWidget()
@@ -29,6 +26,7 @@ PlaybackWidget::PlaybackWidget()
 */
 void PlaybackWidget::Draw()
 {
+    PlaybackController& playback = PlaybackController::GetInstance();
     
     static int currentFile = 0; // Index of the currently selected file
 
@@ -36,20 +34,19 @@ void PlaybackWidget::Draw()
     {
         if (ImGui::Button("Play"))
         {
-            playback_play = true;
-            playback_pause = false;
+            playback.Play();
         }
 
         ImGui::SameLine();
         if (ImGui::Button("Stop"))
         {
-             playback_play = false;
+            playback.Stop();
         }
 
         ImGui::SameLine();
 
         bool popStyle = false;
-        if (playback_pause)
+        if (playback.IsPaused())
         {
             // Change the button color to green when isHighlighted is true
             ColorScheme::PushSuccessColors();
@@ -58,7 +55,7 @@ void PlaybackWidget::Draw()
 
         if (ImGui::Button("Pause"))
         {
-            playback_pause = !playback_pause;
+            playback.TogglePause();
         }
         
         if (popStyle)
@@ -71,14 +68,14 @@ void PlaybackWidget::Draw()
         ImGui::SameLine();
         if (ImGui::Button("Restart"))
         {
-            playback_restart =true;
+            playback.Restart();
         }
 
         ImGui::SameLine();
 
 
 
-        if (playback_goback)
+        if (playback.IsReversing())
         {
             // Change the button color to green when isHighlighted is true
             ColorScheme::PushSuccessColors();
@@ -87,7 +84,7 @@ void PlaybackWidget::Draw()
 
         if (ImGui::Button("Reverse"))
         {
-            playback_goback = !playback_goback;
+            playback.ToggleReverse();
         }
 
         if (popStyle)
@@ -97,15 +94,15 @@ void PlaybackWidget::Draw()
         }
 
         ImGui::SameLine();
-        float prevSpeed = playback_speed;
+        float currentSpeed = playback.GetSpeed();
         ImGui::Text("    Speed:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(100);
-        ImGui::InputFloat("##Speed", &playback_speed);
+        ImGui::InputFloat("##Speed", &currentSpeed);
 
-        if( (playback_speed < 0) || (playback_speed == 0))
+        if (currentSpeed > 0.0f)
         {
-            playback_speed = 1.0f;
+            playback.SetSpeed(currentSpeed);
         }
 
         ImGui::SameLine();
@@ -137,19 +134,17 @@ void PlaybackWidget::Draw()
         // If the file is a video file, update the file to be read
         if ((selectedFile.length() > 3) &&  (selectedFile.find_last_of(".") > 0) && (selectedFile.substr(selectedFile.find_last_of(".")) == ".avi" || selectedFile.substr(selectedFile.find_last_of(".")) == ".mp4"))
         {
-            if( playback_file != selectedFile)
-            {
-                playback_file = selectedFile;
-                playback_file_changed = true;
-                playback_video_pos_s = 0;
-                std::cout << "Selected video file: " << selectedFile << std::endl;
-
-            }
-            
+            std::cout << "Selected video file: " << selectedFile << std::endl;
+            playback.SetFile(selectedFile);
         }
 
         // video scrub
-        ImGui::SliderFloat("Video Slider", &playback_video_pos_s, 0.0f, playback_video_length_s);
+        float videoPos = playback.GetVideoPosition();
+        float videoLength = playback.GetVideoLength();
+        if (ImGui::SliderFloat("Video Slider", &videoPos, 0.0f, videoLength))
+        {
+            playback.SetVideoPosition(videoPos);
+        }
 
         // Allow preprocessing
         ImGui::Checkbox(":Preprocess Image", &PLAYBACK_PREPROCESS);

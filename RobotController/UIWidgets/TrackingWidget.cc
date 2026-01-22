@@ -303,10 +303,18 @@ void TrackingWidget::_DrawAlgorithmData()
     {
         fusionColor = cv::Scalar(variantColors["Fusion"].z * 255, variantColors["Fusion"].y * 255, variantColors["Fusion"].x * 255);
     }
+
+    // LKFlow is cyan
+    cv::Scalar lkFlowColor = cv::Scalar(255, 255, 0);
+    if( variantColors.find("LKFlow") != variantColors.end() )
+    {
+        lkFlowColor = cv::Scalar(variantColors["LKFlow"].z * 255, variantColors["LKFlow"].y * 255, variantColors["LKFlow"].x * 255);
+    }
     RobotOdometry &odometry = RobotController::GetInstance().odometry;
     BlobDetection &_odometry_Blob = odometry.GetBlobOdometry();
     HeuristicOdometry &_odometry_Heuristic = odometry.GetHeuristicOdometry();
     CVPosition& _odometry_Neural = odometry.GetNeuralOdometry();
+    LKFlowTracker& _odometry_LKFlow = odometry.GetLKFlowOdometry();
 #ifdef USE_OPENCV_TRACKER
     OpenCVTracker& _odometry_opencv = odometry.GetOpenCVOdometry();
 #endif
@@ -335,9 +343,15 @@ void TrackingWidget::_DrawAlgorithmData()
 
     if (_odometry_Neural.IsRunning() && showNeural)
     {
-        _DrawPositions(_odometry_Neural.GetData(false) , _odometry_Neural.GetData(true), _trackingMat, neuralColor);  
+        _DrawPositions(_odometry_Neural.GetData(false) , _odometry_Neural.GetData(true), _trackingMat, neuralColor);
     }
 
+    if (_odometry_LKFlow.IsRunning() && showLKFlow)
+    {
+        // LKFlow only tracks opponent, so robot data will be invalid
+        _DrawPositions(_odometry_LKFlow.GetData(false) , _odometry_LKFlow.GetData(true), _trackingMat, lkFlowColor);
+        _DrawAngles(_odometry_LKFlow.GetData(false), _odometry_LKFlow.GetData(true), _trackingMat, lkFlowColor);
+    }
 
     // check if mouse is over the image
     if (IsMouseOver())
@@ -614,8 +628,9 @@ void TrackingWidget::_RenderFrames()
         {"Fusion", showFusion},
         {"NeuralRot", showNeuralRot},
 #ifdef USE_OPENCV_TRACKER
-        {"Opencv", showOpencv}  
+        {"Opencv", showOpencv},
 #endif
+        {"LKFlow", showLKFlow}
     };
 
     // Use the camera image size as the output size
@@ -753,6 +768,7 @@ void TrackingWidget::DrawGUI() {
 #ifdef USE_OPENCV_TRACKER
     _DrawShowButton("Opencv", showOpencv);
 #endif
+    _DrawShowButton("LKFlow", showLKFlow);
     _DrawShowButton("Fusion", showFusion);
 
     // Add two line spacers
@@ -879,6 +895,7 @@ std::string TrackingWidget::SaveGUISettings() {
     ss << "showNeuralRot=" << (showNeuralRot ? "1" : "0") << ";";
     ss << "showFusion=" << (showFusion ? "1" : "0") << ";";
     ss << "showOpencv=" << (showOpencv ? "1" : "0") << ";";
+    ss << "showLKFlow=" << (showLKFlow ? "1" : "0") << ";";
 
 
     // Save outputVideoFile
@@ -937,6 +954,7 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         else if (key == "showNeuralRot") showNeuralRot = (value == "1");
         else if (key == "showFusion") showFusion = (value == "1");
         else if (key == "showOpencv") showOpencv = (value == "1");
+        else if (key == "showLKFlow") showLKFlow = (value == "1");
 
 
         // Restore outputVideoFile

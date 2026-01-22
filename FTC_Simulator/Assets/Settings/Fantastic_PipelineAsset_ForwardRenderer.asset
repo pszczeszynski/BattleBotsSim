@@ -109,7 +109,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e971b6a0571b30b4eab43a778a6ade8f, type: 3}
   m_Name: FisheyeRenderFeature
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   settings:
     fisheyeShader: {fileID: 4800000, guid: bd8726b987d83e8479eec2e9c4ca1f1c, type: 3}
     fieldOfView: 24

@@ -72,6 +72,9 @@ void VariantsWidget::Draw()
     _DrawStartStopButton("Heuristic", ODO_HEUR_ENABLED, OdometryAlg::Heuristic);
 
     // **********************
+    _DrawStartStopButton("LK Flow", ODO_LKFLOW_ENABLED, OdometryAlg::LKFlow);
+
+    // **********************
     _DrawStartStopButton("Position Neural Net", POSITION_NET_ENABLED, OdometryAlg::Neural);
     _DrawStartStopButton("Rotation Neural Net", ROTATION_NET_ENABLED, OdometryAlg::NeuralRot);
     
