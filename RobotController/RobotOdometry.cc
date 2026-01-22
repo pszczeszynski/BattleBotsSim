@@ -848,7 +848,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   // Use thread-safe SimulationState instead of global variables
   auto robotData = SimulationState::GetInstance().GetRobotData();
   auto opponentData = SimulationState::GetInstance().GetOpponentData();
-  
+
   _dataRobot.robotPosValid = true;
   _dataRobot.robotPosition = robotData.position;
   _dataRobot.robotVelocity = robotData.velocity;
@@ -857,8 +857,9 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   _dataOpponent.robotPosValid = true;
   _dataOpponent.robotPosition = opponentData.position;
   _dataOpponent.robotVelocity = opponentData.velocity;
-  _dataOpponent.SetAngle(Angle(opponentData.rotation), opponentData.rotationVelocity,
-                          opponentData.timestamp, true);
+  _dataOpponent.SetAngle(Angle(opponentData.rotation),
+                         opponentData.rotationVelocity, opponentData.timestamp,
+                         true);
   _dataOpponent.time = opponentData.timestamp;
 #endif
 
