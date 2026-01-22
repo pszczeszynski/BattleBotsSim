@@ -2,9 +2,9 @@
 #include <imgui.h>
 #include "../RobotConfig.h"
 #include "../RobotController.h"
+#include "../TrackingEditorState.h"
 #include "UIUtilities.h"
 #include "ImageWidget.h"
-#include "../Globals.h"
 #include "ColorScheme.h"
 
 VariantsWidget::VariantsWidget()
@@ -92,25 +92,30 @@ void VariantsWidget::Draw()
     CenterText("Algorithm override");
 
     // Helper for edit buttons
-    auto DrawEditButton = [](const char* label, bool& state) {
-        if (state) {
+    TrackingEditorState& editorState = TrackingEditorState::GetInstance();
+    
+    auto DrawEditButton = [&editorState](const char* label, bool isEnabled, auto toggleFunc) {
+        if (isEnabled) {
             ColorScheme::PushButtonColors(ColorScheme::PRIMARY_ORANGE);
         } else {
             ColorScheme::PushButtonColors(ColorScheme::TEXT_DISABLED);
         }
 
         if (ImGui::Button(label)) {
-            state = !state;
+            toggleFunc();
         }
         ColorScheme::PopButtonColors();
     };
 
-    DrawEditButton("Heuristic", EDITING_HEU);
+    DrawEditButton("Heuristic", editorState.IsHeuristicEditing(), 
+                   [&]() { editorState.ToggleHeuristicEditing(); });
     ImGui::SameLine();
-    DrawEditButton("Blob", EDITING_BLOB);
+    DrawEditButton("Blob", editorState.IsBlobEditing(), 
+                   [&]() { editorState.ToggleBlobEditing(); });
 #ifdef USE_OPENCV_TRACKER
     ImGui::SameLine();
-    DrawEditButton("OpenCV Tracker", EDITING_OPENCV);
+    DrawEditButton("OpenCV Tracker", editorState.IsOpenCVEditing(), 
+                   [&]() { editorState.ToggleOpenCVEditing(); });
 #endif
 
     // **********************

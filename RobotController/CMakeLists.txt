@@ -57,6 +57,7 @@ set(LIBS hid setupapi)
 set(SOURCES 
     RobotController.cc
     PlaybackController.cc
+    TrackingEditorState.cc
     DriverStationLog.cc
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc

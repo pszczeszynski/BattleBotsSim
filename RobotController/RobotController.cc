@@ -100,7 +100,6 @@ long loopCount = 0;
 void RobotController::Run()
 {
     std::cout << "Starting robot controller..." << std::endl;
-    TIMER_INIT
     Clock lastTime;
     lastTime.markStart();
 

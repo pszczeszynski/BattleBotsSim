@@ -1,6 +1,7 @@
 #include "PlaybackWidget.h"
 #include <imgui.h>
 #include <iostream>
+#include <filesystem>
 #include "../RobotConfig.h"
 #include "../PlaybackController.h"
 #include "ColorScheme.h"

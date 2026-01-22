@@ -2,6 +2,7 @@
 #include "../RobotController.h"
 #include "../GuiUtils.h"
 #include "../RobotConfig.h"
+#include "../TrackingEditorState.h"
 #include "../Input/InputState.h"
 #include "CameraWidget.h"
 #include "../SafeDrawing.h"
@@ -371,9 +372,10 @@ void TrackingWidget::_DrawAlgorithmData()
                 odometry.UpdateForceSetPosAndVel(opponentMouseClickPoint, cv::Point2f(0,0), true);
             }
 
+            TrackingEditorState& editorState = TrackingEditorState::GetInstance();
 
 #ifdef USE_OPENCV_TRACKER
-            if (EDITING_OPENCV)
+            if (editorState.IsOpenCVEditing())
             {
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
@@ -385,7 +387,7 @@ void TrackingWidget::_DrawAlgorithmData()
                 }
             }
 #endif
-            if (EDITING_BLOB)
+            if (editorState.IsBlobEditing())
             {
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
@@ -399,7 +401,7 @@ void TrackingWidget::_DrawAlgorithmData()
                     _odometry_Blob.SetVelocity(cv::Point2f(0,0), true);
                 }
             }
-            if (EDITING_HEU)
+            if (editorState.IsHeuristicEditing())
             {
                 if (InputState::GetInstance().IsMouseDown(0))
                 {
