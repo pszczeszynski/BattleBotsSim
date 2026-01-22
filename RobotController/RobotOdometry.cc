@@ -125,8 +125,7 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
 
   // Set ROI for LKFlowTracker (only tracks opponent)
   if (_odometry_LKFlow.IsRunning()) {
-    int roiSize = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 2;
-    if (roiSize < 100) roiSize = 140;
+    int roiSize = 20;
     cv::Rect roi(static_cast<int>(_dataOpponent.robotPosition.x -
                                   static_cast<float>(roiSize) / 2.0f),
                  static_cast<int>(_dataOpponent.robotPosition.y -
@@ -723,14 +722,14 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   // Set ROI for LKFlowTracker when opponent position is finalized
   if (_dataOpponent.robotPosValid && _odometry_LKFlow.IsRunning()) {
     // Use opponent blob size to determine ROI size, or default to 140x140
-    int roiSize = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 2;
-    if (roiSize < 100) roiSize = 140;  // Ensure minimum size
+    int roiSize = 70;
 
     cv::Rect roi(static_cast<int>(_dataOpponent.robotPosition.x -
                                   static_cast<float>(roiSize) / 2.0f),
                  static_cast<int>(_dataOpponent.robotPosition.y -
                                   static_cast<float>(roiSize) / 2.0f),
                  roiSize, roiSize);
+    // Set ROI without mask
     _odometry_LKFlow.SetROI(roi);
   }
 
@@ -980,7 +979,7 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  currData.ExtrapolateBoundedTo(currTime);
+  // currData.ExtrapolateBoundedTo(currTime);
 
   return currData;
 }

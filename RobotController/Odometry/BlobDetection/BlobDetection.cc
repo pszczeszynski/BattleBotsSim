@@ -1,9 +1,9 @@
 #include "BlobDetection.h"
 
 #include <algorithm>
+
 #include "../../RobotConfig.h"
 #include "../../SafeDrawing.h"
-
 
 // *********************************************************************
 // NOTE:
@@ -149,8 +149,7 @@ VisionClassification BlobDetection::DoBlobDetection(
   // debug image to black
 
   // cv::cvtColor(thresholdImg, _debugImage, cv::COLOR_BGR2GRAY);
-  thresholdImg.copyTo(
-      _debugImage);  // Copy the threshold image to the debug image
+  thresholdImg.copyTo(_debugImage);
 
   for (const MotionBlob& blob : motionBlobs) {
     cv::rectangle(_debugImage, blob.rect, cv::Scalar(255), 2);
@@ -169,41 +168,10 @@ VisionClassification BlobDetection::DoBlobDetection(
   // Should we use extrapolated data? In this case maybe not so that we dont
   // compound a bad reading?
   locker.lock();
-  VisionClassification result = _robotClassifier.ClassifyBlobs(motionBlobs, currFrame, thresholdImg,
-                                        _currDataRobot, _currDataOpponent,
-                                        false, frameTime);
-  
-  // Store ROI-sized motion masks in the odometry data
-  // Extract the mask for robot's rect if valid
-  if (_currDataRobot.robotPosValid && _currDataRobot.rect.width > 0 && _currDataRobot.rect.height > 0) {
-    cv::Rect robotRect = _currDataRobot.rect;
-    // Clip rect to threshold image bounds for safety
-    robotRect.x = (std::max)(0, (std::min)(robotRect.x, thresholdImg.cols - 1));
-    robotRect.y = (std::max)(0, (std::min)(robotRect.y, thresholdImg.rows - 1));
-    robotRect.width = (std::min)(robotRect.width, thresholdImg.cols - robotRect.x);
-    robotRect.height = (std::min)(robotRect.height, thresholdImg.rows - robotRect.y);
-    
-    if (robotRect.width > 0 && robotRect.height > 0) {
-      cv::Mat robotMask = thresholdImg(robotRect).clone();
-      _currDataRobot.SetROI(_currDataRobot.rect, robotMask);
-    }
-  }
-  
-  // Extract the mask for opponent's rect if valid
-  if (_currDataOpponent.robotPosValid && _currDataOpponent.rect.width > 0 && _currDataOpponent.rect.height > 0) {
-    cv::Rect opponentRect = _currDataOpponent.rect;
-    // Clip rect to threshold image bounds for safety
-    opponentRect.x = (std::max)(0, (std::min)(opponentRect.x, thresholdImg.cols - 1));
-    opponentRect.y = (std::max)(0, (std::min)(opponentRect.y, thresholdImg.rows - 1));
-    opponentRect.width = (std::min)(opponentRect.width, thresholdImg.cols - opponentRect.x);
-    opponentRect.height = (std::min)(opponentRect.height, thresholdImg.rows - opponentRect.y);
-    
-    if (opponentRect.width > 0 && opponentRect.height > 0) {
-      cv::Mat opponentMask = thresholdImg(opponentRect).clone();
-      _currDataOpponent.SetROI(_currDataOpponent.rect, opponentMask);
-    }
-  }
-  
+  VisionClassification result = _robotClassifier.ClassifyBlobs(
+      motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent,
+      false, frameTime);
+
   return result;
 }
 
@@ -225,7 +193,6 @@ void BlobDetection::GetDebugImage(cv::Mat& debugImage, cv::Point offset) {
 
   locker.unlock();  // Unlock mutex after operation
 }
-
 
 void BlobDetection::UpdateData(VisionClassification robotBlobData,
                                double timestamp) {

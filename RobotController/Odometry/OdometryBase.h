@@ -53,7 +53,6 @@ public:
     // This should be optional
     cv::Rect rect;
 
-
     // User data for tracking algorithm internals
     std::unordered_map<std::string, double> userDataDouble;
 

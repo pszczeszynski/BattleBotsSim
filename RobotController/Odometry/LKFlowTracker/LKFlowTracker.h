@@ -36,7 +36,8 @@ class LKFlowTracker : public OdometryBase {
                      cv::Point offset = cv::Point(0, 0)) override;
 
   // Set the ROI for point spawning (x, y, width, height)
-  void SetROI(cv::Rect roi);
+  // Optionally provide an ROI-sized mask (same dimensions as roi width/height)
+  void SetROI(cv::Rect roi, const cv::Mat& roiMask = cv::Mat());
 
  private:
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
@@ -58,6 +59,7 @@ class LKFlowTracker : public OdometryBase {
   cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
   void _FilterPointsByROI(std::vector<TrackPt>& tracks);
+  cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds);
 
   // Configuration constants
   static constexpr int LK_MAX_CORNERS = 200;
@@ -66,11 +68,13 @@ class LKFlowTracker : public OdometryBase {
   static const cv::Size LK_WIN_SIZE;
   static constexpr int LK_MAX_LEVEL = 3;
   static constexpr int LK_NUM_PAIRS = 200;
-  static constexpr int LK_MIN_TRACK_FRAMES = 5;
+  static constexpr int LK_MIN_TRACK_FRAMES = 2;
   static constexpr double RESPAWN_INTERVAL = 0.3;  // seconds - respawn interval
 
   // Internal state
   cv::Rect _roi;
+  cv::Mat _roiMask;  // Single channel mask to further restrict ROI
+  cv::Size _imageSize;  // Last known image size for ROI clipping
   cv::Mat _prevGray;
   std::vector<TrackPt> _tracks;  // Replaces _prevPts + _pointTrackCounts
   cv::Point2f _prevCenter;

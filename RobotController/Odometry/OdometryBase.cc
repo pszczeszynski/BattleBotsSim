@@ -31,7 +31,7 @@ void OdometryData::Clear() {
 }
 
 OdometryData OdometryData::_ExtrapolateTo(double newtime) {
-  return *this;
+  // return *this;
   OdometryData result = *this;  // Create a copy of current data
 
   // Extrapolate only if data is marked as valid
