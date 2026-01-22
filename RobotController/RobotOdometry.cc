@@ -7,6 +7,7 @@
 #include "RobotConfig.h"
 #include "RobotController.h"
 #include "SafeDrawing.h"
+#include "SimulationState.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
 
@@ -844,17 +845,21 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   }
 
 #ifdef FORCE_SIM_DATA
+  // Use thread-safe SimulationState instead of global variables
+  auto robotData = SimulationState::GetInstance().GetRobotData();
+  auto opponentData = SimulationState::GetInstance().GetOpponentData();
+  
   _dataRobot.robotPosValid = true;
-  _dataRobot.robotPosition = robotPosSim;
-  _dataRobot.robotVelocity = robotVelSim;
-  _dataRobot.time = simReceiveLastTime;
+  _dataRobot.robotPosition = robotData.position;
+  _dataRobot.robotVelocity = robotData.velocity;
+  _dataRobot.time = robotData.timestamp;
 
   _dataOpponent.robotPosValid = true;
-  _dataOpponent.robotPosition = opponentPosSim;
-  _dataOpponent.robotVelocity = opponentVelSim;
-  _dataOpponent.SetAngle(Angle(opponentRotationSim), opponentRotationVelSim,
-                         simReceiveLastTime, true);
-  _dataOpponent.time = simReceiveLastTime;
+  _dataOpponent.robotPosition = opponentData.position;
+  _dataOpponent.robotVelocity = opponentData.velocity;
+  _dataOpponent.SetAngle(Angle(opponentData.rotation), opponentData.rotationVelocity,
+                          opponentData.timestamp, true);
+  _dataOpponent.time = opponentData.timestamp;
 #endif
 
   // ******************************

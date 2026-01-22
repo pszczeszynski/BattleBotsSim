@@ -7,6 +7,7 @@
 #include "RobotConfig.h"
 #include "RobotController.h"
 #include "RobotStateParser.h"
+#include "SimulationState.h"
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/GraphWidget.h"
 
@@ -764,28 +765,50 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl() {
     received = serverSocket.receive();
   }
   UnityRobotState message = RobotStateParser::parse(received);
-  // set the global variable
-  opponentRotationSim = angle_wrap(message.opponent_rotation * TO_RAD + M_PI);
-  robotPosSim = cv::Point2f((float)message.robot_position.x,
-                            (float)message.robot_position.z);
-  opponentPosSim = cv::Point2f{(float)message.opponent_position.x,
-                               (float)message.opponent_position.z};
+  
+  // Process robot position
+  cv::Point2f robotPos = cv::Point2f((float)message.robot_position.x,
+                                      (float)message.robot_position.z);
+  cv::Point2f opponentPos = cv::Point2f{(float)message.opponent_position.x,
+                                        (float)message.opponent_position.z};
 
   cv::Point2f mins = {-10, -10};
   cv::Point2f maxs = {10, 10};
 
-  robotPosSim -= mins;
-  robotPosSim.x /= maxs.x - mins.x;
-  robotPosSim.y /= maxs.y - mins.y;
+  // Transform robot position to screen coordinates
+  robotPos -= mins;
+  robotPos.x /= maxs.x - mins.x;
+  robotPos.y /= maxs.y - mins.y;
+  robotPos.x = 1.0 - robotPos.x;
+  robotPos *= WIDTH;
 
-  robotPosSim.x = 1.0 - robotPosSim.x;
-  robotPosSim *= WIDTH;
+  // Transform opponent position to screen coordinates
+  opponentPos -= mins;
+  opponentPos.x /= maxs.x - mins.x;
+  opponentPos.y /= maxs.y - mins.y;
+  opponentPos.x = 1.0 - opponentPos.x;
+  opponentPos *= WIDTH;
 
-  opponentPosSim -= mins;
-  opponentPosSim.x /= maxs.x - mins.x;
-  opponentPosSim.y /= maxs.y - mins.y;
-  opponentPosSim.x = 1.0 - opponentPosSim.x;
-  opponentPosSim *= WIDTH;
+  // Calculate velocities
+  double deltaTime = lastReceiveClock.getElapsedTime();
+  cv::Point2f robotVel = (robotPos - lastRobotPosSim) / deltaTime;
+  cv::Point2f opponentVel = (opponentPos - lastOpponentPosSim) / deltaTime;
+  
+  // Update last positions for next velocity calculation
+  lastRobotPosSim = robotPos;
+  lastOpponentPosSim = opponentPos;
+  lastReceiveClock.markStart();
+  
+  // Calculate opponent rotation
+  double opponentRotation = angle_wrap(message.opponent_rotation * TO_RAD + M_PI);
+  double opponentRotationVel = message.opponent_rotation_velocity;
+  double currentTime = Clock::programClock.getElapsedTime();
+
+  // Update SimulationState with thread-safe access
+  SimulationState::GetInstance().SetRobotData(robotPos, robotVel, currentTime);
+  SimulationState::GetInstance().SetOpponentData(opponentPos, opponentVel,
+                                                   opponentRotation, opponentRotationVel,
+                                                   currentTime);
 
   // if we have already had a can message in last 1/2 second
   if (lastCanDataClock.getElapsedTime() < 0.5) {
@@ -800,16 +823,6 @@ std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl() {
         (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR) * 9;
     lastCanDataClock.markStart();
   }
-
-  robotVelSim =
-      (robotPosSim - lastRobotPosSim) / lastReceiveClock.getElapsedTime();
-  lastRobotPosSim = robotPosSim;
-  opponentVelSim =
-      (opponentPosSim - lastOpponentPosSim) / lastReceiveClock.getElapsedTime();
-  lastOpponentPosSim = opponentPosSim;
-  opponentRotationVelSim = message.opponent_rotation_velocity;  // * TO_RAD;
-  lastReceiveClock.markStart();
-  simReceiveLastTime = Clock::programClock.getElapsedTime();
 
   // Record the receive time for simulation
   double receiveTime = Clock::programClock.getElapsedTime();

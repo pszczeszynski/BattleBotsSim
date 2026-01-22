@@ -76,6 +76,7 @@ set(SOURCES
     MathUtils.cc
     Input/Gamepad.cc
     Globals.cc
+    SimulationState.cc
     Odometry/BlobDetection/RobotClassifier.cc
     RobotLink.cc
     RobotOdometry.cc
