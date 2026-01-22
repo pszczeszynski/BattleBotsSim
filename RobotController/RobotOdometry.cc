@@ -645,13 +645,11 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
     debugROStringForVideo_tmp += "Heu";
     _dataRobot.robotVelocity = ext_dataRobot_Heuristic.robotVelocity;
   } else if (blobUsPos_valid) {
-    if (blobUsPos_valid) {
-      debugROStringForVideo_tmp += "Blob";
-      _dataRobot.robotVelocity = ext_dataRobot_Blob.robotVelocity;
-    } else {
-      debugROStringForVideo_tmp += "OldVel";
-      // _dataRobot.robotVelocity = ext_dataRobot_Neural.robotVelocity;
-    }
+    debugROStringForVideo_tmp += "Blob";
+    _dataRobot.robotVelocity = ext_dataRobot_Blob.robotVelocity;
+  } else {
+    debugROStringForVideo_tmp += "OldVel";
+    // _dataRobot.robotVelocity = ext_dataRobot_Neural.robotVelocity;
   }
 
   //  US ROT:

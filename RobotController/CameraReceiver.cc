@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <iostream>
 #include "Globals.h"
+#include "PlaybackController.h"
 #include "Clock.h"
 #include <stdlib.h>
 #include "imgui.h"
@@ -751,11 +752,12 @@ CameraType CameraReceiverVideo::GetType()
 
 bool CameraReceiverVideo::_CaptureFrame()
 {
-    static float prev_video_pos = playback_video_pos_s;
-    if (playback_file_changed)
+    PlaybackController& playback = PlaybackController::GetInstance();
+    
+    static float prev_video_pos = playback.GetVideoPosition();
+    if (playback.HasFileChanged())
     {
         _InitializeCamera();
-        playback_file_changed = false;
     }
 
     // if the video is not open, return false
@@ -765,7 +767,7 @@ bool CameraReceiverVideo::_CaptureFrame()
         return false;
     }
 
-    if (!playback_play)
+    if (!playback.IsPlaying())
     {
         _prevFrameTimer.markStart();
         return false;
@@ -773,7 +775,7 @@ bool CameraReceiverVideo::_CaptureFrame()
 
 
     // wait for the previous frame to be at 1/AX_CAP_FPS long
-    float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback_speed;
+    float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback.GetSpeed();
 
     while (_prevFrameTimer.getElapsedTime() < videoFramePeriod)
     {
@@ -786,34 +788,38 @@ bool CameraReceiverVideo::_CaptureFrame()
 
     _prevFrameTimer.markStart(deltaTimeLeft);
 
-    if (std::abs(playback_video_pos_s - prev_video_pos) > 0.01)
+    float currentVideoPos = playback.GetVideoPosition();
+    float videoLength = playback.GetVideoLength();
+    
+    if (std::abs(currentVideoPos - prev_video_pos) > 0.01)
     {
-        _videoFrame = int((playback_video_pos_s / playback_video_length_s) * _maxFrameCount);
+        _videoFrame = int((currentVideoPos / videoLength) * _maxFrameCount);
         _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
     }
     else
     {
-        playback_video_pos_s = float(_videoFrame) / _maxFrameCount * playback_video_length_s;
+        float newPos = float(_videoFrame) / _maxFrameCount * videoLength;
+        playback.SetVideoPosition(newPos);
+        currentVideoPos = newPos;
     }
     
-    prev_video_pos = playback_video_pos_s;
+    prev_video_pos = currentVideoPos;
     
 
     // read the next frame
-    if (playback_goback || playback_restart || playback_pause)
+    if (playback.IsReversing() || playback.ShouldRestart() || playback.IsPaused())
     {
         // Go backwards
-        if(playback_goback && !playback_pause)
+        if(playback.IsReversing() && !playback.IsPaused())
         {
             _videoFrame -= 1;
         }
         // Otherwise we didn't increment it so its stays on the same image
 
 
-        if (playback_restart)
+        if (playback.ShouldRestart())
         {
             _videoFrame = 0;
-            playback_restart = false;
         }
 
         if (_videoFrame < 0)
@@ -929,8 +935,11 @@ bool CameraReceiverVideo::_CaptureFrame()
 
 bool CameraReceiverVideo::_InitializeCamera()
 {
-    std::cout << "Initializing playback for " << playback_file << std::endl;
-    _cap = cv::VideoCapture(playback_file);
+    PlaybackController& playback = PlaybackController::GetInstance();
+    
+    std::string filename = playback.GetFile();
+    std::cout << "Initializing playback for " << filename << std::endl;
+    _cap = cv::VideoCapture(filename);
     _videoFrame = 0;
 
     // if the video is not open, return false
@@ -957,14 +966,16 @@ bool CameraReceiverVideo::_InitializeCamera()
         _cap.set(cv::CAP_PROP_POS_MSEC, 1e9); // Seek to far future
         double durationMs = _cap.get(cv::CAP_PROP_POS_MSEC);
         _cap.set(cv::CAP_PROP_POS_FRAMES, 0); // Reset
-        playback_video_length_s = durationMs / 1000.0 ;
+        float videoLength = durationMs / 1000.0;
+        playback.SetVideoLength(videoLength);
 
-        _maxFrameCount = long(playback_video_length_s * MAX_CAP_FPS);
+        _maxFrameCount = long(videoLength * MAX_CAP_FPS);
 
     }
     else
     {
-        playback_video_length_s = float(_maxFrameCount) / MAX_CAP_FPS;
+        float videoLength = float(_maxFrameCount) / MAX_CAP_FPS;
+        playback.SetVideoLength(videoLength);
     }
 
 

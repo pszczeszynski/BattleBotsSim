@@ -1,7 +1,6 @@
 #pragma once
 #include "Clock.h"
 #include "MathUtils.h"
-#include "Globals.h"
 
 #define TIME_WEIGHT_MS 100
 template <typename T>
@@ -181,10 +180,6 @@ private:
         // compute the new angular velocity
         newState.angularVelocity = initialState.angularVelocity;
 
-        SAFE_DRAW
-        // draw line from old position to new position
-        cv::line(drawingImage, initialState.position, newState.position, cv::Scalar(255, 255, 255), 1);
-        END_SAFE_DRAW
 
         // return the new state
         return newState;
