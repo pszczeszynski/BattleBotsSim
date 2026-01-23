@@ -662,8 +662,8 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // Add the debug string for video purposes
     if( show_track_mat || save_video_enabled && save_to_video_output)
     {
-        std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
-        AddDebugStringToFrame(currFrameColor, debugROStringForVideo);
+        std::string debugString = RobotController::GetInstance().odometry.GetDebugString();
+        AddDebugStringToFrame(currFrameColor, debugString);
     }
 
     if (show_track_mat)

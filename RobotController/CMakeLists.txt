@@ -80,6 +80,7 @@ set(SOURCES
     Odometry/BlobDetection/RobotClassifier.cc
     RobotLink.cc
     RobotOdometry.cc
+    OdometryPoller.cc
     RobotStateParser.cc
     Odometry/OdometryBase.cc
     Odometry/BlobDetection/BlobDetection.cc

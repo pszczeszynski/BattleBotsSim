@@ -11,9 +11,6 @@
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
 
-std::mutex debugROStringForVideo_mutex;
-std::string debugROStringForVideo = "";
-
 // Statemachine definitions
 enum FUSION_SM {
   FUSION_NORMAL = 0,  // Normal State
@@ -33,9 +30,15 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
       _odometry_NeuralRot(&videoSource),
       _odometry_LKFlow(&videoSource)
 #ifdef USE_OPENCV_TRACKER
-      ,
-      _odometry_opencv(&videoSource)
+      , _odometry_opencv(&videoSource)
 #endif
+      , _poller(_odometry_Blob, _odometry_Heuristic, _odometry_Neural,
+                _odometry_NeuralRot, _odometry_IMU, _odometry_Human,
+                _odometry_Human_Heuristic, _odometry_LKFlow
+#ifdef USE_OPENCV_TRACKER
+                , _odometry_opencv
+#endif
+                )
 {
 }
 
@@ -142,6 +145,7 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   _odometry_opencv.SetVelocity(_dataOpponent.robotVelocity, true);
 #endif
 
+
   fusionStateMachine = FUSION_NORMAL;
 
   if (!partOfAuto) {
@@ -153,161 +157,46 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
 void RobotOdometry::Update(int videoID) {
   // ******************************
   // Retrieve new data if available
-  bool newDataArrived = false;
-
   TrackingWidget *trackingInfo = TrackingWidget::GetInstance();
 
-  // Get Blob detection
-  if (_odometry_Blob.IsRunning()) {
-    bool newdata = false;
-    // Update our data
-    if (_odometry_Blob.NewDataValid(_dataRobot_Blob.id, false)) {
-      _dataRobot_Blob = _odometry_Blob.GetData(false);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    // Update opponent data
-    if (_odometry_Blob.NewDataValid(_dataOpponent_Blob.id, true)) {
-      _dataOpponent_Blob = _odometry_Blob.GetData(true);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    if (newdata) {
-      _odometry_Blob.GetDebugImage(trackingInfo->GetDebugImage("Blob"),
-                                   trackingInfo->GetDebugOffset("Blob"));
-    }
-  }
-
-#ifdef USE_OPENCV_TRACKER
-  if (_odometry_opencv.IsRunning()) {
-    bool newdata = false;
-
-    // Update our data
-    if (_odometry_opencv.NewDataValid(_dataRobot_opencv.id, false)) {
-      _dataRobot_opencv = _odometry_opencv.GetData(false);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    // Update opponent data
-    if (_odometry_opencv.NewDataValid(_dataOpponent_opencv.id, true)) {
-      _dataOpponent_opencv = _odometry_opencv.GetData(true);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    if (newdata) {
-      _odometry_opencv.GetDebugImage(trackingInfo->GetDebugImage("Opencv"),
-                                     trackingInfo->GetDebugOffset("Opencv"));
-    }
-  }
-#endif
-
-  // Get Heuristic detection
-  if (_odometry_Heuristic.IsRunning()) {
-    bool newdata = false;
-
-    // Update our data
-    if (_odometry_Heuristic.NewDataValid(_dataRobot_Heuristic.id, false)) {
-      _dataRobot_Heuristic = _odometry_Heuristic.GetData(false);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    // Update opponent data
-    if (_odometry_Heuristic.NewDataValid(_dataOpponent_Heuristic.id, true)) {
-      _dataOpponent_Heuristic = _odometry_Heuristic.GetData(true);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    if (newdata) {
-      _odometry_Heuristic.GetDebugImage(
-          trackingInfo->GetDebugImage("Heuristic"),
-          trackingInfo->GetDebugOffset("Heuristic"));
-    }
-  }
-
-  // Get IMU
-  if (_odometry_IMU.IsRunning()) {
-    // Update our data
-    if (_odometry_IMU.NewDataValid(_dataRobot_IMU.id, false)) {
-      _dataRobot_IMU = _odometry_IMU.GetData(false);
-      newDataArrived = true;
-    }
-  }
-
-  // Get Neural
-  if (_odometry_Neural.IsRunning()) {
-    // // Update our data
-    // if (_odometry_Neural.NewDataValid(_dataRobot_Neural.id, false))
-    // {
-    _dataRobot_Neural = _odometry_Neural.GetData(false);
-    newDataArrived = true;
-
-    _odometry_Neural.GetDebugImage(trackingInfo->GetDebugImage("Neural"),
-                                   trackingInfo->GetDebugOffset("Neural"));
-    // }
-  }
-
-  // Get Neural Rot
-  if (_odometry_NeuralRot.IsRunning()) {
-    // Update our data
-    if (_odometry_NeuralRot.NewDataValid(_dataRobot_NeuralRot.id, false)) {
-      _dataRobot_NeuralRot = _odometry_NeuralRot.GetData(false);
-      newDataArrived = true;
-
-      // _odometry_NeuralRot.GetDebugImage(trackingInfo->GetDebugImage("NeuralRot"),
-      // trackingInfo->GetDebugOffset("NeuralRot"));
-    }
-  }
-
-  // Get LK Flow (only tracks opponent, robot data always invalid)
-  if (_odometry_LKFlow.IsRunning()) {
-    bool newdata = false;
-    // Update opponent data only
-    if (_odometry_LKFlow.NewDataValid(_dataOpponent_LKFlow.id, true)) {
-      _dataOpponent_LKFlow = _odometry_LKFlow.GetData(true);
-      newDataArrived = true;
-      newdata = true;
-    }
-
-    if (newdata) {
-      _odometry_LKFlow.GetDebugImage(trackingInfo->GetDebugImage("LKFlow"),
-                                     trackingInfo->GetDebugOffset("LKFlow"));
-    }
-  }
-
-  if (_odometry_Human.IsRunning()) {
-    // Update our data
-    if (_odometry_Human.NewDataValid(_dataRobot_Human.id, false)) {
-      _dataRobot_Human = _odometry_Human.GetData(false);
-      _dataRobot_Human_is_new = true;
-      newDataArrived = true;
-    }
-
-    if (_odometry_Human.NewDataValid(_dataOpponent_Human.id, true)) {
-      _dataOpponent_Human = _odometry_Human.GetData(true);
-      _dataOpponent_Human_is_new = true;
-      newDataArrived = true;
-    }
-  }
+  // Poll all odometry algorithms
+  RawInputs inputs = _poller.Poll(trackingInfo, _prevInputs);
 
   // No new data and thus nothing to do
-  if (!newDataArrived) {
+  if (!inputs.HasUpdates()) {
     return;
   }
+
+  // Store for next iteration
+  _prevInputs = inputs;
+
+  // Update member variables (for backward compatibility with existing code)
+  _dataRobot_Blob = inputs.us_blob;
+  _dataOpponent_Blob = inputs.them_blob;
+  _dataRobot_Heuristic = inputs.us_heuristic;
+  _dataOpponent_Heuristic = inputs.them_heuristic;
+  _dataRobot_Neural = inputs.us_neural;
+  _dataRobot_NeuralRot = inputs.us_neuralrot;
+  _dataRobot_IMU = inputs.us_imu;
+  _dataRobot_Human = inputs.us_human;
+  _dataRobot_Human_is_new = inputs.us_human_is_new;
+  _dataOpponent_Human = inputs.them_human;
+  _dataOpponent_Human_is_new = inputs.them_human_is_new;
+  _dataOpponent_LKFlow = inputs.them_lkflow;
+
+#ifdef USE_OPENCV_TRACKER
+  _dataRobot_opencv = inputs.us_opencv;
+  _dataOpponent_opencv = inputs.them_opencv;
+#endif
 
   // At this time use only a priority set for all inputs
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   if (fusionStateMachine == FUSION_NORMAL) {
-    FuseAndUpdatePositions(videoID);
+    FuseAndUpdatePositions(videoID, inputs);
   } else if (fusionStateMachine == FUSION_WAIT_FOR_BG) {
     // If heuristic is not active, leave this state
-    if (!_odometry_Heuristic.IsRunning()) {
+    if (!inputs.IsRunning(RawInputs::US_HEURISTIC | RawInputs::THEM_HEURISTIC)) {
       fusionStateMachine = FUSION_NORMAL;
     }
 
@@ -334,7 +223,7 @@ void RobotOdometry::Update(int videoID) {
   // locker will get unlocked here automatically
 }
 
-void RobotOdometry::FuseAndUpdatePositions(int videoID) {
+void RobotOdometry::FuseAndUpdatePositions(int videoID, const RawInputs& inputs) {
   // ******************************
   // We have the following sources of data:
   // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |
@@ -425,7 +314,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
 
   bool humanThemAngle_valid = false;
   // Opponent rotation
-  if (_odometry_Human.IsRunning() && ext_dataOpponent_Human.IsAngleValid() &&
+  if (inputs.IsRunning(RawInputs::THEM_HUMAN) && ext_dataOpponent_Human.IsAngleValid() &&
       _dataOpponent_Human_is_new) {
     // Clear flag
     _dataOpponent_Human_is_new = false;
@@ -451,45 +340,46 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
 
   // ******************************
   // HELPER VARIABLES
+  // Use runningMask to check running state at time of poll (prevents race conditions)
   // ******************************
 
-  bool heuristicUsValid = _odometry_Heuristic.IsRunning() &&
+  bool heuristicUsValid = inputs.IsRunning(RawInputs::US_HEURISTIC) &&
                           (_dataRobot_Heuristic.GetAge() < _dataAgeThreshold);
   bool heuristicUsPos_valid =
       heuristicUsValid && _dataRobot_Heuristic.robotPosValid;
   bool heuristicUsAngle_valid =
       heuristicUsValid && _dataRobot_Heuristic.IsAngleValid();
   bool heuristicThemValid =
-      _odometry_Heuristic.IsRunning() &&
+      inputs.IsRunning(RawInputs::THEM_HEURISTIC) &&
       (_dataOpponent_Heuristic.GetAge() < _dataAgeThreshold);
   bool heuristicThemPos_valid =
       heuristicThemValid && _dataOpponent_Heuristic.robotPosValid;
   bool heuristicThemAngle_valid =
       heuristicThemValid && _dataOpponent_Heuristic.IsAngleValid();
 
-  bool blobUsValid = _odometry_Blob.IsRunning() &&
+  bool blobUsValid = inputs.IsRunning(RawInputs::US_BLOB) &&
                      (_dataRobot_Blob.GetAge() < _dataAgeThreshold);
   bool blobUsPos_valid = blobUsValid && _dataRobot_Blob.robotPosValid;
   bool blobUsAngle_valid = blobUsValid && _dataRobot_Blob.IsAngleValid();
-  bool blobThemValid = _odometry_Blob.IsRunning() &&
+  bool blobThemValid = inputs.IsRunning(RawInputs::THEM_BLOB) &&
                        (_dataOpponent_Blob.GetAge() < _dataAgeThreshold);
   bool blobThemPos_valid = blobThemValid && _dataOpponent_Blob.robotPosValid;
   bool blobThemAngle_valid = blobThemValid && _dataOpponent_Blob.IsAngleValid();
 
-  bool lkFlowThemValid = _odometry_LKFlow.IsRunning() &&
+  bool lkFlowThemValid = inputs.IsRunning(RawInputs::THEM_LKFLOW) &&
                          (_dataOpponent_LKFlow.GetAge() < _dataAgeThreshold);
   bool lkFlowThemAngle_valid =
       lkFlowThemValid && _dataOpponent_LKFlow.IsAngleValid();
 
   bool neuralUsPos_valid =
-      _odometry_Neural.IsRunning() && _dataRobot_Neural.robotPosValid;  // &&
+      inputs.IsRunning(RawInputs::US_NEURAL) && _dataRobot_Neural.robotPosValid;  // &&
   //  (_dataRobot_Neural.GetAge() < _dataAgeThreshold);
 
-  bool neuralRot_valid = _odometry_NeuralRot.IsRunning() &&
+  bool neuralRot_valid = inputs.IsRunning(RawInputs::US_NEURALROT) &&
                          _dataRobot_NeuralRot.IsAngleValid() &&
                          (_dataRobot_NeuralRot.GetAge() < _dataAgeThreshold);
 
-  bool imuValid = _odometry_IMU.IsRunning() &&
+  bool imuValid = inputs.IsRunning(RawInputs::US_IMU) &&
                   (_dataRobot_IMU.GetAge() < _dataAgeThreshold);
   bool imuUsRot_valid = imuValid && _dataRobot_IMU.IsAngleValid();
 
@@ -704,7 +594,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   if (heuristicThemPos_valid) {
     debugROStringForVideo_tmp += "Heu";
     _dataOpponent.robotPosition = ext_dataOpponent_Heuristic.robotPosition;
-    _dataOpponent.time = _dataOpponent_Heuristic.time;
+    _dataOpponent.time = ext_dataOpponent_Heuristic.time;  // Use extrapolated time!
     _dataOpponent.robotPosValid = true;
 
     // If blob position isn't inside our rectangle then set position
@@ -722,7 +612,7 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   }
 
   // Set ROI for LKFlowTracker when opponent position is finalized
-  if (_dataOpponent.robotPosValid && _odometry_LKFlow.IsRunning()) {
+  if (_dataOpponent.robotPosValid && inputs.IsRunning(RawInputs::THEM_LKFLOW)) {
     // Use opponent blob size to determine ROI size, or default to 140x140
     int roiSize = 70;
 
@@ -897,9 +787,6 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
   std::unique_lock<std::mutex> locker(_mutexDebugImage);
   _debugString = debugROStringForVideo_tmp;
   locker.unlock();
-
-  std::lock_guard<std::mutex> lock(debugROStringForVideo_mutex);
-  debugROStringForVideo = debugROStringForVideo_tmp;
 }
 
 /*
@@ -1327,6 +1214,13 @@ void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel,
     std::cerr << "ERROR: Cannot set velocity for opencv" << std::endl;
   }
 #endif
+}
+
+std::string RobotOdometry::GetDebugString() {
+  std::unique_lock<std::mutex> locker(_mutexDebugImage);
+  std::string debugCopy = _debugString;
+  locker.unlock();
+  return debugCopy;
 }
 
 void RobotOdometry::GetDebugImage(cv::Mat &debugImage, cv::Point offset) {

@@ -1,12 +1,9 @@
 #pragma once
 #include <opencv2/core.hpp>
-#include "HeuristicOdometry.h"
-#include "../../ThreadPool.h"
 #include "../../Clock.h"
 #include "../OdometryBase.h"
 #include "RobotTracker.h"
 #include <unordered_set>
-#include "imgui.h"
 
 // TrackedBBox
 // Unlike robot tracker which trackes foreground movement, this track boxes of interest 
@@ -32,9 +29,6 @@ struct TrackedBBox
 
 // ***********************
 // Camera Decoder Class
-extern std::mutex debugROStringForVideo_mutex;
-extern std::string debugROStringForVideo;
-
 class HeuristicOdometry : public OdometryBase
 {
 public:

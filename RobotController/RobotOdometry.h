@@ -7,6 +7,7 @@
 #include "Globals.h"
 #include "CVRotation.h"
 #include "CameraReceiver.h"
+#include "OdometryPoller.h"
 #include "Odometry/OdometryBase.h"
 #include "Odometry/BlobDetection/BlobDetection.h"
 #include "Odometry/Heuristic1/HeuristicOdometry.h"
@@ -60,7 +61,7 @@ public:
 
     void Update(int videoID); // Updates the odometry based on current data
 
-    void FuseAndUpdatePositions(int videoID);
+    void FuseAndUpdatePositions(int videoID, const RawInputs& inputs);
 
     bool IsTrackingGoodQuality();
 
@@ -85,12 +86,19 @@ public:
 
     void _AdjustAngleWithArrowKeys();
 
+    // Get the current debug string for external display (thread-safe)
+    std::string GetDebugString();
+
 private:
     // Video source to initialize odometry olgorithms with
     ICameraReceiver& _videoSource;
 
     // Tunings
     const double _dataAgeThreshold = 0.1; // How old data can be before we consider it invalid
+
+    // Input polling
+    OdometryPoller _poller;
+    RawInputs _prevInputs;
 
     // Some of our odometry algorithms
     BlobDetection _odometry_Blob;
