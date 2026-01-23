@@ -5,7 +5,6 @@
 #include "RobotLink.h"
 #include <opencv2/core.hpp>
 #include <algorithm>
-#include "UIWidgets/IMUWidget.h"
 #include "UIWidgets/RobotControllerGUI.h"
 #include "imgui.h"
 #include "Strategies/Kill.h"
