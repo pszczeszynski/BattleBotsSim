@@ -439,6 +439,9 @@ void RobotOdometry::FuseAndUpdatePositions(int videoID) {
       // Mark that we should force these angles to be the human's
       ext_dataOpponent_Heuristic.InvalidateAngle();
       ext_dataOpponent_Blob.InvalidateAngle();
+      
+      // Set flag so the Human branch will be selected in THEM ROT
+      humanThemAngle_valid = true;
 
       debugROStringForVideo_tmp +=
           "Human_Rot set = " +
