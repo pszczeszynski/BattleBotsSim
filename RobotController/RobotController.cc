@@ -134,8 +134,6 @@ void RobotController::Run() {
   ClockWidget loopClock("Total loop time");
   cv::Mat zeroArray;
 
-  int videoID = -1;
-
   // receive until the peer closes the connection
   while (true) {
     try {
@@ -146,7 +144,7 @@ void RobotController::Run() {
       loopClock.markStart();
 
       // init drawing image to latest frame from camera
-      videoID = UpdateDrawingImage();
+      UpdateDrawingImage();
 
       // std::cerr << "main loop 1.00" << std::endl;
       // update the gamepad
@@ -174,7 +172,7 @@ void RobotController::Run() {
 
       // std::cerr << "main loop 1.03" << std::endl;
       // Update all our odometry data
-      odometry.Update(videoID);
+      odometry.Update();
       // std::cerr << "main loop 1.04" << std::endl;
 
       // run our robot controller loop

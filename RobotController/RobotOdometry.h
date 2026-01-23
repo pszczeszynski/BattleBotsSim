@@ -39,6 +39,45 @@ enum OdometryAlg
     Gyro
 };
 
+// Back-annotation instructions for algorithms that need position/angle updates
+struct BackAnnotation {
+    // Swap operations (must happen before other back-annotations)
+    bool swapHeuristic = false;
+    bool swapBlob = false;
+    
+    // Robot back-annotation
+    bool setRobotPos_Heuristic = false;
+    bool setRobotPos_Blob = false;
+    bool forceRobotPos_Heuristic = false;
+    bool forceRobotPos_Blob = false;
+    bool setRobotAngle_Heuristic = false;
+    bool setRobotAngle_Blob = false;
+    
+    // Opponent back-annotation
+    bool setOpponentPos_Heuristic = false;
+    bool setOpponentPos_Blob = false;
+    bool setOpponentAngle_Heuristic = false;
+    bool setOpponentAngle_Blob = false;
+    bool setOpponentAngle_LKFlow = false;
+    
+    // ROI update for LKFlow
+    bool updateLKFlowROI = false;
+    cv::Rect lkFlowROI;
+};
+
+// Output of fusion process
+struct FusionOutput {
+    // Fused odometry results
+    OdometryData robot;
+    OdometryData opponent;
+    
+    // Back-annotation instructions
+    BackAnnotation backAnnotate;
+    
+    // Debug information
+    std::string debugString;
+};
+
 
 class RobotOdometry
 {
@@ -59,9 +98,13 @@ public:
 
     float GetIMUOffset();
 
-    void Update(int videoID); // Updates the odometry based on current data
+    void Update(); // Updates the odometry based on current data
 
-    void FuseAndUpdatePositions(int videoID, const RawInputs& inputs);
+    FusionOutput Fuse(const RawInputs& inputs, double now);
+    void ApplyBackAnnotation(const BackAnnotation& backAnnotate, 
+                             const OdometryData& robot, 
+                             const OdometryData& opponent);
+    void DrawTrackingVisualization();
 
     bool IsTrackingGoodQuality();
 
@@ -100,41 +143,18 @@ private:
     OdometryPoller _poller;
     RawInputs _prevInputs;
 
-    // Some of our odometry algorithms
+    // Odometry algorithms
     BlobDetection _odometry_Blob;
-    OdometryData _dataRobot_Blob;
-    OdometryData _dataOpponent_Blob;
-
     HeuristicOdometry _odometry_Heuristic;
-    OdometryData _dataRobot_Heuristic;
-    OdometryData _dataOpponent_Heuristic;
-    OdometryData _dataOpponent_Heuristic_prev;
-
     CVPosition _odometry_Neural;
-    OdometryData _dataRobot_Neural;
-
     CVRotation _odometry_NeuralRot;
-    OdometryData _dataRobot_NeuralRot;
-
     HumanPosition _odometry_Human;
-    OdometryData _dataRobot_Human;
-
     HumanPosition _odometry_Human_Heuristic;
-
-    bool _dataRobot_Human_is_new = false;
-    OdometryData _dataOpponent_Human;
-    bool _dataOpponent_Human_is_new = false;
-
     OdometryIMU _odometry_IMU;
-    OdometryData _dataRobot_IMU;
-
     LKFlowTracker _odometry_LKFlow;
-    OdometryData _dataOpponent_LKFlow;  // Only tracks opponent, robot data always invalid
 
 #ifdef USE_OPENCV_TRACKER
     OpenCVTracker _odometry_opencv;
-    OdometryData _dataRobot_opencv;
-    OdometryData _dataOpponent_opencv;
 #endif
 
 
