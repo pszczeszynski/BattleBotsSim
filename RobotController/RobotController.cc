@@ -1,6 +1,8 @@
 #include "RobotController.h"
 
 #include <algorithm>
+#include <thread>
+#include <chrono>
 #include <opencv2/core.hpp>
 
 #include "DriverStationLog.h"
@@ -72,23 +74,17 @@ RobotController& RobotController::GetInstance() {
 /**
  * Gets the most recent imu data from the robot
  */
-IMUData& RobotController::GetIMUData() { return _lastIMUMessage.imuData; }
+IMUData RobotController::GetIMUData() {
+  std::lock_guard<std::mutex> lock(_imudataMutex);
+  return _lastIMUMessage.imuData;
+}
 
 /**
  * Gets the most recent can data from the robot
  */
 CANData RobotController::GetCANData() {
-  CANData ret;
-  // make everything 0
-  memset(&ret, 0, sizeof(CANData));
-  // lock the mutex
-  _lastCanMessageMutex.lock();
-  // copy the data
-  ret = _lastCANMessage.canData;
-  // unlock the mutex
-  _lastCanMessageMutex.unlock();
-  // return the data
-  return ret;
+  std::lock_guard<std::mutex> lock(_lastCanMessageMutex);
+  return _lastCANMessage.canData;
 }
 
 long loopCount = 0;
@@ -123,7 +119,7 @@ void RobotController::Run() {
 
   // Initialize GUI on main thread:
   // run the gui in a separate thread
-  std::thread guiThread = std::thread([]() {
+  std::thread guiThread = std::thread([this]() {
     std::cout << "STARTING GUI" << std::endl;
 
     RobotControllerGUI::GetInstance();
@@ -132,8 +128,9 @@ void RobotController::Run() {
       // update the gui
       RobotControllerGUI::GetInstance().Update();
     }
+    std::cout << "GUI thread exiting cleanly" << std::endl;
   });
-
+  
   ClockWidget loopClock("Total loop time");
   cv::Mat zeroArray;
 

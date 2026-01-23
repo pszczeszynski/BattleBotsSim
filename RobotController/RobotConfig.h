@@ -1,9 +1,6 @@
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include "Globals.h"
+#include <string>
 
 extern std::string SAVE_FILE_NAME;
 

@@ -2,6 +2,7 @@
 #include "ServerSocket.h"
 #include "Clock.h"
 
+#include <atomic>
 #include "CameraReceiver.h"
 #include "RobotOdometry.h"
 #include "RobotLink.h"
@@ -23,7 +24,7 @@ public:
     RobotController();
     static RobotController& GetInstance();
 
-    IMUData& GetIMUData();
+    IMUData GetIMUData();
     long GetIMUFrame(IMUData &output, long old_id, double* frameTime);
     CANData GetCANData();
 
@@ -102,7 +103,8 @@ private:
     AStarAttack aStarMode;
     Kill killMode;
 
-
+    // GUI thread control
+    std::atomic<bool> _running{true};
 
 
     /////// WIDGETS ///////
