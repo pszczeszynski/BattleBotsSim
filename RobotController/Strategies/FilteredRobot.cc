@@ -4,11 +4,6 @@
 #include <cstdlib>
 
 
-#ifndef angleWrapRad
-#define angleWrapRad(rad) ((rad < -M_PI) ? fmod(rad + M_PI, 2*M_PI) + M_PI : fmod(rad + M_PI, 2*M_PI) - M_PI)
-#endif
-
-
 
 
 // CONSTRUCTOR
@@ -140,7 +135,7 @@ std::vector<std::vector<float>> FilteredRobot::kalmanExtrapVel(float time) {
     std::vector<float> extrapolatedPos = {
         posFiltered[0] + deltaXField,
         posFiltered[1] + deltaYField,
-        (float) angleWrapRad(posFiltered[2] + deltaT)
+        (float) angle_wrap(posFiltered[2] + deltaT)
     }; 
 
     // rotate vel by delta angle
@@ -188,7 +183,7 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
     std::vector<float> extrapolatedPos = {
         posFiltered[0] + deltaXField,
         posFiltered[1] + deltaYField,
-        (float) angleWrapRad(posFiltered[2] + deltaT)
+        (float) angle_wrap(posFiltered[2] + deltaT)
     }; 
 
     // rotate vel by delta angle
@@ -273,8 +268,8 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float m
     float angleError = angle_wrap(targetAngle - posFiltered[2] + reverseOffset); // how far off we are from target
 
     // rewrap based on specified turn direction
-    if(enforceTurnDirection == 1) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-    if(enforceTurnDirection == -1) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+    if(enforceTurnDirection == 1) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+    if(enforceTurnDirection == -1) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
 
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
@@ -509,7 +504,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         float d = opp.distanceTo(dummyOrb.position());
         float theta = acos(radius / d);
         float alpha = atan2(dummyOrb.position().y - opp.position().y, dummyOrb.position().x - opp.position().x);
-        float theta2 = angleWrapRad(alpha + (CW? 1 : -1)*theta);
+        float theta2 = angle_wrap(alpha + (CW? 1 : -1)*theta);
 
         cv::Point2f dummyFollow = opp.position() + radius*(cv::Point2f(cos(theta2), sin(theta2)));
 
@@ -520,8 +515,8 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 
         
         // force a turn around if necessary
-        if(turnAway && CW && !turningCorrect) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-        if(turnAway && !CW && !turningCorrect) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+        if(turnAway && CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+        if(turnAway && !CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
         
 
         
@@ -577,7 +572,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         simPos = {
             simPos[0] + deltaXField,
             simPos[1] + deltaYField,
-            (float) angleWrapRad(orientation + turnDistance)
+            (float) angle_wrap(orientation + turnDistance)
         };
 
         simTime += timeStep;

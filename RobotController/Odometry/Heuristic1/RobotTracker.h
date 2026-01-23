@@ -1,8 +1,8 @@
 #pragma once
 #include <opencv2/core.hpp>
-#include "../../ThreadPool.h"
 #include <math.h>
 #include "../../Clock.h"
+#include <condition_variable>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -14,18 +14,6 @@
 
 #ifndef rad2deg
 #define rad2deg(rad) (rad * 180.0 / M_PI)
-#endif
-
-#ifndef angleWrap
-#define angleWrap(degree) ((degree < -180.0) ? fmod(degree + 180.0, 360.0) + 180.0 : fmod(degree + 180.0, 360.0) - 180.0)
-#endif
-
-#ifndef angleWrap90
-#define angleWrap90(degree) ((degree < -90.0) ? fmod(degree + 90.0, 180.0) + 90.0 : fmod(degree + 90.0, 180.0) - 90.0)
-#endif
-
-#ifndef angleWrapRad
-#define angleWrapRad(rad) ((rad < -M_PI) ? fmod(rad + M_PI, 2*M_PI) + M_PI : fmod(rad + M_PI, 2*M_PI) - M_PI)
 #endif
 
 class Vector2;

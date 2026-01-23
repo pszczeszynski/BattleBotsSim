@@ -1,19 +1,11 @@
 #include "RobotTracker.h"
 
-#include <iostream>
-#include "../../Globals.h"
 #include <vector>
-#include <algorithm>
-#include <iterator>
-#include <signal.h>
-#include <windows.h>
-#include <thread>
 #include <sys/stat.h>
-#include <filesystem>
 #include <condition_variable>
-#include <functional>
 #include "../../MathUtils.h"
 #include "../../RobotConfig.h"
+#include "../../ThreadPool.h"
 
 // Initialize static variables
 bool RobotTracker::useMultithreading = true;
@@ -224,12 +216,12 @@ Vector2 LimitPointToRect(cv::Rect &roi, Vector2 point)
 cv::Rect getBoundingRect(const cv::Rect &rect1, const cv::Rect &rect2, int buffer)
 {
     // Calculate the top left point of the bounding rectangle
-    int x = min(rect1.x, rect2.x) - buffer;
-    int y = min(rect1.y, rect2.y) - buffer;
+    int x = std::min(rect1.x, rect2.x) - buffer;
+    int y = std::min(rect1.y, rect2.y) - buffer;
 
     // Calculate the bottom right point of the bounding rectangle
-    int x2 = max(rect1.x + rect1.width, rect2.x + rect2.width) + 2 * buffer;
-    int y2 = max(rect1.y + rect1.height, rect2.y + rect2.height) + 2 * buffer;
+    int x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width) + 2 * buffer;
+    int y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height) + 2 * buffer;
 
     // Create the bounding rectangle
     cv::Rect boundingRect(x, y, x2 - x, y2 - y);
@@ -325,7 +317,7 @@ float Vector2::angle(void)
         return 0;
     }
 
-    return angleWrap(rad2deg(atan2f(y, x)));
+    return angle_wrap(atan2f(y, x)) * 180.0 / M_PI;
 }
 
 float Vector2::angleRad(void)
@@ -626,7 +618,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         // Compare rotation difference with older state
         float oldAngle = atan2(old_rotation.y, old_rotation.x);
         float currAngle = atan2(rotation.y, rotation.x);
-        float rotation_diff = fabs(angleWrapRad(currAngle - oldAngle)) * 180.0 / M_PI;
+        float rotation_diff = fabs(angle_wrap(currAngle - oldAngle)) * 180.0 / M_PI;
         if (rotation_diff < max_rotation_diff) {
             use_old_state = true;
         }
@@ -718,7 +710,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     // Calculate Rotation
     float rotAngle = atan2(rotation.y, rotation.x);
     float newAngle =  atan2(newRotation.y, newRotation.x);
-    float deltaAngle =  angleWrapRad(newAngle-rotAngle);
+    float deltaAngle =  angle_wrap(newAngle-rotAngle);
 
     // Scale angle by gain factor
     deltaAngle *= HEU_ROT_GAIN;
@@ -741,11 +733,11 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         // If dotProduct is negative, the robot is moving backward
         if (dotProduct < 0) {
             // Add 180 degrees (π radians) to velAngle to point in the forward direction
-            velAngle = angleWrapRad(velAngle + M_PI);
+            velAngle = angle_wrap(velAngle + M_PI);
         }
 
         // Calculate the delta angle
-        float deltaAngle = angleWrapRad(velAngle - rotAngle);
+        float deltaAngle = angle_wrap(velAngle - rotAngle);
 
 
         // Add a scaled version of the error
@@ -759,7 +751,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         {
             // Interpolate angles correctly by using the shortest path
             rotAngle = rotAngle + scalingfactor * deltaAngle;
-            rotAngle = angleWrap(rotAngle); // Ensure the result is wrapped
+            rotAngle = angle_wrap(rotAngle); // Ensure the result is wrapped (in radians)
         }
 
         //rotAngle += scalingfactor * ((deltaAngle > 0) ? 1.0 : -1.0);

@@ -486,7 +486,7 @@ void AStarAttack::tangentPoint(FollowPoint &follow) {
     // epic math
     float theta = acos(follow.radius / d);
     float alpha = atan2(orbFiltered.position().y - oppFiltered.position().y, orbFiltered.position().x - oppFiltered.position().x);
-    float theta2 = angleWrapRad(alpha + (follow.CW? 1 : -1)*theta);
+    float theta2 = angle_wrap(alpha + (follow.CW? 1 : -1)*theta);
 
     follow.point = oppFiltered.position() + follow.radius*(cv::Point2f(cos(theta2), sin(theta2)));
 }
@@ -612,7 +612,7 @@ float AStarAttack::wallScore(FollowPoint follow) {
     // scan up to a full circle
     for (float sweptAngle = 0; abs(sweptAngle) < 2*M_PI; sweptAngle += sweepIncrement) {
 
-        float currAngle = angleWrapRad(startAngle + sweptAngle); // current angle we're scanning at
+        float currAngle = angle_wrap(startAngle + sweptAngle); // current angle we're scanning at
 
         cv::Point2f testPoint = field.clipPointInBounds(oppFiltered.position()); // point to ray cast
         constexpr int kMaxRaycastSteps = 400;
@@ -1086,8 +1086,8 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
     // convert to world angle
-    float minWorldAngle = angleWrapRad(minAngle*direction + angleToOrb + oppFiltered.angle(true));
-    float maxWorldAngle = angleWrapRad(maxAngle*direction + angleToOrb + oppFiltered.angle(true));
+    float minWorldAngle = angle_wrap(minAngle*direction + angleToOrb + oppFiltered.angle(true));
+    float maxWorldAngle = angle_wrap(maxAngle*direction + angleToOrb + oppFiltered.angle(true));
 
 
 
@@ -1095,8 +1095,8 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
     if(distanceToOpp > follow.radius - ppRad()) {
         cv::Point2f ppFollow = ppPoint(follow);
         float angleToPP = angle(orbFiltered.position(), ppFollow);
-        float maxAngleDifference = angleWrapRad(maxWorldAngle - angleToPP);
-        float minAngleDifference = angleWrapRad(minWorldAngle - angleToPP);
+        float maxAngleDifference = angle_wrap(maxWorldAngle - angleToPP);
+        float minAngleDifference = angle_wrap(minWorldAngle - angleToPP);
 
 
         // if(CW) { safe_circle(RobotController::GetInstance().GetDrawingImage(), ppFollow, 5, cv::Scalar(255, 255, 255), 5); }
@@ -1113,16 +1113,16 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
 
 
     // angle to follow
-    float angleRange = angleWrapRad(maxWorldAngle - minWorldAngle) * direction;
+    float angleRange = angle_wrap(maxWorldAngle - minWorldAngle) * direction;
     float midAngle = minWorldAngle + (angleRange / 2) * direction;
-    float angleError = angleWrapRad(orbFiltered.angle(follow.forward) - midAngle) * direction;
+    float angleError = angle_wrap(orbFiltered.angle(follow.forward) - midAngle) * direction;
 
 
     // default: assume we're in the angle range so just go forward
     // add an offset to make sure we turn in the right direction (no rounding errors)
     // float offset = follow.turnRight? 1.0f*TO_RAD : -1.0f*TO_RAD;
     float offset = 0.0f;
-    float followAngle = angleWrapRad(orbFiltered.angle(follow.forward) + offset);
+    float followAngle = angle_wrap(orbFiltered.angle(follow.forward) + offset);
     if(angleError < -angleRange/2) { followAngle = minWorldAngle; }
     if(angleError > angleRange/2) { followAngle = maxWorldAngle; }
 

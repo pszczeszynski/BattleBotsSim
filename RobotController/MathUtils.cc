@@ -45,8 +45,11 @@ cv::Point2f rotate_point(cv::Point2f p, double angle)
 
 cv::Point3f rotate3dPoint(cv::Point3f p, double angle_rad)
 {
-    p.y = p.y * cos(angle_rad) - p.z * sin(angle_rad);
-    p.z = p.y * sin(angle_rad) + p.z * cos(angle_rad);
+    // Store original values before modification to avoid using modified p.y in p.z calculation
+    double original_y = p.y;
+    double original_z = p.z;
+    p.y = original_y * cos(angle_rad) - original_z * sin(angle_rad);
+    p.z = original_y * sin(angle_rad) + original_z * cos(angle_rad);
     return p;
 }
 
