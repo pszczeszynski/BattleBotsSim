@@ -190,8 +190,16 @@ void RobotOdometry::Update() {
   if (fusionStateMachine == FUSION_NORMAL) {
     double currTime = Clock::programClock.getElapsedTime();
 
-    // Call fusion (pure function)
-    FusionOutput fusionResult = Fuse(inputs, currTime);
+    // Copy baseline state under lock before fusion
+    OdometryData prevRobot, prevOpponent;
+    {
+      std::lock_guard<std::mutex> lock(_updateMutex);
+      prevRobot = _dataRobot;
+      prevOpponent = _dataOpponent;
+    }
+
+    // Call fusion (pure function, no shared state access)
+    FusionOutput fusionResult = Fuse(inputs, currTime, prevRobot, prevOpponent);
 
     // Apply fusion results
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -230,12 +238,15 @@ void RobotOdometry::Update() {
   // locker will get unlocked here automatically
 }
 
-FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now) {
+FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
+                                 const OdometryData &prevRobot,
+                                 const OdometryData &prevOpponent) {
   FusionOutput output;
 
-  // Initialize output with current state (for extrapolation baseline)
-  output.robot = _dataRobot;
-  output.opponent = _dataOpponent;
+  // Initialize output with previous state (for extrapolation baseline)
+  // These are passed as parameters to avoid reading _dataRobot/_dataOpponent without lock
+  output.robot = prevRobot;
+  output.opponent = prevOpponent;
   // ******************************
   // We have the following sources of data:
   // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |
@@ -297,33 +308,18 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now) {
   //
   //
 
-  // Make local copies to call non-const methods (ExtrapolateBoundedTo, GetAge,
-  // etc.)
-  // TODO: Ideally OdometryData methods should be const, but that's a larger
-  // change
-  OdometryData us_blob = inputs.us_blob;
-  OdometryData us_heuristic = inputs.us_heuristic;
-  OdometryData us_neural = inputs.us_neural;
-  OdometryData us_neuralrot = inputs.us_neuralrot;
-  OdometryData us_imu = inputs.us_imu;
-  OdometryData us_human = inputs.us_human;
-  OdometryData them_human = inputs.them_human;
-  OdometryData them_blob = inputs.them_blob;
-  OdometryData them_heuristic = inputs.them_heuristic;
-  OdometryData them_lkflow = inputs.them_lkflow;
-
   // Extrapolate input data to current time
-  OdometryData ext_dataRobot_Blob = us_blob.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Heuristic = us_heuristic.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Neural = us_neural;
-  OdometryData ext_dataRobot_NeuralRot = us_neuralrot.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_IMU = us_imu.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Human = us_human.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_Human = them_human.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_Blob = them_blob.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataRobot_Blob = inputs.us_blob.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataRobot_Heuristic = inputs.us_heuristic.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataRobot_Neural = inputs.us_neural;
+  OdometryData ext_dataRobot_NeuralRot = inputs.us_neuralrot.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataRobot_IMU = inputs.us_imu.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataRobot_Human = inputs.us_human.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataOpponent_Human = inputs.them_human.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataOpponent_Blob = inputs.them_blob.ExtrapolateBoundedTo(now);
   OdometryData ext_dataOpponent_Heuristic =
-      them_heuristic.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_LKFlow = them_lkflow.ExtrapolateBoundedTo(now);
+      inputs.them_heuristic.ExtrapolateBoundedTo(now);
+  OdometryData ext_dataOpponent_LKFlow = inputs.them_lkflow.ExtrapolateBoundedTo(now);
 
   // ******************************
   // HUMAN OVERRIDES
@@ -361,40 +357,40 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now) {
   // ******************************
 
   bool heuristicUsValid = inputs.IsRunning(RawInputs::US_HEURISTIC) &&
-                          (us_heuristic.GetAge() < _dataAgeThreshold);
-  bool heuristicUsPos_valid = heuristicUsValid && us_heuristic.robotPosValid;
-  bool heuristicUsAngle_valid = heuristicUsValid && us_heuristic.IsAngleValid();
+                          (inputs.us_heuristic.GetAge() < _dataAgeThreshold);
+  bool heuristicUsPos_valid = heuristicUsValid && inputs.us_heuristic.robotPosValid;
+  bool heuristicUsAngle_valid = heuristicUsValid && inputs.us_heuristic.IsAngleValid();
   bool heuristicThemValid = inputs.IsRunning(RawInputs::THEM_HEURISTIC) &&
-                            (them_heuristic.GetAge() < _dataAgeThreshold);
+                            (inputs.them_heuristic.GetAge() < _dataAgeThreshold);
   bool heuristicThemPos_valid =
-      heuristicThemValid && them_heuristic.robotPosValid;
+      heuristicThemValid && inputs.them_heuristic.robotPosValid;
   bool heuristicThemAngle_valid =
-      heuristicThemValid && them_heuristic.IsAngleValid();
+      heuristicThemValid && inputs.them_heuristic.IsAngleValid();
 
   bool blobUsValid = inputs.IsRunning(RawInputs::US_BLOB) &&
-                     (us_blob.GetAge() < _dataAgeThreshold);
-  bool blobUsPos_valid = blobUsValid && us_blob.robotPosValid;
-  bool blobUsAngle_valid = blobUsValid && us_blob.IsAngleValid();
+                     (inputs.us_blob.GetAge() < _dataAgeThreshold);
+  bool blobUsPos_valid = blobUsValid && inputs.us_blob.robotPosValid;
+  bool blobUsAngle_valid = blobUsValid && inputs.us_blob.IsAngleValid();
   bool blobThemValid = inputs.IsRunning(RawInputs::THEM_BLOB) &&
-                       (them_blob.GetAge() < _dataAgeThreshold);
-  bool blobThemPos_valid = blobThemValid && them_blob.robotPosValid;
-  bool blobThemAngle_valid = blobThemValid && them_blob.IsAngleValid();
+                       (inputs.them_blob.GetAge() < _dataAgeThreshold);
+  bool blobThemPos_valid = blobThemValid && inputs.them_blob.robotPosValid;
+  bool blobThemAngle_valid = blobThemValid && inputs.them_blob.IsAngleValid();
 
   bool lkFlowThemValid = inputs.IsRunning(RawInputs::THEM_LKFLOW) &&
-                         (them_lkflow.GetAge() < _dataAgeThreshold);
-  bool lkFlowThemAngle_valid = lkFlowThemValid && them_lkflow.IsAngleValid();
+                         (inputs.them_lkflow.GetAge() < _dataAgeThreshold);
+  bool lkFlowThemAngle_valid = lkFlowThemValid && inputs.them_lkflow.IsAngleValid();
 
   bool neuralUsPos_valid =
-      inputs.IsRunning(RawInputs::US_NEURAL) && us_neural.robotPosValid;  // &&
-  //  (us_neural.GetAge() < _dataAgeThreshold);
+      inputs.IsRunning(RawInputs::US_NEURAL) && inputs.us_neural.robotPosValid;  // &&
+  //  (inputs.us_neural.GetAge() < _dataAgeThreshold);
 
   bool neuralRot_valid = inputs.IsRunning(RawInputs::US_NEURALROT) &&
-                         us_neuralrot.IsAngleValid() &&
-                         (us_neuralrot.GetAge() < _dataAgeThreshold);
+                         inputs.us_neuralrot.IsAngleValid() &&
+                         (inputs.us_neuralrot.GetAge() < _dataAgeThreshold);
 
   bool imuValid = inputs.IsRunning(RawInputs::US_IMU) &&
-                  (us_imu.GetAge() < _dataAgeThreshold);
-  bool imuUsRot_valid = imuValid && us_imu.IsAngleValid();
+                  (inputs.us_imu.GetAge() < _dataAgeThreshold);
+  bool imuUsRot_valid = imuValid && inputs.us_imu.IsAngleValid();
 
   debugROStringForVideo_tmp += "ALG U_P U_V U_R UAV T_P T_V T_R TAV\n";
   debugROStringForVideo_tmp += "Heu  " + std::to_string(heuristicUsPos_valid) +
@@ -764,10 +760,6 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now) {
 void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
                                         const OdometryData &robot,
                                         const OdometryData &opponent) {
-  // Make local copies to call non-const methods
-  OdometryData robotData = robot;
-  OdometryData opponentData = opponent;
-
   // CRITICAL: Apply swaps FIRST, before any other back-annotations
   // This ensures the algorithm state is correct for subsequent operations
   if (backAnnotate.swapHeuristic) {
@@ -781,68 +773,68 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   // Robot Position and velocity - Heuristic
   if (backAnnotate.setRobotPos_Heuristic) {
     if (backAnnotate.forceRobotPos_Heuristic) {
-      _odometry_Heuristic.ForcePosition(robotData.robotPosition, false);
+      _odometry_Heuristic.ForcePosition(robot.robotPosition, false);
     } else {
-      _odometry_Heuristic.SetPosition(robotData.robotPosition, false);
+      _odometry_Heuristic.SetPosition(robot.robotPosition, false);
     }
-    _odometry_Heuristic.SetVelocity(robotData.robotVelocity, false);
+    _odometry_Heuristic.SetVelocity(robot.robotVelocity, false);
   }
 
   // Robot Position and velocity - Blob
   if (backAnnotate.setRobotPos_Blob) {
     if (backAnnotate.forceRobotPos_Blob) {
-      _odometry_Blob.ForcePosition(robotData.robotPosition, false);
+      _odometry_Blob.ForcePosition(robot.robotPosition, false);
     } else {
-      _odometry_Blob.SetPosition(robotData.robotPosition, false);
+      _odometry_Blob.SetPosition(robot.robotPosition, false);
     }
-    _odometry_Blob.SetVelocity(robotData.robotVelocity, false);
+    _odometry_Blob.SetVelocity(robot.robotVelocity, false);
   }
 
   // Robot Angle - Heuristic
   if (backAnnotate.setRobotAngle_Heuristic) {
-    _odometry_Heuristic.SetAngle(robotData.GetAngle(), false,
-                                 robotData.GetAngleFrameTime(),
-                                 robotData.GetAngleVelocity(), true);
+    _odometry_Heuristic.SetAngle(robot.GetAngle(), false,
+                                 robot.GetAngleFrameTime(),
+                                 robot.GetAngleVelocity(), true);
   }
 
   // Robot Angle - Blob
   if (backAnnotate.setRobotAngle_Blob) {
-    _odometry_Blob.SetAngle(robotData.GetAngle(), false,
-                            robotData.GetAngleFrameTime(),
-                            robotData.GetAngleVelocity(), true);
+    _odometry_Blob.SetAngle(robot.GetAngle(), false,
+                            robot.GetAngleFrameTime(),
+                            robot.GetAngleVelocity(), true);
   }
 
   // Opponent Position and velocity - Heuristic
   if (backAnnotate.setOpponentPos_Heuristic) {
-    _odometry_Heuristic.SetPosition(opponentData.robotPosition, true);
-    _odometry_Heuristic.SetVelocity(opponentData.robotVelocity, true);
+    _odometry_Heuristic.SetPosition(opponent.robotPosition, true);
+    _odometry_Heuristic.SetVelocity(opponent.robotVelocity, true);
   }
 
   // Opponent Position and velocity - Blob
   if (backAnnotate.setOpponentPos_Blob) {
-    _odometry_Blob.SetPosition(opponentData.robotPosition, true);
-    _odometry_Blob.SetVelocity(opponentData.robotVelocity, true);
+    _odometry_Blob.SetPosition(opponent.robotPosition, true);
+    _odometry_Blob.SetVelocity(opponent.robotVelocity, true);
   }
 
   // Opponent Angle - Heuristic
   if (backAnnotate.setOpponentAngle_Heuristic) {
-    _odometry_Heuristic.SetAngle(opponentData.GetAngle(), true,
-                                 opponentData.GetAngleFrameTime(),
-                                 opponentData.GetAngleVelocity(), true);
+    _odometry_Heuristic.SetAngle(opponent.GetAngle(), true,
+                                 opponent.GetAngleFrameTime(),
+                                 opponent.GetAngleVelocity(), true);
   }
 
   // Opponent Angle - Blob
   if (backAnnotate.setOpponentAngle_Blob) {
-    _odometry_Blob.SetAngle(opponentData.GetAngle(), true,
-                            opponentData.GetAngleFrameTime(),
-                            opponentData.GetAngleVelocity(), true);
+    _odometry_Blob.SetAngle(opponent.GetAngle(), true,
+                            opponent.GetAngleFrameTime(),
+                            opponent.GetAngleVelocity(), true);
   }
 
   // Opponent Angle - LKFlow
   if (backAnnotate.setOpponentAngle_LKFlow) {
-    _odometry_LKFlow.SetAngle(opponentData.GetAngle(), true,
-                              opponentData.GetAngleFrameTime(),
-                              opponentData.GetAngleVelocity(), true);
+    _odometry_LKFlow.SetAngle(opponent.GetAngle(), true,
+                              opponent.GetAngleFrameTime(),
+                              opponent.GetAngleVelocity(), true);
   }
 
   // LKFlow ROI update

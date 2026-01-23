@@ -100,7 +100,9 @@ public:
 
     void Update(); // Updates the odometry based on current data
 
-    FusionOutput Fuse(const RawInputs& inputs, double now);
+    FusionOutput Fuse(const RawInputs& inputs, double now,
+                      const OdometryData& prevRobot,
+                      const OdometryData& prevOpponent);
     void ApplyBackAnnotation(const BackAnnotation& backAnnotate, 
                              const OdometryData& robot, 
                              const OdometryData& opponent);

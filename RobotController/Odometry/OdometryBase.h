@@ -26,17 +26,17 @@ public:
                      // means it hasn't been initialized yet
     void Clear();    // Clears all position and user data to invalid;
 
-    bool IsAngleValid(); // returns true if the angle is valid
+    bool IsAngleValid() const; // returns true if the angle is valid
     void SetAngle(Angle newAngle, double newAngleVelocity,
                   double angleFrameTime, bool valid);
-    Angle GetAngle(); // gets the last set angle without extrapolation
-    double GetAngleFrameTime();  // returns the time of the frame the angle was calculated on
-    double GetAngleVelocity(); // returns the last set angle velocity
+    Angle GetAngle() const; // gets the last set angle without extrapolation
+    double GetAngleFrameTime() const;  // returns the time of the frame the angle was calculated on
+    double GetAngleVelocity() const; // returns the last set angle velocity
 
     // returns a new instance of the data extrapolated to the target time
     // the maxRelativeTime is the maximum time to extrapolate forward
     OdometryData ExtrapolateBoundedTo(double targetTime,
-                                      double maxRelativeTime = kMaxExtrapTimeS);
+                                      double maxRelativeTime = kMaxExtrapTimeS) const;
 
     void InvalidatePosition();
     void InvalidateAngle();
@@ -57,9 +57,9 @@ public:
     std::unordered_map<std::string, double> userDataDouble;
 
 
-    double GetAge(); // returns the age of this data in seconds
+    double GetAge() const; // returns the age of this data in seconds
 
-    bool IsPointInside(cv::Point2f point)
+    bool IsPointInside(cv::Point2f point) const
     {
         return (robotPosValid && rect.contains(point));
     }
@@ -67,7 +67,7 @@ public:
     void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes.
 private:
     // extrapolates the data to the new time without bound!
-    OdometryData _ExtrapolateTo(double newtime);
+    OdometryData _ExtrapolateTo(double newtime) const;
 
     // Rotation
     bool _angleValid = false;

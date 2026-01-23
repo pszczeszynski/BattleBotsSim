@@ -30,7 +30,7 @@ void OdometryData::Clear() {
   userDataDouble.clear();
 }
 
-OdometryData OdometryData::_ExtrapolateTo(double newtime) {
+OdometryData OdometryData::_ExtrapolateTo(double newtime) const {
   // return *this;
   OdometryData result = *this;  // Create a copy of current data
 
@@ -51,14 +51,14 @@ OdometryData OdometryData::_ExtrapolateTo(double newtime) {
 }
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
-                                                double maxRelativeTime) {
+                                                double maxRelativeTime) const {
   return _ExtrapolateTo((std::min)(targetTime, time + maxRelativeTime));
 }
 
 /**
  * Returns the age of this data in seconds
  */
-double OdometryData::GetAge() {
+double OdometryData::GetAge() const {
   return ClockWidget::programClock.getElapsedTime() - time;
 }
 
@@ -136,13 +136,13 @@ void OdometryData::SetAngle(Angle newAngle, double newAngleVelocity,
   _angleValid = valid;
 }
 
-Angle OdometryData::GetAngle() { return _angle; }
+Angle OdometryData::GetAngle() const { return _angle; }
 
-double OdometryData::GetAngleFrameTime() { return _angleFrameTime; }
+double OdometryData::GetAngleFrameTime() const { return _angleFrameTime; }
 
-double OdometryData::GetAngleVelocity() { return _angleVelocity; }
+double OdometryData::GetAngleVelocity() const { return _angleVelocity; }
 
-bool OdometryData::IsAngleValid() { return _angleValid; }
+bool OdometryData::IsAngleValid() const { return _angleValid; }
 
 // ***********************************************
 // ************ Odometry Base ********************
