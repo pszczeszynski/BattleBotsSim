@@ -1059,8 +1059,8 @@ float AStarAttack::turnScore(FollowPoint follow) {
     float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2] + reverseOffset);
 
     bool turningCorrect = (orbFiltered.angleTo(oppFiltered.position(), follow.forward) > 0 && follow.CW) || (orbFiltered.angleTo(oppFiltered.position(), follow.forward) < 0 && !follow.CW);
-    if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-    if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+    if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+    if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
 
     return abs(angleError);
 }

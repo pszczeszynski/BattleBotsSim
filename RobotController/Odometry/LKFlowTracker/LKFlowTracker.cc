@@ -643,6 +643,7 @@ void LKFlowTracker::SetAngle(Angle newAngle, bool opponentRobot,
                              bool valid) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
+  _angle = newAngle;
   OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
   odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
   odoData.id++;
