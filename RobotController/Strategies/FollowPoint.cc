@@ -12,12 +12,13 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, FilteredRobot opp
     this->opp = opp;
     this->oppSimPath = oppSimPath;
     
-    radius = 0; // default
-    point = cv::Point2f(0, 0); // default
-    driveAngle = 0; // default
+    radius = 0;
+    point = cv::Point2f(0, 0);
+    driveAngle = 0;
     oppETA = 0;
     orbETA = 0;
+    badTurn = false;
 
-    directionScores = {}; // default
-    orbSimPath = {}; // default
+    directionScores = {};
+    orbSimPath = {};
 }

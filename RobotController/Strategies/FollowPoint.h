@@ -20,6 +20,7 @@ public:
     bool forward; // if we're driving forwards (or backwards) to the point
     bool CW; // if this point is meant to go CW (or CCW) around the opp
     bool turnAway; // if this point is making sure to turn away from opp at first
+    bool badTurn; // if this point can't inflect the right way to be considered valid
 
     float radius; // attack radius corresponding to this point, the XY point doesn't always lie on this (ex if orb is close to the opponent in front of their weapon)
     float driveAngle; // angle to drive towards the point

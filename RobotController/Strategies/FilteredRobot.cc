@@ -222,9 +222,10 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
 
     // run until the sim time is above the max time
     std::vector<cv::Point2f> orbPathGarbage = {};
+    bool badTurnGarbage = false;
     while(simTime < maxExtrapTime) {
 
-        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway);
+        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway, badTurnGarbage);
         if(orbETA < simTime) { break; } // break when we arrive at the same time
         if(virtualOpp.moveSpeedSlow() < 1.0f && abs(virtualOpp.turnVel()) < 0.01f) { break; } // break if opp's vel has decayed
 
@@ -448,7 +449,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // simulates orb's path to the opp to calculate the ETA
-float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway) {
+float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, bool &badTurn) {
 
     int direction = forward ? 1 : -1;
 
@@ -479,6 +480,8 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         bool turningCorrect = (dummyOrb.angleTo(opp.position(), forward) > 0 && CW) || (dummyOrb.angleTo(opp.position(), forward) < 0 && !CW);
         if(dummyOrb.colliding(opp, 0.0f) && !turningCorrect && orbNeedsToFace) {
             simTime = 99999999999.0f;
+            std::cout << "bad turn";
+            badTurn = true;
             break;
         }
 
@@ -522,7 +525,10 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         
         
         // simulate what curvature controller would do
-        float curvature = 0.7f*angleError;
+        float curvature = 0.50f*angleError; // 0.65
+
+        float maxCurve = 99.0f; // 1.0
+        curvature = std::clamp(curvature, -maxCurve, maxCurve);
 
         // float timeStepStraight = 0.05f;
         // float timeStepSteep = 0.01f;
@@ -629,7 +635,7 @@ float FilteredRobot::moveETASim(float distance, float startVel, bool print) {
 // simulates to find estimated point time
 float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW, float angleMargin, bool forward, bool print) {
     constexpr uint64_t kMaxIterations = 3000;
-    float timeIncrement = 0.001f;
+    float timeIncrement = 0.01f;
     float timeSim = 0.0f;
 
     std::vector<float> posSim = posFiltered;

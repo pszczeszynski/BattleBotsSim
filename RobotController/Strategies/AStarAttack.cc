@@ -79,9 +79,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     // pointsTurnAway = {false};
     // pointsForward = {true};
 
-    pointsCW = {true, false};
-    pointsTurnAway = {false, false};
-    pointsForward = {true, true};
+    // pointsCW = {true, false};
+    // pointsTurnAway = {false, false};
+    // pointsForward = {true, true};
+
+    // pointsCW = {true, true};
+    // pointsTurnAway = {true, false};
+    // pointsForward = {true, true};
     
 
 
@@ -92,14 +96,23 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     // bumpers can enforce a single follow point
     if(gamepad.GetRightBumper()) {
         pointsCW = {true};
-        pointsTurnAway = {true};
+        pointsTurnAway = {false};
         pointsForward = {true};
     }
     if(gamepad.GetLeftBumper()) {
-        pointsCW = {true, true};
-        pointsTurnAway = {true, false};
+        pointsCW = {true, false};
+        pointsTurnAway = {false, false};
         pointsForward = {true, true};
+
+        pointsCW = {true};
+        pointsTurnAway = {true};
+        pointsForward = {true};
     }
+
+
+
+
+
 
 
 
@@ -113,7 +126,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
         driveAngle(follow);
         // avoidBoundsVector(follow);
 
-        follows.emplace_back(follow); // add follow point to the list of follow points
+        // if(follow.badTurn) {
+        //     follow = createFollowPoint(pointsCW[i], pointsForward[i], true, deltaTime);
+        //     driveAngle(follow);
+        // }
+
+        follows.emplace_back(follow);         
     }
 
 
@@ -417,7 +435,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
     float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
-        follow.forward, follow.CW, follow.turnAway);
+        follow.forward, follow.CW, follow.turnAway, follow.badTurn);
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
     // save these with the follow point
@@ -749,7 +767,8 @@ float AStarAttack::switchPointScore(FollowPoint follow) {
 
     // generate a predicted path to the follow point
     std::vector<cv::Point2f> path = {};
-    orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway);
+    bool garbage = false;
+    orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway, garbage);
 
 
     // see how long it'll take opp to get to each point
@@ -987,22 +1006,22 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
 
     // how far the robot has to turn to this point
-    // float slowness = std::clamp(1 - orbFiltered.moveSpeedSlow()/400, 0.0f, 1.0f);
+    float slowness = std::clamp(1 - orbFiltered.moveSpeedSlow()/350, 0.0f, 1.0f);
     float facingness = abs(oppFiltered.angleTo(orbFiltered.position(), false)) / M_PI;
 
-    float slowFacingGain = 0.0f; // 15
-    float fastAwayGain = 0.0f;
+    float slowFacingGain = 10.0f; // 15
+    float fastAwayGain = 5.0f;
 
-    float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(facingness);
-    turnGain = 1.0f;
-    follow.directionScores.emplace_back(turnScore(follow)*turnGain);
+    float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness);
+    turnGain = 8.0f; // 7.0
+    follow.directionScores.emplace_back(turnGain * turnScore(follow));
 
     
 
 
-
-    follow.directionScores.emplace_back(200.0f*switchPointScore(follow)*0.0f);
-
+    // turn past opp score
+    // follow.directionScores.emplace_back(200.0f*switchPointScore(follow)*0.0f);
+    follow.directionScores.emplace_back(0.0f * follow.badTurn);
 
 
 
@@ -1038,8 +1057,10 @@ float AStarAttack::turnScore(FollowPoint follow) {
     // how far we need to rotate to match the drive angle, includes enforced turn direction
     float reverseOffset = follow.forward ? 0 : M_PI;
     float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2] + reverseOffset);
-    // if(follow.turnRight) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-    // else { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+
+    bool turningCorrect = (orbFiltered.angleTo(oppFiltered.position(), follow.forward) > 0 && follow.CW) || (orbFiltered.angleTo(oppFiltered.position(), follow.forward) < 0 && !follow.CW);
+    if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
+    if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
 
     return abs(angleError);
 }
