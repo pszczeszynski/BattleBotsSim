@@ -3,10 +3,9 @@
 #include <opencv2/core.hpp>
 
 // clock widget
+#include "../Globals.h"
 #include "../Odometry/Heuristic1/RobotTracker.h"
 #include "../UIWidgets/ClockWidget.h"
-#include "../Globals.h"
-
 
 // ctor for odometry data
 OdometryData::OdometryData(int id)
