@@ -5,6 +5,7 @@
 // clock widget
 #include "../Odometry/Heuristic1/RobotTracker.h"
 #include "../UIWidgets/ClockWidget.h"
+#include "../Globals.h"
 
 
 // ctor for odometry data
