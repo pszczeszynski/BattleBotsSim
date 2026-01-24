@@ -968,9 +968,6 @@ void RobotOdometry::SwitchRobots() {
   OdometryData tempData = _dataRobot;
   _dataRobot = _dataOpponent;
   _dataOpponent = tempData;
-
-  _dataRobot.isUs = true;
-  _dataOpponent.isUs = false;
 }
 
 // Run Code

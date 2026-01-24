@@ -38,9 +38,6 @@ class OdometryData {
   void InvalidatePosition();
   void InvalidateAngle();
 
-  // Set to true for our robot to help generic functions know
-  bool isUs = false;
-
   // Our Position
   bool robotPosValid = false;
   cv::Point2f robotPosition;

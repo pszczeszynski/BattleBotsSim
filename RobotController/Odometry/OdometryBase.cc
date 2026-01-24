@@ -12,8 +12,6 @@
 
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
     : _videoSource(videoSource) {
-  _currDataRobot.isUs = true;      // Make sure this is set
-  _currDataOpponent.isUs = false;  // Make sure this is set
 };
 
 bool OdometryBase::IsRunning(void) { return _running.load(); }
@@ -126,9 +124,6 @@ void OdometryBase::SwitchRobots(void) {
   OdometryData temp_Robot = _currDataRobot;
   _currDataRobot = _currDataOpponent;
   _currDataOpponent = temp_Robot;
-
-  _currDataRobot.isUs = true;
-  _currDataOpponent.isUs = false;
 }
 
 // Set postion recommends newPos to be the center of the robot. The algorithm is

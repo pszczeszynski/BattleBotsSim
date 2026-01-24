@@ -211,7 +211,6 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData,
   if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot)) {
     // Clear curr data
     _currDataRobot.Clear();
-    _currDataRobot.isUs = true;  // Make sure this is set
     _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
     // Update our robot position/velocity/angle
     _SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot,
@@ -240,7 +239,6 @@ void BlobDetection::UpdateData(VisionClassification robotBlobData,
 
     // Clear curr data
     _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false;  // Make sure this is set
 
     _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
     // Update opponent position/velocity info
@@ -340,8 +338,7 @@ void BlobDetection::_GetSmoothedVisualVelocity(OdometryData& currData,
       (currData.robotPosition - prevData.robotPosition) / elapsedVelTime;
 
   // compute weight for interpolation. Reduce weight for opponents
-  double weight = ((currData.isUs) ? 1.0f : 0.8f) * elapsedVelTime * 1000 /
-                  NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
+  double weight = elapsedVelTime * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
 
   weight = min(weight, 1.0f);
 
@@ -477,15 +474,9 @@ void BlobDetection::SwitchRobots(void) {
   _currDataRobot = _currDataOpponent;
   _currDataOpponent = temp_Robot;
 
-  _currDataRobot.isUs = true;
-  _currDataOpponent.isUs = false;
-
   temp_Robot = _prevDataRobot;
   _prevDataRobot = _prevDataOpponent;
   _prevDataOpponent = temp_Robot;
-
-  _prevDataRobot.isUs = true;
-  _prevDataOpponent.isUs = false;
 }
 
 void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {

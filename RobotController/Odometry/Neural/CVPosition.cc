@@ -190,7 +190,6 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
 
     // Clear curr data
     _currDataRobot.Clear();
-    _currDataRobot.isUs = true; // Make sure this is set
     _currDataRobot.robotPosValid = data.valid;
     _currDataRobot.id = data.frameID;             // Set id based on the frame
     _currDataRobot.frameID = frameID; 
@@ -200,7 +199,6 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
     _currDataRobot.InvalidateAngle(); // always invalid angle since just position
 
     _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false; // Make sure this is set
     _currDataOpponent.robotPosValid = false;
     _currDataOpponent.InvalidateAngle();
 }

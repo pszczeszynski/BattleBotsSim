@@ -600,15 +600,9 @@ void LKFlowTracker::SwitchRobots(void) {
   _currDataRobot = _currDataOpponent;
   _currDataOpponent = temp_Robot;
 
-  _currDataRobot.isUs = true;
-  _currDataOpponent.isUs = false;
-
   temp_Robot = _prevDataRobot;
   _prevDataRobot = _prevDataOpponent;
   _prevDataOpponent = temp_Robot;
-
-  _prevDataRobot.isUs = true;
-  _prevDataOpponent.isUs = false;
 }
 
 void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
