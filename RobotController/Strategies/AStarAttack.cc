@@ -1015,7 +1015,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     float fastAwayGain = 4.0f;
 
     float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness*facingness);
-    turnGain = 100.0f; // 4.0
+    turnGain = 80.0f; // 4.0
     follow.directionScores.emplace_back(turnGain * turnScore(follow));
 
     
