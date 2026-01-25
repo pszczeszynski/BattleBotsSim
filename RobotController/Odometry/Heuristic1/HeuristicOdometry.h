@@ -39,7 +39,7 @@ public:
     void ForcePosition(cv::Point2f newPos, bool opponentRobot) override;
     void SwitchRobots(void) override;                                  // Switches who's who
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
-    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid) override;
+    void SetAngle(AngleData angleData, bool opponentRobot) override;
     void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
 
 

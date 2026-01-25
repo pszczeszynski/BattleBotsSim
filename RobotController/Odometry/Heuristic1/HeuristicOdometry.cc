@@ -375,28 +375,30 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     case CMSM_START_WAIT_ROBOT_CLEAR:
         statusstring = "Waiting for ";
-        statusstring += (!_currDataRobot.robotPosValid) ? "our " : "";
-        statusstring += (!_currDataOpponent.robotPosValid) ? "opponent " : "";
+        statusstring += (!_currDataRobot.pos.has_value()) ? "our " : "";
+        statusstring += (!_currDataOpponent.pos.has_value()) ? "opponent " : "";
         statusstring += "robot to clear starting area...";
 
         // Lets do our robot first
-        if( !_currDataRobot.robotPosValid && (ourRobotTracker != nullptr) )
+        if( !_currDataRobot.pos.has_value() && (ourRobotTracker != nullptr) )
         {
             if (IsClearOfArea(ourRobotTracker, left_start_rect) && IsClearOfArea(ourRobotTracker, right_start_rect))
             {
-                _currDataRobot.robotPosValid = true; // We have cleared the starting area              
+                // Position will be set by tracker update, just mark as valid
+                // We have cleared the starting area              
             }            
         }
 
 
         // Opponent Robot
-        if( !_currDataOpponent.robotPosValid && (opponentRobotTracker != nullptr) )
+        if( !_currDataOpponent.pos.has_value() && (opponentRobotTracker != nullptr) )
         {
 
 
             if (IsClearOfArea(opponentRobotTracker, left_start_rect) && IsClearOfArea(opponentRobotTracker, right_start_rect))
             {
-                _currDataOpponent.robotPosValid = true; // We have cleared the starting area              
+                // Position will be set by tracker update, just mark as valid
+                // We have cleared the starting area              
             }
         }
         
@@ -433,12 +435,12 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         // If both us and opponent robots are detected, all remaining trackers are merged into background
         // The fusion algorithm will try lock robots, once they are both locked we will clear all remaining trackers
         statusstring = "Waiting for tracker to lock to ";
-        statusstring += (!_currDataRobot.robotPosValid) ? "our" : "";
-        if( !_currDataOpponent.robotPosValid &&  !_currDataOpponent.robotPosValid)
+        statusstring += (!_currDataRobot.pos.has_value()) ? "our" : "";
+        if( !_currDataOpponent.pos.has_value() &&  !_currDataOpponent.pos.has_value())
         {
             statusstring += " & ";
         }
-        statusstring += (!_currDataOpponent.robotPosValid) ? "opponent" : "";
+        statusstring += (!_currDataOpponent.pos.has_value()) ? "opponent" : "";
         statusstring += " robot...";
 
         // Merging all other trackers will happen at the end if this function
@@ -542,7 +544,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     TrackRobots(correctedFrame, currFrameColor);
 
       // If we have identified both robots during robot clear stage, merge everything else into background
-    if( ((heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR) || (heuStateMachine == CMSM_DETECT_MOVING_TRACKERS)) && _currDataRobot.robotPosValid && _currDataOpponent.robotPosValid)
+    if( ((heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR) || (heuStateMachine == CMSM_DETECT_MOVING_TRACKERS)) && _currDataRobot.pos.has_value() && _currDataOpponent.pos.has_value())
     {
         // Increment state machine
         heuStateMachine = CMSM_TRACKINGOK;
@@ -631,14 +633,14 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     OdometryData robotData = RobotController::GetInstance().odometry.Robot();
     OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
 
-    if( robotData.robotPosValid)
+    if( robotData.pos.has_value())
     {
-        safe_circle(currFrameColor, robotData.robotPosition, 10, cv::Scalar(0, 255, 100), 2, cv::LINE_AA, 0);
+        safe_circle(currFrameColor, robotData.pos.value().position, 10, cv::Scalar(0, 255, 100), 2, cv::LINE_AA, 0);
     }
 
-    if( opponentData.robotPosValid)
+    if( opponentData.pos.has_value())
     {
-        safe_circle(currFrameColor, opponentData.robotPosition, 10, cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
+        safe_circle(currFrameColor, opponentData.pos.value().position, 10, cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
     }
 
     // Copy over to debug
@@ -750,10 +752,8 @@ void HeuristicOdometry::_UpdateData(double timestamp)
 
     _currDataRobot.id++;                // Increment frame id
     _currDataRobot.frameID = frameID; // Set to new frame id
-    _currDataRobot.time = timestamp;    // Set to new time
     _currDataOpponent.id++;             // Increment frame id
     _currDataOpponent.frameID = frameID; // Set to new frame id
-    _currDataOpponent.time = timestamp; // Set to new time
 
     // Clear curr data
     _currDataRobot.Clear();
@@ -769,40 +769,46 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     if (tracker == nullptr)
     {
         // If no tracker found, keep previous position (no velocities)
-        data.robotPosition = oldData.robotPosition;
-        data.SetAngle(oldData.GetAngle(), 0, oldData.time, false);
-        data.robotVelocity = cv::Point2f(0,0);
-        data.robotPosValid = false;
+        if (oldData.pos.has_value()) {
+            cv::Point2f pos = oldData.pos.value().position;
+            std::optional<cv::Rect> oldRect = oldData.pos.value().rect;
+            data.pos = PositionData(pos, cv::Point2f(0, 0), oldData.pos.value().time);
+            data.pos.value().rect = oldRect;
+        } else {
+            data.pos.reset();
+        }
+        if (oldData.angle.has_value()) {
+            data.angle = AngleData(oldData.angle.value().angle, 0, oldData.angle.value().time);
+        } else {
+            data.angle.reset();
+        }
         return;
     }
 
-    data.robotPosValid = true;
-    data.robotPosition = tracker->position.Point2f();
-    data.robotVelocity = tracker->avgVelocity.Point2f();
-    data.rect = tracker->bbox;
+    data.pos = PositionData(tracker->position.Point2f(), tracker->avgVelocity.Point2f(), tracker->bbox, timestamp);
 
     Angle newAngle = Angle(tracker->rotation.angleRad());
 
     // If old data angle wasnt valid, dont calculate velocity
-    if(!oldData.IsAngleValid()) {
-        data.SetAngle(newAngle, 0, timestamp, true);
+    if(!oldData.angle.has_value()) {
+        data.angle = AngleData(newAngle, 0, timestamp);
         return;
     }
 
-    double newAngleVelocity = oldData.GetAngleVelocity();
+    double newAngleVelocity = oldData.angle.value().velocity;
     
     // Make sure deltaTime isn't very small (e.g. we just updated and itll cause a discontinuity)
-    double deltaTime = data.time - oldData.time;
+    double deltaTime = timestamp - (oldData.pos.has_value() ? oldData.pos.value().time : 0);
     if ((deltaTime > 1.0f/250.0f) && (deltaTime < angleVelocityTimeConstant))
     {
-        newAngleVelocity = newAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (data.GetAngle() - oldData.GetAngle());
+        newAngleVelocity = newAngleVelocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (newAngle - oldData.angle.value().angle);
     }
     else if(deltaTime > 1.0f/250.0f)
     {
-        newAngleVelocity = (data.GetAngle() - oldData.GetAngle()) / deltaTime;
+        newAngleVelocity = (newAngle - oldData.angle.value().angle) / deltaTime;
     }
 
-    data.SetAngle(newAngle, newAngleVelocity, timestamp, true);
+    data.angle = AngleData(newAngle, newAngleVelocity, timestamp);
 }
 
 // Sets the position to a found tracker's position
@@ -818,10 +824,14 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
     RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
 
-    odoData.robotPosValid = tracker != nullptr;
-    odoData.robotPosition = (odoData.robotPosValid) ? tracker->position.Point2f() : newPos;
-    odoData.robotVelocity = cv::Point2f(0, 0);
-    odoData.time = Clock::programClock.getElapsedTime();
+    if (tracker != nullptr) {
+        double currTime = Clock::programClock.getElapsedTime();
+        odoData.pos = PositionData(tracker->position.Point2f(), cv::Point2f(0, 0), tracker->bbox, currTime);
+    } else {
+        double currTime = Clock::programClock.getElapsedTime();
+        cv::Rect defaultRect(static_cast<int>(newPos.x - 10), static_cast<int>(newPos.y - 10), 20, 20);
+        odoData.pos = PositionData(newPos, cv::Point2f(0, 0), defaultRect, currTime);
+    }
 }
 
 void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
@@ -840,7 +850,7 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         locktracking.lock();
         if (opponentRobotTracker == nullptr)
         {
-            _currDataOpponent.robotPosValid = false;
+            _currDataOpponent.pos.reset();
             return;
         }
     }
@@ -853,7 +863,7 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         locktracking.lock();
         if (ourRobotTracker == nullptr)
         {
-            _currDataRobot.robotPosValid = false;
+            _currDataRobot.pos.reset();
             return;
         }
     }
@@ -927,11 +937,12 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
-    odoData.robotPosition = newPos;
-    odoData.robotPosValid = true;
+    double currTime = Clock::programClock.getElapsedTime();
+    cv::Rect defaultRect(static_cast<int>(newPos.x - 10), static_cast<int>(newPos.y - 10), 20, 20);
+    odoData.pos = PositionData(newPos, cv::Point2f(0, 0), defaultRect, currTime);
 }
 
-void HeuristicOdometry::SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid)
+void HeuristicOdometry::SetAngle(AngleData angleData, bool opponentRobot)
 {
     // First lock for all robot tracking and find the robot
     std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
@@ -941,14 +952,13 @@ void HeuristicOdometry::SetAngle(Angle newAngle, bool opponentRobot, double angl
 
     if (tracker != NULL)
     {
-        tracker->SetRotation(newAngle);
+        tracker->SetRotation(angleData.angle);
     }
     locktracking.unlock();
 
     std::unique_lock<std::mutex> locker(_updateMutex);
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
+    odoData.angle = angleData;
 }
 
 void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
@@ -970,8 +980,9 @@ void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
 
-    odoData.robotVelocity = newVel;
-    odoData.time = Clock::programClock.getElapsedTime();
+    if (odoData.pos.has_value()) {
+        odoData.pos.value().velocity = newVel;
+    }
 }
 
 void HeuristicOdometry::SwitchRobots(void)
@@ -2313,25 +2324,22 @@ void HeuristicOdometry::ResetBrightnessCorrection()
     lastTimeForBrightness = currTime; // Reset the time
 }
 
+double HeuristicOdometry::getBrightnessCorrection(cv::Mat &src, int x, int y,
+                                                  int size, double refMean) {
+  x = (std::max)(0, (std::min)(x, src.cols - size - 1));
+  y = (std::max)(0, (std::min)(y, src.rows - size - 1));
 
-double HeuristicOdometry::getBrightnessCorrection(cv::Mat& src, int x, int y, int size , double refMean)
-{
-    if( x<0) { x= 0;}
-    if( y<0) { y= 0;}   
-    if( x+size >= src.cols) { x = src.cols - size - 1;}
-    if( y+size >= src.rows) { y = src.rows - size - 1;}
+  cv::Scalar srcMean = cv::mean(src(cv::Rect(x, y, size, size)));
 
-    cv::Scalar srcMean = cv::mean(src(cv::Rect(x, y, size, size)));
+  double srcBrightness =
+      srcMean[0];  // Since it's grayscale, we use the first channel
 
-    double srcBrightness = srcMean[0]; // Since it's grayscale, we use the first channel
+  // Deal with special cases
+  if (srcBrightness == 0 || refMean == 0) {
+    return 1.0;
+  }
 
-    // Deal with special cases
-    if( srcBrightness == 0 || refMean == 0) 
-    {
-        return 1.0;
-    }
-
-    return refMean / srcBrightness;
+  return refMean / srcBrightness;
 }
 
 void HeuristicOdometry::calcShakeRemoval(cv::Mat &image)

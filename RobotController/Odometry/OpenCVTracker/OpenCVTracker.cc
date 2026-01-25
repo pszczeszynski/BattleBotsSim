@@ -38,12 +38,8 @@ void OpenCVTracker::SetPosition(cv::Point2f newPos, bool opponentRobot)
     std::unique_lock<std::mutex> locker(_updateMutex);
 
     OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-    odoData.robotPosition = newPos;
-    odoData.robotVelocity = cv::Point2f(0, 0);
-    odoData.robotPosValid = true;
-    odoData.time = Clock::programClock.getElapsedTime();
-    odoData.id++;
-
+    double currTime = Clock::programClock.getElapsedTime();
+    
     //tracker appears to like growing to entire robot more than shrinking to only encompass it
     cv::Rect &bbox = (opponentRobot) ? _opponentBBox : _robotBBox;
     bbox.width = MIN_ROBOT_BLOB_SIZE;
@@ -56,6 +52,9 @@ void OpenCVTracker::SetPosition(cv::Point2f newPos, bool opponentRobot)
 
     if (bbox.x + bbox.width > WIDTH) bbox.width = WIDTH - bbox.x;
     if (bbox.y + bbox.height > HEIGHT) bbox.height = HEIGHT - bbox.y;
+
+    odoData.SetPosition(newPos, cv::Point2f(0, 0), bbox, currTime);
+    odoData.id++;
 
     cv::Ptr<cv::Tracker> &tracker = (opponentRobot) ? _opponentTracker : _robotTracker;
 
@@ -84,9 +83,14 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
     else if (_robotTrackerState == INITIALIZED)
     {
-        _currDataRobot.robotPosValid = _robotTracker->update(_previousImage, _robotBBox);
-        _currDataRobot.robotPosition.x = _robotBBox.x + _robotBBox.width / 2;
-        _currDataRobot.robotPosition.y = _robotBBox.y + _robotBBox.height / 2;
+        bool valid = _robotTracker->update(_previousImage, _robotBBox);
+        cv::Point2f center(_robotBBox.x + _robotBBox.width / 2.0f, 
+                          _robotBBox.y + _robotBBox.height / 2.0f);
+        if (valid) {
+            _currDataRobot.SetPosition(center, cv::Point2f(0, 0), _robotBBox, frameTime);
+        } else {
+            _currDataRobot.InvalidatePosition();
+        }
         _currDataRobot.id++;
     }
 
@@ -97,9 +101,14 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     }
     else if (_opponentTrackerState == INITIALIZED)
     {
-        _currDataOpponent.robotPosValid = _opponentTracker->update(_previousImage, _opponentBBox);
-        _currDataOpponent.robotPosition.x = _opponentBBox.x + _opponentBBox.width / 2;
-        _currDataOpponent.robotPosition.y = _opponentBBox.y + _opponentBBox.height / 2;
+        bool valid = _opponentTracker->update(_previousImage, _opponentBBox);
+        cv::Point2f center(_opponentBBox.x + _opponentBBox.width / 2.0f, 
+                          _opponentBBox.y + _opponentBBox.height / 2.0f);
+        if (valid) {
+            _currDataOpponent.SetPosition(center, cv::Point2f(0, 0), _opponentBBox, frameTime);
+        } else {
+            _currDataOpponent.InvalidatePosition();
+        }
         _currDataOpponent.id++;
     }   
 }

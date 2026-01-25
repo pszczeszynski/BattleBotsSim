@@ -190,16 +190,20 @@ void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
 
     // Clear curr data
     _currDataRobot.Clear();
-    _currDataRobot.robotPosValid = data.valid;
     _currDataRobot.id = data.frameID;             // Set id based on the frame
     _currDataRobot.frameID = frameID; 
-    _currDataRobot.time = data.time_millis / 1000.0;    // Set to new time
-    _currDataRobot.robotPosition = data.center; // Set new position
-    _currDataRobot.robotVelocity = velocity;
+    double posTime = data.time_millis / 1000.0;    // Set to new time
+    
+    if (data.valid) {
+        cv::Rect defaultRect(static_cast<int>(data.center.x - 10), static_cast<int>(data.center.y - 10), 20, 20);
+        _currDataRobot.SetPosition(data.center, velocity, defaultRect, posTime);
+    } else {
+        _currDataRobot.InvalidatePosition();
+    }
     _currDataRobot.InvalidateAngle(); // always invalid angle since just position
 
     _currDataOpponent.Clear();
-    _currDataOpponent.robotPosValid = false;
+    _currDataOpponent.InvalidatePosition();
     _currDataOpponent.InvalidateAngle();
 }
 

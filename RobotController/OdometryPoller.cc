@@ -18,20 +18,17 @@ bool PollDualTracker(T& tracker, const char* debugName, OdometryData& outUs,
     return false;  // Not running, data stays as prev
   }
 
-  // Mark streams as running
-  outRunningMask |= (usFlag | themFlag);
-
   bool newdata = false;
 
   // Check robot (us) data - override if new
-  if (tracker.NewDataValid(prevUs.id, false)) {
+  if (tracker.HasNewerDataById(prevUs.id, false)) {
     outUs = tracker.GetData(false);
     outUpdatedMask |= usFlag;
     newdata = true;
   }
 
   // Check opponent (them) data - override if new
-  if (tracker.NewDataValid(prevThem.id, true)) {
+  if (tracker.HasNewerDataById(prevThem.id, true)) {
     outThem = tracker.GetData(true);
     outUpdatedMask |= themFlag;
     newdata = true;
@@ -46,39 +43,6 @@ bool PollDualTracker(T& tracker, const char* debugName, OdometryData& outUs,
   return newdata;
 }
 
-// Helper to poll a single-tracker (tracks only us or only them)
-template <typename T>
-bool PollSingleTracker(T& tracker, const char* debugName, OdometryData& outData,
-                       const OdometryData& prevData, bool isOpponent,
-                       uint32_t flag, uint32_t& outUpdatedMask,
-                       uint32_t& outRunningMask, TrackingWidget* trackingInfo) {
-  // Default: hold previous data (avoids duplicate assignment in branches)
-  outData = prevData;
-
-  if (!tracker.IsRunning()) {
-    return false;  // Not running, data stays as prev
-  }
-
-  // Mark stream as running
-  outRunningMask |= flag;
-
-  bool newdata = false;
-
-  // Check for new data - override if available
-  if (tracker.NewDataValid(prevData.id, isOpponent)) {
-    outData = tracker.GetData(isOpponent);
-    outUpdatedMask |= flag;
-    newdata = true;
-  }
-
-  // Get debug image if new data arrived
-  if (newdata && trackingInfo) {
-    tracker.GetDebugImage(trackingInfo->GetDebugImage(debugName),
-                          trackingInfo->GetDebugOffset(debugName));
-  }
-
-  return newdata;
-}
 }  // namespace
 
 OdometryPoller::OdometryPoller(BlobDetection& blob,
@@ -164,7 +128,7 @@ RawInputs OdometryPoller::Poll(TrackingWidget* trackingInfo,
   if (_odometry_Human.IsRunning()) {
     inputs.runningMask |= (RawInputs::US_HUMAN | RawInputs::THEM_HUMAN);
 
-    if (_odometry_Human.NewDataValid(prevInputs.us_human.id, false)) {
+    if (_odometry_Human.HasNewerDataById(prevInputs.us_human.id, false)) {
       inputs.us_human = _odometry_Human.GetData(false);
       inputs.us_human_is_new = true;
       inputs.updatedMask |= RawInputs::US_HUMAN;
@@ -173,7 +137,7 @@ RawInputs OdometryPoller::Poll(TrackingWidget* trackingInfo,
       inputs.us_human_is_new = false;
     }
 
-    if (_odometry_Human.NewDataValid(prevInputs.them_human.id, true)) {
+    if (_odometry_Human.HasNewerDataById(prevInputs.them_human.id, true)) {
       inputs.them_human = _odometry_Human.GetData(true);
       inputs.them_human_is_new = true;
       inputs.updatedMask |= RawInputs::THEM_HUMAN;

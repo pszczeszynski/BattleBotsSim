@@ -11,8 +11,9 @@
 // ***********************************************
 
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
-    : _videoSource(videoSource) {
-};
+    : _videoSource(videoSource), _data{OdometryData(0), OdometryData(0)} {};
+
+OdometryBase::OdometryBase(void) : _data{OdometryData(0), OdometryData(0)} {};
 
 bool OdometryBase::IsRunning(void) { return _running.load(); }
 
@@ -100,13 +101,10 @@ bool OdometryBase::Stop(void) {
 }
 
 // Check if new data is available
-bool OdometryBase::NewDataValid(int oldId, bool getOpponent) {
+bool OdometryBase::HasNewerDataById(int oldId, bool getOpponent) {
   // Mutex not required since we're just comparing an int
-  if (getOpponent) {
-    return _currDataOpponent.id > oldId;
-  }
-
-  return _currDataRobot.id > oldId;
+  int slot = getOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  return _data[slot].id > oldId;
 }
 
 //  Retrieve the actual data
@@ -115,15 +113,14 @@ OdometryData OdometryBase::GetData(bool getOpponent) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   // Return it (via copy operator)
-  return (getOpponent) ? _currDataOpponent : _currDataRobot;
+  int slot = getOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  return _data[slot];
 }
 
 void OdometryBase::SwitchRobots(void) {
   // Switch who's who
   std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData temp_Robot = _currDataRobot;
-  _currDataRobot = _currDataOpponent;
-  _currDataOpponent = temp_Robot;
+  std::swap(_data[(int)RobotSlot::Us], _data[(int)RobotSlot::Opponent]);
 }
 
 // Set postion recommends newPos to be the center of the robot. The algorithm is
@@ -132,10 +129,11 @@ void OdometryBase::SwitchRobots(void) {
 void OdometryBase::SetPosition(cv::Point2f newPos, bool opponentRobot) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  OdometryData &odoData = _data[slot];
 
-  odoData.robotPosition = newPos;
-  odoData.robotPosValid = true;
+  double currTime = Clock::programClock.getElapsedTime();
+  odoData.pos = PositionData(newPos, cv::Point2f(0, 0), currTime);
 }
 
 // Force position forces the center of robot to be newpos regardlesss of any
@@ -146,18 +144,30 @@ void OdometryBase::ForcePosition(cv::Point2f newPos, bool opponentRobot) {
 
 void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
   std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.robotVelocity = newVel;
+  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  OdometryData &odoData = _data[slot];
+  if (odoData.pos.has_value()) {
+    odoData.pos.value().velocity = newVel;
+  }
 }
 
 // Sets angle and zeroes out angular velocity
-void OdometryBase::SetAngle(Angle newAngle, bool opponentRobot,
-                            double angleFrameTime, double newAngleVelocity,
-                            bool valid) {
+void OdometryBase::SetAngle(AngleData angleData, bool opponentRobot) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
+  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  OdometryData &odoData = _data[slot];
+  odoData.angle = angleData;
+}
+
+// Centralized publish function
+void OdometryBase::Publish(OdometryData sample, bool isOpponent) {
+  std::lock_guard<std::mutex> lk(_updateMutex);
+  int slot = isOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  auto& out = _data[slot];
+  int oldId = out.id;  // Save the old id before overwriting
+  out = std::move(sample);
+  out.id = oldId + 1;  // Increment from the old id
 }
 
 // Returns an image use for debugging. Empty by default
@@ -177,12 +187,12 @@ void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
   // Draw robot data (top-left)
   int yLeft = 20 + offset.y;  // Start at top
   printText("Robot Data:", target, yLeft, leftX);
-  _currDataRobot.GetDebugImage(target, cv::Point(leftX + 10, yLeft + 14));
+  _data[(int)RobotSlot::Us].GetDebugImage(target, cv::Point(leftX + 10, yLeft + 14));
 
   yLeft = 20 + offset.y;  // Reset to top
 
   // Draw opponent data next to it
   printText("Opponent Data:", target, yLeft, leftX + 190);
-  _currDataOpponent.GetDebugImage(target,
+  _data[(int)RobotSlot::Opponent].GetDebugImage(target,
                                   cv::Point(leftX + 10 + 190, yLeft + 14));
 }

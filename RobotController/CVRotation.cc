@@ -43,7 +43,7 @@ void CVRotation::_ProcessNewFrame(cv::Mat frame, double frameTime)
     std::unique_lock<std::mutex> lock(_updateMutex);
     _currDataRobot.Clear();
     _currDataRobot.id = _frameID;
-    _currDataRobot.SetAngle(Angle(rotation), 0, frameTime, true);
+    _currDataRobot.angle = AngleData(Angle(rotation), 0, frameTime);
     _currDataRobot.time = frameTime;
     lock.unlock();
 }

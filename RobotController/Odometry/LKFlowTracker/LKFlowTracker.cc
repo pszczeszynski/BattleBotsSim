@@ -20,15 +20,6 @@ LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
       _lastRespawnTime(0.0),
       _rng(std::random_device{}()) {
   // This tracker only tracks opponent, robot data always invalid
-  SetAngle(Angle(0), false, 0, 0, false);
-  SetAngle(Angle(0), true, 0, 0, false);
-  SetPosition(cv::Point2f(0, 0), false);  // Robot position invalid
-  SetPosition(cv::Point2f(0, 0), true);
-  SetVelocity(cv::Point2f(0, 0), false);
-  SetVelocity(cv::Point2f(0, 0), true);
-  // Ensure robot data is invalid
-  _currDataRobot.robotPosValid = false;
-  _currDataRobot.InvalidateAngle();
 }
 
 static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
@@ -76,6 +67,8 @@ void LKFlowTracker::_StartCalled(void) {
   _tracks.clear();
   _angle = Angle(0);
   _lastRespawnTime = 0.0;
+  _prevPosition.reset();
+  _prevTime.reset();
 }
 
 cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) {
@@ -252,41 +245,28 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   cv::Point2f center = _ComputeCenterFromPoints(goodNextPts);
 
   // Update angle (angleDelta is already in radians)
-  _angle = Angle(_angle + Angle(angleDelta));
+  _angle = _angle + Angle(angleDelta);
 
   // Update position and velocity
   cv::Point2f deltaPos = center - _prevCenter;
-  double deltaTime = frameTime - _currDataOpponent.time;
+  
+  // Calculate delta time using local previous time
+  double deltaTime = _prevTime.has_value() ? (frameTime - _prevTime.value()) : 0.0;
 
-  // Update opponent data (this tracker only tracks opponent, robot data always
-  // invalid)
-  _currDataOpponent.id++;
-  _currDataOpponent.frameID = frameID;
-  _currDataOpponent.time = frameTime;
-  _currDataOpponent.robotPosValid = true;
-  _currDataOpponent.robotPosition = center;
-
-  if (deltaTime > 0.001 && _prevDataOpponent.robotPosValid) {
-    cv::Point2f visualVelocity = deltaPos / static_cast<float>(deltaTime);
-    _currDataOpponent.robotVelocity = visualVelocity;
-  } else {
-    _currDataOpponent.robotVelocity = cv::Point2f(0, 0);
+  cv::Point2f visualVelocity = cv::Point2f(0, 0);
+  if (deltaTime > 0.001 && _prevPosition.has_value()) {
+    visualVelocity = deltaPos / static_cast<float>(deltaTime);
   }
 
-  // Update angle (angleDelta is already in radians)
+  // Use a default rect - LKFlowTracker doesn't track bounding boxes
+  cv::Rect defaultRect(static_cast<int>(center.x - 10),
+                       static_cast<int>(center.y - 10), 20, 20);
+
+  // Angular velocity = angleDelta / deltaTime (same deltaTime as position)
   double angularVelocity = 0.0;
-  if (deltaTime > 0.001 && _prevAngleDataOpponent.IsAngleValid()) {
+  if (deltaTime > 0.001) {
     angularVelocity = angleDelta / deltaTime;
   }
-  _currDataOpponent.SetAngle(_angle, angularVelocity, frameTime, true);
-
-  // Always invalidate robot data (this tracker only tracks opponent)
-  _currDataRobot.robotPosValid = false;
-  _currDataRobot.InvalidateAngle();
-
-  _prevDataOpponent = _currDataOpponent;
-  _prevAngleDataOpponent = _currDataOpponent;
-  _prevCenter = center;
 
   // Update tracks with compacted results
   _tracks = tracksNext;
@@ -318,6 +298,17 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
     cv::rectangle(_debugImage, _roi, cv::Scalar(128), 2);
   }
   debugLock.unlock();
+
+  // Build sample and publish
+  OdometryData sample(frameID);
+  sample.pos = PositionData(center, visualVelocity, defaultRect, frameTime);
+  sample.angle = AngleData(_angle, angularVelocity, frameTime);
+  Publish(std::move(sample), true);
+
+  // Update local previous data for next iteration
+  _prevPosition = center;
+  _prevTime = frameTime;
+  _prevCenter = center;
 
   return true;
 }
@@ -579,75 +570,52 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
   }
 
   // Remove points that are outside the ROI
-  tracks.erase(
-      std::remove_if(
-          tracks.begin(), tracks.end(),
-          [this](const TrackPt& track) {
-            // Check ROI bounds
-            if (track.pt.x < _roi.x || track.pt.x >= _roi.x + _roi.width ||
-                track.pt.y < _roi.y || track.pt.y >= _roi.y + _roi.height) {
-              return true;
-            }
+  tracks.erase(std::remove_if(tracks.begin(), tracks.end(),
+                              [this](const TrackPt& track) {
+                                // Check ROI bounds
+                                if (track.pt.x < _roi.x ||
+                                    track.pt.x >= _roi.x + _roi.width ||
+                                    track.pt.y < _roi.y ||
+                                    track.pt.y >= _roi.y + _roi.height) {
+                                  return true;
+                                }
 
-            return false;
-          }),
-      tracks.end());
+                                return false;
+                              }),
+               tracks.end());
 }
 
 void LKFlowTracker::SwitchRobots(void) {
   std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData temp_Robot = _currDataRobot;
-  _currDataRobot = _currDataOpponent;
-  _currDataOpponent = temp_Robot;
-
-  temp_Robot = _prevDataRobot;
-  _prevDataRobot = _prevDataOpponent;
-  _prevDataOpponent = temp_Robot;
+  std::swap(_data[(int)RobotSlot::Us], _data[(int)RobotSlot::Opponent]);
+  
+  // Reset local previous data (no need to swap since we only track opponent)
+  _prevPosition.reset();
+  _prevTime.reset();
 }
 
 void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
+  if (!opponentRobot) return;
 
-  OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.robotPosition = newPos;
-  odoData.robotVelocity = cv::Point2f(0, 0);
-  odoData.robotPosValid = true;
-  odoData.time = Clock::programClock.getElapsedTime();
-  odoData.id++;
-
-  OdometryData& prevData = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
-  prevData.robotPosition = newPos;
-  prevData.robotVelocity = cv::Point2f(0, 0);
-  prevData.robotPosValid = false;
+  double currTime = Clock::programClock.getElapsedTime();
+  std::lock_guard<std::mutex> lk(_updateMutex);
+  _prevCenter = newPos;
+  _prevPosition = newPos;
+  _prevTime = currTime;
 }
 
 void LKFlowTracker::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.robotVelocity = newVel;
-  odoData.id++;
-
-  OdometryData& odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
-  odoData2.robotVelocity = newVel;
+  // Velocity is derived from position delta each frame; no internal state to
+  // update. Next tracking update will compute velocity as usual.
+  (void)newVel;
+  (void)opponentRobot;
 }
 
-void LKFlowTracker::SetAngle(Angle newAngle, bool opponentRobot,
-                             double angleFrameTime, double newAngleVelocity,
-                             bool valid) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
+void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
+  if (!opponentRobot) return;
 
-  _angle = newAngle;
-  OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
-  odoData.id++;
-
-  OdometryData& odoData2 = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
-  odoData2.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
-
-  OdometryData& odoData3 =
-      (opponentRobot) ? _prevAngleDataOpponent : _prevAngleDataRobot;
-  odoData3.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
+  std::lock_guard<std::mutex> lk(_updateMutex);
+  _angle = angleData.angle;
 }
 
 void LKFlowTracker::GetDebugImage(cv::Mat& debugImage, cv::Point offset) {

@@ -268,6 +268,23 @@ void TrackingWidget::_DrawAlgorithmData()
     {
         return;
     }
+    // draw arrow on opponent robot showing gamepad stick angle
+    OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
+    cv::Point2f opponentPos = opponentData.robotPosition;
+    
+    // Read gamepad right stick values
+    float stickX = RobotController::GetInstance().gamepad.GetRightStickX();
+    float stickY = RobotController::GetInstance().gamepad.GetRightStickY();
+    
+    // Calculate angle from stick position (only if stick is being moved)
+    float stickMagnitude = sqrt(stickX * stickX + stickY * stickY);
+    if (stickMagnitude > 0.1) {  // deadzone threshold
+      float stickAngle = atan2(-stickY, stickX);
+      cv::Point2f stickArrowEnd =
+          opponentPos + cv::Point2f{cos(stickAngle), sin(stickAngle)} * 50;
+      safe_arrow(_trackingMat, opponentPos, stickArrowEnd,
+                 cv::Scalar(0, 255, 255), 3);
+    }
 
     // The color format seems to be BLUE, GREEN, RED
     // blob is blue

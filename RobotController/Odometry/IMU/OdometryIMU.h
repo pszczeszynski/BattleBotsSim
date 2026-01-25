@@ -9,8 +9,7 @@ class OdometryIMU : public OdometryBase
 {
   public:
     OdometryIMU();
-    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime,
-                  double newAngleVelocity, bool valid) override;
+    void SetAngle(AngleData angleData, bool opponentRobot) override;
 
     bool Run() override; // Starts the thread(s) to decode data. Returns true if
                          // succesful

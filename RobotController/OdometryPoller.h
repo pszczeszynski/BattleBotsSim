@@ -66,7 +66,6 @@ struct RawInputs {
   };
 
   uint32_t updatedMask = 0;  // In-class init to prevent uninitialized bugs
-  uint32_t runningMask = 0;  // Which algorithms are currently running
 
   // Flags for human interface
   bool us_human_is_new = false;
@@ -75,7 +74,6 @@ struct RawInputs {
   RawInputs() = default;  // Now uses in-class initializers
 
   bool HasUpdates() const { return updatedMask != NONE; }
-  bool IsRunning(uint32_t mask) const { return (runningMask & mask) != 0; }
 };
 
 /**

@@ -1,6 +1,7 @@
 #pragma once
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -30,8 +31,7 @@ class LKFlowTracker : public OdometryBase {
   void SwitchRobots(void) override;
   void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
-  void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime,
-                double newAngleVelocity, bool valid) override;
+  void SetAngle(AngleData angleData, bool opponentRobot) override;
   void GetDebugImage(cv::Mat& target,
                      cv::Point offset = cv::Point(0, 0)) override;
 
@@ -81,11 +81,9 @@ class LKFlowTracker : public OdometryBase {
   bool _initialized;
   double _lastRespawnTime;  // Time of last respawn operation
 
-  // Previous data for velocity calculations
-  OdometryData _prevDataRobot;
-  OdometryData _prevDataOpponent;
-  OdometryData _prevAngleDataRobot;
-  OdometryData _prevAngleDataOpponent;
+  // Previous data for velocity calculations (local primitives, not OdometryData)
+  std::optional<cv::Point2f> _prevPosition;
+  std::optional<double> _prevTime;
 
   // Debug image
   std::mutex _mutexDebugImage;
