@@ -247,66 +247,6 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
   // These are passed as parameters to avoid reading _dataRobot/_dataOpponent without lock
   output.robot = prevRobot;
   output.opponent = prevOpponent;
-  // ******************************
-  // We have the following sources of data:
-  // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |
-  // THEM ROT | THEM A.VEL
-  // -------------------------------------------------------------------------------------------------
-  // Heuristic |   X    |    X   |     X   |    X     |    X     |   X      | X
-  // |     X Blob      |   X    |    X   |     X   |    X     |    X     |   X
-  // |     X     |     X Neural    |   X    |        |         |          | | |
-  // | NeuralRot |        |        |     X   |          |          |          |
-  // | IMU       |        |        |     X   |    X     |          |          |
-  // | Human     |<Hidden>|        |         |          | <Hidden> |          |
-  // X     |    X LKFlow    |        |        |         |          |          |
-  // |     X     |
-  //
-  // TODO: Need to calculate Them A.Vel for human interface
-  //
-  // _odometry_Human: If angle changed, then update all angles
-  //
-  //
-  // Priorities:
-  //
-  // GLOBAL PRECHECK:
-  //      // If Neural says we should be swapped, then swap
-  //      G1) if Neural = Heuristic.them: SWAP Heuristic
-  //
-  //      // If Neural agrees with blob, use Neural
-  //      G2) if Neural != Heuristic.us && Neural=Blob.us:
-  //      Heuristic.ForceUs(Neural)
-  //
-  //  US POS:
-  //           Rule:  1) Heuristic, 2) Neural Pos, 3) Blob
-  //           Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold,
-  //           setpos on blob If Heuristic.invalid, 1) setpos(blob) 2)
-  //           setpos(neural)
-  //
-  //  US VEL:
-  //           Rule: 1) Heuristic, 2) Blob
-  //
-  //  US ROT:
-  //            Rule: 1) IMU (Neural is already fused), 2) Neural Rot 3)
-  //            Heuristic 4) Blob
-  //
-  //  US A. VEL:
-  //            Rule: 1) IMU, 2) Heuristic 3) Blob
-  //
-  //  THEM POS:
-  //            Rule: 1) Heuristic, 2) Blob
-  //            Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold,
-  //            setpos on blob If Heuristic.invalid, setpos(blob)
-  //
-  //  THEM VEL:
-  //            Rule: 1) Heuristic, 2) Blob
-  //
-  //  THEM ROT:
-  //            Rule: 1) LKFlow, 2) Human, 3) Heuristic, 4) Blob
-  //
-  //  THEM A. VEL:
-  //            Rule: 1) Human, 2) Heuristic, 3) Blob
-  //
-  //
 
   // Extrapolate input data to current time
   OdometryData ext_dataRobot_Blob = inputs.us_blob.ExtrapolateBoundedTo(now);
@@ -978,6 +918,7 @@ void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot) {
   _odometry_Heuristic.SetAngle(Angle(newAngle), opponentRobot, currTime, 0,
                                true);
   _odometry_IMU.SetAngle(Angle(newAngle), opponentRobot, currTime, 0, true);
+  _odometry_LKFlow.SetAngle(Angle(newAngle), opponentRobot, currTime, 0, true);
 
   // Update our own data
   std::unique_lock<std::mutex> locker(_updateMutex);
@@ -1027,9 +968,6 @@ void RobotOdometry::SwitchRobots() {
   OdometryData tempData = _dataRobot;
   _dataRobot = _dataOpponent;
   _dataOpponent = tempData;
-
-  _dataRobot.isUs = true;
-  _dataOpponent.isUs = false;
 }
 
 // Run Code

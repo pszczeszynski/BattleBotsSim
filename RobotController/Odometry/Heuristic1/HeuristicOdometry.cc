@@ -757,9 +757,7 @@ void HeuristicOdometry::_UpdateData(double timestamp)
 
     // Clear curr data
     _currDataRobot.Clear();
-    _currDataRobot.isUs = true; // Make sure this is set
     _currDataOpponent.Clear();
-    _currDataOpponent.isUs = false; // Make sure this is set
 
     // Update our robot position/velocity/angle
     _UpdateOdometry(_currDataRobot, _prevDataRobot, ourRobotTracker, timestamp);
@@ -990,9 +988,6 @@ void HeuristicOdometry::SwitchRobots(void)
     OdometryData temp_Robot = _currDataRobot;
     _currDataRobot = _currDataOpponent;
     _currDataOpponent = temp_Robot;
-
-    _currDataRobot.isUs = true;
-    _currDataOpponent.isUs = false;
 }
 
 void HeuristicOdometry::_imshow(std::string name, cv::Mat &image)

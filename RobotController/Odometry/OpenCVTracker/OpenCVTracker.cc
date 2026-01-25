@@ -26,9 +26,6 @@ void OpenCVTracker::SwitchRobots(void)
     _currDataRobot = _currDataOpponent;
     _currDataOpponent = temp_Robot;
 
-    _currDataRobot.isUs = true;
-    _currDataOpponent.isUs = false;
-
     _robotTracker.swap(_opponentTracker);
 
     cv::Rect tempRect = _robotBBox;
