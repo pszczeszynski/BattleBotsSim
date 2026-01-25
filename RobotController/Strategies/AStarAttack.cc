@@ -165,6 +165,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     ret.driveCommand.movement = driveInputs[0];
     ret.driveCommand.turn = driveInputs[1];
 
+
+    std::cout << std::endl;
     
     
     processingTimeVisualizer.markEnd();
@@ -435,7 +437,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
     float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
-        follow.forward, follow.CW, follow.turnAway, follow.badTurn);
+        follow.forward, follow.CW, follow.turnAway, follow.inflectDistance);
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
     // save these with the follow point
@@ -767,7 +769,7 @@ float AStarAttack::switchPointScore(FollowPoint follow) {
 
     // generate a predicted path to the follow point
     std::vector<cv::Point2f> path = {};
-    bool garbage = false;
+    float garbage = 0.0f;
     orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway, garbage);
 
 
@@ -1010,18 +1012,25 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     float facingness = abs(oppFiltered.angleTo(orbFiltered.position(), false)) / M_PI;
 
     float slowFacingGain = 10.0f; // 15
-    float fastAwayGain = 5.0f;
+    float fastAwayGain = 4.0f;
 
-    float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness);
-    turnGain = 8.0f; // 7.0
+    float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness*facingness);
+    turnGain = 100.0f; // 4.0
     follow.directionScores.emplace_back(turnGain * turnScore(follow));
 
     
 
 
     // turn past opp score
-    // follow.directionScores.emplace_back(200.0f*switchPointScore(follow)*0.0f);
-    follow.directionScores.emplace_back(0.0f * follow.badTurn);
+    // follow.directionScores.emplace_back(200.0f*switchPointScore(follow)*0.0f);4
+
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), follow.inflectDistance + orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius(), cv::Scalar(255, 255, 255), 2);
+    // std::cout << "inflect distance = " << follow.inflectDistance;
+    float collideScore = 70.0f;
+    float zeroScoreDistance = 100.0f;
+    float inflectScore = collideScore * pow((1.0f - std::clamp(follow.inflectDistance / zeroScoreDistance, 0.0f, 1.0f)), 3.0f);
+    // follow.directionScores.emplace_back(500.0f/std::max(follow.inflectDistance, 0.001f));
+    follow.directionScores.emplace_back(inflectScore);
 
 
 
@@ -1059,10 +1068,21 @@ float AStarAttack::turnScore(FollowPoint follow) {
     float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2] + reverseOffset);
 
     bool turningCorrect = (orbFiltered.angleTo(oppFiltered.position(), follow.forward) > 0 && follow.CW) || (orbFiltered.angleTo(oppFiltered.position(), follow.forward) < 0 && !follow.CW);
-    if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError - M_PI) + M_PI; }
-    if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angleWrapRad(angleError + M_PI) - M_PI; }
+    if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+    if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
 
-    return abs(angleError);
+    float accel = orbFiltered.getMaxTurnAccel() * sign(angleError); // assume we accel in the direction we're going to turn
+    float dirac = pow(orbFiltered.turnVelSlow(), 2.0f) + (2.0f * accel * angleError);
+    float t1 = (-orbFiltered.turnVelSlow() + sqrt(dirac)) / accel;
+    float t2 = (-orbFiltered.turnVelSlow() - sqrt(dirac)) / accel;
+
+    float time = std::min(t1, t2);
+    if(t1 < 0.0f) { time = t2; }
+    if(t2 < 0.0f) { time = t1; }
+
+    // std::cout << "turn time = " << time;
+
+    return time;
 }
 
 
@@ -1078,13 +1098,13 @@ void AStarAttack::followPointInsideCircle(FollowPoint &follow) {
     
 
     // first define parameters at collision radius
-    float minAngleFront = -30.0f*TO_RAD; // -30
-    float maxAngleFront = -0.0f*TO_RAD; // 0
+    float minAngleFront = -10.0f*TO_RAD; // -30
+    float maxAngleFront = -10.0f*TO_RAD; // 0
 
-    float minAngleSide = -90.0f*TO_RAD; // -90
-    float maxAngleSide = -0.0f*TO_RAD; // -0
+    float minAngleSide = -40.0f*TO_RAD; // -90
+    float maxAngleSide = -40.0f*TO_RAD; // -0
 
-    float sideAngle = -110.0f*TO_RAD;
+    float sideAngle = -90.0f*TO_RAD;
 
 
 

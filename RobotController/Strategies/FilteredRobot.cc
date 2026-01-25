@@ -222,10 +222,10 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
 
     // run until the sim time is above the max time
     std::vector<cv::Point2f> orbPathGarbage = {};
-    bool badTurnGarbage = false;
+    float inflectGarbage = 0.0f;
     while(simTime < maxExtrapTime) {
 
-        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway, badTurnGarbage);
+        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway, inflectGarbage);
         if(orbETA < simTime) { break; } // break when we arrive at the same time
         if(virtualOpp.moveSpeedSlow() < 1.0f && abs(virtualOpp.turnVel()) < 0.01f) { break; } // break if opp's vel has decayed
 
@@ -449,7 +449,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // simulates orb's path to the opp to calculate the ETA
-float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, bool &badTurn) {
+float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance) {
 
     int direction = forward ? 1 : -1;
 
@@ -457,10 +457,12 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
     float simSpeed = 0.0f; // assume zero at first so it doesn't think we can curve super tight on the first update
 
     float timeStep = 0.01f;
-    float maxTime = 2.0f;
+    float maxTime = 1.5f;
 
     float simTime = 0.0f;
     int steps = (int) (maxTime / timeStep);
+
+    inflectDistance = 999999.0f;
 
     // simulate orb's actions through each time step
     for(int i = 0; i < steps; i++) { 
@@ -470,18 +472,25 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         dummyOrb.setPos(simPos);
 
 
+        bool turningCorrect = (dummyOrb.angleTo(opp.position(), forward) > 0 && CW) || (dummyOrb.angleTo(opp.position(), forward) < 0 && !CW);
+        float distanceAway = std::max(opp.distanceTo(dummyOrb.position()) - opp.getSizeRadius() - dummyOrb.getSizeRadius(), 0.0f);
+
+        // remember the closest distance at which we weren't turning the right way
+        if(!turningCorrect && !turnAway) { inflectDistance = distanceAway; }
+        
+
+
+
+
         // if we're in the opp's weapon range then return a high number so fraction goes high (if we want to stop if hit)
         if(opp.facing(dummyOrb, true) && stopIfHit) {
-            simTime = 9999999999.0f;
+            simTime = maxTime;
             break;
         }
 
         // if we're colliding and it's approaching opp wrong, treat it as getting hit
-        bool turningCorrect = (dummyOrb.angleTo(opp.position(), forward) > 0 && CW) || (dummyOrb.angleTo(opp.position(), forward) < 0 && !CW);
         if(dummyOrb.colliding(opp, 0.0f) && !turningCorrect && orbNeedsToFace) {
-            simTime = 99999999999.0f;
-            std::cout << "bad turn";
-            badTurn = true;
+            simTime = maxTime;
             break;
         }
 
@@ -492,15 +501,13 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 
         // if we're close enough to collide (and not facing opp), then return high number
         if(dummyOrb.colliding(opp, 0.0f) && orbNeedsToFace) { 
-            simTime = 99999999999.0f;
+            simTime = maxTime;
             break;
         }
 
         
 
-
-
-        float distanceAway = std::max(opp.distanceTo(dummyOrb.position()) - opp.getSizeRadius() - dummyOrb.getSizeRadius(), 0.0f);
+        
         float radius = distanceAway * 0.5f; // create a curved path as a rough prediction of how we'll approach opp
 
         // calculate tangent point to that circle
@@ -525,7 +532,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         
         
         // simulate what curvature controller would do
-        float curvature = 0.50f*angleError; // 0.65
+        float curvature = 0.70f*angleError; // 0.5
 
         float maxCurve = 99.0f; // 1.0
         curvature = std::clamp(curvature, -maxCurve, maxCurve);
@@ -713,7 +720,7 @@ float FilteredRobot::angleTo(cv::Point2f point, bool forward) {
 
 // distance to the inputted point
 float FilteredRobot::distanceTo(cv::Point2f point) {
-    return cv::norm(cv::Point2f(posFiltered[0], posFiltered[1]) - point);
+    return cv::norm(position() - point);
 }
 
 
@@ -758,8 +765,10 @@ float FilteredRobot::angle(bool forward) {
 }
 
 float FilteredRobot::turnVel() { return velFiltered[2]; }
+float FilteredRobot::turnVelSlow() { return velFilteredSlow[2]; }
 float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
 float FilteredRobot::getMaxMoveSpeed() { return maxMoveSpeed; }
+float FilteredRobot::getMaxTurnAccel() { return maxTurnAccel; }
 float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
