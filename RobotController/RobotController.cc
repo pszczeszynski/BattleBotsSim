@@ -412,8 +412,8 @@ DriverStationMessage RobotController::RobotLogic() {
   // draw arrow in the direction of the robot
   OdometryData odoData = RobotController::GetInstance().odometry.Robot();
 
-  cv::Point2f robotPos = odoData.robotPosition;
-  Angle robotAngle = odoData.GetAngle();
+  cv::Point2f robotPos = odoData.GetPositionOrZero();
+  Angle robotAngle = odoData.GetAngleOrZero();
   float robotAnglef = (double)robotAngle;
   cv::Point2f arrowEnd =
       robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;

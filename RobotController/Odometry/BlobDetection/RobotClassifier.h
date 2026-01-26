@@ -4,10 +4,19 @@
 
 #pragma once
 
-#include "../../VisionClassification.h"
-#include "../OdometryBase.h"
 #include "MotionBlob.h"
+#include <opencv2/core.hpp>
 
+// Forward declaration - defined in BlobDetection.h
+struct VisionClassification;
+
+// Lightweight prior information for blob classification
+// Used instead of OdometryData to avoid unnecessary dependencies
+struct TrackPrior {
+  bool valid;
+  cv::Point2f pos;
+  cv::Point2f vel;
+};
 
 struct RobotCalibrationData {
   cv::Scalar meanColor;
@@ -20,16 +29,15 @@ class RobotClassifier {
   RobotClassifier();
 
   VisionClassification ClassifyBlobs(std::vector<MotionBlob> &blobs,
-                                     cv::Mat &frame, cv::Mat &motionImage,
-                                     OdometryData &robotData,
-                                     OdometryData &opponentData,
-                                     bool neuralBlackedOut, double frameTime);
+                                     const cv::Mat &frame, const cv::Mat &motionImage,
+                                     const TrackPrior &usPrior,
+                                     const TrackPrior &themPrior, double frameTime);
 
  private:
-  double ClassifyBlob(MotionBlob &blob, cv::Mat &frame, cv::Mat &motionImage,
-                      OdometryData &robotData, OdometryData &opponentData);
+  double ClassifyBlob(MotionBlob &blob, const cv::Mat &frame, const cv::Mat &motionImage,
+                      const TrackPrior &usPrior, const TrackPrior &themPrior);
   void RecalibrateRobot(RobotCalibrationData &data, MotionBlob &blob,
-                        cv::Mat &frame, cv::Mat &motionImage);
+                        const cv::Mat &frame, const cv::Mat &motionImage);
 
   RobotCalibrationData robotCalibrationData;
   RobotCalibrationData opponentCalibrationData;

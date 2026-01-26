@@ -1,301 +1,379 @@
 #include "CVPosition.h"
-#include <opencv2/dnn.hpp>
-#include <opencv2/core.hpp>
+
+#include <cstdlib>  // For std::system
 #include <iostream>
-#include "../../UIWidgets/ClockWidget.h"
-#include "../../CameraReceiver.h"
 #include <nlohmann/json.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
+
+#include "../../CameraReceiver.h"
 #include "../../RobotConfig.h"
-#include <cstdlib> // For std::system
+#include "../../UIWidgets/ClockWidget.h"
 
-#define VELOCITY_RESET_FRAMES 100
 
-// Function to create shared memory and return a pointer to it
-void *createSharedMemory(std::string name, int size)
-{
-    std::wstring sharedFileNameW(name.begin(), name.end());
-    LPCSTR sharedFileNameLPCWSTR = name.c_str();
+// Maximum time gap (seconds) before resetting velocity
+constexpr double MAX_VELOCITY_TIME_GAP = 0.5;
+// Minimum consecutive valid frames required before publishing
+constexpr int MIN_VALID_STREAK = 3;
 
-    HANDLE hMapFile = CreateFileMappingA(
-        INVALID_HANDLE_VALUE,   // Use paging file - shared memory
-        NULL,                   // Default security attributes
-        PAGE_READWRITE,         // Read/write access
-        0,                      // Maximum object size (high-order DWORD)
-        size,                   // Maximum object size (low-order DWORD)
-        sharedFileNameLPCWSTR); // Name of the mapping object
+// Function to create shared memory and return handle and pointer
+bool CreateSharedMemory(const std::string& name, int size, HANDLE& outHandle,
+                        void*& outPointer) {
+  LPCSTR sharedFileNameLPCSTR = name.c_str();
 
-    if (hMapFile == NULL)
-    {
-        std::cerr << "Could not create file mapping object: " << GetLastError() << std::endl;
-        return nullptr;
-    }
+  HANDLE hMapFile = CreateFileMappingA(
+      INVALID_HANDLE_VALUE,   // Use paging file - shared memory
+      NULL,                   // Default security attributes
+      PAGE_READWRITE,         // Read/write access
+      0,                      // Maximum object size (high-order DWORD)
+      size,                   // Maximum object size (low-order DWORD)
+      sharedFileNameLPCSTR);  // Name of the mapping object
 
-    void *pBuf = MapViewOfFile(hMapFile,            // Handle to mapping object
-                               FILE_MAP_ALL_ACCESS, // Read/write permission
-                               0,
-                               0,
-                               size);
+  if (hMapFile == NULL) {
+    std::cerr << "Could not create file mapping object: " << GetLastError()
+              << std::endl;
+    return false;
+  }
 
-    if (pBuf == nullptr)
-    {
-        std::cerr << "Could not map view of file: " << GetLastError() << std::endl;
-        CloseHandle(hMapFile); // Handle cleanup
-        return nullptr;
-    }
+  void* pBuf = MapViewOfFile(hMapFile,             // Handle to mapping object
+                             FILE_MAP_ALL_ACCESS,  // Read/write permission
+                             0, 0, size);
 
-    return pBuf;
+  if (pBuf == nullptr) {
+    std::cerr << "Could not map view of file: " << GetLastError() << std::endl;
+    CloseHandle(hMapFile);
+    return false;
+  }
+
+  outHandle = hMapFile;
+  outPointer = pBuf;
+  return true;
 }
 
-void CVPosition::_InitSharedImage()
-{
-    int type = CV_8UC1; // Example type: 8-bit unsigned int with 3 channels
-    int elementSize = CV_ELEM_SIZE(type); // Size of element depending on the cv::Mat type
-    int imgSize = width * height * elementSize;
+void CVPosition::_InitSharedImage() {
+  int type = CV_8UC1;
+  int elementSize = CV_ELEM_SIZE(type);
+  int imgSize = width * height * elementSize;
 
-    // Create shared memory
-    void* sharedData = createSharedMemory(memName, imgSize);
-
-    // Initialize cv::Mat with the shared memory data
-    sharedImage = cv::Mat(height, width, type, sharedData);
-}
-
-void CVPosition::_StartPython()
-{
+  // Create shared memory and store handle/pointer
+  if (!CreateSharedMemory(memName, imgSize, _hMapFile, _pSharedMemory)) {
+    std::cerr << "Failed to create shared memory for CVPosition" << std::endl;
     return;
-    // return;
-    const std::string venv_path = "venv";            // Path to the venv directory
-    const std::string script_path = "CVPosition.py"; // Path to the Python script
-    // Create command string for Windows
-    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " > NUL 2>&1\"";
+  }
 
-    _pythonThread = std::thread([command]() {
-        // Run the command
-        int result = std::system(command.c_str());
-        if (result != 0)
-        {
-            std::cerr << "Failed to run CVPosition.py" << std::endl;
-        }
-    });
+  // Initialize cv::Mat with the shared memory data
+  sharedImage = cv::Mat(height, width, type, _pSharedMemory);
 }
 
-CVPosition::CVPosition(ICameraReceiver *videoSource) : _pythonSocket("11116"), _lastData(CVPositionData()), OdometryBase(videoSource)
-{
-    _InitSharedImage();
+void CVPosition::_StartPython() {
+  return;  // Disabled for now
+  const std::string venv_path = "venv";
+  const std::string script_path = "CVPosition.py";
+  std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path +
+                        "\\Scripts\\activate && python " + script_path +
+                        " > NUL 2>&1\"";
 
-    _StartPython();
+  _pythonThreadRunning = true;
+  _pythonThread = std::thread([command, this]() {
+    int result = std::system(command.c_str());
+    if (result != 0) {
+      std::cerr << "Failed to run CVPosition.py" << std::endl;
+    }
+    _pythonThreadRunning = false;
+  });
 }
 
-CVPosition::~CVPosition()
-{
+CVPosition::CVPosition(ICameraReceiver* videoSource)
+    : _pythonSocket("11116"),
+      _lastData(CVPositionData()),
+      OdometryBase(videoSource),
+      _hMapFile(nullptr),
+      _pSharedMemory(nullptr) {
+  _InitSharedImage();
+  _StartPython();
 }
 
-// Start the thread
-// Returns false if already running
-void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
-{
-    // write the id to the frame
-    for (int i = 0; i < 4; i++)
-    {
-        frame.at<uchar>(0, i) = (frameID >> (8 * i)) & 0xFF;
-    }
+CVPosition::~CVPosition() {
+  // Stop Python thread if running
+  if (_pythonThreadRunning) {
+    // Thread will exit naturally when Python script stops
+    // We could add a signal mechanism if needed
+  }
+  if (_pythonThread.joinable()) {
+    _pythonThread.join();
+  }
 
-    // the next pixels are the time in milliseconds
-    uint32_t timeMillis = (uint32_t) (frameTime * 1000.0);
+  // Clean up shared memory
+  if (_pSharedMemory != nullptr) {
+    UnmapViewOfFile(_pSharedMemory);
+    _pSharedMemory = nullptr;
+  }
+  if (_hMapFile != nullptr) {
+    CloseHandle(_hMapFile);
+    _hMapFile = nullptr;
+  }
+}
 
-    // add the time to the frame
-    for (int i = 0; i < 4; i++)
-    {
-        frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
-    }
+cv::Point2f CVPosition::_ComputeCenterFromBBox(const std::vector<int>& bbox) {
+  // Assumes bbox format is [x1, y1, x2, y2]
+  // Compute center as midpoint
+  if (bbox.size() >= 4) {
+    float centerX = (bbox[0] + bbox[2]) / 2.0f;
+    float centerY = (bbox[1] + bbox[3]) / 2.0f;
+    return cv::Point2f(centerX, centerY);
+  }
+  // Fallback: if bbox[0], bbox[1] are already center (legacy behavior)
+  if (bbox.size() >= 2) {
+    return cv::Point2f(static_cast<float>(bbox[0]),
+                       static_cast<float>(bbox[1]));
+  }
+  return cv::Point2f(0, 0);
+}
 
-    if (NEURAL_BRIGHTNESS_ADJUST != 0)
-    {
-        // brightness adjust +1
-        cv::Mat adjusted;
+cv::Point2f CVPosition::_ComputeVelocity(cv::Point2f currentCenter,
+                                         double currentTime,
+                                         cv::Point2f lastCenter,
+                                         double lastTime) {
+  double deltaTime = currentTime - lastTime;
 
-        // Now adjust the new imagexz
-        frame.convertTo(adjusted,  CV_16U, 1 + NEURAL_BRIGHTNESS_ADJUST / 10.0, 0); // Multiply by factor, no offset
+  // Reset velocity if time gap is too large
+  if (deltaTime <= 0 || deltaTime > MAX_VELOCITY_TIME_GAP) {
+    return cv::Point2f(0, 0);
+  }
 
-        // Ensure pixel values are within [0, 255]
-        cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC); // Cap at 255
+  cv::Point2f deltaPos = currentCenter - lastCenter;
+  return cv::Point2f(static_cast<float>(deltaPos.x / deltaTime),
+                     static_cast<float>(deltaPos.y / deltaTime));
+}
 
-        // Set it back to 8 bit
-        adjusted.convertTo(frame, CV_8U);
+void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
+  // Write frameID to the first 4 pixels (allowed image mutation)
+  for (int i = 0; i < 4; i++) {
+    frame.at<uchar>(0, i) = (frameID >> (8 * i)) & 0xFF;
+  }
 
+  // Write time in milliseconds to next 4 pixels
+  uint32_t timeMillis = (uint32_t)(frameTime * 1000.0);
+  for (int i = 0; i < 4; i++) {
+    frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
+  }
 
-        // cv::imshow("adjusted", frame);
-        // cv::waitKey(1);
+  // Apply brightness adjustment if configured
+  if (NEURAL_BRIGHTNESS_ADJUST != 0) {
+    cv::Mat adjusted;
+    frame.convertTo(adjusted, CV_16U, 1 + NEURAL_BRIGHTNESS_ADJUST / 10.0, 0);
+    cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC);
+    adjusted.convertTo(frame, CV_8U);
+  }
 
-    }
-
-    // copy to shared memory
+  // Copy to shared memory
+  if (!sharedImage.empty()) {
     frame.copyTo(sharedImage);
+  }
 
-    bool pythonResponded = true;
-    CVPositionData data = _GetDataFromPython(pythonResponded);
+  // Get data from Python (non-blocking receive)
+  bool pythonResponded = false;
+  CVPositionData data = _GetDataFromPython(pythonResponded);
 
-    if (!pythonResponded) {
-        return;
+  // If Python didn't respond, don't publish (id increments only on Publish)
+  if (!pythonResponded) {
+    return;
+  }
+
+  // Validate bounding box and compute center
+  if (data.valid && data.boundingBox.size() >= 4) {
+    // Compute center from bounding box midpoint
+    data.center = _ComputeCenterFromBBox(data.boundingBox);
+
+    // Validate center is within frame bounds
+    if (data.center.x <= 0 || data.center.y <= 0 ||
+        data.center.x >= frame.cols || data.center.y >= frame.rows ||
+        std::isnan(data.center.x) || std::isnan(data.center.y) ||
+        std::isinf(data.center.x) || std::isinf(data.center.y)) {
+      data.valid = false;
     }
+  } else {
+    data.valid = false;
+  }
 
-    // // make sure the data is newer than the last data
-    // if (data.center.x <= 0 ||
-    //     data.center.y <= 0 || data.center.x >= frame.cols ||
-    //     data.center.y >= frame.rows || std::isnan(data.center.x) ||
-    //     std::isnan(data.center.y) || std::isinf(data.center.x) ||
-    //     std::isinf(data.center.y)) {
-    //   data.valid = false;
-    //   std::cout << "invalid 0" << std::endl;
-    // }
+  // Apply gating logic and compute velocity with RAII lock
+  cv::Point2f velocity(0, 0);
+  bool shouldPublish = false;
 
-    cv::Point2f velocity = cv::Point2f(0, 0);
+  {
+    std::lock_guard<std::mutex> lock(_lastDataMutex);
+
+    // Save previous valid state for velocity computation (before updating)
+    cv::Point2f prevCenter = _lastValidCenter;
+    double prevTime = _lastValidTime;
+    bool hadPrevState = _hasPrevValidState;
 
     if (data.valid) {
-        // If lastData isn't invalid, set to current position (0 velocity)
-        if (_lastData.center.x <= 0 || _lastData.center.y <= 0 || _lastData.center.x >= frame.cols ||
-            _lastData.center.y >= frame.rows) {
-            _lastData.center = data.center;
+      // Check distance jump and frame gap
+      double distance = (_lastValidFrameID == 0)
+                            ? 0.0
+                            : cv::norm(data.center - _lastValidCenter);
+      uint32_t frameGap = (_lastValidFrameID == 0)
+                              ? 0
+                              : (data.frameID > _lastValidFrameID
+                                     ? data.frameID - _lastValidFrameID
+                                     : 0);
+
+      if (distance > _max_distance_thresh || frameGap > 100) {
+        // Reset on large jump or gap
+        data.valid = false;
+        _validStreakCounter = 0;
+        _hasPrevValidState = false;
+      } else {
+        // Increment valid streak
+        _validStreakCounter++;
+
+        // Compute velocity from previous valid state
+        if (hadPrevState && prevTime > 0) {
+          double currentTime = data.time_millis / 1000.0;
+          velocity =
+              _ComputeVelocity(data.center, currentTime, prevCenter, prevTime);
         }
-
-        _lastDataMutex.lock();
-        // if we ever skip too much distance, reset to invalid
-        if (cv::norm(data.center - _lastData.center) > _max_distance_thresh ||
-            data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES) {
-          data.valid = false;
-          std::cout << "invalid 1" << std::endl;
-
-          std::cout << "distance: " << cv::norm(data.center - _lastData.center) << std::endl;
-          std::cout << "frameID: " << data.frameID << " lastFrameID: " << _lastData.frameID << std::endl;
-        }
-        // copy over the data
-        _lastData = data;
-        _lastVelocity = velocity;
-        _lastDataMutex.unlock();
-    }
-    // if the data is valid, increment the valid frames counter
-    if (data.valid) {
-        _valid_frames_counter++;
-    }
-
-    data.valid = data.valid && _valid_frames_counter >= 3;
-
-    _UpdateData(data, velocity);
-
-}
-
-void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
-{
-    // Get unique access
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.id = data.frameID;             // Set id based on the frame
-    _currDataRobot.frameID = frameID; 
-    double posTime = data.time_millis / 1000.0;    // Set to new time
-    
-    if (data.valid) {
-        cv::Rect defaultRect(static_cast<int>(data.center.x - 10), static_cast<int>(data.center.y - 10), 20, 20);
-        _currDataRobot.SetPosition(data.center, velocity, defaultRect, posTime);
+      }
     } else {
-        _currDataRobot.InvalidatePosition();
+      // Reset streak on invalid data
+      _validStreakCounter = 0;
     }
-    _currDataRobot.InvalidateAngle(); // always invalid angle since just position
 
-    _currDataOpponent.Clear();
-    _currDataOpponent.InvalidatePosition();
-    _currDataOpponent.InvalidateAngle();
+    // Update last valid state if data is valid
+    if (data.valid) {
+      _lastData = data;
+
+      // Update current state (previous state was already read into
+      // prevCenter/prevTime above)
+      _lastValidCenter = data.center;
+      _lastValidTime = data.time_millis / 1000.0;
+      _lastValidFrameID = data.frameID;
+      _hasPrevValidState = true;
+
+      // Check if we should publish (streak sufficient)
+      shouldPublish = (_validStreakCounter >= MIN_VALID_STREAK);
+    } else {
+      _hasPrevValidState = false;
+    }
+  }
+
+  // Only publish if data is valid and streak is sufficient
+  // (id increments only on Publish; no publish on invalid/no-response)
+  if (shouldPublish) {
+    // Construct OdometryData sample for publishing
+    OdometryData sample;
+    sample.Clear();
+
+    double posTime = data.time_millis / 1000.0;
+
+    // Create bounding box rect
+    cv::Rect bboxRect;
+    if (data.boundingBox.size() >= 4) {
+      bboxRect = cv::Rect(data.boundingBox[0], data.boundingBox[1],
+                          data.boundingBox[2] - data.boundingBox[0],
+                          data.boundingBox[3] - data.boundingBox[1]);
+    } else {
+      // Fallback: create default rect around center
+      bboxRect = cv::Rect(static_cast<int>(data.center.x - 10),
+                          static_cast<int>(data.center.y - 10), 20, 20);
+    }
+
+    // Set position data with velocity and rect
+    sample.pos = PositionData(data.center, velocity, bboxRect, posTime);
+
+    // Angle remains invalid (not set)
+
+    // Publish the sample (base class increments id automatically)
+    OdometryBase::Publish(sample, /*isOpponent=*/false);
+  }
 }
 
-/**
- * there is a 5th field, which is the id
-*/
-std::vector<int> CVPosition::GetBoundingBox(int* outFrameID)
-{
-    _lastDataMutex.lock();
-    CVPositionData actualData = _lastData;
-    _lastDataMutex.unlock();
+std::vector<int> CVPosition::GetBoundingBox(int* outFrameID) {
+  std::lock_guard<std::mutex> lock(_lastDataMutex);
+  CVPositionData actualData = _lastData;
 
-    // copy the actual id to the outFrameID
-    if (outFrameID != nullptr)
-    {
-        *outFrameID = actualData.frameID;
-    }
+  if (outFrameID != nullptr) {
+    *outFrameID = actualData.frameID;
+  }
 
-    return actualData.boundingBox;
+  return actualData.boundingBox;
 }
 
-cv::Point2f CVPosition::GetCenter(int* outFrameID)
-{
-    _lastDataMutex.lock();
-    CVPositionData actualData = _lastData;
-    _lastDataMutex.unlock();
+cv::Point2f CVPosition::GetCenter(int* outFrameID) {
+  std::lock_guard<std::mutex> lock(_lastDataMutex);
+  CVPositionData actualData = _lastData;
 
-    // copy the actual id to the outFrameID
-    if (outFrameID != nullptr)
-    {
-        *outFrameID = actualData.frameID;
-    }
+  if (outFrameID != nullptr) {
+    *outFrameID = actualData.frameID;
+  }
 
-    return actualData.center;
+  return actualData.center;
 }
 
-CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded)
-{
-    // receive from socket
-    std::string data = _pythonSocket.receive();
+CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded) {
+  // Receive from socket (non-blocking - ServerSocket::receive() uses FIONBIO)
+  std::string data = _pythonSocket.receive();
 
-    if (data == "")
-    {
-        CVPositionData ret = _lastData;
-        ret.valid = false;
-        std::cout << "invalid -2" << std::endl;
-        outPythonResponded = false;
-        return ret;
-    }
-    outPythonResponded = true;
-
-    // parse using json
-    nlohmann::json j = nlohmann::json::parse(data);
-    
-    // get "bounding_box"
-    nlohmann::json boundingBox = j["bounding_box"];
-
-    // check if it's a string and equal to "invalid"
-    if (boundingBox.is_string())
-    {
-        CVPositionData ret = _lastData;
-        ret.valid = false;
-        std::cout << "invalid -3" << std::endl;
-        return ret;
-    }
-
-    // it's an array of floats, so we can just cast it to a vector
-    std::vector<float> boundingBoxVec = boundingBox.get<std::vector<float>>();
-
-    // convert to ints
-    std::vector<int> intBoundingBox = {};
-    for (int i = 0; i < boundingBoxVec.size(); i++)
-    {
-        intBoundingBox.push_back((int)boundingBoxVec[i]);
-    }
-
-    // get the "conf" it's a float
-    float conf = j["conf"].get<float>();
-
-    // get the "frame_id" it's an int
-    uint32_t id = j["frame_id"].get<uint32_t>();
-
-    // parse the time in milliseconds
-    uint32_t time_milliseconds = j["time_milliseconds"].get<uint32_t>();
-
+  if (data.empty()) {
     CVPositionData ret;
-    ret.boundingBox = intBoundingBox;
-    ret.frameID = id;
-    ret.time_millis = time_milliseconds;
-    ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
-    ret.valid = conf >= NN_MIN_CONFIDENCE;
-    std::cout << "conf valid: " << ret.valid << std::endl;
-
+    {
+      std::lock_guard<std::mutex> lock(_lastDataMutex);
+      ret = _lastData;  // Return last known data
+    }
+    ret.valid = false;
+    outPythonResponded = false;
     return ret;
+  }
+  outPythonResponded = true;
+
+  // Parse JSON
+  nlohmann::json j;
+  try {
+    j = nlohmann::json::parse(data);
+  } catch (...) {
+    CVPositionData ret;
+    {
+      std::lock_guard<std::mutex> lock(_lastDataMutex);
+      ret = _lastData;
+    }
+    ret.valid = false;
+    return ret;
+  }
+
+  // Get "bounding_box"
+  nlohmann::json boundingBox = j["bounding_box"];
+
+  // Check if it's a string and equal to "invalid"
+  if (boundingBox.is_string()) {
+    CVPositionData ret;
+    {
+      std::lock_guard<std::mutex> lock(_lastDataMutex);
+      ret = _lastData;
+    }
+    ret.valid = false;
+    return ret;
+  }
+
+  // It's an array of floats, convert to ints
+  std::vector<float> boundingBoxVec = boundingBox.get<std::vector<float>>();
+  std::vector<int> intBoundingBox;
+  for (size_t i = 0; i < boundingBoxVec.size(); i++) {
+    intBoundingBox.push_back(static_cast<int>(boundingBoxVec[i]));
+  }
+
+  // Get confidence and frame_id
+  float conf = j["conf"].get<float>();
+  uint32_t id = j["frame_id"].get<uint32_t>();
+  uint32_t time_milliseconds = j["time_milliseconds"].get<uint32_t>();
+
+  CVPositionData ret;
+  ret.boundingBox = intBoundingBox;
+  ret.frameID = id;
+  ret.time_millis = time_milliseconds;
+  ret.valid = conf >= NN_MIN_CONFIDENCE;
+
+  // Center will be computed in _ProcessNewFrame from bbox
+
+  return ret;
 }

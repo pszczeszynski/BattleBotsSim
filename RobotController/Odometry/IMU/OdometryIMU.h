@@ -23,4 +23,5 @@ class OdometryIMU : public OdometryBase
     double _lastImuAngle = 0;
     Angle _lastAngle;
     int _lastRadioChannel = 0;
+    bool _needImuResync = false; // flag to reset IMU continuity on next packet
 };

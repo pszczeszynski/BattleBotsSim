@@ -1,8 +1,8 @@
 #include "RobotClassifier.h"
 
+#include "../../Clock.h"
 #include "../../RobotConfig.h"
-#include "../../RobotController.h"
-
+#include "BlobDetection.h"  // For VisionClassification definition
 
 RobotClassifier::RobotClassifier(void) {
   robotCalibrationData.meanColor = cv::Scalar(0, 0, 100);
@@ -16,14 +16,17 @@ RobotClassifier::RobotClassifier(void) {
  * Returns a number that is more negative the more we think the robot is us.
  *
  */
-double RobotClassifier::ClassifyBlob(MotionBlob &blob, cv::Mat &frame,
-                                     cv::Mat &motionImage,
-                                     OdometryData &robotData,
-                                     OdometryData &opponentData) {
+double RobotClassifier::ClassifyBlob(MotionBlob &blob, const cv::Mat &frame,
+                                     const cv::Mat &motionImage,
+                                     const TrackPrior &usPrior,
+                                     const TrackPrior &themPrior) {
+  // Use default position if prior is invalid
+  cv::Point2f usPos = usPrior.valid ? usPrior.pos : cv::Point2f(0, 0);
+  cv::Point2f themPos = themPrior.valid ? themPrior.pos : cv::Point2f(0, 0);
+
   // now let's take their location into account
-  double distanceToRobot = cv::norm(robotData.robotPosition - blob.center);
-  double distanceToOpponent =
-      cv::norm(opponentData.robotPosition - blob.center);
+  double distanceToRobot = cv::norm(usPos - blob.center);
+  double distanceToOpponent = cv::norm(themPos - blob.center);
 
   // normalize the distance score
   double distanceScoreNormalized = (distanceToRobot - distanceToOpponent) /
@@ -61,9 +64,9 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs,
  * @param motionImage a frame with only the motion as white pixels
  */
 VisionClassification RobotClassifier::ClassifyBlobs(
-    std::vector<MotionBlob> &blobs, cv::Mat &frame, cv::Mat &motionImage,
-    OdometryData &robotData, OdometryData &opponentData, bool neuralBlackedOut,
-    double frameTime) {
+    std::vector<MotionBlob> &blobs, const cv::Mat &frame,
+    const cv::Mat &motionImage, const TrackPrior &usPrior,
+    const TrackPrior &themPrior, double frameTime) {
   VisionClassification classificationResult;
 
   static int lastBlobsSize = 0;
@@ -73,39 +76,10 @@ VisionClassification RobotClassifier::ClassifyBlobs(
 
   double matchingDistThresholdRobot = BLOB_MATCHING_DIST_THRESHOLD;
   double matchingDistThresholdOpponent = BLOB_MATCHING_DIST_THRESHOLD;
-  if (neuralBlackedOut) {
-    CVPosition &cvPosition =
-        RobotController::GetInstance().odometry.GetNeuralOdometry();
-    OdometryData neuralData = cvPosition.GetData(false);
-    neuralData = neuralData.ExtrapolateBoundedTo(frameTime);
 
-    // get the latest position from the neural network
-    cv::Point2f neuralPosition = neuralData.robotPosition;
-
-    MotionBlob neuralBlob;
-    neuralBlob.center = neuralPosition;
-    neuralBlob.rect =
-        cv::Rect(neuralPosition.x - 10, neuralPosition.y - 10, 20, 20);
-    neuralBlob.frame = &frame;
-    neuralBlob.rotation = 0;
-
-    // classify the neural blob
-    classificationResult.SetRobot(neuralBlob);
-
-    if (blobs.size() > 0) {
-      // find the closest blob to the last opponent
-      MotionBlob closestBlob =
-          GetClosestBlobAndRemove(blobs, opponentData.robotPosition);
-
-      // check if sufficiently far from robot
-      if (cv::norm(closestBlob.center - opponentData.robotPosition) <
-          BLOB_MATCHING_DIST_THRESHOLD) {
-        classificationResult.SetOpponent(closestBlob);
-      }
-    }
-
-    return classificationResult;
-  }
+  // Use default positions if priors are invalid
+  cv::Point2f usPos = usPrior.valid ? usPrior.pos : cv::Point2f(0, 0);
+  cv::Point2f themPos = themPrior.valid ? themPrior.pos : cv::Point2f(0, 0);
 
   // if only one blob
   if (blobs.size() == 1) {
@@ -116,19 +90,16 @@ VisionClassification RobotClassifier::ClassifyBlobs(
     // code is one of the fastest codes run, and if better information on
     // GetPosition arrives from other algorithms then we want to search for
     // blobs near it.
-    double distanceToRobot =
-        cv::norm(robotData.robotPosition - blobs[0].center);
-    double distanceToOpponent =
-        cv::norm(opponentData.robotPosition - blobs[0].center);
+    double distanceToRobot = cv::norm(usPos - blobs[0].center);
+    double distanceToOpponent = cv::norm(themPos - blobs[0].center);
 
-    bool isRobot = ClassifyBlob(blobs[0], frame, motionImage, robotData,
-                                opponentData) <= 0;
+    bool isRobot =
+        ClassifyBlob(blobs[0], frame, motionImage, usPrior, themPrior) <= 0;
 
     // if the blob is really close to both robots
     if (distanceToRobot < 10 && distanceToOpponent < 10) {
       // choose the one with more velocity last time
-      isRobot = cv::norm(robotData.robotVelocity) >
-                cv::norm(opponentData.robotVelocity);
+      isRobot = cv::norm(usPrior.vel) > cv::norm(themPrior.vel);
     }
 
     // if this is the robot (not the opponent)
@@ -136,7 +107,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(
       if (distanceToRobot < matchingDistThresholdRobot &&
           sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
           sqrt(blobs[0].rect.area()) <= MAX_ROBOT_BLOB_SIZE) {
-        classificationResult.SetRobot(blobs[0]);
+        classificationResult.robot = blobs[0];
         noRobotClock.markStart();
       }
     } else {
@@ -144,7 +115,7 @@ VisionClassification RobotClassifier::ClassifyBlobs(
       if (distanceToOpponent < matchingDistThresholdOpponent &&
           sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
           sqrt(blobs[0].rect.area()) <= MAX_OPPONENT_BLOB_SIZE) {
-        classificationResult.SetOpponent(blobs[0]);
+        classificationResult.opponent = blobs[0];
         noRobotClock.markStart();
       }
     }
@@ -156,35 +127,31 @@ VisionClassification RobotClassifier::ClassifyBlobs(
     // copy over all the blobs
     std::copy(blobs.begin(), blobs.end(),
               std::back_inserter(blobsToChooseFrom));
-    filtered.push_back(
-        GetClosestBlobAndRemove(blobsToChooseFrom, robotData.robotPosition));
-    filtered.push_back(
-        GetClosestBlobAndRemove(blobsToChooseFrom, opponentData.robotPosition));
+    filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, usPos));
+    filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, themPos));
 
     double firstIsRobot =
-        ClassifyBlob(filtered[0], frame, motionImage, robotData, opponentData);
+        ClassifyBlob(filtered[0], frame, motionImage, usPrior, themPrior);
     double secondIsRobot =
-        ClassifyBlob(filtered[1], frame, motionImage, robotData, opponentData);
+        ClassifyBlob(filtered[1], frame, motionImage, usPrior, themPrior);
     double preference = firstIsRobot - secondIsRobot;
 
     MotionBlob &robot = preference <= 0 ? filtered[0] : filtered[1];
     MotionBlob &opponent = preference <= 0 ? filtered[1] : filtered[0];
 
     // if the robot blob is close to the robot tracker
-    if (norm(robot.center - robotData.robotPosition) <
-            matchingDistThresholdRobot &&
+    if (cv::norm(robot.center - usPos) < matchingDistThresholdRobot &&
         sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
         sqrt(robot.rect.area()) <= MAX_ROBOT_BLOB_SIZE) {
-      classificationResult.SetRobot(robot);
+      classificationResult.robot = robot;
       noRobotClock.markStart();
     }
 
     // if the opponent blob is close to the opponent tracker
-    if (norm(opponent.center - opponentData.robotPosition) <
-            matchingDistThresholdOpponent &&
+    if (cv::norm(opponent.center - themPos) < matchingDistThresholdOpponent &&
         sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
         sqrt(opponent.rect.area()) <= MAX_OPPONENT_BLOB_SIZE) {
-      classificationResult.SetOpponent(opponent);
+      classificationResult.opponent = opponent;
       noRobotClock.markStart();
     }
   }

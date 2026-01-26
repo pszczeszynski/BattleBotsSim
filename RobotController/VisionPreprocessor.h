@@ -5,9 +5,12 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#define NOMINMAX
+#include <windows.h>
+#include <mutex>
+#include <condition_variable>
+#include <shared_mutex>
 
-#include "Globals.h"
-#include "ThreadPool.h"
 // #define MACHINE_LEARNING
 
 #ifndef MACHINE_LEARNING

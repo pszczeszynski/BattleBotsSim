@@ -1,7 +1,12 @@
 #include "BlobDetection.h"
 
+#include <algorithm>
+
+#include "../../Clock.h"
+#include "../../Globals.h"
 #include "../../RobotConfig.h"
 #include "../../SafeDrawing.h"
+
 
 // *********************************************************************
 // NOTE:
@@ -12,32 +17,35 @@
 
 BlobDetection::BlobDetection(ICameraReceiver* videoSource)
     : OdometryBase(videoSource) {
-  SetVelocity(cv::Point2f(0, 0), false);
-  SetVelocity(cv::Point2f(0, 0), true);
+  // State is initialized with default values
 }
 
-void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
+void BlobDetection::_ProcessNewFrame(const cv::Mat currFrame,
+                                     double frameTime) {
   if (_previousImage.empty()) {
-    _previousImage = currFrame;
+    _previousImage = currFrame.clone();
     _prevFrameTime = frameTime;
     return;
   }
 
-  VisionClassification robotData = DoBlobDetection(
-      currFrame, _previousImage, frameTime);  // Locks the locker
+  // Run expensive vision work first (no lock)
+  VisionClassification robotData =
+      _DoBlobDetection(currFrame, _previousImage, frameTime);
 
-  // Now update our standard data
-  UpdateData(robotData, frameTime);
+  if (robotData.robot.has_value()) {
+    _ProcessStream(robotData.robot.value(), _usState, false, frameTime);
+  }
+  if (robotData.opponent.has_value()) {
+    _ProcessStream(robotData.opponent.value(), _themState, true, frameTime);
+  }
 
   // Move currFrame to previousImage
   // But only if both our robot and opponent robot have been found, or we
   // exceeded a timer
-
-  if (robotData.GetRobotBlob() != nullptr ||
-      robotData.GetOpponentBlob() != nullptr ||
+  if (robotData.robot.has_value() || robotData.opponent.has_value() ||
       (frameTime - _prevFrameTime) > (1.0 / BLOBS_MIN_FPS)) {
     // save the current frame as the previous frame
-    _previousImage = currFrame;
+    _previousImage = currFrame.clone();
     _prevFrameTime = frameTime;
   }
 }
@@ -46,14 +54,11 @@ void BlobDetection::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
  * Locates the robots in the frame
  * Note: Incoming images are black and white
  */
-VisionClassification BlobDetection::DoBlobDetection(
-    cv::Mat& currFrame, cv::Mat& previousFrame,
-    double frameTime) {
-  // hyperparameters
+VisionClassification BlobDetection::_DoBlobDetection(
+    const cv::Mat& currFrame, const cv::Mat& previousFrame, double frameTime) {
   const cv::Size BLUR_SIZE = cv::Size(14, 14);
-  const float MIN_DIM = min(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE);
-  const float MAX_DIM = max(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE);
-  const int BLOB_SEARCH_SIZE = 10;
+  const float MIN_DIM = (std::min)(MIN_OPPONENT_BLOB_SIZE, MIN_ROBOT_BLOB_SIZE);
+  const float MAX_DIM = (std::max)(MAX_OPPONENT_BLOB_SIZE, MAX_ROBOT_BLOB_SIZE);
 
   // Compute the absolute difference between the current frame and the previous
   // frame
@@ -80,79 +85,67 @@ VisionClassification BlobDetection::DoBlobDetection(
   cv::blur(thresholdImg, thresholdImg, BLUR_SIZE);
   cv::threshold(thresholdImg, thresholdImg, 15, 255, cv::THRESH_BINARY);
 
-  // find big blobs in the image using a blob detector
+  // Use connectedComponentsWithStats for more efficient blob detection
+  cv::Mat labels, stats, centroids;
+  int numLabels = cv::connectedComponentsWithStats(thresholdImg, labels, stats,
+                                                   centroids, 8, CV_32S);
 
-  // iterate through every pixel in the image and find the largest blob
-  std::vector<cv::Rect> potentialRobots = {};
-  for (int y = 0; y < thresholdImg.rows; y += BLOB_SEARCH_SIZE) {
-    for (int x = 0; x < thresholdImg.cols; x += BLOB_SEARCH_SIZE) {
-      // if this pixel is white, then it is part of a blob
-      if (thresholdImg.at<uchar>(y, x) == 255) {
-        // flood fill, mark the blob as 100 so that we don't flood fill it again
-        cv::Rect rect;
-        cv::floodFill(thresholdImg, cv::Point(x, y), cv::Scalar(100), &rect);
-
-        // if the blob is a reasonable size, add it to the list
-        if (rect.width >= MIN_DIM && rect.height >= MIN_DIM &&
-            rect.width <= MAX_DIM && rect.height <= MAX_DIM) {
-          // add the rect to the list of potential robots
-          potentialRobots.push_back(rect);
-        }
-      }
-    }
-  }
-
-  // for each robot, find the EXACT center of the robot by counting the white
-  // pixels in the blob and averaging them
   std::vector<MotionBlob> motionBlobs = {};
+  for (int i = 1; i < numLabels; i++) {  // Skip background label 0
+    int width = stats.at<int>(i, cv::CC_STAT_WIDTH);
+    int height = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+    int area = stats.at<int>(i, cv::CC_STAT_AREA);
 
-  for (const cv::Rect& rect : potentialRobots) {
-    // find the average of all the white pixels in the blob
-    int numWhitePixels = 0;
-    cv::Point2f averageWhitePixel = cv::Point2f(0, 0);
-    for (int y = rect.y; y < rect.y + rect.height; y++) {
-      for (int x = rect.x; x < rect.x + rect.width; x++) {
-        // if this pixel is white, then add it to the average
-        if (thresholdImg.at<uchar>(y, x) > 0) {
-          averageWhitePixel += cv::Point2f(x, y);
-          numWhitePixels++;
-        }
-      }
+    // Check size constraints
+    if (width >= MIN_DIM && height >= MIN_DIM && width <= MAX_DIM &&
+        height <= MAX_DIM) {
+      cv::Rect rect(stats.at<int>(i, cv::CC_STAT_LEFT),
+                    stats.at<int>(i, cv::CC_STAT_TOP), width, height);
+      cv::Point2f center(centroids.at<double>(i, 0),
+                         centroids.at<double>(i, 1));
+      // MotionBlob doesn't need frame pointer - only rect and center are used
+      motionBlobs.emplace_back(MotionBlob{rect, center, nullptr});
     }
-    // divide by the number of white pixels to get the average
-    averageWhitePixel /= numWhitePixels;
-
-    // add the average to the list of robot centers
-    motionBlobs.emplace_back(MotionBlob{rect, averageWhitePixel, &currFrame});
   }
 
-  // draw the blobs
-  std::unique_lock<std::mutex> debuglock(_mutexDebugImage);  // Locks the mutex
-  // _debugImage = cv::Mat::zeros(thresholdImg.size(), CV_8UC1); // Initialize
-  // debug image to black
+  // Create lightweight TrackPrior objects for classifier from current state
+  TrackPrior usPrior{false, cv::Point2f(0, 0), cv::Point2f(0, 0)};
+  TrackPrior themPrior{false, cv::Point2f(0, 0), cv::Point2f(0, 0)};
 
-  // cv::cvtColor(thresholdImg, _debugImage, cv::COLOR_BGR2GRAY);
-  thresholdImg.copyTo(_debugImage);
+  // Read state under lock for classifier
+  {
+    std::lock_guard<std::mutex> lock(_updateMutex);
+    if (_usState.have_pos && _usState.last_position.has_value()) {
+      usPrior.valid = true;
+      usPrior.pos = _usState.last_position.value();
+      usPrior.vel = _usState.last_velocity;
+    }
 
-  for (const MotionBlob& blob : motionBlobs) {
-    cv::rectangle(_debugImage, blob.rect, cv::Scalar(255), 2);
-    safe_circle(_debugImage, blob.center, 5, cv::Scalar(255), 2);
+    if (_themState.have_pos && _themState.last_position.has_value()) {
+      themPrior.valid = true;
+      themPrior.pos = _themState.last_position.value();
+      themPrior.vel = _themState.last_velocity;
+    }
   }
-
-  // draw the potential robots
-  // motionImageWidget.UpdateMat(blobsImage);
-
-  // static ImageWidget motionImageWidget{"Motion", true};
-  debuglock.unlock();  // Unlock the mutex
 
   // Identify which blobs are our robots (finds robot positions)
-  // classify the blobs and save them for later
-  // Need previous data to be able to predict this data
-  // Should we use extrapolated data? In this case maybe not so that we dont
-  // compound a bad reading?
+  // ClassifyBlobs doesn't mutate frame, so we can pass const reference
   VisionClassification result = _robotClassifier.ClassifyBlobs(
-      motionBlobs, currFrame, thresholdImg, _currDataRobot, _currDataOpponent,
-      false, frameTime);
+      motionBlobs, currFrame, thresholdImg, usPrior, themPrior, frameTime);
+
+  // Build debug image (build locally, then swap under lock)
+  cv::Mat debugLocal;
+  thresholdImg.copyTo(debugLocal);
+
+  for (const MotionBlob& blob : motionBlobs) {
+    cv::rectangle(debugLocal, blob.rect, cv::Scalar(255), 2);
+    safe_circle(debugLocal, blob.center, 5, cv::Scalar(255), 2);
+  }
+
+  {
+    std::scoped_lock<std::mutex> debuglock(_mutexDebugImage);
+    _debugImage = std::move(debugLocal);
+  }
 
   return result;
 }
@@ -176,245 +169,139 @@ void BlobDetection::GetDebugImage(cv::Mat& debugImage, cv::Point offset) {
   locker.unlock();  // Unlock mutex after operation
 }
 
-void BlobDetection::UpdateData(VisionClassification robotBlobData,
-                               double timestamp) {
-  // Get unique access (already locked from calling function)
-  //  std::unique_lock<std::mutex> locker(_updateMutex);
+void BlobDetection::_ProcessStream(const MotionBlob& blob,
+                                   BlobTrackState& state, bool isOpponent,
+                                   double timestamp) {
+  // Save previous position before updating (needed for velocity calculation)
+  std::optional<cv::Point2f> prevPos = state.last_position;
+  cv::Point2f newPos = blob.center;
 
-  MotionBlob* robot = robotBlobData.GetRobotBlob();
-  MotionBlob* opponent = robotBlobData.GetOpponentBlob();
+  // Update velocity smoothing BEFORE updating position state
+  // (uses prevPos from state before we update it)
+  _UpdateSmoothedVelocity(state, newPos, timestamp, prevPos);
 
-  if (robot != nullptr && _IsValidBlob(*robot, _currDataRobot)) {
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.userDataDouble["blobArea"] = robot->rect.area();
-    // Update our robot position/velocity/angle
-    _SetData(robotBlobData.GetRobotBlob(), _currDataRobot, _prevDataRobot,
-             _prevAngleDataRobot, timestamp);
-  } else {
-    // increase invalid count + mark as invalid
-    double invalidCount = _currDataRobot.userDataDouble["invalidCount"];
+  // Update position state
+  state.last_position = newPos;
+  state.last_rect = blob.rect;
+  state.last_position_time = timestamp;
+  state.have_pos = true;
 
-    if (invalidCount >= 10) {
-      _currDataRobot.pos.reset();
-      _currDataRobot.angle.reset();
-      _prevDataRobot = _currDataRobot;  // Invalidate old data
-    }
+  // Update angle-path-tangent
+  _UpdateAnglePathTangent(state, newPos, timestamp);
 
-    _currDataRobot.userDataDouble["invalidCount"]++;
-  }
-
-  // Increment id and frame
-  _currDataOpponent.id++;  // Increment frame id
-  // Note: time is now stored in pos->time or angle->time
-
-  if (opponent != nullptr && _IsValidBlob(*opponent, _currDataOpponent)) {
-    // Make a copy of currData for velocity calls
-    _prevDataOpponent = _currDataOpponent;
-
-    // Clear curr data
-    _currDataOpponent.Clear();
-
-    _currDataOpponent.userDataDouble["blobArea"] = opponent->rect.area();
-    // Update opponent position/velocity info
-    _SetData(robotBlobData.GetOpponentBlob(), _currDataOpponent,
-             _prevDataOpponent, _prevAngleDataOpponent, timestamp);
-  } else {
-    double invalidCount = _currDataOpponent.userDataDouble["invalidCount"];
-
-    if (invalidCount >= 10) {
-      _currDataOpponent.pos.reset();
-      _currDataOpponent.angle.reset();
-      _prevDataOpponent = _currDataOpponent;  // Invalidate old data
-    }
-
-    _currDataOpponent.userDataDouble["invalidCount"]++;
-  }
-}
-
-// the displacement required to update the angle
-constexpr double kDistBetweenAngUpdatesPx = 5;
-
-// 0 = no change, 1 = full change
-constexpr double kMovingAverageRate = 1.0;
-
-// how fast the robot needs to be moving to update the angle
-constexpr double kVelocityThresholdForAngleUpdate = 30 * WIDTH / 720.0;
-
-// max rotational speed to update the angle radians per second
-constexpr double kMaxRotationSpeedToAlign = 250 * TO_RAD;
-
-/**
- * Makes sure the blob didn't shrink too much. Permitted to shrink if
- * we have too many invalid marks
- */
-bool BlobDetection::_IsValidBlob(MotionBlob& blobNew, OdometryData& prevData) {
-  double blobArea = blobNew.rect.area();
-  double numUpdatesInvalid = prevData.userDataDouble["invalidCount"];
-  double lastBlobArea = prevData.userDataDouble["blobArea"];
-  // it's possible the motion detector's blob shrunk due to detecting only a
-  // portion
-  bool invalidBlob = blobArea < lastBlobArea * 0.8 && numUpdatesInvalid < 10;
-
-  return !invalidBlob;
-}
-
-/**
- * @brief our position and velocity using just visual data
- * @param blob - the MotionBlob to update to
- * @param currData - the current data to update (will set the position and
- * velocity)
- */
-void BlobDetection::_SetData(MotionBlob* blob, OdometryData& currData,
-                             OdometryData& prevData,
-                             OdometryData& prevAngleData, double timestamp) {
-  //////////////////////// POS ////////////////////////
-  // use the blob's center for the visual position
-  // Velocity will be calculated in _GetSmoothedVisualVelocity, so set to 0 for
-  // now
-  currData.pos = PositionData((*blob).center, cv::Point2f(0, 0), timestamp);
-  currData.pos.value().rect = (*blob).rect;
-
-  //////////////////////// VEL ////////////////////////
-  _GetSmoothedVisualVelocity(currData, prevData);
-
-  //////////////////////// ANGLE ////////////////////////
-  CalcAnglePathTangent(currData, prevAngleData, timestamp);
-
-  prevData = currData;
+  // Publish the new data
+  _PublishFromState(state, isOpponent, timestamp);
 }
 
 /**
  * Smooths out the visual velocity so it's not so noisy
+ * Uses prevPos (from state before update) and newPos to calculate velocity
  */
-#define NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS 50
-#define NEW_VISUAL_VELOCITY_WEIGHT_DIMINISH_OPPONENT 1
-void BlobDetection::_GetSmoothedVisualVelocity(OdometryData& currData,
-                                               OdometryData& prevData) {
-  if (!prevData.pos.has_value()) {
-    // Don't update velocity incase it was set by a setData call
+constexpr double kNewVisualVelocityTimeWeightMS = 50;
+void BlobDetection::_UpdateSmoothedVelocity(
+    BlobTrackState& state, cv::Point2f newPos, double timestamp,
+    const std::optional<cv::Point2f>& prevPos) {
+  // Guard: first sample, no previous position, or last_vel_time not initialized
+  if (!prevPos.has_value() || state.last_vel_time == 0) {
+    // First position or no previous position - start fresh
+    state.last_velocity = cv::Point2f(0, 0);
+    state.last_vel_time = timestamp;
     return;
   }
 
-  // If the previous or current position isnt valid or the total elapsed time is
-  // too long, then restart velocity
-  double currTime = currData.pos.value().time;
-  double elapsedVelTime = currTime - prevData.userDataDouble["lastVelTime"];
+  double elapsedVelTime = timestamp - state.last_vel_time;
 
-  // If elapsed time between vel updates is too big, reset it
-  if ((elapsedVelTime > 0.1f) || !currData.pos.has_value() ||
-      !prevData.pos.has_value()) {
-    currData.userDataDouble["lastVelTime"] = currTime;
-    cv::Point2f pos = currData.pos.value().position;
-    std::optional<cv::Rect> oldRect = currData.pos.value().rect;
-    currData.pos = PositionData(pos, cv::Point2f(0, 0), currTime);
-    currData.pos.value().rect = oldRect;
+  // Guard: invalid/zero/negative elapsed time (reset velocity and time)
+  if (elapsedVelTime <= 0 || elapsedVelTime > 0.1f) {
+    // Reset velocity if elapsed time is invalid or too large
+    state.last_velocity = cv::Point2f(0, 0);
+    state.last_vel_time = timestamp;
     return;
   }
 
-  // visual velocity
-  cv::Point2f visualVelocity =
-      (currData.pos.value().position - prevData.pos.value().position) /
-      elapsedVelTime;
+  // Calculate visual velocity using previous position
+  cv::Point2f visualVelocity = (newPos - prevPos.value()) / elapsedVelTime;
 
-  // compute weight for interpolation. Reduce weight for opponents
-  double weight = elapsedVelTime * 1000 / NEW_VISUAL_VELOCITY_TIME_WEIGHT_MS;
-
-  weight = min(weight, 1.0f);
+  // compute weight for interpolation
+  double weight = elapsedVelTime * 1000 / kNewVisualVelocityTimeWeightMS;
+  weight = (std::min)(weight, 1.0);
 
   // interpolate towards the visual velocity so it's not so noisy
-  cv::Point2f newVelocity =
-      InterpolatePoints(prevData.pos.value().velocity, visualVelocity, weight);
-  cv::Point2f pos = currData.pos.value().position;
-  std::optional<cv::Rect> oldRect = currData.pos.value().rect;
-  currData.pos = PositionData(pos, newVelocity, currTime);
-  currData.pos.value().rect = oldRect;
-  currData.userDataDouble["lastVelTime"] = currTime;
-
-  return;
+  state.last_velocity =
+      InterpolatePoints(state.last_velocity, visualVelocity, weight);
+  state.last_vel_time = timestamp;
 }
 
-// Number of seconds to average velocity for APT threhsold calcs. This sets the
+// Number of seconds to average velocity for APT threshold calcs. This sets the
 // settling time constant.
 constexpr double kAptVelocityAveraging = 0.5;
+
+// the displacement required to update the angle
+constexpr double kDistBetweenAngUpdatesPx = 5;
+
+// how fast the robot needs to be moving to update the angle
+constexpr double kVelocityThresholdForAngleUpdate = 30 * WIDTH / 720.0;
+
 /**
  * @brief updates the angle of the robot using the velocity
  */
-void BlobDetection::CalcAnglePathTangent(OdometryData& currData,
-                                         OdometryData& prevAngleData,
-                                         double timestamp) {
+void BlobDetection::_UpdateAnglePathTangent(BlobTrackState& state,
+                                            cv::Point2f newPos,
+                                            double timestamp) {
   constexpr float kAngleSmoothingTimeConstantMs = 80;
   constexpr float kMinVelocityForAngleWeight =
       0.5 * kVelocityThresholdForAngleUpdate;
-
   constexpr float kMaxVelocityForAngleWeight =
       2.0 * kVelocityThresholdForAngleUpdate;
 
-  double elapsedAngleTime =
-      timestamp -
-      (prevAngleData.angle.has_value() ? prevAngleData.angle.value().time : 0);
-  cv::Point2f delta =
-      currData.pos.value().position - prevAngleData.pos.value().position;
-
-  // Calculate a slower averaging on velocity to filter out severe noise
-  if (prevAngleData.userDataDouble["prevVelForAPTSet"] < 0.5) {
-    prevAngleData.userDataDouble["prevVelForAPTSet"] = 1.0;
-    prevAngleData.userDataDouble["APT_Vel_x"] = 0;
-    prevAngleData.userDataDouble["APT_Vel_y"] = 0;
-    prevAngleData.userDataDouble["APT_Vel_t"] = timestamp;
+  // Initialize APT velocity accumulator if needed
+  if (!state.prev_vel_for_apt_set) {
+    state.prev_vel_for_apt_set = true;
+    state.apt_velocity = cv::Point2f(0, 0);
+    state.apt_velocity_time = timestamp;
   }
 
-  cv::Point2f apt_velocity(prevAngleData.userDataDouble["APT_Vel_x"],
-                           prevAngleData.userDataDouble["APT_Vel_y"]);
-  double apt_old_time = prevAngleData.userDataDouble["APT_Vel_t"];
-  double delta_apt_time = timestamp - prevAngleData.userDataDouble["APT_Vel_t"];
-  double scaling_apt =
-      min(delta_apt_time / kAptVelocityAveraging,
-          0.25);  // Never add in the full amount due to the noise
-  apt_velocity = apt_velocity * (1.0 - scaling_apt) +
-                 scaling_apt * currData.pos.value().velocity;
+  // Update APT velocity lowpass accumulator
+  double delta_apt_time = timestamp - state.apt_velocity_time;
+  // Never add in the full amount due to the noise
+  double scaling_apt = (std::min)(delta_apt_time / kAptVelocityAveraging, 0.25);
+  state.apt_velocity = state.apt_velocity * (1.0 - scaling_apt) +
+                       scaling_apt * state.last_velocity;
+  state.apt_velocity_time = timestamp;
 
-  // Record back new data
-  currData.userDataDouble["APT_Vel_x"] = apt_velocity.x;
-  currData.userDataDouble["APT_Vel_y"] = apt_velocity.y;
-  currData.userDataDouble["APT_Vel_t"] = timestamp;
-  prevAngleData.userDataDouble["APT_Vel_x"] = apt_velocity.x;
-  prevAngleData.userDataDouble["APT_Vel_y"] = apt_velocity.y;
-  prevAngleData.userDataDouble["APT_Vel_t"] = timestamp;
+  // Calculate elapsed time and delta position for angle update
+  double elapsedAngleTime = timestamp - state.prev_angle_ref_time;
 
-  double robotVel = cv::norm(currData.pos.value().velocity);
-  double aptRobotVel = cv::norm(apt_velocity);
+  // Initialize angle reference if this is the first update
+  if (!state.prev_angle_ref_pos.has_value()) {
+    state.prev_angle_ref_pos = newPos;
+    state.prev_angle_ref_time = timestamp;
+    return;  // Can't calculate angle without previous position
+  }
 
-  double minRobotVel = min(robotVel, aptRobotVel);
+  cv::Point2f delta = newPos - state.prev_angle_ref_pos.value();
+
+  double robotVel = cv::norm(state.last_velocity);
+  double aptRobotVel = cv::norm(state.apt_velocity);
+  double minRobotVel = (std::min)(robotVel, aptRobotVel);
 
   // Check both distance and time thresholds
   if (cv::norm(delta) < kDistBetweenAngUpdatesPx || elapsedAngleTime < 0.001 ||
-      !currData.pos.has_value())
-  // || robotVel < VELOCITY_THRESH_FOR_ANGLE_UPDATE || aptRobotVel <
-  // VELOCITY_THRESH_FOR_ANGLE_UPDATE/2.0)
-  {
-    // Copy previous angle data
-    if (prevAngleData.angle.has_value() && currData.pos.has_value()) {
-      currData.angle = AngleData(prevAngleData.angle.value().angle,
-                                 prevAngleData.angle.value().velocity,
-                                 prevAngleData.angle.value().time);
-    } else {
-      currData.angle.reset();
-    }
+      !state.have_pos) {
+    // Don't update angle - keep previous reference state
     return;
   }
 
   // Update the angle
   Angle newAngle = Angle(atan2(delta.y, delta.x));
   if (std::isnan((double)newAngle)) {
-    currData.angle.reset();
     return;
   }
 
   // If the angle is closer to 180 degrees to the last angle
-  if (prevAngleData.angle.has_value() &&
-      abs(Angle(newAngle + M_PI - prevAngleData.angle.value().angle)) <
-          abs(Angle(newAngle - prevAngleData.angle.value().angle))) {
+  if (state.prev_angle_ref_angle.has_value() &&
+      abs(Angle(newAngle + M_PI - state.prev_angle_ref_angle.value())) <
+          abs(Angle(newAngle - state.prev_angle_ref_angle.value()))) {
     // Add 180 degrees to the angle
     newAngle = Angle(newAngle + M_PI);
   }
@@ -423,74 +310,108 @@ void BlobDetection::CalcAnglePathTangent(OdometryData& currData,
   double angularVelocity{0};
 
   // Calculate angular velocity
-  if (prevAngleData.angle.has_value() &&
-      !std::isnan((double)prevAngleData.angle.value().angle)) {
+  if (state.prev_angle_ref_angle.has_value() &&
+      !std::isnan((double)state.prev_angle_ref_angle.value())) {
     // Base time-based weight
     double time_weight =
-        min(elapsedAngleTime * 1000.0 / kAngleSmoothingTimeConstantMs, 1.0f);
+        (std::min)(elapsedAngleTime * 1000.0 / kAngleSmoothingTimeConstantMs,
+                   1.0);
 
     // Inverse time weight: if time updates exceeds reasonable levels, that
     // means there is a discontinuity in the data
-    // Normaly we expect 20ms per update or faster.
+    // Normally we expect 20ms per update or faster.
     // if it approaches 150ms, its junk.
     time_weight *= (std::max)((0.15 - elapsedAngleTime) / 0.15, 0.02);
 
     // Velocity-based weight: scale based on aptRobotVel
-    double velocity_weight =
-        min(max((minRobotVel - kMinVelocityForAngleWeight) /
-                    (kMaxVelocityForAngleWeight - kMinVelocityForAngleWeight),
-                0.0),
-            1.0);
+    double velocity_weight = std::clamp(
+        (minRobotVel - kMinVelocityForAngleWeight) /
+            (kMaxVelocityForAngleWeight - kMinVelocityForAngleWeight),
+        0.0, 1.0);
 
-    // Combine time and velocity weights (multiply or take minimum, depending on
-    // desired behavior)
-    double final_weight = max(time_weight * velocity_weight,
-                              0.25);  // Limit the weight to prevent huge jumps
+    // Combine time and velocity weights
+    // Limit the weight to prevent huge jumps
+    double final_weight = (std::max)(time_weight * velocity_weight, 0.25);
 
     // Interpolate the angle with velocity-modulated weight
-    newAngleInterpolated = InterpolateAngles(prevAngleData.angle.value().angle,
+    newAngleInterpolated = InterpolateAngles(state.prev_angle_ref_angle.value(),
                                              newAngle, final_weight);
     angularVelocity =
-        (newAngleInterpolated - prevAngleData.angle.value().angle) /
+        (newAngleInterpolated - state.prev_angle_ref_angle.value()) /
         elapsedAngleTime;
+  } else {
+    newAngleInterpolated = newAngle;
+    angularVelocity = 0;
   }
 
-  currData.angle = AngleData(newAngleInterpolated, angularVelocity, timestamp);
-  prevAngleData = currData;
+  // Update angle reference state for next iteration
+  state.prev_angle_ref_pos = newPos;
+  state.prev_angle_ref_time = timestamp;
+  state.prev_angle_ref_angle = newAngleInterpolated;
+  state.prev_angle_ref_angular_velocity = angularVelocity;
+}
+
+void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
+                                      double timestamp) {
+  OdometryData sample;
+  sample.Clear();
+
+  // Set position data
+  if (state.have_pos && state.last_position.has_value()) {
+    PositionData posData(state.last_position.value(), state.last_velocity,
+                         timestamp);
+    if (state.last_rect.has_value()) {
+      posData.rect = state.last_rect.value();
+    }
+    sample.pos = posData;
+  }
+
+  // Set angle data (if we have angle reference)
+  if (state.prev_angle_ref_angle.has_value()) {
+    sample.angle = AngleData(state.prev_angle_ref_angle.value(),
+                             state.prev_angle_ref_angular_velocity, timestamp);
+  }
+
+  // Publish (base class will increment id from previous value)
+  OdometryBase::Publish(sample, isOpponent);
 }
 
 void BlobDetection::SwitchRobots(void) {
-  // Switch who's who
+  // Switch who's who - swap the state structs
   std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData temp_Robot = _currDataRobot;
-  _currDataRobot = _currDataOpponent;
-  _currDataOpponent = temp_Robot;
-
-  temp_Robot = _prevDataRobot;
-  _prevDataRobot = _prevDataOpponent;
-  _prevDataOpponent = temp_Robot;
+  std::swap(_usState, _themState);
+  locker.unlock();
 }
 
 void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {
   constexpr float IGNORE_THRESH_PX = 10;
+
+  BlobTrackState& state = opponentRobot ? _themState : _usState;
+
   std::unique_lock<std::mutex> locker(_updateMutex);
 
-  OdometryData& odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
   // ignore the request if our existing position is fine
-  if (odoData.pos.has_value() &&
-      cv::norm(newPos - odoData.pos.value().position) < IGNORE_THRESH_PX) {
+  if (state.have_pos && state.last_position.has_value() &&
+      cv::norm(newPos - state.last_position.value()) < IGNORE_THRESH_PX) {
     return;
   }
 
   double currTime = Clock::programClock.getElapsedTime();
-  odoData.pos = PositionData(newPos, cv::Point2f(0, 0), currTime);
 
-  OdometryData& prevData = (opponentRobot) ? _prevDataOpponent : _prevDataRobot;
-  prevData.pos.reset();
+  // Update state
+  state.last_position = newPos;
+  state.last_position_time = currTime;
+  state.have_pos = true;
+  state.last_velocity = cv::Point2f(0, 0);
+  state.last_vel_time = currTime;
+
+  locker.unlock();
 }
 
 void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
+  // Not implemented - velocity is calculated from position updates
 }
 
 void BlobDetection::SetAngle(AngleData angleData, bool opponentRobot) {
+  // Not implemented - angle is calculated from path tangent
 }

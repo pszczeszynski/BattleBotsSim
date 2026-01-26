@@ -11,6 +11,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set policy for find_package to use <PackageName>_ROOT variables
 cmake_policy(SET CMP0074 NEW)
 
+# Force OpenCV directory
+set(OpenCV_DIR "C:/opencv/archive/install_no_cuda/x64/vc16/lib")
+# Alternative: set(OpenCV_ROOT "C:/opencv/archive/opencv-4.7.0/build")
+
 
 # add define for SIMULATION if SIMULATION is an arg
 option(SIMULATION "Build for simulation" OFF)
@@ -118,7 +122,6 @@ set(SOURCES
     hid/hid.cc
     Input/InputState.cc
     PurePursuit.cc
-    Strategies/Extrapolate.cc
     SafeDrawing.cc
     Strategies/DisplayUtils.cc
     Strategies/FollowPoint.cc

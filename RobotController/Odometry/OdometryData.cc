@@ -5,9 +5,6 @@
 #include "../Globals.h"
 #include "../Odometry/Heuristic1/RobotTracker.h"
 
-// ctor for odometry data
-OdometryData::OdometryData(int id) : id(id) {}
-
 // Clear all position data
 void OdometryData::Clear() {
   // Clear position and angle data

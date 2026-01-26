@@ -10,6 +10,6 @@ struct MotionBlob
 public:
     cv::Rect rect;
     cv::Point2f center; // weighted center (!= rect.center)
-    cv::Mat *frame;
+    const cv::Mat *frame; // Frame pointer (const, not used for mutation)
     double rotation = 0; // in radians
 };

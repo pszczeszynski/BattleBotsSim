@@ -1,8 +1,6 @@
 #include "Kill.h"
 #include "../RobotOdometry.h"
-#include "../RobotConfig.h"
 #include "../RobotController.h"
-#include "Extrapolate.h"
 #include "../SafeDrawing.h"
 #include "DisplayUtils.h"
 
@@ -36,8 +34,8 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
+    orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, oppData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
 
 
     // if we're inputting forward driving direction

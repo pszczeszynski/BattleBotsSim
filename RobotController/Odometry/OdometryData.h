@@ -35,8 +35,6 @@ struct PositionData {
 
 class OdometryData {
  public:
-  OdometryData(int id);
-
   // User data for tracking algorithm internals
   std::unordered_map<std::string, double> userDataDouble;
 
@@ -46,6 +44,27 @@ class OdometryData {
   int id = 0;
 
   void Clear();  // Clears all position and user data to invalid;
+
+  cv::Point2f GetPositionOrZero() const {
+    if (pos.has_value()) {
+      return pos.value().position;
+    }
+    return cv::Point2f(0, 0);
+  }
+
+  Angle GetAngleOrZero() const {
+    if (angle.has_value()) {
+      return angle.value().angle;
+    }
+    return Angle(0);
+  }
+
+  cv::Point2f GetVelocityOrZero() const {
+    if (pos.has_value()) {
+      return pos.value().velocity;
+    }
+    return cv::Point2f(0, 0);
+  }
 
   // returns a new instance of the data extrapolated to the target time
   // the maxRelativeTime is the maximum time to extrapolate forward
@@ -70,7 +89,6 @@ class OdometryData {
       cv::Point offset = cv::Point(
           0, 0));  // Returns an image that is used for debugging purposes.
  private:
-
   // extrapolates the data to the new time without bound!
   OdometryData _ExtrapolateTo(double newtime) const;
 };

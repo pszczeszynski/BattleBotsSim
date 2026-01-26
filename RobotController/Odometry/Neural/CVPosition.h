@@ -2,8 +2,11 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 #include <thread>
+#include <mutex>
+#include <atomic>
+#include <windows.h>
 #include "../../ServerSocket.h"
-#include "../Odometrybase.h"
+#include "../OdometryBase.h"
 
 struct CVPositionData
 {
@@ -31,27 +34,40 @@ private:
 
     cv::Size modelShape{};
 
+    // Latest data from Python (protected by _lastDataMutex)
     CVPositionData _lastData;
-    cv::Point2f _lastVelocity;
     std::mutex _lastDataMutex;
+
+    // State for velocity computation and gating
+    cv::Point2f _lastValidCenter;
+    double _lastValidTime = 0.0;
+    uint32_t _lastValidFrameID = 0;
+    int _validStreakCounter = 0;  // Consecutive valid frames
+    int _max_distance_thresh = 100;
+    bool _hasPrevValidState = false;  // Whether we have previous valid state for velocity
 
     CVPositionData _GetDataFromPython(bool& outPythonResponded);
 
-    void _UpdateData(CVPositionData data, cv::Point2f velocity);
-
-    // shared memory
+    // Shared memory management
     std::string memName = "cv_pos_img";
-    int width = 720; // Example dimensions and type
+    int width = 720;
     int height = 720;
-    
+    HANDLE _hMapFile = nullptr;  // Shared memory mapping handle
+    void* _pSharedMemory = nullptr;  // Mapped memory pointer
     cv::Mat sharedImage;
 
     void _InitSharedImage();
     void _StartPython();
     std::thread _pythonThread;
+    std::atomic<bool> _pythonThreadRunning{false};
 
     ServerSocket _pythonSocket;
 
-    int _valid_frames_counter = 0;
-    int _max_distance_thresh = 100;
+    // Helper to compute center from bounding box
+    // Assumes bbox format is [x1, y1, x2, y2] and computes midpoint
+    cv::Point2f _ComputeCenterFromBBox(const std::vector<int>& bbox);
+    
+    // Helper to compute velocity from successive positions
+    cv::Point2f _ComputeVelocity(cv::Point2f currentCenter, double currentTime,
+                                  cv::Point2f lastCenter, double lastTime);
 };

@@ -1,6 +1,5 @@
 #include "TrackingWidget.h"
 #include "../RobotController.h"
-#include "../GuiUtils.h"
 #include "../RobotConfig.h"
 #include "../TrackingEditorState.h"
 #include "../Input/InputState.h"
@@ -270,7 +269,7 @@ void TrackingWidget::_DrawAlgorithmData()
     }
     // draw arrow on opponent robot showing gamepad stick angle
     OdometryData opponentData = RobotController::GetInstance().odometry.Opponent();
-    cv::Point2f opponentPos = opponentData.robotPosition;
+    cv::Point2f opponentPos = opponentData.GetPositionOrZero();
     
     // Read gamepad right stick values
     float stickX = RobotController::GetInstance().gamepad.GetRightStickX();
@@ -349,26 +348,30 @@ void TrackingWidget::_DrawAlgorithmData()
 
     if (_odometry_Blob.IsRunning() && showBlob)
     {
-        _DrawPositions(_odometry_Blob.GetData(false) , _odometry_Blob.GetData(true), _trackingMat, blobColor);  
-        _DrawAngles(_odometry_Blob.GetData(false), _odometry_Blob.GetData(true), _trackingMat, blobColor);
+        OdometryData blobData = _odometry_Blob.GetData(false);
+        _DrawPositions(blobData, blobData, _trackingMat, blobColor);  
+        _DrawAngles(blobData, blobData, _trackingMat, blobColor);
     }
 
     if (_odometry_Heuristic.IsRunning() && showHeuristic)
     {
-        _DrawPositions(_odometry_Heuristic.GetData(false) , _odometry_Heuristic.GetData(true), _trackingMat, heuristicColor);  
-        _DrawAngles(_odometry_Heuristic.GetData(false), _odometry_Heuristic.GetData(true), _trackingMat, heuristicColor); 
+        OdometryData heuristicData = _odometry_Heuristic.GetData(false);
+        _DrawPositions(heuristicData, heuristicData, _trackingMat, heuristicColor);  
+        _DrawAngles(heuristicData, heuristicData, _trackingMat, heuristicColor); 
     }
 
     if (_odometry_Neural.IsRunning() && showNeural)
     {
-        _DrawPositions(_odometry_Neural.GetData(false) , _odometry_Neural.GetData(true), _trackingMat, neuralColor);
+        OdometryData neuralData = _odometry_Neural.GetData(false);
+        _DrawPositions(neuralData, neuralData, _trackingMat, neuralColor);
     }
 
     if (_odometry_LKFlow.IsRunning() && showLKFlow)
     {
         // LKFlow only tracks opponent, so robot data will be invalid
-        _DrawPositions(_odometry_LKFlow.GetData(false) , _odometry_LKFlow.GetData(true), _trackingMat, lkFlowColor);
-        _DrawAngles(_odometry_LKFlow.GetData(false), _odometry_LKFlow.GetData(true), _trackingMat, lkFlowColor);
+        OdometryData lkFlowData = _odometry_LKFlow.GetData(false);
+        _DrawPositions(lkFlowData, lkFlowData, _trackingMat, lkFlowColor);
+        _DrawAngles(lkFlowData, lkFlowData, _trackingMat, lkFlowColor);
     }
 
     // check if mouse is over the image
@@ -454,7 +457,7 @@ void TrackingWidget::_DrawAlgorithmData()
             if (InputState::GetInstance().IsMouseDown(0))
             {
                 // set the robot angle
-                cv::Point2f robotPos = odometry.Robot().robotPosition;
+                cv::Point2f robotPos = odometry.Robot().GetPositionOrZero();
                 cv::Point2f currMousePos = GetMousePos();
                 double newAngle = atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
                 odometry.UpdateForceSetAngle(newAngle, false);
@@ -463,7 +466,7 @@ void TrackingWidget::_DrawAlgorithmData()
             else if (InputState::GetInstance().IsMouseDown(1))
             {
                 // set the opponent angle
-                cv::Point2f opponentPos = odometry.Opponent().robotPosition;
+                cv::Point2f opponentPos = odometry.Opponent().GetPositionOrZero();
                 cv::Point2f currMousePos = GetMousePos();
                 double newAngle = atan2(currMousePos.y - opponentPos.y, currMousePos.x - opponentPos.x);
                 odometry.UpdateForceSetAngle(newAngle, true);
@@ -474,8 +477,10 @@ void TrackingWidget::_DrawAlgorithmData()
 
     if( showFusion)
     {
-        _DrawPositions(odometry.Robot() , odometry.Opponent(), _trackingMat, fusionColor);  
-        _DrawAngles(odometry.Robot(), odometry.Opponent(), _trackingMat, fusionColor);
+        OdometryData robotData = odometry.Robot();
+        OdometryData opponentData = odometry.Opponent();
+        _DrawPositions(robotData, opponentData, _trackingMat, fusionColor);  
+        _DrawAngles(robotData, opponentData, _trackingMat, fusionColor);
     }
 }
 
@@ -483,26 +488,25 @@ void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent, cv
 {
     int linethickness = 1;
 
-    if( robot.IsAngleValid() || forceShow)
+    if( robot.angle.has_value() || forceShow)
     {
         linethickness = 3;
     }
 
     // draw robot angle with arrow
-    cv::Point2f robotPos = robot.robotPosition;
-    double robotAngle = robot.GetAngle();
+    cv::Point2f robotPos = robot.GetPositionOrZero();
+    double robotAngle = robot.GetAngleOrZero();
     cv::Point2f arrowEnd = robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
     safe_arrow(currMatt, robotPos, arrowEnd, arrowColor, linethickness);
 
     linethickness = 1;
-    if( opponent.IsAngleValid() || forceShow)
-    {
-        linethickness = 3;
+    if (opponent.angle.has_value() || forceShow) {
+      linethickness = 3;
     }
 
     // draw opponent angle with arrow
-    cv::Point2f opponentPos = opponent.robotPosition;
-    double opponentAngle = opponent.GetAngle();
+    cv::Point2f opponentPos = opponent.GetPositionOrZero();
+    double opponentAngle = opponent.GetAngleOrZero();
     arrowEnd = opponentPos + cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
     safe_arrow(currMatt, opponentPos, arrowEnd, arrowColor, linethickness);
     
@@ -512,22 +516,22 @@ void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent, cv
 void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent, cv::Mat& currMatt, cv::Scalar& arrowColor, bool forceShow)
 {
     int size = 5;
-    if (robot.robotPosValid || forceShow)
-    {
-        size = 20;
+
+    if (robot.pos.has_value() || forceShow) {
+      size = 20;
     }
 
-    OdometryData robot_ext = robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
-    DrawX(currMatt, robot_ext.robotPosition, arrowColor, size);
-    
+    OdometryData robot_ext =
+        robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    DrawX(currMatt, robot_ext.GetPositionOrZero(), arrowColor, size);
+
     size = 5;
-    if( opponent.robotPosValid || forceShow)
-    {
-        size = 20;
+    if (opponent.pos.has_value() || forceShow) {
+      size = 20;
     }
 
     OdometryData opponent_ext = opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
-    safe_circle(currMatt, opponent_ext.robotPosition, size, arrowColor, 2);
+    safe_circle(currMatt, opponent_ext.GetPositionOrZero(), size, arrowColor, 2);
 }
 
 

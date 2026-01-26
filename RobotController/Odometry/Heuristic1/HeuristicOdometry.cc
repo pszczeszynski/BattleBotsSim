@@ -1,15 +1,12 @@
 #include <iostream>
-#include "../../Globals.h"
 #include <vector>
 #include <algorithm>
-#include <iterator>
-#include <signal.h>
+#define NOMINMAX
 #include <windows.h>
-#include <thread>
+#include <cassert>
 #include <sys/stat.h>
 #include <filesystem>
 #include <condition_variable>
-#include <functional>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
@@ -21,6 +18,7 @@
 #include <opencv2/flann.hpp>
 #include "../../MathUtils.h"
 #include "../../RobotConfig.h"
+#include "../../ThreadPool.h"
 #include "HeuristicOdometry.h"
 #include "../../UIWidgets/ImageWidget.h"
 #include "../../RobotController.h"
@@ -117,7 +115,7 @@ void HeuristicOdometry::UpdateSettings()
     RobotTracker::moveTowardsCenter = (float)HEU_POSITION_TO_CENTER_SPEED / 100.0f;
     RobotTracker::robotVelocitySmoothing = ((float)HEU_VELOCITY_AVERAGING) / 100.0f;
     RobotTracker::useMultithreading = HEU_ROBOT_PROCESSORS > 1;
-    RobotTracker::numberOfThreads = max(1, HEU_ROBOT_PROCESSORS);
+    RobotTracker::numberOfThreads = (std::max)(1, HEU_ROBOT_PROCESSORS);
 }
 
 void HeuristicOdometry::AutoMatchStart()
@@ -265,6 +263,15 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     cv::Rect right_start_rect(STARTING_RIGHT_TL_x, STARTING_RIGHT_TL_y, (STARTING_RIGHT_BR_x - STARTING_RIGHT_TL_x), (STARTING_RIGHT_BR_y - STARTING_RIGHT_TL_y));
     float brightness_correction = 0;
 
+    // Cache published position state BEFORE taking _mutexAllBBoxes to avoid deadlock
+    bool usHasPos = false;
+    bool themHasPos = false;
+    {
+        std::unique_lock<std::mutex> locker(_updateMutex);
+        usHasPos = _data[(int)RobotSlot::Us].pos.has_value();
+        themHasPos = _data[(int)RobotSlot::Opponent].pos.has_value();
+    }
+
     // State Machine for Initialization
     switch (heuStateMachine)
     {
@@ -276,14 +283,16 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         // Invalidate tracking
         ourRobotTracker = nullptr;
         opponentRobotTracker = nullptr;
-        _currDataRobot.Clear();
-        _currDataOpponent.Clear();
+        _usState.last_pos.reset();
+        _usState.last_angle.reset();
+        _themState.last_pos.reset();
+        _themState.last_angle.reset();
 
         // Clear all tracked robots
         _allRobotTrackersClear();
 
 
-        _UpdateData(currTime);
+        // Note: No publish here - we'll publish when trackers become valid
     
         heuStateMachine = CMSM_WAIT_BRIGHTNESS;
         tracking_started = false;
@@ -375,12 +384,12 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
     case CMSM_START_WAIT_ROBOT_CLEAR:
         statusstring = "Waiting for ";
-        statusstring += (!_currDataRobot.pos.has_value()) ? "our " : "";
-        statusstring += (!_currDataOpponent.pos.has_value()) ? "opponent " : "";
+        statusstring += (!usHasPos) ? "our " : "";
+        statusstring += (!themHasPos) ? "opponent " : "";
         statusstring += "robot to clear starting area...";
 
         // Lets do our robot first
-        if( !_currDataRobot.pos.has_value() && (ourRobotTracker != nullptr) )
+        if( !usHasPos && (ourRobotTracker != nullptr) )
         {
             if (IsClearOfArea(ourRobotTracker, left_start_rect) && IsClearOfArea(ourRobotTracker, right_start_rect))
             {
@@ -391,7 +400,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
 
 
         // Opponent Robot
-        if( !_currDataOpponent.pos.has_value() && (opponentRobotTracker != nullptr) )
+        if( !themHasPos && (opponentRobotTracker != nullptr) )
         {
 
 
@@ -411,12 +420,14 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         // Invalidate tracking
         ourRobotTracker = nullptr;
         opponentRobotTracker = nullptr;
-        _currDataRobot.Clear();
-        _currDataOpponent.Clear();
+        _usState.last_pos.reset();
+        _usState.last_angle.reset();
+        _themState.last_pos.reset();
+        _themState.last_angle.reset();
 
         // Clear all tracked robots
         _allRobotTrackersClear();
-        _UpdateData(currTime);
+        // Note: No publish here - we'll publish when trackers become valid
 
         // Save current frame as background
         correctedFrame.copyTo(currBackground);
@@ -435,12 +446,12 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         // If both us and opponent robots are detected, all remaining trackers are merged into background
         // The fusion algorithm will try lock robots, once they are both locked we will clear all remaining trackers
         statusstring = "Waiting for tracker to lock to ";
-        statusstring += (!_currDataRobot.pos.has_value()) ? "our" : "";
-        if( !_currDataOpponent.pos.has_value() &&  !_currDataOpponent.pos.has_value())
+        statusstring += (!usHasPos) ? "our" : "";
+        if( !themHasPos &&  !themHasPos)
         {
             statusstring += " & ";
         }
-        statusstring += (!_currDataOpponent.pos.has_value()) ? "opponent" : "";
+        statusstring += (!themHasPos) ? "opponent" : "";
         statusstring += " robot...";
 
         // Merging all other trackers will happen at the end if this function
@@ -544,7 +555,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     TrackRobots(correctedFrame, currFrameColor);
 
       // If we have identified both robots during robot clear stage, merge everything else into background
-    if( ((heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR) || (heuStateMachine == CMSM_DETECT_MOVING_TRACKERS)) && _currDataRobot.pos.has_value() && _currDataOpponent.pos.has_value())
+    if( ((heuStateMachine == CMSM_START_WAIT_ROBOT_CLEAR) || (heuStateMachine == CMSM_DETECT_MOVING_TRACKERS)) && usHasPos && themHasPos)
     {
         // Increment state machine
         heuStateMachine = CMSM_TRACKINGOK;
@@ -616,8 +627,9 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
     // ###################################
 
     // ********************
-    // Update our data
-    _UpdateData(frameTime);
+    // Publish valid tracker data (publish-only model)
+    _PublishIfValid(ourRobotTracker, /*isOpponent=*/false, frameTime, _usState);
+    _PublishIfValid(opponentRobotTracker, /*isOpponent=*/true, frameTime, _themState);
     locker.unlock();
 
 
@@ -638,9 +650,9 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
         safe_circle(currFrameColor, robotData.pos.value().position, 10, cv::Scalar(0, 255, 100), 2, cv::LINE_AA, 0);
     }
 
-    if( opponentData.pos.has_value())
-    {
-        safe_circle(currFrameColor, opponentData.pos.value().position, 10, cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
+    if (opponentData.pos.has_value()) {
+      safe_circle(currFrameColor, opponentData.pos.value().position, 10,
+                  cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
     }
 
     // Copy over to debug
@@ -741,31 +753,13 @@ void HeuristicOdometry::AddDebugStringToFrame(cv::Mat &frame, std::string debugS
     }
 }
 
-void HeuristicOdometry::_UpdateData(double timestamp)
-{
-    // Get unique access
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    // Make a copy of currData for velocity calls
-    OdometryData _prevDataRobot = _currDataRobot;
-    OdometryData _prevDataOpponent = _currDataOpponent;
-
-    _currDataRobot.id++;                // Increment frame id
-    _currDataRobot.frameID = frameID; // Set to new frame id
-    _currDataOpponent.id++;             // Increment frame id
-    _currDataOpponent.frameID = frameID; // Set to new frame id
-
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataOpponent.Clear();
-
-    // Update our robot position/velocity/angle
-    _UpdateOdometry(_currDataRobot, _prevDataRobot, ourRobotTracker, timestamp);
-    _UpdateOdometry(_currDataOpponent, _prevDataOpponent, opponentRobotTracker, timestamp);
-}
-
 void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker, double timestamp)
 {
+    // DO NOT CALL (old architecture) - This method is deprecated and should never be used.
+    // It was part of the old per-frame update model that published invalid/dummy data.
+    // Use _PublishIfValid instead for the publish-only model.
+    assert(false && "_UpdateOdometry should never be called - use _PublishIfValid instead");
+    
     if (tracker == nullptr)
     {
         // If no tracker found, keep previous position (no velocities)
@@ -811,26 +805,70 @@ void HeuristicOdometry::_UpdateOdometry(OdometryData &data, OdometryData &oldDat
     data.angle = AngleData(newAngle, newAngleVelocity, timestamp);
 }
 
+void HeuristicOdometry::_PublishIfValid(RobotTracker* tracker, bool isOpponent, double timestamp, HeuStreamState& state)
+{
+    // If tracker is null or not tracked, don't publish
+    if (tracker == nullptr || tracker->numFramesNotTracked > 0)
+    {
+        return;
+    }
+
+    // Construct sample
+    OdometryData sample;
+    sample.Clear();
+
+    // Fill position data
+    sample.pos = PositionData(tracker->position.Point2f(), tracker->avgVelocity.Point2f(), tracker->bbox, timestamp);
+
+    // Fill angle data
+    Angle newAngle = Angle(tracker->rotation.angleRad());
+    
+    // Compute angular velocity using previous published angle time only
+    double newAngleVelocity = 0.0;
+    if (state.last_angle.has_value())
+    {
+        double deltaTime = timestamp - state.last_angle.value().time;
+        if ((deltaTime > 1.0f/250.0f) && (deltaTime < angleVelocityTimeConstant))
+        {
+            newAngleVelocity = state.last_angle.value().velocity * (1.0 - deltaTime / angleVelocityTimeConstant) + 1.0/angleVelocityTimeConstant * (newAngle - state.last_angle.value().angle);
+        }
+        else if(deltaTime > 1.0f/250.0f)
+        {
+            newAngleVelocity = (newAngle - state.last_angle.value().angle) / deltaTime;
+        }
+        else
+        {
+            newAngleVelocity = state.last_angle.value().velocity; // Keep previous velocity if deltaTime is too small
+        }
+    }
+    // If old angle was invalid, publish angle velocity as 0 (same behavior as old code)
+    
+    sample.angle = AngleData(newAngle, newAngleVelocity, timestamp);
+
+    // Publish the sample
+    OdometryBase::Publish(sample, isOpponent);
+
+    // Update state with newly published values
+    state.last_pos = sample.pos;
+    state.last_angle = sample.angle;
+}
+
 // Sets the position to a found tracker's position
-// If no tracker is found, sets as invalid but does copy over specified position for internal use
+// If no tracker is found, tracker mutations are done but no publish occurs until tracker becomes valid
 void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
 {
     // Locate the robots
     LocateRobots(newPos, opponentRobot); 
 
-    // Now update the data
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
+    // Update tracker if found - next frame will publish if tracker is valid
     RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
-
-    if (tracker != nullptr) {
-        double currTime = Clock::programClock.getElapsedTime();
-        odoData.pos = PositionData(tracker->position.Point2f(), cv::Point2f(0, 0), tracker->bbox, currTime);
-    } else {
-        double currTime = Clock::programClock.getElapsedTime();
-        cv::Rect defaultRect(static_cast<int>(newPos.x - 10), static_cast<int>(newPos.y - 10), 20, 20);
-        odoData.pos = PositionData(newPos, cv::Point2f(0, 0), defaultRect, currTime);
+    
+    // If no tracker found, reset stream state to invalidate any previous data
+    if (tracker == nullptr)
+    {
+        HeuStreamState &state = (opponentRobot) ? _themState : _usState;
+        state.last_pos.reset();
+        state.last_angle.reset();
     }
 }
 
@@ -850,7 +888,8 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         locktracking.lock();
         if (opponentRobotTracker == nullptr)
         {
-            _currDataOpponent.pos.reset();
+            _themState.last_pos.reset();
+            _themState.last_angle.reset();
             return;
         }
     }
@@ -863,7 +902,8 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         locktracking.lock();
         if (ourRobotTracker == nullptr)
         {
-            _currDataRobot.pos.reset();
+            _usState.last_pos.reset();
+            _usState.last_angle.reset();
             return;
         }
     }
@@ -932,14 +972,7 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
         SwitchRobots();
     }
 
-    // Force the position
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    double currTime = Clock::programClock.getElapsedTime();
-    cv::Rect defaultRect(static_cast<int>(newPos.x - 10), static_cast<int>(newPos.y - 10), 20, 20);
-    odoData.pos = PositionData(newPos, cv::Point2f(0, 0), defaultRect, currTime);
+    // Tracker mutations are done - next frame will publish if tracker is valid
 }
 
 void HeuristicOdometry::SetAngle(AngleData angleData, bool opponentRobot)
@@ -956,9 +989,7 @@ void HeuristicOdometry::SetAngle(AngleData angleData, bool opponentRobot)
     }
     locktracking.unlock();
 
-    std::unique_lock<std::mutex> locker(_updateMutex);
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-    odoData.angle = angleData;
+    // Tracker mutations are done - next frame will publish if tracker is valid
 }
 
 void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
@@ -976,13 +1007,7 @@ void HeuristicOdometry::SetVelocity(cv::Point2f newVel, bool opponentRobot)
     }
     locktracking.unlock();
 
-    std::unique_lock<std::mutex> locker(_updateMutex);
-
-    OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-    if (odoData.pos.has_value()) {
-        odoData.pos.value().velocity = newVel;
-    }
+    // Tracker mutations are done - next frame will publish if tracker is valid
 }
 
 void HeuristicOdometry::SwitchRobots(void)
@@ -994,11 +1019,11 @@ void HeuristicOdometry::SwitchRobots(void)
     opponentRobotTracker = tempTracker;
     locktracking.unlock();
 
-    // Switch who's who
+    // Switch stream states
     std::unique_lock<std::mutex> locker(_updateMutex);
-    OdometryData temp_Robot = _currDataRobot;
-    _currDataRobot = _currDataOpponent;
-    _currDataOpponent = temp_Robot;
+    HeuStreamState temp_State = _usState;
+    _usState = _themState;
+    _themState = temp_State;
 }
 
 void HeuristicOdometry::_imshow(std::string name, cv::Mat &image)
@@ -2428,8 +2453,8 @@ float HeuristicOdometry::CalculateIoU(const myRect& box1, const myRect& box2)
 // Returns true if width and height difference is less then max_size_error fraction.
 bool HeuristicOdometry::IsSimilarSize(const myRect& box1, const myRect& box2, float max_size_error) 
 {
-    float width_ratio = std::abs(box1.width - box2.width) / max(box1.width, box2.width);
-    float height_ratio = std::abs(box1.height - box2.height) / max(box1.height, box2.height);
+    float width_ratio = std::abs(box1.width - box2.width) / (std::max)(box1.width, box2.width);
+    float height_ratio = std::abs(box1.height - box2.height) / (std::max)(box1.height, box2.height);
     return width_ratio < max_size_error && height_ratio < max_size_error;
 }
 

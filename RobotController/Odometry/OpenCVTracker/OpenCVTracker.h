@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../Globals.h"
 #include "../OdometryBase.h"
 
 #ifdef _OPENCV_TRACKING
@@ -54,6 +53,19 @@ private:
     // indicates whether the bbox has been given since launch
     enum TrackerState _robotTrackerState = TrackerState::UNINITIALIZED;
     enum TrackerState _opponentTrackerState = TrackerState::UNINITIALIZED;
+
+    // Per-robot state for velocity computation (last published position/time)
+    cv::Point2f _robotLastCenter{};
+    double _robotLastTime = 0.0;
+    bool _robotHasLast = false;
+
+    cv::Point2f _opponentLastCenter{};
+    double _opponentLastTime = 0.0;
+    bool _opponentHasLast = false;
+
+    // Epoch counters to detect TOCTOU races with SwitchRobots()/SetPosition()
+    uint64_t _robotEpoch = 0;
+    uint64_t _oppEpoch = 0;
 
 
 };

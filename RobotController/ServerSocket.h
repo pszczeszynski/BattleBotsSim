@@ -13,7 +13,7 @@ class ServerSocket {
   std::string port;
   // The socket to listen on
   SOCKET listenSocket;
-  // Buffer for receiving data
+  // Buffer for receiving data  
   char recvbuf[DEFAULT_BUFLEN];
   // Number of bytes actually received
   int recvbuflen = DEFAULT_BUFLEN;

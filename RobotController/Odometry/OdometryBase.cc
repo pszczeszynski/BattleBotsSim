@@ -2,18 +2,21 @@
 
 #include <opencv2/core.hpp>
 
+#include "../Globals.h"
+#include "OdometryData.h"
+
+
 // clock widget
 #include "../Odometry/Heuristic1/RobotTracker.h"
-#include "../UIWidgets/ClockWidget.h"
 
 // ***********************************************
 // ************ Odometry Base ********************
 // ***********************************************
 
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
-    : _videoSource(videoSource), _data{OdometryData(0), OdometryData(0)} {};
+    : _videoSource(videoSource) {};
 
-OdometryBase::OdometryBase(void) : _data{OdometryData(0), OdometryData(0)} {};
+OdometryBase::OdometryBase(void) {};
 
 bool OdometryBase::IsRunning(void) { return _running.load(); }
 
@@ -164,7 +167,7 @@ void OdometryBase::SetAngle(AngleData angleData, bool opponentRobot) {
 void OdometryBase::Publish(OdometryData sample, bool isOpponent) {
   std::lock_guard<std::mutex> lk(_updateMutex);
   int slot = isOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
-  auto& out = _data[slot];
+  auto &out = _data[slot];
   int oldId = out.id;  // Save the old id before overwriting
   out = std::move(sample);
   out.id = oldId + 1;  // Increment from the old id
@@ -187,12 +190,13 @@ void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
   // Draw robot data (top-left)
   int yLeft = 20 + offset.y;  // Start at top
   printText("Robot Data:", target, yLeft, leftX);
-  _data[(int)RobotSlot::Us].GetDebugImage(target, cv::Point(leftX + 10, yLeft + 14));
+  _data[(int)RobotSlot::Us].GetDebugImage(target,
+                                          cv::Point(leftX + 10, yLeft + 14));
 
   yLeft = 20 + offset.y;  // Reset to top
 
   // Draw opponent data next to it
   printText("Opponent Data:", target, yLeft, leftX + 190);
-  _data[(int)RobotSlot::Opponent].GetDebugImage(target,
-                                  cv::Point(leftX + 10 + 190, yLeft + 14));
+  _data[(int)RobotSlot::Opponent].GetDebugImage(
+      target, cv::Point(leftX + 10 + 190, yLeft + 14));
 }

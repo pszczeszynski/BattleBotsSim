@@ -1,10 +1,8 @@
 #pragma once
 #include <opencv2/opencv.hpp>
-#include <iostream>
 #include <fstream>
 #include "Clock.h"
 #include "MathUtils.h"
-#include "Globals.h"
 #include "CVRotation.h"
 #include "CameraReceiver.h"
 #include "OdometryPoller.h"

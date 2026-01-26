@@ -25,7 +25,7 @@ IMUWidget::IMUWidget() : ImageWidget("IMU", false)
         if (ImGui::Button("Flip angle"))
         {
             RobotOdometry& odometry = RobotController::GetInstance().odometry;
-            odometry.UpdateForceSetAngle(odometry.Robot().GetAngle() + M_PI, false);
+            odometry.UpdateForceSetAngle(odometry.Robot().GetAngleOrZero() + M_PI, false);
         }
     });
 }
@@ -286,13 +286,13 @@ void IMUWidget::Draw()
         // Center the rotation display
         ImVec2 rotationCenter(contentStart.x + availableWidth * 0.5f, contentStart.y + 160);
         
-        double angle = robot.GetAngle() + M_PI / 2;
+        double angle = robot.GetAngleOrZero() + M_PI / 2;
         // Draw the main rotation indicator
         DrawRotationIndicator(rotationCenter, angle, rotationRadius, ColorScheme::PRIMARY_PURPLE);
         
         // Draw velocity vector inside the rotation display
-        float velX = robot.robotVelocity.x / 10.0f;
-        float velY = robot.robotVelocity.y / 10.0f;
+        float velX = robot.GetVelocityOrZero().x / 10.0f;
+        float velY = robot.GetVelocityOrZero().y / 10.0f;
         float maxVel = 5.0f; // Max velocity for normalization
         
         DrawVelocityVector(rotationCenter, velX, velY, maxVel, rotationRadius * 0.8f);
@@ -383,7 +383,7 @@ void IMUWidget::Draw()
         
         if (ImGui::Button("Flip Angle (180°)", ImVec2(-1, 0))) {
             RobotOdometry& odometry = RobotController::GetInstance().odometry;
-            odometry.UpdateForceSetAngle(odometry.Robot().GetAngle() + M_PI, false);
+            odometry.UpdateForceSetAngle(odometry.Robot().GetAngleOrZero() + M_PI, false);
         }
     }
     

@@ -94,9 +94,21 @@ private:
     std::unordered_set<std::string> cvWindows;
 
     // Update our data
-    void _UpdateData(double timestamp);
     void _UpdateOdometry(OdometryData &data, OdometryData &oldData, RobotTracker *tracker, double timestamp);
     void UpdateSettings(); // Bring in user settings
+    
+    // Minimal stream state for computing angular velocity
+    struct HeuStreamState {
+        std::optional<PositionData> last_pos;
+        std::optional<AngleData> last_angle;
+    };
+    
+    // Publish-only helper: only publishes if tracker is valid
+    void _PublishIfValid(RobotTracker* tracker, bool isOpponent, double timestamp, HeuStreamState& state);
+    
+    // Stream state for us and them (used only for angular velocity computation)
+    HeuStreamState _usState;
+    HeuStreamState _themState;
 
     Clock clock_outer; // Clock to tell us when to update statistic window (1x per second)
 

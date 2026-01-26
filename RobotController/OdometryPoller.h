@@ -9,8 +9,6 @@
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/LKFlowTracker/LKFlowTracker.h"
 #include "Odometry/Neural/CVPosition.h"
-#include "Odometry/OdometryBase.h"
-
 
 #ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"

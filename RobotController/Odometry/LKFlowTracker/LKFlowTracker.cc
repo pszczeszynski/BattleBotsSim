@@ -300,10 +300,11 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   debugLock.unlock();
 
   // Build sample and publish
-  OdometryData sample(frameID);
+  OdometryData sample;
+  sample.Clear();
   sample.pos = PositionData(center, visualVelocity, defaultRect, frameTime);
   sample.angle = AngleData(_angle, angularVelocity, frameTime);
-  Publish(std::move(sample), true);
+  OdometryBase::Publish(std::move(sample), true);
 
   // Update local previous data for next iteration
   _prevPosition = center;

@@ -93,7 +93,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 
   // Add robot and opponent stuff
   cv::Point2f robotPos =
-      RobotController::GetInstance().odometry.Robot().robotPosition;
+      RobotController::GetInstance().odometry.Robot().GetPositionOrZero();
   cv::Point2i scaled_robotpos = robotPos / IMG_SCALE;
 
   message += std::to_string(scaled_robotpos.x) + MSG_FIELD_SEPERATOR +
@@ -101,7 +101,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   numOfFields += 2;
 
   cv::Point2f opponentPos =
-      RobotController::GetInstance().odometry.Opponent().robotPosition;
+      RobotController::GetInstance().odometry.Opponent().GetPositionOrZero();
   cv::Point2i scaled_opponentpos = opponentPos / IMG_SCALE;
 
   message += std::to_string(scaled_opponentpos.x) + MSG_FIELD_SEPERATOR +
@@ -109,7 +109,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   numOfFields += 2;
 
   double opponentAngle =
-      RobotController::GetInstance().odometry.Opponent().GetAngle();
+      RobotController::GetInstance().odometry.Opponent().GetAngleOrZero();
   // enforce 0 to 360
   while (opponentAngle < 0) {
     opponentAngle += 2 * M_PI;
