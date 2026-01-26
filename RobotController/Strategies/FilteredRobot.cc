@@ -215,7 +215,7 @@ void FilteredRobot::constVelExtrapWrite(float time) {
 // extrapolates the opp's pos to see what point we'll line up at
 FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path) {
 
-    float timeIncrement = 0.01f; // 0.01 time increment of incremented opp positions to compare orb times to
+    float timeIncrement = 0.04f; // 0.01 time increment of incremented opp positions to compare orb times to
     float simTime = 0.0f; // time in the sim
 
     FilteredRobot virtualOpp = opp; // will return this virtual opp
@@ -225,7 +225,7 @@ FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, b
     float inflectGarbage = 0.0f;
     while(simTime < maxExtrapTime) {
 
-        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway, inflectGarbage);
+        float orbETA = ETASim(virtualOpp, orbPathGarbage, false, false, forward, CW, turnAway, inflectGarbage, 0.6f);
         if(orbETA < simTime) { break; } // break when we arrive at the same time
         if(virtualOpp.moveSpeedSlow() < 1.0f && abs(virtualOpp.turnVel()) < 0.01f) { break; } // break if opp's vel has decayed
 
@@ -449,7 +449,7 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // simulates orb's path to the opp to calculate the ETA
-float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance) {
+float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance, float radGain) {
 
     int direction = forward ? 1 : -1;
 
@@ -463,6 +463,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
     int steps = (int) (maxTime / timeStep);
 
     inflectDistance = 999999.0f;
+    path = {};
 
     // simulate orb's actions through each time step
     for(int i = 0; i < steps; i++) { 
@@ -508,7 +509,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
         
 
         
-        float radius = distanceAway * 0.5f; // create a curved path as a rough prediction of how we'll approach opp
+        float radius = distanceAway * radGain; // create a curved path as a rough prediction of how we'll approach opp
 
         // calculate tangent point to that circle
         float d = opp.distanceTo(dummyOrb.position());

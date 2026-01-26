@@ -23,7 +23,7 @@ AStarAttack::AStarAttack()
     
     // init filters
     orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 200.0f, 
-        22.0f, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 
+        22.0f, 60.0f, 50.0f*TO_RAD, 
         40.0f*TO_RAD, 20.0f, 20.0f*TO_RAD, 10.0f*TO_RAD);
     oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 200.0f, 
         14.0f, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 
@@ -436,8 +436,39 @@ void AdjustRadiusWithBumpers() {
 void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
-    float orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
-        follow.forward, follow.CW, follow.turnAway, follow.inflectDistance);
+    float orbETA = 999999.0f;
+    int bestIndex = 0;
+    float bestFraction = 99999.0f;
+    std::vector<float> radGains = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
+    // radGains = { 0.7f};
+
+    // what in the world
+    for(int i = 0; i < radGains.size(); i++) {
+        float testETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
+            follow.forward, follow.CW, follow.turnAway, follow.inflectDistance, radGains[i]);
+
+        DisplayUtils::displayPath(follow.orbSimPath, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
+
+
+        float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
+
+        float fraction2 = 0.0f;
+        if(testETA > 0.01f) { fraction2 = std::max((testETA - oppETA) / testETA, 0.0f); }
+
+        // std::cout << "fra = " << fraction2 << "    ";
+        if(fraction2 < bestFraction || i == 0) { 
+            bestIndex = i;
+            bestFraction = fraction2;
+        }
+    }
+
+    // do it again to write everything properly bruh
+    orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
+        follow.forward, follow.CW, follow.turnAway, follow.inflectDistance, radGains[bestIndex]);
+
+    
+
+    
     float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
 
     // save these with the follow point
@@ -462,8 +493,12 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
     // float fraction2 = 0.0f;
     // if(orbETA + oppETA > 0.01f) { fraction2 = std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f); }
 
+    // std::cout << "best = " << fraction2 << "    ";
 
     follow.radius = piecewise(radiusCurve, fraction2);
+    // follow.radius = std::max(follow.radius, radGains[bestIndex] * 0.9f * std::max(oppFiltered.distanceTo(orbFiltered.position()) - oppFiltered.getSizeRadius() - orbFiltered.getSizeRadius(), 0.0f));
+    follow.radius = std::min(follow.radius, RADIUS_CURVE_Y3);
+
 }
 
 
@@ -770,7 +805,7 @@ float AStarAttack::switchPointScore(FollowPoint follow) {
     // generate a predicted path to the follow point
     std::vector<cv::Point2f> path = {};
     float garbage = 0.0f;
-    orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway, garbage);
+    orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway, garbage, 0.6f);
 
 
     // see how long it'll take opp to get to each point
@@ -1026,8 +1061,8 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), follow.inflectDistance + orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius(), cv::Scalar(255, 255, 255), 2);
     // std::cout << "inflect distance = " << follow.inflectDistance;
-    float collideScore = 70.0f;
-    float zeroScoreDistance = 100.0f;
+    float collideScore = 60.0f;
+    float zeroScoreDistance = 90.0f;
     float inflectScore = collideScore * pow((1.0f - std::clamp(follow.inflectDistance / zeroScoreDistance, 0.0f, 1.0f)), 3.0f);
     // follow.directionScores.emplace_back(500.0f/std::max(follow.inflectDistance, 0.001f));
     follow.directionScores.emplace_back(inflectScore);
