@@ -14,6 +14,7 @@
 #include "DisplayUtils.h"
 #include "FollowPoint.h"
 #include <limits>
+#include <wingdi.h>
 
 AStarAttack* AStarAttack::_instance = nullptr;
 
@@ -22,12 +23,10 @@ AStarAttack::AStarAttack()
     _instance = this;
     
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 200.0f, 
-        22.0f, 60.0f, 50.0f*TO_RAD, 
-        40.0f*TO_RAD, 20.0f, 20.0f*TO_RAD, 10.0f*TO_RAD);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 200.0f, 
-        14.0f, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 
-        40.0f*TO_RAD, 25.0f, 0.0f, 0.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+        22.0f, 50.0f, 50.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+        15.0f, 50.0f, 60.0f*TO_RAD, 25.0f);
 
     // init field
     field = Field();
@@ -297,14 +296,16 @@ FollowPoint AStarAttack::createFollowPoint(bool CW, bool forward, bool turnAway,
     // create follow point based on the extrapolated opp's and the given parameters
     FollowPoint follow = FollowPoint(forward, CW, turnAway, targetOpp, oppSimPath);
     
+
+    // set the radius
     radiusEquation(follow);
 
 
+    // main case is drive towards the tangent point on the attack radius
+    follow.point = tangentPoint(follow.radius, oppFiltered.position(), orbFiltered.position(), follow.CW); 
 
-
-    tangentPoint(follow); // main case is drive towards the tangent point on the attack radius
-
-    bool outsideCircle = follow.radius < orbFiltered.distanceTo(oppFiltered.position()); // if orb is outside of the attack radius
+    // if orb is outside of the attack radius
+    bool outsideCircle = follow.radius < orbFiltered.distanceTo(oppFiltered.position()); 
 
     // if we're outside the circle but the tangent point is too close then enforce the pure pursuit radius
     if(outsideCircle && orbFiltered.distanceTo(follow.point) < ppRad()) { follow.point = ppPoint(follow); }
@@ -313,47 +314,143 @@ FollowPoint AStarAttack::createFollowPoint(bool CW, bool forward, bool turnAway,
     if(!outsideCircle) { followPointInsideCircle(follow); }
 
     return follow;
+}
 
+
+
+// generates orb's path to opp and ETA by simulating
+void AStarAttack::generatePath(FollowPoint &follow) {
+
+    std::vector<float> simPos = orbFiltered.getPosFiltered();
+    float simLinearSpeed = 0.0f;
+    float simTurnSpeed = 0.0f;
+
+    float timeStep = 0.01f;
+    float maxTime = 1.5f;
+
+    float simTime = 0.0f;
+    int steps = (int) (maxTime / timeStep);
+
+    follow.inflectDistance = 999999.0f;
+    follow.orbSimPath = {};
+
+    FilteredRobot virtualOrb = orbFiltered; // virtual orb that gets simulated
+
+    // simulate orb's actions through each time step
+    for(int i = 0; i < steps; i++) { 
+
+        // add the point to the path
+        virtualOrb.setPos(simPos);
+        follow.orbSimPath.emplace_back(virtualOrb.position()); 
+
+
+
+        // remember the closest distance at which we weren't turning the right way
+        bool turningCorrect = virtualOrb.turningCorrect(follow.opp.position(), follow.CW, follow.forward);
+        if(!turningCorrect && !follow.turnAway) { 
+            follow.inflectDistance = virtualOrb.distanceToCollide(follow.opp); 
+        }
+        
+
+
+
+
+
+        // exit conditions occur when we hit the opp
+        if(virtualOrb.colliding(follow.opp, 0.0f)) {
+
+            // if we're hitting them in a valid way, return the actual sim time
+            if(virtualOrb.facing(follow.opp, follow.forward) && turningCorrect) { 
+                break; 
+            }
+
+            // otherwise we're hitting them in an invalid way, so return max time
+            simTime = maxTime;
+            break;
+        }
+
+        
+
+        // will create a curved path as a rough prediction of how we'll approach opp
+        float radius = follow.simRadGain * virtualOrb.distanceToCollide(follow.opp); 
+        cv::Point2f virtualFollow = tangentPoint(radius, follow.opp.position(), virtualOrb.position(), follow.CW);
+
+        // how far off we are from the simulated follow point
+        float angleError = virtualOrb.angleTo(virtualFollow, follow.forward); 
+        
+        // force a turn around if necessary
+        if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+        if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
+        
+
+        
+        
+        // simulate what curvature controller would do
+        float curvature = 0.70f*angleError; // 0.5
+
+        float maxCurve = 99.0f; // 1.0
+        curvature = std::clamp(curvature, -maxCurve, maxCurve);
+
+        // float timeStepStraight = 0.05f;
+        // float timeStepSteep = 0.01f;
+        // float steep = 4.0f;
+        // timeStep = timeStepStraight - (timeStepStraight - timeStepSteep)*(curvature/steep);
+
+
+        float moveSpeed = 1.0f * (follow.forward ? 1 : -1); // assume full gas
+        float turnSpeed = abs(moveSpeed) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
+
+        // don't demand more than 1.0 speed from any one motor side, scale everything down since that will maintain the same path curvature
+        float totalSpeed = abs(moveSpeed) + abs(turnSpeed);
+        if(totalSpeed > 1.0f) {
+            moveSpeed /= totalSpeed;
+            turnSpeed /= totalSpeed;
+        }
+
+
+
+        simLinearSpeed = moveSpeed * virtualOrb.getMaxMoveSpeed();
+        simTurnSpeed = turnSpeed * virtualOrb.getMaxTurnSpeed();
+
+        float deltaXRobot = 0.0f;
+        float deltaYRobot = 0.0f;
+        float turnDistance = simTurnSpeed * timeStep; // Δθ
+
+        if (abs(simTurnSpeed) < 1e-6f) {
+            // straight-line motion
+            deltaXRobot = simLinearSpeed * timeStep;
+            deltaYRobot = 0.0f;
+        } else {
+            // circular arc motion
+            float r = simLinearSpeed / simTurnSpeed; // path radius
+            deltaXRobot = r * std::sin(turnDistance);
+            deltaYRobot = r * (1.0f - std::cos(turnDistance));
+        }
+
+        // rotate from robot frame to field frame
+        float orientation = simPos[2];
+        float deltaXField = deltaXRobot * std::cos(orientation) - deltaYRobot * std::sin(orientation);
+        float deltaYField = deltaXRobot * std::sin(orientation) + deltaYRobot * std::cos(orientation);
+
+
+        // new pos in sim
+        simPos = {
+            simPos[0] + deltaXField,
+            simPos[1] + deltaYField,
+            (float) angle_wrap(orientation + turnDistance)
+        };
+
+        simTime += timeStep;
+    }
+
+    follow.orbETA = simTime;   
 }
 
 
 
 
-// // check's if a follow point is valid (the robot has to turn in the intended direction to reach it)
-// bool AStarAttack::followValid(FollowPoint follow) {
 
-//     // if it predicted a turn around that we didn't actually need, recalculate without that
-//     float angleToFollow = orbFiltered.angleTo(follow.point, follow.forward);
-//     float angleToOpp = orbFiltered.angleTo(follow.opp.position(), follow.forward);
 
-//     // // wrap to 0 to 360 in the correct direction
-//     // if(follow.turnRight) {
-//     //     angleToFollow = angleWrapRad(angleToFollow - M_PI) + M_PI; 
-//     //     angleToOpp = angleWrapRad(angleToOpp - M_PI) + M_PI; 
-//     // }
-//     // else {
-//     //     angleToFollow = angleWrapRad(angleToFollow + M_PI) - M_PI; 
-//     //     angleToOpp = angleWrapRad(angleToOpp + M_PI) - M_PI; 
-//     // }
-
-    
-
-//     // this means we predicted a turn around we shouldn't have, so this follow is not valid
-//     if(abs(angleToFollow - angleToOpp) > M_PI && !follow.exception) { 
-//         // if((follow.CW && !follow.turnRight) || (!follow.CW && follow.turnRight)) {
-//         //     // std::cout << "exception";
-//         //     return false;
-//         // }
-//         return false;
-//     }
-
-//     // the exception case is also not valid because the follow point ended up on the wrong side of us
-//     if(abs(angleToFollow) > M_PI && follow.exception) {
-//         return false;
-//     }
-
-//     return true;
-// }
 
 
 
@@ -436,69 +533,46 @@ void AdjustRadiusWithBumpers() {
 void AStarAttack::radiusEquation(FollowPoint &follow) {
 
     // calculate times for orb and opp
-    float orbETA = 999999.0f;
-    int bestIndex = 0;
     float bestFraction = 99999.0f;
     std::vector<float> radGains = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
     // radGains = { 0.7f};
 
     // what in the world
     for(int i = 0; i < radGains.size(); i++) {
-        float testETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
-            follow.forward, follow.CW, follow.turnAway, follow.inflectDistance, radGains[i]);
 
-        DisplayUtils::displayPath(follow.orbSimPath, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
+        // generate a path for the given sim settings
+        FollowPoint testFollow = follow;
+        testFollow.simRadGain = radGains[i];
 
-
-        float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
+        generatePath(testFollow);
+        testFollow.oppETA = testFollow.opp.turnTimeSimple(testFollow.orbSimPath.back(), testFollow.opp.getWeaponAngleReach(), true, true);
 
         float fraction2 = 0.0f;
-        if(testETA > 0.01f) { fraction2 = std::max((testETA - oppETA) / testETA, 0.0f); }
+        if(testFollow.orbETA > 0.01f) { fraction2 = std::max((testFollow.orbETA - testFollow.oppETA) / testFollow.orbETA, 0.0f); }
 
-        // std::cout << "fra = " << fraction2 << "    ";
+
+        // AdjustRadiusWithBumpers(); // let driver adjust aggressiveness with bumpers
+
+        // input fraction to output radius using RobotConfig variables
+        std::vector<cv::Point2f> radiusCurve = {
+            cv::Point2f(RADIUS_CURVE_X0, RADIUS_CURVE_Y0),
+            cv::Point2f(RADIUS_CURVE_X1, RADIUS_CURVE_Y1),
+            cv::Point2f(RADIUS_CURVE_X2, RADIUS_CURVE_Y2),
+            cv::Point2f(RADIUS_CURVE_X3, RADIUS_CURVE_Y3)
+        };
+
+        testFollow.radius = piecewise(radiusCurve, fraction2);
+        // testFollow.radius = std::max(testFollow.radius, radGains[bestIndex] * 0.9f * std::max(oppFiltered.distanceTo(orbFiltered.position()) - oppFiltered.getSizeRadius() - orbFiltered.getSizeRadius(), 0.0f));
+        // testFollow.radius = std::min(testFollow.radius, RADIUS_CURVE_Y3);
+
+        // set the actual follow point to the best result we get
         if(fraction2 < bestFraction || i == 0) { 
-            bestIndex = i;
+            follow = testFollow;
             bestFraction = fraction2;
         }
+
+        DisplayUtils::displayPath(testFollow.orbSimPath, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
     }
-
-    // do it again to write everything properly bruh
-    orbETA = orbFiltered.ETASim(follow.opp, follow.orbSimPath, false, true, 
-        follow.forward, follow.CW, follow.turnAway, follow.inflectDistance, radGains[bestIndex]);
-
-    
-
-    
-    float oppETA = follow.opp.turnTimeSimple(follow.orbSimPath.back(), follow.opp.getWeaponAngleReach(), true, true);
-
-    // save these with the follow point
-    follow.orbETA = orbETA;
-    follow.oppETA = oppETA;
-
-    // AdjustRadiusWithBumpers(); // let driver adjust aggressiveness with bumpers
-
-    // input fraction to output radius using RobotConfig variables
-    std::vector<cv::Point2f> radiusCurve = {
-        cv::Point2f(RADIUS_CURVE_X0, RADIUS_CURVE_Y0),
-        cv::Point2f(RADIUS_CURVE_X1, RADIUS_CURVE_Y1),
-        cv::Point2f(RADIUS_CURVE_X2, RADIUS_CURVE_Y2),
-        cv::Point2f(RADIUS_CURVE_X3, RADIUS_CURVE_Y3)
-    };
-
-
-    // magic fraction, trust me bro this one works better
-    float fraction2 = 0.0f;
-    if(orbETA > 0.01f) { fraction2 = std::max((orbETA - oppETA) / orbETA, 0.0f); }
-
-    // float fraction2 = 0.0f;
-    // if(orbETA + oppETA > 0.01f) { fraction2 = std::max((orbETA - oppETA) / (orbETA + oppETA), 0.0f); }
-
-    // std::cout << "best = " << fraction2 << "    ";
-
-    follow.radius = piecewise(radiusCurve, fraction2);
-    // follow.radius = std::max(follow.radius, radGains[bestIndex] * 0.9f * std::max(oppFiltered.distanceTo(orbFiltered.position()) - oppFiltered.getSizeRadius() - orbFiltered.getSizeRadius(), 0.0f));
-    follow.radius = std::min(follow.radius, RADIUS_CURVE_Y3);
-
 }
 
 
@@ -527,23 +601,19 @@ float AStarAttack::piecewise(std::vector<cv::Point2f> points, float x) {
 
 
 // returns the tangent point of a circle with set radius around the opponent
-void AStarAttack::tangentPoint(FollowPoint &follow) {
+cv::Point2f AStarAttack::tangentPoint(float radius, cv::Point2f center, cv::Point2f point, bool CW) {
 
-    // calculate tangent point to that circle
-    float d = oppFiltered.distanceTo(orbFiltered.position());
+    float d = cv::norm(center - point);
 
-    // tangent point doesn't exist if we're inside the circle
-    if(d < follow.radius) { 
-        follow.point = oppFiltered.position(); 
-        return;
-    }
-
+    // tangent doesn't exist if point is inside the circle
+    if(d < radius) { return center; }
+    
     // epic math
-    float theta = acos(follow.radius / d);
-    float alpha = atan2(orbFiltered.position().y - oppFiltered.position().y, orbFiltered.position().x - oppFiltered.position().x);
-    float theta2 = angle_wrap(alpha + (follow.CW? 1 : -1)*theta);
+    float theta = acos(radius / d);
+    float alpha = atan2(point.y - center.y, point.x - center.x);
+    float theta2 = angle_wrap(alpha + (CW? 1 : -1)*theta);
 
-    follow.point = oppFiltered.position() + follow.radius*(cv::Point2f(cos(theta2), sin(theta2)));
+    return center + radius*(cv::Point2f(cos(theta2), sin(theta2)));
 }
 
 
@@ -885,16 +955,6 @@ float AStarAttack::switchPointScore(FollowPoint follow) {
 }
 
 
-// // enforces (or doesn't) a turn direction so we turn away from the op when desired
-// // 1 = always turn right, -1 = always turn left
-// void AStarAttack::turnAwayFromOpp(FollowPoint &follow) {
-
-//     // if we're not gonna turn past the opp then don't enforce anything
-//     if(!willTurnPastOpp(follow)) { return; }
-
-//     // otherwise enforce a turn direction opposite from what you'd normally do
-//     follow.enforceTurnDirection = -sign(orbFiltered.angleTo(follow.point, follow.forward));
-// }
 
 
 
@@ -1050,7 +1110,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     float fastAwayGain = 4.0f;
 
     float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness*facingness);
-    turnGain = 80.0f; // 4.0
+    turnGain = 60.0f; // 4.0
     follow.directionScores.emplace_back(turnGain * turnScore(follow));
 
     
@@ -1061,8 +1121,8 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), follow.inflectDistance + orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius(), cv::Scalar(255, 255, 255), 2);
     // std::cout << "inflect distance = " << follow.inflectDistance;
-    float collideScore = 60.0f;
-    float zeroScoreDistance = 90.0f;
+    float collideScore = 80.0f;
+    float zeroScoreDistance = 100.0f;
     float inflectScore = collideScore * pow((1.0f - std::clamp(follow.inflectDistance / zeroScoreDistance, 0.0f, 1.0f)), 3.0f);
     // follow.directionScores.emplace_back(500.0f/std::max(follow.inflectDistance, 0.001f));
     follow.directionScores.emplace_back(inflectScore);

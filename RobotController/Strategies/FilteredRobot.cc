@@ -9,9 +9,8 @@
 // CONSTRUCTOR
 FilteredRobot::FilteredRobot() { }
 
-FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
-                float moveAccel, float turnSpeed, float turnAccel, float weaponAngleReach, 
-                float weaponDriftScaleReach, float sizeRadius, float turnPastStartMargin, float turnPastEndMargin) {
+FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpeed, float moveAccel, float turnSpeed, 
+    float turnAccel, float weaponAngleReach, float sizeRadius) {
 
     this->pathSpacing = pathSpacing;
     this->pathLength = pathLength;
@@ -20,10 +19,7 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     this->maxTurnSpeed = turnSpeed;
     this->maxTurnAccel = turnAccel;
     this->weaponAngleReach = weaponAngleReach;
-    this->weaponDriftScaleReach = weaponDriftScaleReach;
     this->sizeRadius = sizeRadius;
-    this->turnPastStartMargin = turnPastStartMargin;
-    this->turnPastEndMargin = turnPastEndMargin;
 
 
     // initialize
@@ -43,7 +39,6 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) { // make a
     maxTurnSpeed = 0.0f;
     maxTurnAccel = 0.0f;
     weaponAngleReach = 0.0f;
-    weaponDriftScaleReach = 0.0f;
 
     this->sizeRadius = sizeRadius;
 
@@ -398,7 +393,7 @@ float FilteredRobot::velAwayFromPoint(cv::Point2f point) {
 
 // if we're colliding with another robot within a tolerance
 bool FilteredRobot::colliding(FilteredRobot opp, float tolerance) {
-    return distanceTo(opp.position()) < sizeRadius + opp.getSizeRadius() + tolerance;
+    return distanceToCollide(opp) <= tolerance;
 }
 
 
@@ -445,6 +440,18 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
     // total time is sum of turning and driving
     return moveTime + turnTime;
+}
+
+
+// if the direction we'll turn towards a point matches CW or CCW
+bool FilteredRobot::turningCorrect(cv::Point2f point, bool CW, bool forward) {
+    return (angleTo(point, forward) > 0 && CW) || (angleTo(point, forward) < 0 && !CW);
+}
+
+
+// how much distance we'd have to get closer to touch another robot
+float FilteredRobot::distanceToCollide(FilteredRobot opp) {
+    return std::max(distanceTo(opp.position()) - opp.getSizeRadius() - sizeRadius, 0.0f);
 }
 
 
@@ -774,12 +781,9 @@ float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], a
 float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
 float FilteredRobot::getWeaponAngleReach() { return weaponAngleReach; }
-float FilteredRobot::getWeaponDriftScaleReach() { return weaponDriftScaleReach; }
 float FilteredRobot::getSizeRadius() { return sizeRadius; }
 float FilteredRobot::moveSpeed() { return cv::norm(moveVel()); }
 float FilteredRobot::moveSpeedSlow() { return cv::norm(moveVelSlow()); }
-float FilteredRobot::getTurnPastStartMargin() { return turnPastStartMargin; }
-float FilteredRobot::getTurnPastEndMargin() { return turnPastEndMargin; }
 
 
 

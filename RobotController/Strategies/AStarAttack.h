@@ -61,16 +61,15 @@ private:
     std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    void tangentPoint(FollowPoint &follow);
+    cv::Point2f tangentPoint(float radius, cv::Point2f center, cv::Point2f point, bool CW);
     cv::Point2f ppPoint(FollowPoint follow);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
     FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
-    // bool followValid(FollowPoint follow);
+    void generatePath(FollowPoint &follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
-    // void turnAwayFromOpp(FollowPoint &follow);
     float ppRad();
     float ppRadWall();
     // void avoidBoundsVector(FollowPoint &follow);

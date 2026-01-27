@@ -26,6 +26,7 @@ public:
     float oppETA; // opp time for this point
     float orbETA; // orb time to hit opp given this points parameters
     float inflectDistance; // distance away from the opp at which we start inflecting correct
+    float simRadGain; // the rad gain used in sim to generate the path for this point
 
     std::vector<float> directionScores; // score numbers for how good this follow point is, last entry is the total score
 

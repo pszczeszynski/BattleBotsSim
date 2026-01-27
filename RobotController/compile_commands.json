@@ -175,6 +175,11 @@
     "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\build\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc"
   },
   {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryData.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\build\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryData.cc"
+  },
+  {
     "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection",
     "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\BlobDetection.cc",
     "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\build\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\BlobDetection\\BlobDetection.cc"
@@ -188,6 +193,11 @@
     "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry",
     "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc",
     "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\build\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryBase.cc"
+  },
+  {
+    "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry",
+    "file": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryData.cc",
+    "command": "clang++ -std=c++17 -x c++ -fms-compatibility -fms-compatibility-version=19.3 -fvisibility=hidden -DUNICODE -DNDEBUG -DWIN32_LEAN_AND_MEAN -I C:\\opencv\\build\\include -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\json\\include\\nlohmann -I C:\\Dev\\BattleBotsSim\\RobotController\\libs\\IMGUI -I \"C:\\Program Files\\Teledyne\\Spinnaker\\include\" -w -c C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\OdometryData.cc"
   },
   {
     "directory": "C:\\Dev\\BattleBotsSim\\RobotController\\Odometry\\Heuristic1",

@@ -9,8 +9,11 @@
 Kill::Kill()
 {
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 500.0f, 200.0f, 2.0f*360.0f*TO_RAD, 80.0f*360.0f*TO_RAD, 50.0f*TO_RAD, 40.0f*TO_RAD, 20.0f, 0.0f, 0.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 470.0f, 300.0f, 2.0f*360.0f*TO_RAD, 200.0f*360.0f*TO_RAD, 60.0f*TO_RAD, 40.0f*TO_RAD, 25.0f, 0.0f, 0.0f);
+    // init filters
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+        22.0f, 50.0f, 50.0f*TO_RAD, 20.0f);
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+        15.0f, 50.0f, 60.0f*TO_RAD, 25.0f);
 
     // init field
     field = Field();

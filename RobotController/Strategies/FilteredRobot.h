@@ -13,26 +13,24 @@ class FilteredRobot
   // pathSpacing and pathLength are visual params
   FilteredRobot(float pathSpacing, float pathLength, float moveSpeed,
                 float moveAccel, float turnSpeed, float turnAccel, 
-                float weaponAngleReach, float weaponDriftScaleReach, float sizeRadius,
-                float turnPastStartMargin, float turnPastEndMargin);
+                float weaponAngleReach, float sizeRadius);
 
   // for virtual opp with zero speed
   FilteredRobot(cv::Point2f position, float sizeRadius);
 
-  void updateFilters(float deltaTime, cv::Point2f visionPos,
-                     float visionTheta);  // run filter update to find new data
+  void updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta); 
 
 
-  float collideETA(FilteredRobot& opp, bool forward);  // estimated time to collide with a robot
+  float collideETA(FilteredRobot& opp, bool forward); 
   float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance, float radGain);
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
-                    bool print);  // simulate estimated turn time to point
+                    bool print); 
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
-                    bool print);  // minimum time of both turn directions
+                    bool print); 
   float turnTimeSimple(cv::Point2f point, float angleMargin, bool forward, bool print);
 
   bool colliding(FilteredRobot opp, float tolerance);
@@ -78,7 +76,8 @@ class FilteredRobot
   float getTurnPastEndMargin();
   float getMaxTurnAccel();
   std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
-
+  bool turningCorrect(cv::Point2f point, bool CW, bool forward);
+  float distanceToCollide(FilteredRobot opp);
 
 
 
@@ -115,11 +114,7 @@ class FilteredRobot
   float pathLength;   // how long the total tracked path is
 
   float weaponAngleReach; // how many degrees (plus or minus) the weapon reaches from the centerline
-  float weaponDriftScaleReach; // how many degrees at which we stop scaling down drift stop calculations
   float sizeRadius; // radius of the frame, used for collision radius calc
-
-  float turnPastStartMargin; // margin given at the start of turning past the opp
-  float turnPastEndMargin; // margin given at the end of turning past the opp
 
 
   int sign(float num);
