@@ -384,6 +384,7 @@ void BlobDetection::SwitchRobots(void) {
 }
 
 void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {
+  std::cout << "SetPosition: " << newPos << std::endl;
   constexpr float IGNORE_THRESH_PX = 10;
 
   BlobTrackState& state = opponentRobot ? _themState : _usState;
