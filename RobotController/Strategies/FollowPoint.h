@@ -15,10 +15,13 @@ public:
     FilteredRobot opp; // opponent robot
 
     std::vector<cv::Point2f> orbSimPath; // simulated path for orb to the opponent if we were to kill rn
-    std::vector<cv::Point2f> oppSimPath; // extrapolated path for opp for where they'll be if we were to kill rn
-
     std::vector<float> orbSimPathTimes; // how long it takes orb to get to each point in the sim path
     int inflectIndex; // sim path index at which the opp starts being on the correct side
+
+    std::vector<cv::Point2f> escapePath; // path orb would take if we need to escape from opp
+    std::vector<float> escapePathTimes; // how long it takes to get each point of the escape path
+
+    std::vector<cv::Point2f> oppSimPath; // extrapolated path for opp for where they'll be if we were to kill rn
 
     bool forward; // if we're driving forwards (or backwards) to the point
     bool CW; // if this point is meant to go CW (or CCW) around the opp

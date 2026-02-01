@@ -75,6 +75,7 @@ private:
     // void avoidBoundsVector(FollowPoint &follow);
     void directionScore(FollowPoint &follow, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
+    void followPointInsideCircleSimple(FollowPoint &follow);
     FollowPoint chooseBestPoint(std::vector<FollowPoint>& follows, bool forwardInput);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
@@ -83,5 +84,7 @@ private:
     void display(FollowPoint follow);
     bool willTurnPastOpp(FollowPoint follow);
     float switchPointScore(FollowPoint follow);
+    void generateEscapePath(FollowPoint &follow);
+    float escapeScore(FollowPoint &follow);
 
 };
