@@ -22,11 +22,13 @@ class FilteredRobot
 
 
   float collideETA(FilteredRobot& opp, bool forward); 
+  float collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward);
   float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance, float radGain);
   float moveETASim(float distance, float startVel, bool print);
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
                     bool print); 
+  float pointETAAccel(cv::Point2f target, bool forward);
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
@@ -74,9 +76,10 @@ class FilteredRobot
   float velAwayFromPoint(cv::Point2f point);
   float getTurnPastStartMargin();
   float getTurnPastEndMargin();
+  float getMaxMoveAccel();
   float getMaxTurnAccel();
   std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
-  bool turningCorrect(cv::Point2f point, bool CW, bool forward);
+  bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   float distanceToCollide(FilteredRobot opp);
 
 

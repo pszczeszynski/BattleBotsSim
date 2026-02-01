@@ -404,6 +404,15 @@ bool FilteredRobot::facing(FilteredRobot opp, bool forward) {
 
 
 
+// simple calculation for how long it'll take to get to a point
+float FilteredRobot::collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward) {
+
+    float driveDistance = std::max(distanceTo(point) - pointSizeRadius - sizeRadius, 0.0f);
+    return pointETAAccel(point, forward) + (driveDistance * 0.6f)/maxMoveSpeed;
+}
+
+
+
 // how long to collide with a robot using current velocity and assumed turn speed
 float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
@@ -444,8 +453,8 @@ float FilteredRobot::collideETA(FilteredRobot& opp, bool forward) {
 
 
 // if the direction we'll turn towards a point matches CW or CCW
-bool FilteredRobot::turningCorrect(cv::Point2f point, bool CW, bool forward) {
-    return (angleTo(point, forward) > 0 && CW) || (angleTo(point, forward) < 0 && !CW);
+bool FilteredRobot::pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance) {
+    return (angleTo(point, forward) > -tolerance && CW) || (angleTo(point, forward) < tolerance && !CW);
 }
 
 
@@ -607,8 +616,7 @@ float FilteredRobot::ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, b
 float FilteredRobot::tangentVel(bool forward) {
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
     float velAngleOffset = angle_wrap(velAngle - posFiltered[2]);
-    int sign = 1; if(!forward) { sign = -1; }
-    return moveSpeedSlow() * cos(velAngleOffset) * sign;
+    return moveSpeedSlow() * cos(velAngleOffset) * (forward? 1 : -1);
 }
 
 
@@ -693,6 +701,30 @@ float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW,
     return timeSim; // return the final time
 }
 
+
+
+// calculates time to turn towards point based on known acceleration
+float FilteredRobot::pointETAAccel(cv::Point2f target, bool forward) {
+
+    // how far we need to rotate
+    float angleError = angleTo(target, forward);
+
+    float accel = maxTurnAccel * sign(angleError); // assume we accel in the direction we're going to turn
+    float dirac = pow(velFilteredSlow[2], 2.0f) + (2.0f * accel * angleError);
+    float t1 = (-velFilteredSlow[2] + sqrt(dirac)) / accel;
+    float t2 = (-velFilteredSlow[2] - sqrt(dirac)) / accel;
+
+    float time = std::min(t1, t2);
+    if(t1 < 0.0f) { time = t2; }
+    if(t2 < 0.0f) { time = t1; }
+
+    return time;
+}
+
+
+
+
+
 // takes the minimum of both turn directions
 float FilteredRobot::turnTimeMin(cv::Point2f point, float lagTime,
                                  float angleMargin, bool forward, bool print) {
@@ -776,6 +808,7 @@ float FilteredRobot::turnVel() { return velFiltered[2]; }
 float FilteredRobot::turnVelSlow() { return velFilteredSlow[2]; }
 float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
 float FilteredRobot::getMaxMoveSpeed() { return maxMoveSpeed; }
+float FilteredRobot::getMaxMoveAccel() { return maxMoveAccel; }
 float FilteredRobot::getMaxTurnAccel() { return maxTurnAccel; }
 float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
 float FilteredRobot::turnAccel() { return accFiltered[2]; }

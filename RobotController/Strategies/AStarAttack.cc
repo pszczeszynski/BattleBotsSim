@@ -165,6 +165,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     ret.driveCommand.turn = driveInputs[1];
 
 
+    // std::cout << "orb eta = " << follow.orbETA;
     std::cout << std::endl;
     
     
@@ -239,7 +240,7 @@ void AStarAttack::display(FollowPoint follow) {
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppFiltered.getSizeRadius(), colorOpp, 2); // draw op size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 10, cv::Scalar(255, 255, 255), 5);
-    // if(follow.enforceTurnDirection != 0) { safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 10, cv::Scalar(255, 255, 255), 5); } // bold the follow point if we're enforcing a turn direction
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath[follow.inflectIndex], 6, cv::Scalar(0, 255, 0), 5); // bold the inflect point of the path we chose
 
 
     // display paths
@@ -322,8 +323,10 @@ FollowPoint AStarAttack::createFollowPoint(bool CW, bool forward, bool turnAway,
 void AStarAttack::generatePath(FollowPoint &follow) {
 
     std::vector<float> simPos = orbFiltered.getPosFiltered();
-    float simLinearSpeed = 0.0f;
-    float simTurnSpeed = 0.0f;
+
+    // starting speeds
+    float simLinearSpeed = orbFiltered.tangentVel(true);
+    float simTurnSpeed = orbFiltered.turnVelSlow();
 
     float timeStep = 0.01f;
     float maxTime = 1.5f;
@@ -331,8 +334,11 @@ void AStarAttack::generatePath(FollowPoint &follow) {
     float simTime = 0.0f;
     int steps = (int) (maxTime / timeStep);
 
-    follow.inflectDistance = 999999.0f;
+    follow.inflectIndex = 0;
     follow.orbSimPath = {};
+
+    float turningAround = follow.turnAway; // if we're still forcing the initial turn around
+    float angleErrorPrev = 0.0f; // oh boy
 
     FilteredRobot virtualOrb = orbFiltered; // virtual orb that gets simulated
 
@@ -342,17 +348,21 @@ void AStarAttack::generatePath(FollowPoint &follow) {
         // add the point to the path
         virtualOrb.setPos(simPos);
         follow.orbSimPath.emplace_back(virtualOrb.position()); 
+        follow.orbSimPathTimes.emplace_back(simTime);
 
 
 
-        // remember the closest distance at which we weren't turning the right way
-        bool turningCorrect = virtualOrb.turningCorrect(follow.opp.position(), follow.CW, follow.forward);
-        if(!turningCorrect && !follow.turnAway) { 
-            follow.inflectDistance = virtualOrb.distanceToCollide(follow.opp); 
-        }
-        
+        // remember the closest index at which the opp is on the wrong side of us
+        float tolerance = 10.0f*TO_RAD;
+        bool turningCorrect = virtualOrb.pointCorrectSide(follow.opp.position(), follow.CW, follow.forward, tolerance);
+
+        float angleToOpp = virtualOrb.angleTo(follow.opp.position(), follow.forward);
+        if(follow.CW && follow.turnAway) { angleToOpp = angle_wrap(angleToOpp - M_PI + tolerance) + M_PI - tolerance; }
+        if(!follow.CW && follow.turnAway) { angleToOpp = angle_wrap(angleToOpp + M_PI - tolerance) - M_PI + tolerance; }
 
 
+        if((!turningCorrect && !follow.turnAway) || abs(angleToOpp) > 180.0f*TO_RAD) { follow.inflectIndex = i; }
+        // if(!turningCorrect) { follow.inflectIndex = i; }
 
 
 
@@ -360,9 +370,7 @@ void AStarAttack::generatePath(FollowPoint &follow) {
         if(virtualOrb.colliding(follow.opp, 0.0f)) {
 
             // if we're hitting them in a valid way, return the actual sim time
-            if(virtualOrb.facing(follow.opp, follow.forward) && turningCorrect) { 
-                break; 
-            }
+            if(virtualOrb.facing(follow.opp, follow.forward) && turningCorrect) { break; }
 
             // otherwise we're hitting them in an invalid way, so return max time
             simTime = maxTime;
@@ -377,16 +385,19 @@ void AStarAttack::generatePath(FollowPoint &follow) {
 
         // how far off we are from the simulated follow point
         float angleError = virtualOrb.angleTo(virtualFollow, follow.forward); 
+        float angleErrorRaw = angleError;
         
         // force a turn around if necessary
-        if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
-        if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
+        if(turningAround && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
+        if(turningAround && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
         
+        // if the turn around is done, don't let it do another
+        if(angleError == angleErrorRaw) { turningAround = false; }
 
         
         
         // simulate what curvature controller would do
-        float curvature = 0.70f*angleError; // 0.5
+        float curvature = 0.90f*angleError; // 0.7
 
         float maxCurve = 99.0f; // 1.0
         curvature = std::clamp(curvature, -maxCurve, maxCurve);
@@ -397,20 +408,46 @@ void AStarAttack::generatePath(FollowPoint &follow) {
         // timeStep = timeStepStraight - (timeStepStraight - timeStepSteep)*(curvature/steep);
 
 
-        float moveSpeed = 1.0f * (follow.forward ? 1 : -1); // assume full gas
-        float turnSpeed = abs(moveSpeed) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
+        float moveInput = 1.0f * (follow.forward ? 1 : -1); // assume full gas
+        float turnInput = abs(moveInput) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
 
         // don't demand more than 1.0 speed from any one motor side, scale everything down since that will maintain the same path curvature
-        float totalSpeed = abs(moveSpeed) + abs(turnSpeed);
+        float totalSpeed = abs(moveInput) + abs(turnInput);
         if(totalSpeed > 1.0f) {
-            moveSpeed /= totalSpeed;
-            turnSpeed /= totalSpeed;
+            moveInput /= totalSpeed;
+            turnInput /= totalSpeed;
         }
 
+        // simulate damper
+        float damper = (angleError - angleErrorPrev) / timeStep;
+        turnInput -= 0.0007f * damper;
+        turnInput = std::clamp(turnInput, -1.0f, 1.0f);
+
+        // let move go back up or down to whatever it can
+        moveInput = (1.0f - abs(turnInput)) * (follow.forward ? 1 : -1);
 
 
-        simLinearSpeed = moveSpeed * virtualOrb.getMaxMoveSpeed();
-        simTurnSpeed = turnSpeed * virtualOrb.getMaxTurnSpeed();
+        // free speeds as defined by simulated curvature controller
+        float desiredLinearSpeed = moveInput * virtualOrb.getMaxMoveSpeed();
+        float desiredTurnSpeed = turnInput * virtualOrb.getMaxTurnSpeed();
+
+        // how far off from free speeds we are
+        float linearError = desiredLinearSpeed - simLinearSpeed;
+        float turnError = desiredTurnSpeed - simTurnSpeed;
+
+        // how much we accelerate linearly and rotationally
+        float linearAccel = std::clamp(10.0f * virtualOrb.getMaxMoveAccel() * (linearError / virtualOrb.getMaxMoveSpeed()), -virtualOrb.getMaxMoveAccel(), virtualOrb.getMaxMoveAccel());
+        float turnAccel = std::clamp(6.0f * virtualOrb.getMaxTurnAccel() * (turnError / virtualOrb.getMaxTurnSpeed()), -virtualOrb.getMaxTurnAccel(), virtualOrb.getMaxTurnAccel());
+
+        // increment speeds by accels
+        simLinearSpeed += std::clamp(linearAccel * timeStep, -abs(linearError), abs(linearError));
+        simTurnSpeed += std::clamp(turnAccel * timeStep, -abs(turnError), abs(turnError));
+
+
+        
+
+
+
 
         float deltaXRobot = 0.0f;
         float deltaYRobot = 0.0f;
@@ -548,7 +585,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
         testFollow.oppETA = testFollow.opp.turnTimeSimple(testFollow.orbSimPath.back(), testFollow.opp.getWeaponAngleReach(), true, true);
 
         float fraction2 = 0.0f;
-        if(testFollow.orbETA > 0.01f) { fraction2 = std::max((testFollow.orbETA - testFollow.oppETA) / testFollow.orbETA, 0.0f); }
+        if(testFollow.orbETA > 0.01f) { fraction2 = std::max((testFollow.orbETA - testFollow.oppETA) / (testFollow.orbETA), 0.0f); }
 
 
         // AdjustRadiusWithBumpers(); // let driver adjust aggressiveness with bumpers
@@ -1110,27 +1147,32 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     float fastAwayGain = 4.0f;
 
     float turnGain = fastAwayGain + (slowFacingGain - fastAwayGain)*(slowness*facingness);
-    turnGain = 60.0f; // 4.0
+    turnGain = 0.0f; // 12
     follow.directionScores.emplace_back(turnGain * turnScore(follow));
 
     
 
 
     // turn past opp score
-    // follow.directionScores.emplace_back(200.0f*switchPointScore(follow)*0.0f);4
+    float orbInflectETA = follow.orbSimPathTimes[follow.inflectIndex];
+    float oppInflectETA = oppFiltered.collideETASimple(follow.orbSimPath[follow.inflectIndex], orbFiltered.getSizeRadius(), true);
 
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), follow.inflectDistance + orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius(), cv::Scalar(255, 255, 255), 2);
-    // std::cout << "inflect distance = " << follow.inflectDistance;
-    float collideScore = 80.0f;
-    float zeroScoreDistance = 100.0f;
-    float inflectScore = collideScore * pow((1.0f - std::clamp(follow.inflectDistance / zeroScoreDistance, 0.0f, 1.0f)), 3.0f);
-    // follow.directionScores.emplace_back(500.0f/std::max(follow.inflectDistance, 0.001f));
-    follow.directionScores.emplace_back(inflectScore);
+    float inflectScore = 999999999999.0f;
+    if(oppInflectETA > 0.001f) { inflectScore = (orbInflectETA - oppInflectETA) / oppInflectETA; }
+    // follow.directionScores.emplace_back(12.0f * inflectScore);
+
+    inflectScore = 1 / std::max(oppInflectETA - orbInflectETA, 0.000001f);
+    follow.directionScores.emplace_back(2.5f * inflectScore); // 0.65
+
+
+    std::cout << "orb inflect eta = " << orbInflectETA << ", opp = " << oppInflectETA;
+    
+
 
 
 
     // how close is the nearest wall in this direction
-    float wallGain = 120.0f; // 200
+    float wallGain = 60.0f; // 120
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
