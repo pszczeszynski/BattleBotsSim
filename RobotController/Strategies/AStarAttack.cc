@@ -23,13 +23,19 @@ AStarAttack::AStarAttack()
     _instance = this;
     
     // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+    // orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
+    //     22.0f, 50.0f, 50.0f*TO_RAD, 20.0f);
+    orbFiltered = FilteredRobot(1.0f, 50.0f, 430.0f, 800.0f, 
         22.0f, 50.0f, 50.0f*TO_RAD, 20.0f);
     oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
         15.0f, 50.0f, 60.0f*TO_RAD, 25.0f);
+    orbVirtual = orbFiltered;
 
     // init field
     field = Field();
+
+    previousGamepad = {0, 0};
+
 }
 
 
@@ -49,6 +55,10 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
 
+    // save what this updates inputs were
+    inputs = {previousGamepad[0], previousGamepad[1], orbFiltered.tangentVelFast(true), orbFiltered.turnVel(), (float) deltaTime };
+
+
     // get odometry data for orb and opp
     OdometryData orbData = RobotController::GetInstance().odometry.Robot();
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
@@ -56,9 +66,28 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     // update filtered positions/velocities and paths
     orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
+    
+
+
+    // what did orb actually end up doing
+    std::vector<float> trueOutputs = {orbFiltered.tangentVelFast(true), orbFiltered.turnVel() };
 
 
 
+    // run the virtual orb model, tune if wanted
+    orbVirtual.tuneModel(gamepad.GetLeftBumper(), inputs, trueOutputs);
+
+
+
+
+    if(gamepad.GetRightBumper()) {
+        orbVirtual.setPos(orbFiltered.getPosFiltered());
+        orbVirtual.setVel(orbFiltered.getVelFiltered());
+    }
+
+    if(gamepad.GetRightBumper() && gamepad.GetLeftBumper()) {
+        orbVirtual = orbFiltered;
+    }
 
 
 
@@ -147,6 +176,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     display(follow); // display data
 
 
+    // display virtual orb position
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), 5, cv::Scalar(0, 127, 255), 3);
+    // cv::Point2f secondPoint = orbVirtual.position() + 50.0f*cv::Point2f(cos(orbVirtual.angle(true)), sin(orbVirtual.angle(true)));
+    // cv::line(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), secondPoint, cv::Scalar(0, 127, 255), 3);
+    // orbVirtual.printModel();
+
 
     // calculate drive inputs based on curvature controller
     bool turningCorrect = (orbFiltered.angleTo(oppFiltered.position(), follow.forward) > 0 && follow.CW) || (orbFiltered.angleTo(oppFiltered.position(), follow.forward) < 0 && !follow.CW);
@@ -163,6 +198,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     ret.type = DriverStationMessageType::DRIVE_COMMAND;
     ret.driveCommand.movement = driveInputs[0];
     ret.driveCommand.turn = driveInputs[1];
+
+
+    // save what the gamepad was
+    previousGamepad = {(float) rightStickY, gamepad.GetLeftStickX() };
+
 
 
     // std::cout << "orb eta = " << follow.orbETA;
@@ -614,7 +654,7 @@ void AStarAttack::radiusEquation(FollowPoint &follow) {
         }
 
         // display all paths with thin lines
-        DisplayUtils::displayPath(testFollow.orbSimPath, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
+        // DisplayUtils::displayPath(testFollow.orbSimPath, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
     }
 }
 

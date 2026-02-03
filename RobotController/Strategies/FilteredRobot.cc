@@ -28,6 +28,9 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     accFiltered = {0, 0, 0};
 
     velFilteredSlow = {0, 0, 0};
+
+    modelParams = {};
+    modelParamScales = {};
 }
 
 FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) { // make a robot that just has a position and a size
@@ -150,12 +153,12 @@ std::vector<std::vector<float>> FilteredRobot::kalmanExtrapVel(float time) {
 
 
 
-// incrementally extrapolates with constant vel (0 accel)
+// extrapolates with constant vel (circular arc motion)
 std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
 
     float deltaXRobot = 0.0f;
     float deltaYRobot = 0.0f;
-    float deltaT = velFilteredSlow[2] * time; // Δθ
+    float deltaT = velFilteredSlow[2] * time;
 
     float velDirection = atan2(velFiltered[1], velFiltered[0]); // direction of the current vel
     float currSpeed = moveSpeedSlow();
@@ -196,15 +199,6 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
     return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel};
 }
 
-
-// extraps with constant vel and writes those positions and vels
-void FilteredRobot::constVelExtrapWrite(float time) {
-
-    std::vector<std::vector<float>> posVel = constVelExtrap(time);
-    setPos(posVel[0]);
-    setVel(posVel[1]);
-    setAccel({0.0f, 0.0f, 0.0f});
-}
 
 
 // extrapolates the opp's pos to see what point we'll line up at
@@ -381,6 +375,200 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
 }
 
 
+
+// prints model parameters
+void FilteredRobot::printModel() {
+    std::cout << "model = ";
+
+    for(int i = 0; i < modelParams.size(); i++) {
+        std::cout << " " << modelParams[i] << ",";
+    }
+}
+
+
+
+
+// runs the model and tunes it if wanted
+void FilteredRobot::tuneModel(bool autoTune, std::vector<float> inputs, std::vector<float> trueOutputs) {
+
+    // if we're not turning then just run it and don't adjust model
+    std::vector<float> virtualInputs = {inputs[0], inputs[1], tangentVelFast(true), turnVel(), inputs[4] };
+    if(!autoTune) {
+        updateModel(virtualInputs, modelParams, true);
+        return;
+    }
+
+
+
+    // try adjusting every parameter and adjust it in the good direction
+    std::vector<float> deltas = {-0.1f, 0.1f};
+    std::vector<float> updatedModel = modelParams; // will become the new model
+
+
+    // for each parameter, calculate partial derivative
+    for(int param = 0; param < modelParams.size(); param++) {
+
+        // will record the error at each delta
+        std::vector<float> errorMetrics = {0, 0};
+
+        for(int delta = 0; delta < deltas.size(); delta++) {
+
+            // create a model with an altered parameter
+            std::vector<float> testModel = modelParams;
+            testModel[param] += deltas[delta];
+
+            // calculate the outputs with those parameters
+            std::vector<float> testOutputs = updateModel(inputs, testModel, false);
+
+
+            // error metric is sum of error squares
+            std::vector<float> error = {0, 0};
+            std::vector<float> errorScales = {400.0f, 20.0f};
+
+            for(int out = 0; out < error.size(); out++) {
+                error[out] = (testOutputs[out] - trueOutputs[out]) / errorScales[out]; // normalize so all params are equally weighted;
+                errorMetrics[delta] += pow(error[out], 2);
+            }
+        }
+
+        // partial derivative of error function
+        float slope = (errorMetrics[1] - errorMetrics[0]) / (deltas[1] - deltas[0]);
+
+        // update the parameter in the direction of down slope
+        float maxUpdate = modelParamScales[param] * 0.003f;
+        updatedModel[param] -= std::clamp(300.0f * modelParamScales[param] * slope, -maxUpdate, maxUpdate);
+
+
+        // std::cout << "best gain = " << changeGains[lowestErrorIndex];
+    }
+
+    // run the new model to write new positions
+    modelParams = updatedModel;
+
+    updateModel(virtualInputs, modelParams, true);
+
+
+
+    std::vector<float> newModelOutputs = updateModel(inputs, modelParams, false);
+
+    // std::cout << "true = " << trueOutputs[0] << ", " << trueOutputs[1] << ", model = " << newModelOutputs[0] << ", " << newModelOutputs[1] << std::endl;
+
+}
+
+
+
+
+
+// predicts how this robot moves based on inputs and current state
+// give it an empty model vector if you want to use the default model
+std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::vector<float>& model, bool writePos) {
+
+    // default values
+    if(model.size() == 0) { 
+        model = {430, 19.4, 4.4, 4.5, 1.58, 1.56, 0.92, 0.95};
+        modelParamScales = model; // default values used as scales
+    }
+
+
+
+    // assign parameters
+    float pMaxMoveSpeed = model[0];
+    float pMaxTurnSpeed = model[1];
+    float pMoveAccel = model[2];
+    float pTurnAccel = model[3];
+    float pMoveInputPower = model[4];
+    float pTurnInputPower = model[5];
+    float pMoveAccelPower = model[6];
+    float pTurnAccelPower = model[7];
+
+    float moveInput = inputs[0];
+    float turnInput = inputs[1];
+    float initialMoveSpeed = inputs[2];
+    float initialTurnSpeed = inputs[3];
+    float deltaTime = inputs[4];
+
+
+    // adjust move and turn inputs with a curve to shape it to the actual output
+    moveInput = pow(abs(moveInput), pMoveInputPower) * sign(moveInput);
+    turnInput = pow(abs(turnInput), pTurnInputPower) * sign(turnInput);
+
+
+    // don't demand more than 1.0 speed from any one motor side
+    float totalSpeed = abs(moveInput) + abs(turnInput);
+    if(totalSpeed > 1.0f) {
+        moveInput /= totalSpeed;
+        turnInput /= totalSpeed;
+    }
+
+    // free speeds as defined by simulated curvature controller
+    float desiredLinearSpeed = moveInput * pMaxMoveSpeed;
+    float desiredTurnSpeed = turnInput * pMaxTurnSpeed;
+
+    // how far off from free speeds we are
+    float moveSpeedError = desiredLinearSpeed - initialMoveSpeed;
+    float turnSpeedError = desiredTurnSpeed - initialTurnSpeed;
+
+    // how much we accelerate linearly and rotationally
+    float linearAccel = pMoveAccel * pow(abs(moveSpeedError), pMoveAccelPower) * sign(moveSpeedError);
+    float turnAccel = pTurnAccel * pow(abs(turnSpeedError), pTurnAccelPower) * sign(turnSpeedError);
+
+    // increment speeds by accels
+    float newMoveVel = initialMoveSpeed + std::clamp(linearAccel * deltaTime, -abs(moveSpeedError), abs(moveSpeedError));
+    float newTurnVel = initialTurnSpeed + std::clamp(turnAccel * deltaTime, -abs(turnSpeedError), abs(turnSpeedError));
+    // float newMoveVel = initialMoveSpeed + linearAccel * deltaTime;
+    // float newTurnVel = initialTurnSpeed + turnAccel * deltaTime;
+
+
+    
+    float deltaXRobot = 0.0f;
+    float deltaYRobot = 0.0f;
+    float turnDistance = newTurnVel * deltaTime;
+
+    if (abs(newTurnVel) < 1e-6f) {
+        // straight-line motion
+        deltaXRobot = newMoveVel * deltaTime;
+        deltaYRobot = 0.0f;
+    } else {
+        // circular arc motion
+        float r = newMoveVel / newTurnVel; // path radius
+        deltaXRobot = r * std::sin(turnDistance);
+        deltaYRobot = r * (1.0f - std::cos(turnDistance));
+    }
+
+    // rotate from robot frame to field frame
+    float orientation = posFiltered[2];
+    float deltaXField = deltaXRobot * std::cos(orientation) - deltaYRobot * std::sin(orientation);
+    float deltaYField = deltaXRobot * std::sin(orientation) + deltaYRobot * std::cos(orientation);
+
+
+    // only write new positions if inputted
+    if(writePos) {
+        posFiltered = {
+            posFiltered[0] + deltaXField,
+            posFiltered[1] + deltaYField,
+            (float) angle_wrap(orientation + turnDistance),
+        };
+    
+        velFiltered = {
+            newMoveVel*cos(posFiltered[2]),
+            newMoveVel*sin(posFiltered[2]),
+            newTurnVel
+        };
+    
+        for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.05f)) * (velFiltered[i] - velFilteredSlow[i]); }
+    
+        accFiltered = {
+            0,
+            0,
+            0
+        };
+    }
+
+    return std::vector<float> {newMoveVel, newTurnVel};
+}
+
+
+
 // velocity thats directed away from a given point, positive is away
 float FilteredRobot::velAwayFromPoint(cv::Point2f point) {
 
@@ -462,6 +650,8 @@ bool FilteredRobot::pointCorrectSide(cv::Point2f point, bool CW, bool forward, f
 float FilteredRobot::distanceToCollide(FilteredRobot opp) {
     return std::max(distanceTo(opp.position()) - opp.getSizeRadius() - sizeRadius, 0.0f);
 }
+
+
 
 
 // simulates orb's path to the opp to calculate the ETA
@@ -617,6 +807,13 @@ float FilteredRobot::tangentVel(bool forward) {
     float velAngle = atan2(velFilteredSlow[1], velFilteredSlow[0]);
     float velAngleOffset = angle_wrap(velAngle - posFiltered[2]);
     return moveSpeedSlow() * cos(velAngleOffset) * (forward? 1 : -1);
+}
+
+
+float FilteredRobot::tangentVelFast(bool forward) {
+    float velAngle = atan2(velFiltered[1], velFiltered[0]);
+    float velAngleOffset = angle_wrap(velAngle - posFiltered[2]);
+    return moveSpeed() * cos(velAngleOffset) * (forward? 1 : -1);
 }
 
 

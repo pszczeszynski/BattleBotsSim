@@ -18,7 +18,9 @@ class FilteredRobot
   // for virtual opp with zero speed
   FilteredRobot(cv::Point2f position, float sizeRadius);
 
-  void updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta); 
+  void updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta);
+  void tuneModel(bool autoTune, std::vector<float> inputs, std::vector<float> trueOutputs);
+  std::vector<float> updateModel(std::vector<float> inputs, std::vector<float>& model, bool writePos);
 
 
   float collideETA(FilteredRobot& opp, bool forward); 
@@ -46,7 +48,6 @@ class FilteredRobot
   std::vector<std::vector<float>> kalmanExtrapAccel(float time);
   std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
-  void constVelExtrapWrite(float time);
   FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path);
   float angleTo(cv::Point2f point, bool forward);
   float distanceTo(cv::Point2f point);
@@ -67,6 +68,7 @@ class FilteredRobot
   float moveAccel();
   float turnAccel();
   float tangentVel(bool forward);
+  float tangentVelFast(bool forward);
   float angle(bool forward);
   std::vector<cv::Point2f> getPath();
   std::vector<float> getVelFilteredSlow();
@@ -81,6 +83,7 @@ class FilteredRobot
   std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   float distanceToCollide(FilteredRobot opp);
+  void printModel();
 
 
 
@@ -102,6 +105,9 @@ class FilteredRobot
 
   // extra filtered for threshold use
   std::vector<float> velFilteredSlow;
+
+  std::vector<float> modelParams; // coefficients for predictive model
+  std::vector<float> modelParamScales; // estimated scales of each variable for magnitude normalizing
 
 
 

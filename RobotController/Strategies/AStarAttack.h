@@ -41,12 +41,16 @@ private:
 
     FilteredRobot orbFiltered; // orb robot
     FilteredRobot oppFiltered; // opp robot
+    FilteredRobot orbVirtual; // virtual orb to compare model
 
 
     Field field; // field object
     
     std::vector<FollowPoint> _lastFollowPoints; // last computed follow points (for debugging/display)
 
+
+    std::vector<float> inputs; // last updates inputs to the model
+    std::vector<float> previousGamepad; // what gamepad inputs were last time
 
     
     // Note: Radius curve parameters are now in RobotConfig.h as:
