@@ -72,6 +72,7 @@ private:
     void radiusEquation(FollowPoint &follow);
     FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
     void generatePath(FollowPoint &follow);
+    void orbToOppPath(FollowPoint &follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
     float ppRad();

@@ -28,6 +28,7 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     accFiltered = {0, 0, 0};
 
     velFilteredSlow = {0, 0, 0};
+    velFilteredUltraSlow = {0, 0, 0};
 
     modelParams = {};
     modelParamScales = {};
@@ -50,6 +51,7 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) { // make a
     accFiltered = {0, 0, 0};
 
     velFilteredSlow = {0, 0, 0};
+    velFilteredUltraSlow = {0, 0, 0};
 }
 
 
@@ -371,7 +373,8 @@ void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float 
     accFiltered = accFilteredNew;
 
     // update slow filters
-    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.05f)) * (velFiltered[i] - velFilteredSlow[i]); } //std::clamp(deltaTime * 10.0f, 0.0f, 0.2f) * (velFiltered[i] - velFilteredSlow[i]); }
+    for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.05f)) * (velFiltered[i] - velFilteredSlow[i]); }
+    for(int i = 0; i < 3; i++) { velFilteredUltraSlow[i] += (1 - exp(-deltaTime / 0.10f)) * (velFiltered[i] - velFilteredUltraSlow[i]); }
 }
 
 
@@ -465,7 +468,9 @@ std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::ve
 
     // default values
     if(model.size() == 0) { 
-        model = {430, 19.4, 4.4, 4.5, 1.58, 1.56, 0.92, 0.95};
+        model = {462, 21.8, 6.73, 4.66, 1.14, 1.48, 0.82, 1.03, 82, 9};
+        model = {436, 22.8, 8.4, 4.24, 1.29, 1.61, 0.77, 0.93, 0, 0};
+
         modelParamScales = model; // default values used as scales
     }
 
@@ -480,7 +485,10 @@ std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::ve
     float pTurnInputPower = model[5];
     float pMoveAccelPower = model[6];
     float pTurnAccelPower = model[7];
+    float pMoveDrag = model[8];
+    float pTurnDrag = model[9];
 
+    // input mapping
     float moveInput = inputs[0];
     float turnInput = inputs[1];
     float initialMoveSpeed = inputs[2];
@@ -508,9 +516,9 @@ std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::ve
     float moveSpeedError = desiredLinearSpeed - initialMoveSpeed;
     float turnSpeedError = desiredTurnSpeed - initialTurnSpeed;
 
-    // how much we accelerate linearly and rotationally
-    float linearAccel = pMoveAccel * pow(abs(moveSpeedError), pMoveAccelPower) * sign(moveSpeedError);
-    float turnAccel = pTurnAccel * pow(abs(turnSpeedError), pTurnAccelPower) * sign(turnSpeedError);
+    // how much we accelerate linearly and rotationally, basically the F = ma of this model
+    float linearAccel = pMoveAccel * pow(abs(moveSpeedError), pMoveAccelPower) * sign(moveSpeedError) - sign(initialMoveSpeed) * pMoveDrag;
+    float turnAccel = pTurnAccel * pow(abs(turnSpeedError), pTurnAccelPower) * sign(turnSpeedError) - sign(initialTurnSpeed) * pTurnDrag;
 
     // increment speeds by accels
     float newMoveVel = initialMoveSpeed + std::clamp(linearAccel * deltaTime, -abs(moveSpeedError), abs(moveSpeedError));
@@ -1031,3 +1039,4 @@ std::vector<float> FilteredRobot::getPosFiltered() { return posFiltered; }
 std::vector<float> FilteredRobot::getVelFiltered() { return velFiltered; }
 std::vector<float> FilteredRobot::getAccFiltered() { return accFiltered; }
 std::vector<float> FilteredRobot::getVelFilteredSlow() { return velFilteredSlow; }
+std::vector<float> FilteredRobot::getVelFilteredUltraSlow() { return velFilteredUltraSlow; }

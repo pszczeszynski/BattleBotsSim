@@ -72,6 +72,7 @@ class FilteredRobot
   float angle(bool forward);
   std::vector<cv::Point2f> getPath();
   std::vector<float> getVelFilteredSlow();
+  std::vector<float> getVelFilteredUltraSlow();
   float getWeaponAngleReach();
   float getWeaponDriftScaleReach();
   float getSizeRadius();
@@ -105,6 +106,7 @@ class FilteredRobot
 
   // extra filtered for threshold use
   std::vector<float> velFilteredSlow;
+  std::vector<float> velFilteredUltraSlow;
 
   std::vector<float> modelParams; // coefficients for predictive model
   std::vector<float> modelParamScales; // estimated scales of each variable for magnitude normalizing
