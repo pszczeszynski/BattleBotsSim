@@ -19,6 +19,7 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, FilteredRobot opp
     orbETA = 0;
     simRadGain = 0;
     inflectIndex = 0;
+    enforceTurnDirection = 0;
 
     directionScores = {};
     orbSimPath = {};

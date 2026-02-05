@@ -33,6 +33,8 @@ public:
     float orbETA; // orb time to hit opp given this points parameters
     float simRadGain; // the rad gain used in sim to generate the path for this point
 
+    int enforceTurnDirection; // forces curvature control to turn a certain way, used for walls mainly
+
     std::vector<float> directionScores; // score numbers for how good this follow point is, last entry is the total score
 
 private:

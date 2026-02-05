@@ -77,7 +77,7 @@ private:
     float turnScore(FollowPoint follow);
     float ppRad();
     float ppRadWall();
-    // void avoidBoundsVector(FollowPoint &follow);
+    void avoidBoundsVector(FollowPoint &follow);
     void directionScore(FollowPoint &follow, bool forwardInput);
     void followPointInsideCircle(FollowPoint &follow);
     void followPointInsideCircleSimple(FollowPoint &follow);

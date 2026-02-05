@@ -468,8 +468,10 @@ std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::ve
 
     // default values
     if(model.size() == 0) { 
-        model = {462, 21.8, 6.73, 4.66, 1.14, 1.48, 0.82, 1.03, 82, 9};
-        model = {436, 22.8, 8.4, 4.24, 1.29, 1.61, 0.77, 0.93, 0, 0};
+        // model = {436, 22.8, 8.4, 4.24, 1.29, 1.61, 0.77, 0.93, 0, 0};
+        // model = {375, 26.6, 8.65, 4.22, 1.30, 1.71, 0.73, 0.91, 0, 0};
+        model = {430, 26.6, 14.0, 10.0, 1.30, 1.71, 0.73, 0.91, 0, 0};
+
 
         modelParamScales = model; // default values used as scales
     }
