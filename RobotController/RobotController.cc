@@ -106,12 +106,12 @@ void RobotController::Run() {
 
   // Start the odometry threads
   odometry.Run(OdometryAlg::Blob);
-  odometry.Run(OdometryAlg::Heuristic);
-  odometry.Run(OdometryAlg::IMU);
-  odometry.Run(OdometryAlg::Neural);
-  odometry.Run(OdometryAlg::Human);
-  odometry.Run(OdometryAlg::NeuralRot);
-  odometry.Run(OdometryAlg::OpenCV);
+  // odometry.Run(OdometryAlg::Heuristic);
+  // odometry.Run(OdometryAlg::IMU);
+  // odometry.Run(OdometryAlg::Neural);
+  // odometry.Run(OdometryAlg::Human);
+  // odometry.Run(OdometryAlg::NeuralRot);
+  // odometry.Run(OdometryAlg::OpenCV);
 
   std::cout << "Starting GUI threads..." << std::endl;
 
@@ -128,7 +128,7 @@ void RobotController::Run() {
     }
     std::cout << "GUI thread exiting cleanly" << std::endl;
   });
-  
+
   ClockWidget loopClock("Total loop time");
   cv::Mat zeroArray;
 

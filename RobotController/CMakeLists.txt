@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 cmake_policy(SET CMP0074 NEW)
 
 # Force OpenCV directory
-set(OpenCV_DIR "C:/opencv/archive/install_no_cuda/x64/vc16/lib")
+# set(OpenCV_DIR "C:/opencv/archive/install_no_cuda/x64/vc16/lib")
 # Alternative: set(OpenCV_ROOT "C:/opencv/archive/opencv-4.7.0/build")
 
 
