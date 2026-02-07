@@ -168,9 +168,9 @@ void OdometryBase::Publish(OdometryData sample, bool isOpponent) {
   std::lock_guard<std::mutex> lk(_updateMutex);
   int slot = isOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
   auto &out = _data[slot];
-  int oldId = out.id;  // Save the old id before overwriting
+  int oldId = out.id;
   out = std::move(sample);
-  out.id = oldId + 1;  // Increment from the old id
+  out.id = oldId + 1;
 }
 
 // Returns an image use for debugging. Empty by default
