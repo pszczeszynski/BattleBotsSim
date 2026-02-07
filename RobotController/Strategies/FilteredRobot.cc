@@ -206,7 +206,7 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
 // extrapolates the opp's pos to see what point we'll line up at
 FilteredRobot FilteredRobot::createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path) {
 
-    float timeIncrement = 0.04f; // 0.01 time increment of incremented opp positions to compare orb times to
+    float timeIncrement = 0.05f; // 0.01 time increment of incremented opp positions to compare orb times to
     float simTime = 0.0f; // time in the sim
 
     FilteredRobot virtualOpp = opp; // will return this virtual opp
@@ -600,13 +600,17 @@ bool FilteredRobot::facing(FilteredRobot opp, bool forward) {
     return abs(angleTo(opp.position(), forward)) < weaponAngleReach;
 }
 
+bool FilteredRobot::facingPoint(cv::Point2f point, bool forward) {
+    return abs(angleTo(point, forward)) < weaponAngleReach;
+}
+
 
 
 // simple calculation for how long it'll take to get to a point
 float FilteredRobot::collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward) {
 
     float driveDistance = std::max(distanceTo(point) - pointSizeRadius - sizeRadius, 0.0f);
-    return pointETAAccel(point, forward) + (driveDistance * 0.6f)/maxMoveSpeed;
+    return pointETAAccel(point, forward, weaponAngleReach) + (driveDistance)/(maxMoveSpeed * 1.0f);
 }
 
 
@@ -911,10 +915,13 @@ float FilteredRobot::pointETASim(cv::Point2f point, float lagTime, float turnCW,
 
 
 // calculates time to turn towards point based on known acceleration
-float FilteredRobot::pointETAAccel(cv::Point2f target, bool forward) {
+float FilteredRobot::pointETAAccel(cv::Point2f target, bool forward, float margin) {
 
     // how far we need to rotate
     float angleError = angleTo(target, forward);
+    if(abs(angleError) < margin) { angleError = 0.0f; }
+    else { angleError -= margin * sign(angleError); } // margin always subtracts from error magnitude
+    
 
     float accel = maxTurnAccel * sign(angleError); // assume we accel in the direction we're going to turn
     float dirac = pow(velFilteredSlow[2], 2.0f) + (2.0f * accel * angleError);

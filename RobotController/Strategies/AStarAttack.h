@@ -71,8 +71,8 @@ private:
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
     FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
-    void generatePath(FollowPoint &follow);
     void orbToOppPath(FollowPoint &follow);
+    void oppToOrbETA(FollowPoint &follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
     float ppRad();

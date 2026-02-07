@@ -30,7 +30,7 @@ class FilteredRobot
   float pointETASim(cv::Point2f point, float lagTime, float turnCW,
                     float angleMargin, bool forward,
                     bool print); 
-  float pointETAAccel(cv::Point2f target, bool forward);
+  float pointETAAccel(cv::Point2f target, bool forward, float margin);
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,
@@ -39,6 +39,7 @@ class FilteredRobot
 
   bool colliding(FilteredRobot opp, float tolerance);
   bool facing(FilteredRobot opp, bool forward);
+  bool facingPoint(cv::Point2f point, bool forward);
 
   void updatePath();
   void setPos(std::vector<float> pos);
