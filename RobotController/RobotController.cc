@@ -1,9 +1,8 @@
 #include "RobotController.h"
 
 #include <algorithm>
-#include <thread>
-#include <chrono>
 #include <opencv2/core.hpp>
+#include <thread>
 
 #include "DriverStationLog.h"
 #include "Input/Gamepad.h"
@@ -16,6 +15,7 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/RobotControllerGUI.h"
 #include "imgui.h"
+
 
 #define SAVE_VIDEO
 
@@ -32,6 +32,7 @@ RobotController::RobotController()
     : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
       gamepad2{1},
       _logger{},
+      _lastCANMessage{},
 #ifdef SIMULATION
       overheadCamL_sim{"overheadCamL"},
       odometry{overheadCamL_sim},
@@ -54,9 +55,6 @@ RobotController::RobotController()
   std::cout << "Running in real robot mode" << std::endl;
   robotLink.RegisterLogger(&_logger);
 #endif
-
-  // memset last can message
-  memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
 
 #ifdef SAVE_VIDEO
   std::string _logDirectory = _logger.GetLogDirectory();
