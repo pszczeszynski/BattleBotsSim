@@ -136,8 +136,6 @@ private:
     // Video source to initialize odometry olgorithms with
     ICameraReceiver& _videoSource;
 
-    // Tunings
-    const double _dataAgeThreshold = 0.1; // How old data can be before we consider it invalid
 
     // Input polling
     OdometryPoller _poller;

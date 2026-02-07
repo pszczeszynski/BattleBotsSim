@@ -5,33 +5,31 @@
 namespace {
 // Reference to a single data stream (us or them) for polling
 struct StreamRef {
-  OdometryData& out;
+  OdometryData& latest;
   const OdometryData& prev;
   uint32_t flag;
   bool isOpponent;
 };
 
-// Helper to poll a single stream from a tracker
-template <typename T>
-bool PollStream(T& tracker, const char* debugName, const StreamRef& stream,
-                uint32_t& updatedMask, TrackingWidget* trackingInfo) {
+bool PollStream(OdometryBase& odometry, const char* debugName,
+                const StreamRef& stream, uint32_t& updatedMask,
+                TrackingWidget* trackingInfo) {
   // Default: hold previous data
-  stream.out = stream.prev;
+  stream.latest = stream.prev;
 
-  if (!tracker.IsRunning()) {
+  if (!odometry.IsRunning()) {
     return false;  // Not running, data stays as prev
   }
 
   // Only check for new data if flag is set
-  if (stream.flag != 0 &&
-      tracker.HasNewerDataById(stream.prev.id, stream.isOpponent)) {
-    stream.out = tracker.GetData(stream.isOpponent);
+  if (odometry.HasNewerDataById(stream.prev.id, stream.isOpponent)) {
+    stream.latest = odometry.GetData(stream.isOpponent);
     updatedMask |= stream.flag;
 
     // Fetch debug image when new data arrives
     if (trackingInfo) {
-      tracker.GetDebugImage(trackingInfo->GetDebugImage(debugName),
-                            trackingInfo->GetDebugOffset(debugName));
+      odometry.GetDebugImage(trackingInfo->GetDebugImage(debugName),
+                             trackingInfo->GetDebugOffset(debugName));
     }
 
     return true;
