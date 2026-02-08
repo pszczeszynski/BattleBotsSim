@@ -16,6 +16,7 @@ public:
 
     std::vector<cv::Point2f> orbSimPath; // simulated path for orb to the opponent if we were to kill rn
     std::vector<float> orbSimPathTimes; // how long it takes orb to get to each point in the sim path
+    std::vector<cv::Point2f> orbSimFollowPoints; // list of follow points used to generate the sim path
     int inflectIndex; // sim path index at which the opp starts being on the correct side
 
     std::vector<cv::Point2f> escapePath; // path orb would take if we need to escape from opp

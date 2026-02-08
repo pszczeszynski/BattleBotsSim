@@ -31,6 +31,7 @@ class FilteredRobot
                     float angleMargin, bool forward,
                     bool print); 
   float pointETAAccel(cv::Point2f target, bool forward, float margin);
+  float moveETAAccel(float distance, float startingVel);
   
   float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
                     bool forward,

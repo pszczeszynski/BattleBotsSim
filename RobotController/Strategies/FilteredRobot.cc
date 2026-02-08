@@ -610,9 +610,71 @@ bool FilteredRobot::facingPoint(cv::Point2f point, bool forward) {
 float FilteredRobot::collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward) {
 
     float driveDistance = std::max(distanceTo(point) - pointSizeRadius - sizeRadius, 0.0f);
-    return pointETAAccel(point, forward, weaponAngleReach) + (driveDistance)/(maxMoveSpeed * 1.0f);
+    float initialVel = tangentVel(forward) * cos(angleTo(point, forward) * 0.5f);
+    float moveTime = moveETAAccel(driveDistance, initialVel);
+
+
+    float turnTime = pointETAAccel(point, forward, weaponAngleReach);
+
+
+    return turnTime + moveTime;
 }
 
+
+
+// how long to drive striaght this distance given initial velocity
+float FilteredRobot::moveETAAccel(float distance, float startingVel) {
+
+    if (distance == 0.0f) return 0.0f;
+
+    float t = 0.0f;
+
+    // If moving opposite direction, brake to zero first
+    if ((distance > 0.0f && startingVel < 0.0f) || (distance < 0.0f && startingVel > 0.0f)) {
+
+        float t_brake = std::abs(startingVel) / maxMoveAccel;
+        float d_brake = (startingVel * startingVel) / (2.0f * maxMoveAccel);
+
+        t += t_brake;
+        distance -= (distance > 0.0f ? d_brake : -d_brake);
+        startingVel = 0.0f;
+
+        // If braking alone reaches/passes the target
+        if ((distance > 0.0f && distance <= 0.0f) || (distance < 0.0f && distance >= 0.0f)) { return t; }
+    }
+
+    // Distance needed to reach max velocity
+    float d_to_vmax =
+        (maxMoveSpeed*maxMoveSpeed - startingVel*startingVel) /
+        (2.0f * maxMoveAccel);
+
+    // Case: never reaches max velocity (only accel phase)
+    if ((distance > 0.0f && d_to_vmax >= distance) || (distance < 0.0f && d_to_vmax <= distance)) {
+
+        // Solve: distance = startingVel*t + 0.5*a*t^2
+        float A = 0.5f * maxMoveAccel * (distance >= 0.0f ? 1.0f : -1.0f);
+        float B = startingVel;
+        float C = -distance;
+
+        float disc = B*B - 4*A*C;
+        disc = std::max(0.0f, disc);
+
+        float t_accel = (-B + std::sqrt(disc)) / (2*A);
+        return t + t_accel;
+    }
+
+    // Accel phase to max velocity
+    float t_accel = ((distance >= 0.0f ? maxMoveSpeed : -maxMoveSpeed) - startingVel) / (maxMoveAccel * (distance >= 0.0f ? 1.0f : -1.0f));
+
+    t += t_accel;
+    distance -= d_to_vmax;
+
+    // Cruise phase
+    float t_cruise = distance / (distance >= 0.0f ? maxMoveSpeed : -maxMoveSpeed);
+    t += t_cruise;
+
+    return t;
+}
 
 
 // how long to collide with a robot using current velocity and assumed turn speed

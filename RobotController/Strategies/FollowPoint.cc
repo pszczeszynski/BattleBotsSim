@@ -27,4 +27,5 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, FilteredRobot opp
     escapePathTimes = {};
     orbSimPathTimes = {};
     directionScores = {};
+    orbSimFollowPoints = {};
 }
