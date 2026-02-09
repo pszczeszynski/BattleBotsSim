@@ -71,11 +71,15 @@ private:
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     void radiusEquation(FollowPoint &follow);
     FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
+    void approachCurve(FollowPoint &follow);
+    float approachRadiusEquation(float offsetAngle);
+    cv::Point2f approachPP(cv::Point2f currPosition, FollowPoint follow, float ppRad);
+    cv::Point2f followApproachCurve(cv::Point2f currPosition, FollowPoint follow, float ppRad);
     void orbToOppPath(FollowPoint &follow);
     void oppToOrbETA(FollowPoint &follow);
     float wallScore(FollowPoint follow);
     float turnScore(FollowPoint follow);
-    float ppRad();
+    float ppRad(float speed);
     float ppRadWall();
     void avoidBoundsVector(FollowPoint &follow);
     void directionScore(FollowPoint &follow, bool forwardInput);

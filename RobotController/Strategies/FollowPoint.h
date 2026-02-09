@@ -18,6 +18,7 @@ public:
     std::vector<float> orbSimPathTimes; // how long it takes orb to get to each point in the sim path
     std::vector<cv::Point2f> orbSimFollowPoints; // list of follow points used to generate the sim path
     int inflectIndex; // sim path index at which the opp starts being on the correct side
+    std::vector<cv::Point2f> approach; // curve that defines the approach to opp
 
     std::vector<cv::Point2f> escapePath; // path orb would take if we need to escape from opp
     std::vector<float> escapePathTimes; // how long it takes to get each point of the escape path
@@ -33,6 +34,7 @@ public:
     float oppETA; // opp time for this point
     float orbETA; // orb time to hit opp given this points parameters
     float simRadGain; // the rad gain used in sim to generate the path for this point
+    float endingAngle; // angle at which to approach path targets opp
 
     int enforceTurnDirection; // forces curvature control to turn a certain way, used for walls mainly
 
