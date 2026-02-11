@@ -76,11 +76,8 @@ class FilteredRobot
   std::vector<float> getVelFilteredSlow();
   std::vector<float> getVelFilteredUltraSlow();
   float getWeaponAngleReach();
-  float getWeaponDriftScaleReach();
   float getSizeRadius();
   float velAwayFromPoint(cv::Point2f point);
-  float getTurnPastStartMargin();
-  float getTurnPastEndMargin();
   float getMaxMoveAccel();
   float getMaxTurnAccel();
   std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);

@@ -66,11 +66,9 @@ private:
     void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
     cv::Point2f tangentPoint(float radius, cv::Point2f center, cv::Point2f point, bool CW);
-    cv::Point2f ppPoint(FollowPoint follow);
     std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
-    void radiusEquation(FollowPoint &follow);
-    FollowPoint createFollowPoint(bool CW, bool forward, bool turnAway, float deltaTime);
+    FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);
     void approachCurve(FollowPoint &follow);
     float approachRadiusEquation(float offsetAngle);
     cv::Point2f approachPP(cv::Point2f currPosition, FollowPoint follow, float ppRad);
@@ -83,9 +81,6 @@ private:
     float ppRadWall();
     void avoidBoundsVector(FollowPoint &follow);
     void directionScore(FollowPoint &follow, bool forwardInput);
-    void followPointInsideCircle(FollowPoint &follow);
-    void followPointInsideCircleSimple(FollowPoint &follow);
-    FollowPoint chooseBestPoint(std::vector<FollowPoint>& follows, bool forwardInput);
     float piecewise(std::vector<cv::Point2f> points, float x);
     int sign(float num);
     void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
@@ -93,7 +88,6 @@ private:
     void display(FollowPoint follow);
     bool willTurnPastOpp(FollowPoint follow);
     float switchPointScore(FollowPoint follow);
-    void generateEscapePath(FollowPoint &follow);
-    float escapeScore(FollowPoint &follow);
+    void displayVirtualOrb();
 
 };
