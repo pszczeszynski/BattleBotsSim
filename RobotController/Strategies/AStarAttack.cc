@@ -542,9 +542,9 @@ cv::Point2f AStarAttack::approachPP(cv::Point2f currPosition, FollowPoint follow
 float AStarAttack::approachRadiusEquation(float offsetAngle) {
 
     float collisionRad = oppFiltered.getSizeRadius() + orbFiltered.getSizeRadius();
-    float angleSpan = 130.0f*TO_RAD;
+    float angleSpan = 120.0f*TO_RAD; // 130
     float maxRad = 120.0f;
-    float radius = collisionRad + pow(abs(offsetAngle) / angleSpan, 0.7f) * (maxRad - collisionRad);
+    float radius = collisionRad + pow(abs(offsetAngle) / angleSpan, 0.4f) * (maxRad - collisionRad);
     radius = std::clamp(radius, 0.0f, maxRad);
 
     return radius;
@@ -644,8 +644,8 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         angleError = angle_wrap(angleError - wrapOffset2) + wrapOffset2;
 
 
-
-        if(oppCorrectSide || follow.turnAway) { reachedFollowPoint = true; } // if we've pointed at the point yet
+        //oppCorrectSide || follow.turnAway
+        if(abs(angleErrorRaw) < 40.0f*TO_RAD) { reachedFollowPoint = true; } // if we've pointed at the point yet
         if(reachedFollowPoint && virtualOrb.moveSpeed() > 50.0f) { reachedSpeed = true; } // 150 if we've been fast since aligning to the follow point
 
         bool safe = reachedFollowPoint; // && reachedSpeed;
@@ -653,8 +653,10 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
         float oppETA = follow.opp.collideETASimple(virtualOrb.position(), orbFiltered.getSizeRadius(), true);
         float timeMargin = oppETA - simTime; // how much later the opp will get to current position than we do
+        float timeFraction = (oppETA - simTime) / oppETA;
 
-        if(timeMargin < 0.2f && !safe) { // 0.35
+        if(timeMargin < 0.0f && !safe) { // 0.35
+        // if(timeFraction < 0.5f && !safe) { // 0.35
             std::cout << "hitting";
             simTime = maxTime;
             break;
@@ -667,7 +669,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
             // if we're hitting them in a valid way, return the actual sim time
             // if(virtualOrb.facing(follow.opp, follow.forward) && turningCorrect) { break; }
             // if(anglePercent > 1.0f && virtualOrb.facing(follow.opp, follow.forward)) { break; }
-            if(virtualOrb.facing(follow.opp, follow.forward)) { break; }
+            if(virtualOrb.facing(follow.opp, follow.forward) && virtualOrb.moveSpeed() > 100.0f) { break; }
 
             // otherwise we're hitting them in an invalid way, so return max time
             simTime = maxTime*99;
