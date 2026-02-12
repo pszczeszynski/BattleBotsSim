@@ -8,7 +8,7 @@ void DisplayUtils::displayPoints(std::vector<cv::Point2f>& points, cv::Scalar st
 
     for (int i = 0; i < points.size(); i++) {
 
-        float percent = (float) i / max(points.size() - 1, 1); // hehe oops
+        float percent = (float) i / std::max(points.size() - 1, (size_t)1); // hehe oops
 
         cv::Scalar color = (endColor - startColor)*percent + startColor;
         safe_circle(RobotController::GetInstance().GetDrawingImage(), points[i], radius, color, radius);

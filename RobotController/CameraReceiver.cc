@@ -3,13 +3,13 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#define NOMINMAX
 #include <windows.h>
 #include <iostream>
 #include "Globals.h"
 #include "PlaybackController.h"
 #include "Clock.h"
 #include <stdlib.h>
-#include "imgui.h"
 #include "Input/InputState.h"
 #include "VisionPreprocessor.h"
 #include "UIWidgets/FieldWidget.h"

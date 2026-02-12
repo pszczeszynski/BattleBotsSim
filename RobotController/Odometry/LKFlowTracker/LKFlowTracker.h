@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <optional>
@@ -71,17 +72,17 @@ class LKFlowTracker : public OdometryBase {
   static constexpr double RESPAWN_INTERVAL = 0.3;  // seconds - respawn interval
 
   // Internal state
-  cv::Rect _roi;
+  std::atomic<cv::Rect> _roi;
   cv::Size _imageSize;  // Last known image size for ROI clipping
   cv::Mat _prevGray;
   std::vector<TrackPt> _tracks;  // Replaces _prevPts + _pointTrackCounts
-  cv::Point2f _prevCenter;
   Angle _angle;
   int _targetPointCount;  // Target/baseline number of points to maintain
   bool _initialized;
   double _lastRespawnTime;  // Time of last respawn operation
-
+  
   // Previous data for velocity calculations (local primitives, not OdometryData)
+  cv::Point2f _prevCenter;
   std::optional<cv::Point2f> _prevPosition;
   std::optional<double> _prevTime;
 
@@ -91,4 +92,6 @@ class LKFlowTracker : public OdometryBase {
 
   // Random number generator for point pair selection
   std::mt19937 _rng;
+
+  uint64_t _frameID = 0;
 };

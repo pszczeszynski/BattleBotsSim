@@ -12,13 +12,13 @@ const cv::Size LKFlowTracker::LK_WIN_SIZE(15, 15);
 
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
     : OdometryBase(videoSource),
-      _roi(0, 0, 0, 0),
       _imageSize(0, 0),
       _angle(Angle(0)),
       _targetPointCount(40),
       _initialized(false),
       _lastRespawnTime(0.0),
       _rng(std::random_device{}()) {
+  _roi.store(cv::Rect(0, 0, 70, 70));
   // This tracker only tracks opponent, robot data always invalid
 }
 
@@ -91,12 +91,8 @@ cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) {
 // We expect this to be called every frame from the other vision algorithms, and
 // we trust it.
 void LKFlowTracker::SetROI(cv::Rect roi) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  // Clip ROI to image bounds
-  _roi = _ClipROIToBounds(roi, _imageSize);
-
-  // Filter out any existing points that are now outside the new ROI
+  cv::Rect newROI = _ClipROIToBounds(roi, _imageSize);
+  _roi.store(newROI);
   _FilterPointsByROI(_tracks);
 }
 
@@ -121,10 +117,11 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   // Update image size for ROI clipping
   _imageSize = gray.size();
 
-  // Regular interval-based respawn
-  if (_roi.width > 0 && _roi.height > 0 &&
+  cv::Rect roi = _roi.load();
+
+  if (roi.width > 0 && roi.height > 0 &&
       ((frameTime - _lastRespawnTime) >= RESPAWN_INTERVAL) &&
-      _RespawnPoints(gray, _roi, _tracks, _targetPointCount)) {
+      _RespawnPoints(gray, roi, _tracks, _targetPointCount)) {
     _lastRespawnTime = frameTime;
   }
 
@@ -139,10 +136,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   }
 
   // Update tracking
-  std::unique_lock<std::mutex> locker(_updateMutex);
   bool success = _UpdateTracking(_prevGray, gray, frameTime);
-
-  locker.unlock();
 
   // Always advance _prevGray to prevent failure spiral
   // (if we keep old frame, next LK flow will have larger motion and fail more)
@@ -176,8 +170,8 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray, cv::Rect roi) {
     pts.push_back(track.pt);
   }
 
-  // Reset state for initialization
   _prevCenter = _ComputeCenterFromPoints(pts);
+
   _angle = Angle(0);
   _initialized = true;
   _lastRespawnTime = Clock::programClock.getElapsedTime();
@@ -249,9 +243,10 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
   // Update position and velocity
   cv::Point2f deltaPos = center - _prevCenter;
-  
+
   // Calculate delta time using local previous time
-  double deltaTime = _prevTime.has_value() ? (frameTime - _prevTime.value()) : 0.0;
+  double deltaTime =
+      _prevTime.has_value() ? (frameTime - _prevTime.value()) : 0.0;
 
   cv::Point2f visualVelocity = cv::Point2f(0, 0);
   if (deltaTime > 0.001 && _prevPosition.has_value()) {
@@ -294,17 +289,18 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
   cv::circle(_debugImage, center, 5, cv::Scalar(255), 2);
   // Draw ROI rectangle if valid
-  if (_roi.width > 0 && _roi.height > 0) {
-    cv::rectangle(_debugImage, _roi, cv::Scalar(128), 2);
+  cv::Rect roi = _roi.load();
+  if (roi.width > 0 && roi.height > 0) {
+    cv::rectangle(_debugImage, roi, cv::Scalar(128), 2);
   }
   debugLock.unlock();
 
   // Build sample and publish
-  OdometryData sample;
-  sample.Clear();
+  OdometryData sample{};
+  sample.id = _frameID++;
   sample.pos = PositionData(center, visualVelocity, defaultRect, frameTime);
   sample.angle = AngleData(_angle, angularVelocity, frameTime);
-  OdometryBase::Publish(std::move(sample), true);
+  OdometryBase::Publish(sample, true);
 
   // Update local previous data for next iteration
   _prevPosition = center;
@@ -565,19 +561,20 @@ std::vector<std::pair<int, int>> LKFlowTracker::_GeneratePointPairs(int nPts) {
 }
 
 void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
+  cv::Rect roi = _roi.load();
   // If ROI is invalid (width or height <= 0), keep all points
-  if (_roi.width <= 0 || _roi.height <= 0) {
+  if (roi.width <= 0 || roi.height <= 0) {
     return;
   }
 
   // Remove points that are outside the ROI
   tracks.erase(std::remove_if(tracks.begin(), tracks.end(),
-                              [this](const TrackPt& track) {
+                              [roi](const TrackPt& track) {
                                 // Check ROI bounds
-                                if (track.pt.x < _roi.x ||
-                                    track.pt.x >= _roi.x + _roi.width ||
-                                    track.pt.y < _roi.y ||
-                                    track.pt.y >= _roi.y + _roi.height) {
+                                if (track.pt.x < roi.x ||
+                                    track.pt.x >= roi.x + roi.width ||
+                                    track.pt.y < roi.y ||
+                                    track.pt.y >= roi.y + roi.height) {
                                   return true;
                                 }
 
@@ -586,23 +583,15 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
                tracks.end());
 }
 
-void LKFlowTracker::SwitchRobots(void) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  std::swap(_data[(int)RobotSlot::Us], _data[(int)RobotSlot::Opponent]);
-  
-  // Reset local previous data (no need to swap since we only track opponent)
-  _prevPosition.reset();
-  _prevTime.reset();
+void LKFlowTracker::SwitchRobots() {
+  std::cerr << "SwitchRobots not implemented for LKFlowTracker" << std::endl;
 }
 
 void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
   if (!opponentRobot) return;
 
   double currTime = Clock::programClock.getElapsedTime();
-  std::lock_guard<std::mutex> lk(_updateMutex);
-  _prevCenter = newPos;
-  _prevPosition = newPos;
-  _prevTime = currTime;
+  SetROI(cv::Rect(newPos.x - 70, newPos.y - 70, 140, 140));
 }
 
 void LKFlowTracker::SetVelocity(cv::Point2f newVel, bool opponentRobot) {

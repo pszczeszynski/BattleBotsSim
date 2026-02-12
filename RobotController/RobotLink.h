@@ -7,6 +7,7 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#define NOMINMAX
 #include "hid/hid.h"
 #include <chrono>
 #include <deque>

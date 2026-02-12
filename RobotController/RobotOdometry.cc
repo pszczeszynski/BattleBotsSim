@@ -23,7 +23,7 @@ FUSION_SM fusionStateMachine = FUSION_NORMAL;
 constexpr double _dataAgeThreshold = 0.1;
 template <typename T>
 bool isFresh(const std::optional<T> &opt) {
-  return opt && opt->GetAge() < _dataAgeThreshold;
+  return opt.has_value() && opt->GetAge() < _dataAgeThreshold;
 }
 }  // namespace
 
@@ -439,15 +439,14 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
   }
 
   // Set ROI for LKFlowTracker when opponent position is finalized
-  if (output.opponent.pos.has_value() && _odometry_LKFlow.IsRunning()) {
+  if (isFresh(output.opponent.pos) && _odometry_LKFlow.IsRunning()) {
     // Use opponent blob size to determine ROI size, or default to 140x140
     int roiSize = 70;
 
-    cv::Rect roi(static_cast<int>(output.opponent.pos.value().position.x -
-                                  static_cast<float>(roiSize) / 2.0f),
-                 static_cast<int>(output.opponent.pos.value().position.y -
-                                  static_cast<float>(roiSize) / 2.0f),
+    cv::Rect roi(output.opponent.pos.value().position.x - roiSize / 2.0f,
+                 output.opponent.pos.value().position.y - roiSize / 2.0f,
                  roiSize, roiSize);
+
     // Mark that we need to update the ROI
     output.backAnnotate.updateLKFlowROI = true;
     output.backAnnotate.lkFlowROI = roi;
