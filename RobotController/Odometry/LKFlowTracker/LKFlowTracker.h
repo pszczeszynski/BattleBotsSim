@@ -1,5 +1,4 @@
 #pragma once
-#include <atomic>
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <optional>
@@ -9,7 +8,6 @@
 #include "../../CameraReceiver.h"
 #include "../../Clock.h"
 #include "../OdometryBase.h"
-
 
 // Helper structure for rotation results
 struct RotationResult {
@@ -36,30 +34,36 @@ class LKFlowTracker : public OdometryBase {
   void GetDebugImage(cv::Mat& target,
                      cv::Point offset = cv::Point(0, 0)) override;
 
-  // Set the ROI for point spawning (x, y, width, height)
-  void SetROI(cv::Rect roi);
-
  private:
+  cv::Rect _GetROI() const;
+
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
   void _StartCalled(void) override;
 
   // Core tracking functions
-  bool _InitializePoints(cv::Mat& gray, cv::Rect roi);
+  bool _InitializePoints(cv::Mat& gray);
   bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime);
   void _ComputeRotationsFromPairs(const std::vector<cv::Point2f>& nextPts,
                                   const std::vector<uchar>& status,
                                   double& angleDelta,
                                   std::vector<std::pair<int, int>>& validPairs);
+  cv::Point2f _ComputeTranslationFromPoints(
+      const std::vector<cv::Point2f>& prevPts,
+      const std::vector<cv::Point2f>& nextPts,
+      const std::vector<uchar>& status);
   void _UpdateAngleFromRotations(const std::vector<RotationResult>& rotations,
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                       std::vector<TrackPt>& tracks, int targetCount);
-
-  // Helper functions
+  void _DrawDebugImage(cv::Size imageSize,
+                       const std::vector<cv::Point2f>& nextPts,
+                       const std::vector<std::pair<int, int>>& validPairs);
+  void _DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist);
   cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
+  void _InterpolatePosTowardCenter(const std::vector<TrackPt>& tracks);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
   void _FilterPointsByROI(std::vector<TrackPt>& tracks);
-  cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds);
+  cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds) const;
 
   // Configuration constants
   static constexpr int LK_MAX_CORNERS = 200;
@@ -72,18 +76,18 @@ class LKFlowTracker : public OdometryBase {
   static constexpr double RESPAWN_INTERVAL = 0.3;  // seconds - respawn interval
 
   // Internal state
-  std::atomic<cv::Rect> _roi;
   cv::Size _imageSize;  // Last known image size for ROI clipping
   cv::Mat _prevGray;
   std::vector<TrackPt> _tracks;  // Replaces _prevPts + _pointTrackCounts
   Angle _angle;
+  cv::Point2f _pos;
+
   int _targetPointCount;  // Target/baseline number of points to maintain
   bool _initialized;
   double _lastRespawnTime;  // Time of last respawn operation
-  
-  // Previous data for velocity calculations (local primitives, not OdometryData)
-  cv::Point2f _prevCenter;
-  std::optional<cv::Point2f> _prevPosition;
+
+  // Previous data for velocity calculations (local primitives, not
+  // OdometryData)
   std::optional<double> _prevTime;
 
   // Debug image

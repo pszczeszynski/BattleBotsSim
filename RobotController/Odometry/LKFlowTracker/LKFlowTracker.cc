@@ -2,10 +2,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <opencv2/imgproc.hpp>
 
 #include "../../Clock.h"
 #include "../../MathUtils.h"
+
+namespace {
+constexpr int kRoiSize = 60;
+// blend _pos toward center
+constexpr float kPosInterpolationAlpha = 0.00f;
+}  // namespace
 
 // Static member initialization
 const cv::Size LKFlowTracker::LK_WIN_SIZE(15, 15);
@@ -18,11 +25,11 @@ LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
       _initialized(false),
       _lastRespawnTime(0.0),
       _rng(std::random_device{}()) {
-  _roi.store(cv::Rect(0, 0, 70, 70));
   // This tracker only tracks opponent, robot data always invalid
 }
 
-static void DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist) {
+void LKFlowTracker::_DeduplicateTracks(std::vector<TrackPt>& tracks,
+                                       float minDist) {
   if (tracks.size() < 2) return;
 
   const float minDistSq = minDist * minDist;
@@ -67,11 +74,11 @@ void LKFlowTracker::_StartCalled(void) {
   _tracks.clear();
   _angle = Angle(0);
   _lastRespawnTime = 0.0;
-  _prevPosition.reset();
+  _pos = cv::Point2f(0, 0);
   _prevTime.reset();
 }
 
-cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) {
+cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) const {
   if (bounds.width <= 0 || bounds.height <= 0) {
     return roi;  // No valid bounds, return as-is
   }
@@ -88,12 +95,10 @@ cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) {
   return cv::Rect(x, y, w, h);
 }
 
-// We expect this to be called every frame from the other vision algorithms, and
-// we trust it.
-void LKFlowTracker::SetROI(cv::Rect roi) {
-  cv::Rect newROI = _ClipROIToBounds(roi, _imageSize);
-  _roi.store(newROI);
-  _FilterPointsByROI(_tracks);
+cv::Rect LKFlowTracker::_GetROI() const {
+  cv::Rect roi(static_cast<int>(_pos.x) - kRoiSize / 2,
+               static_cast<int>(_pos.y) - kRoiSize / 2, kRoiSize, kRoiSize);
+  return _ClipROIToBounds(roi, _imageSize);
 }
 
 void EnforceGrayscale(cv::Mat& currFrame, cv::Mat& gray) {
@@ -117,7 +122,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   // Update image size for ROI clipping
   _imageSize = gray.size();
 
-  cv::Rect roi = _roi.load();
+  cv::Rect roi = _GetROI();
 
   if (roi.width > 0 && roi.height > 0 &&
       ((frameTime - _lastRespawnTime) >= RESPAWN_INTERVAL) &&
@@ -148,10 +153,11 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   }
 }
 
-bool LKFlowTracker::_InitializePoints(cv::Mat& gray, cv::Rect roi) {
+bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
   // Clear existing tracks and initialize with points from ROI
   _tracks.clear();
 
+  cv::Rect roi = _GetROI();
   // Use _RespawnPoints to find points, requesting all available points
   if (!_RespawnPoints(gray, roi, _tracks, LK_MAX_CORNERS)) {
     return false;
@@ -169,8 +175,6 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray, cv::Rect roi) {
   for (const auto& track : _tracks) {
     pts.push_back(track.pt);
   }
-
-  _prevCenter = _ComputeCenterFromPoints(pts);
 
   _angle = Angle(0);
   _initialized = true;
@@ -209,18 +213,22 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   std::vector<std::pair<int, int>> validPairs;
   _ComputeRotationsFromPairs(nextPts, status, angleDelta, validPairs);
 
+  // Compute translation from motion deltas (prev -> next) before compaction
+  cv::Point2f deltaPos =
+      _ComputeTranslationFromPoints(prevPts, nextPts, status);
+
   // Single-pass compaction: keep only good points, increment age
   std::vector<TrackPt> tracksNext;
   tracksNext.reserve(_tracks.size());
   for (size_t i = 0; i < status.size(); ++i) {
-    if (status[i] == 1) {
-      tracksNext.push_back({nextPts[i], _tracks[i].age + 1});
+    if (status[i] != 1) {
+      continue;
     }
+    tracksNext.push_back({nextPts[i], _tracks[i].age + 1});
   }
 
-  // Filter out points that are outside the ROI using standardized method
   _FilterPointsByROI(tracksNext);
-  DeduplicateTracks(tracksNext, LK_MIN_DISTANCE * 0.8f);  // tune: 0.6–1.0
+  _DeduplicateTracks(tracksNext, LK_MIN_DISTANCE * 0.8f);  // tune: 0.6–1.0
 
   // If we have too few points after tracking, fail (respawn handled in
   // _ProcessNewFrame)
@@ -228,34 +236,22 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
     return false;
   }
 
-  // Extract points for center computation
-  std::vector<cv::Point2f> goodNextPts;
-  goodNextPts.reserve(tracksNext.size());
-  for (const auto& track : tracksNext) {
-    goodNextPts.push_back(track.pt);
-  }
-
-  // Compute center from good points
-  cv::Point2f center = _ComputeCenterFromPoints(goodNextPts);
-
   // Update angle (angleDelta is already in radians)
   _angle = _angle + Angle(angleDelta);
 
   // Update position and velocity
-  cv::Point2f deltaPos = center - _prevCenter;
+  _pos += deltaPos;
 
-  // Calculate delta time using local previous time
+  // Slowly pull _pos toward centroid of tracked points
+  _InterpolatePosTowardCenter(tracksNext);
+
+  cv::Point2f visualVelocity = cv::Point2f(0, 0);
   double deltaTime =
       _prevTime.has_value() ? (frameTime - _prevTime.value()) : 0.0;
 
-  cv::Point2f visualVelocity = cv::Point2f(0, 0);
-  if (deltaTime > 0.001 && _prevPosition.has_value()) {
+  if (deltaTime > 0.001) {
     visualVelocity = deltaPos / static_cast<float>(deltaTime);
   }
-
-  // Use a default rect - LKFlowTracker doesn't track bounding boxes
-  cv::Rect defaultRect(static_cast<int>(center.x - 10),
-                       static_cast<int>(center.y - 10), 20, 20);
 
   // Angular velocity = angleDelta / deltaTime (same deltaTime as position)
   double angularVelocity = 0.0;
@@ -266,46 +262,17 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // Update tracks with compacted results
   _tracks = tracksNext;
 
-  // Update debug image
-  std::unique_lock<std::mutex> debugLock(_mutexDebugImage);
-  // initialize the debug image to zeros
-  _debugImage = cv::Mat::zeros(currGray.size(), CV_8UC1);
-  // _debugImage = currGray.clone();
-
-  // Draw lines connecting pairs used for rotation computation
-  // Note: validPairs contains indices into nextPts, so we use nextPts for
-  // drawing
-  for (const auto& pair : validPairs) {
-    int idx1 = pair.first;
-    int idx2 = pair.second;
-    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
-        idx2 < static_cast<int>(nextPts.size())) {
-      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], cv::Scalar(200), 1);
-    }
-  }
-
-  for (const auto& track : _tracks) {
-    cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
-  }
-  cv::circle(_debugImage, center, 5, cv::Scalar(255), 2);
-  // Draw ROI rectangle if valid
-  cv::Rect roi = _roi.load();
-  if (roi.width > 0 && roi.height > 0) {
-    cv::rectangle(_debugImage, roi, cv::Scalar(128), 2);
-  }
-  debugLock.unlock();
-
   // Build sample and publish
   OdometryData sample{};
   sample.id = _frameID++;
-  sample.pos = PositionData(center, visualVelocity, defaultRect, frameTime);
+  sample.pos = PositionData(_pos, visualVelocity, frameTime);
   sample.angle = AngleData(_angle, angularVelocity, frameTime);
   OdometryBase::Publish(sample, true);
 
   // Update local previous data for next iteration
-  _prevPosition = center;
   _prevTime = frameTime;
-  _prevCenter = center;
+
+  _DrawDebugImage(currGray.size(), nextPts, validPairs);
 
   return true;
 }
@@ -374,6 +341,70 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
   }
 
   _UpdateAngleFromRotations(rotations, angleDelta);
+}
+
+cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
+    const std::vector<cv::Point2f>& prevPts,
+    const std::vector<cv::Point2f>& nextPts, const std::vector<uchar>& status) {
+  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size()) {
+    return cv::Point2f(0, 0);
+  }
+  // Motion deltas for successfully tracked points
+  std::vector<cv::Point2f> deltas;
+  deltas.reserve(nextPts.size());
+  for (size_t i = 0; i < status.size(); ++i) {
+    if (status[i] != 1) continue;
+    deltas.push_back(nextPts[i] - prevPts[i]);
+  }
+  if (deltas.empty()) {
+    return cv::Point2f(0, 0);
+  }
+  // Binned 2D mode: find the densest cell of deltas, return its centroid.
+  const float binSize = 1.0f;
+  std::map<std::pair<int, int>, std::pair<int, cv::Point2f>> bins;
+  for (const auto& pt : deltas) {
+    int bx = static_cast<int>(std::floor(pt.x / binSize));
+    int by = static_cast<int>(std::floor(pt.y / binSize));
+    auto key = std::make_pair(bx, by);
+    auto& entry = bins[key];
+    entry.first += 1;
+    entry.second += pt;
+  }
+  const auto best = std::max_element(bins.begin(), bins.end(),
+                                     [](const auto& a, const auto& b) {
+                                       return a.second.first < b.second.first;
+                                     });
+  return best->second.second / static_cast<float>(best->second.first);
+}
+
+void LKFlowTracker::_DrawDebugImage(
+    cv::Size imageSize, const std::vector<cv::Point2f>& nextPts,
+    const std::vector<std::pair<int, int>>& validPairs) {
+  std::unique_lock<std::mutex> debugLock(_mutexDebugImage);
+  _debugImage = cv::Mat::zeros(imageSize, CV_8UC1);
+
+  for (const auto& pair : validPairs) {
+    int idx1 = pair.first;
+    int idx2 = pair.second;
+    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
+        idx2 < static_cast<int>(nextPts.size())) {
+      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], cv::Scalar(200), 1);
+    }
+  }
+
+  for (const auto& track : _tracks) {
+    cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
+  }
+  cv::circle(_debugImage, _pos, 5, cv::Scalar(255), 2);
+
+  cv::Rect roi = _GetROI();
+  if (roi.width > 0 && roi.height > 0) {
+    cv::rectangle(_debugImage, roi, cv::Scalar(128), 2);
+  }
+
+  // draw an arrow from _pos at the angle
+  cv::Point2f arrowEnd = _pos + cv::Point2f(30 * cos(_angle), 30 * sin(_angle));
+  cv::arrowedLine(_debugImage, _pos, arrowEnd, cv::Scalar(255), 2);
 }
 
 void LKFlowTracker::_UpdateAngleFromRotations(
@@ -534,6 +565,18 @@ cv::Point2f LKFlowTracker::_ComputeCenterFromPoints(
   return sum / static_cast<float>(points.size());
 }
 
+void LKFlowTracker::_InterpolatePosTowardCenter(
+    const std::vector<TrackPt>& tracks) {
+  if (kPosInterpolationAlpha == 0.0f) return;
+  if (tracks.empty()) return;
+  cv::Point2f sum(0, 0);
+  for (const auto& t : tracks) {
+    sum += t.pt;
+  }
+  cv::Point2f center = sum / static_cast<float>(tracks.size());
+  _pos += kPosInterpolationAlpha * (center - _pos);
+}
+
 std::vector<std::pair<int, int>> LKFlowTracker::_GeneratePointPairs(int nPts) {
   std::vector<std::pair<int, int>> pairs;
   if (nPts < 2) {
@@ -561,7 +604,7 @@ std::vector<std::pair<int, int>> LKFlowTracker::_GeneratePointPairs(int nPts) {
 }
 
 void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
-  cv::Rect roi = _roi.load();
+  cv::Rect roi = _GetROI();
   // If ROI is invalid (width or height <= 0), keep all points
   if (roi.width <= 0 || roi.height <= 0) {
     return;
@@ -590,15 +633,12 @@ void LKFlowTracker::SwitchRobots() {
 void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
   if (!opponentRobot) return;
 
-  double currTime = Clock::programClock.getElapsedTime();
-  SetROI(cv::Rect(newPos.x - 70, newPos.y - 70, 140, 140));
+  _pos = newPos;
+  _FilterPointsByROI(_tracks);
 }
 
 void LKFlowTracker::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
-  // Velocity is derived from position delta each frame; no internal state to
-  // update. Next tracking update will compute velocity as usual.
-  (void)newVel;
-  (void)opponentRobot;
+  std::cerr << "SetVelocity not implemented for LKFlowTracker" << std::endl;
 }
 
 void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {

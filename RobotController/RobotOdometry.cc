@@ -141,16 +141,8 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   if (_dataOpponent.angle.has_value()) {
     _odometry_Blob.SetAngle(_dataOpponent.angle.value(), true);
   }
-
-  // Set ROI for LKFlowTracker (only tracks opponent)
   if (_odometry_LKFlow.IsRunning()) {
-    int roiSize = 20;
-    cv::Rect roi(static_cast<int>(_dataOpponent.GetPositionOrZero().x -
-                                  static_cast<float>(roiSize) / 2.0f),
-                 static_cast<int>(_dataOpponent.GetPositionOrZero().y -
-                                  static_cast<float>(roiSize) / 2.0f),
-                 roiSize, roiSize);
-    _odometry_LKFlow.SetROI(roi);
+    _odometry_LKFlow.SetPosition(_dataOpponent.GetPositionOrZero(), true);
   }
 
 #ifdef USE_OPENCV_TRACKER
@@ -438,20 +430,6 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
     ext_dataOpponent_Heuristic.pos.reset();
   }
 
-  // Set ROI for LKFlowTracker when opponent position is finalized
-  if (isFresh(output.opponent.pos) && _odometry_LKFlow.IsRunning()) {
-    // Use opponent blob size to determine ROI size, or default to 140x140
-    int roiSize = 70;
-
-    cv::Rect roi(output.opponent.pos.value().position.x - roiSize / 2.0f,
-                 output.opponent.pos.value().position.y - roiSize / 2.0f,
-                 roiSize, roiSize);
-
-    // Mark that we need to update the ROI
-    output.backAnnotate.updateLKFlowROI = true;
-    output.backAnnotate.lkFlowROI = roi;
-  }
-
   //  THEM VEL:
   //            Rule: 1) Heuristic, 2) Blob
   if (isFresh(ext_dataOpponent_Heuristic.pos)) {
@@ -621,8 +599,8 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   }
 
   // LKFlow ROI update
-  if (backAnnotate.updateLKFlowROI) {
-    _odometry_LKFlow.SetROI(backAnnotate.lkFlowROI);
+  if (backAnnotate.setOpponentPos_LKFlow && opponent.pos.has_value()) {
+    _odometry_LKFlow.SetPosition(opponent.pos.value().position, true);
   }
 }
 

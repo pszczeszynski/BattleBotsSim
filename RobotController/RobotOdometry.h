@@ -57,10 +57,7 @@ struct BackAnnotation {
     bool setOpponentAngle_Heuristic = false;
     bool setOpponentAngle_Blob = false;
     bool setOpponentAngle_LKFlow = false;
-    
-    // ROI update for LKFlow
-    bool updateLKFlowROI = false;
-    cv::Rect lkFlowROI;
+    bool setOpponentPos_LKFlow = false;
 };
 
 // Output of fusion process

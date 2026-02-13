@@ -112,6 +112,9 @@ void VariantsWidget::Draw()
     ImGui::SameLine();
     DrawEditButton("Blob", editorState.IsBlobEditing(), 
                    [&]() { editorState.ToggleBlobEditing(); });
+    ImGui::SameLine();
+    DrawEditButton("LKFlow", editorState.IsLKFlowEditing(), 
+                   [&]() { editorState.ToggleLKFlowEditing(); });
 #ifdef USE_OPENCV_TRACKER
     ImGui::SameLine();
     DrawEditButton("OpenCV Tracker", editorState.IsOpenCVEditing(), 
