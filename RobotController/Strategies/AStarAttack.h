@@ -85,7 +85,7 @@ private:
     int sign(float num);
     void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
     void driveAngle(FollowPoint &follow);
-    void display(FollowPoint follow);
+    void display(FollowPoint follow, std::vector<FollowPoint> follows, std::vector<FollowPoint> followsFocussed);
     bool willTurnPastOpp(FollowPoint follow);
     float switchPointScore(FollowPoint follow);
     void displayVirtualOrb();

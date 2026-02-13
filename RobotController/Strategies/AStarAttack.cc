@@ -119,7 +119,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
     
-    display(follow); // display follow point data
+    display(follow, follows, followsFocussed); // display follow point data
     displayVirtualOrb(); // display virtual orb
     DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // display field bound lines
 
@@ -173,7 +173,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
 // displays all the data
-void AStarAttack::display(FollowPoint follow) {
+void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, std::vector<FollowPoint> followsFocussed) {
 
     bool colliding = orbFiltered.colliding(oppFiltered, 10.0f);
     bool facing = orbFiltered.facing(oppFiltered, follow.forward);
@@ -207,6 +207,14 @@ void AStarAttack::display(FollowPoint follow) {
     }
 
 
+
+    // display approach curve
+    DisplayUtils::displayPath(follow.approach, cv::Scalar(100, 255, 100), cv::Scalar(0, 0, 0), 2);
+    
+    for(int testFollow = 0; testFollow < follows.size(); testFollow++) {
+        DisplayUtils::displayPath(follows[testFollow].orbSimPath, cv::Scalar{128, 128, 128}, cv::Scalar{128, 128, 128}, 1);
+    }
+
     
 
 
@@ -218,7 +226,7 @@ void AStarAttack::display(FollowPoint follow) {
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppFiltered.getSizeRadius(), colorOpp, 2); // draw opp size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw orb size
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
 
 
     // display paths
@@ -316,8 +324,9 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                 float lowestScoreFocussed = 0.0f;
                 int lowestIndexFocussed = 0;
 
-                std::vector<float> radGains = {0, 10.0f*TO_RAD, 30.0f*TO_RAD, 50.0f*TO_RAD,70.0f*TO_RAD, 90.0f*TO_RAD,130.0f*TO_RAD};
-                // radGains = {180.0f*TO_RAD};
+                // all the gains we want to try, in order of priority
+                std::vector<float> radGains = {130.0f*TO_RAD, 90.0f*TO_RAD, 70.0f*TO_RAD, 50.0f*TO_RAD, 30.0f*TO_RAD, 10.0f*TO_RAD, 0};
+                // radGains = { 180.0f*TO_RAD, 0.0f};
 
                 // create a point for every rad gain
                 for(int radGain = 0; radGain < radGains.size(); radGain++) {
@@ -329,7 +338,8 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                     orbToOppPath(testFollow); // generate our path to opp
                     oppToOrbETA(testFollow); // calculate opp's time to turn to us
 
-                    testFollow.point = testFollow.orbSimFollowPoints[0]; // set the follow point to the first used in the sim
+                    int followIndex = std::min(0, (int) testFollow.orbSimFollowPoints.size() - 1);
+                    testFollow.point = testFollow.orbSimFollowPoints[followIndex]; // set the follow point to the first used in the sim
 
                     driveAngle(testFollow); // generate drive angle for this point
                     avoidBoundsVector(testFollow); // adjust turn direction to avoid wall if needed
@@ -393,7 +403,8 @@ void AStarAttack::oppToOrbETA(FollowPoint &follow) {
 
 
         float angleToOrb = virtualOpp.angleTo(follow.orbSimPath.back(), true);
-        bool turningRightWay = sign(angleToOrb) == sign(virtualOpp.turnVel());
+        bool turningRightWay = (sign(angleToOrb) == sign(virtualOpp.turnVel())) || (abs(virtualOpp.turnVel()) < 0.1f);
+        turningRightWay = true; // disabled for now
 
 
         // opp's eta is when orb is first in the weapon region while he's turning the right way
@@ -542,9 +553,9 @@ cv::Point2f AStarAttack::approachPP(cv::Point2f currPosition, FollowPoint follow
 float AStarAttack::approachRadiusEquation(float offsetAngle) {
 
     float collisionRad = oppFiltered.getSizeRadius() + orbFiltered.getSizeRadius();
-    float angleSpan = 120.0f*TO_RAD; // 130
+    float angleSpan = 70.0f*TO_RAD; // 130
     float maxRad = 120.0f;
-    float radius = collisionRad + pow(abs(offsetAngle) / angleSpan, 0.4f) * (maxRad - collisionRad);
+    float radius = collisionRad + pow(abs(offsetAngle) / angleSpan, 0.8f) * (maxRad - collisionRad);
     radius = std::clamp(radius, 0.0f, maxRad);
 
     return radius;
@@ -577,7 +588,7 @@ void AStarAttack::approachCurve(FollowPoint &follow) {
 // generates orb's path to opp using orb's model
 void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
-    float timeStep = 0.022f; // 0.01 
+    float timeStep = 0.02f; // 0.01 
     float maxTime = 2.0f; // 1.5
     float simTime = 0.0f; // amount of time elapsed since start of sim
     int steps = (int) (maxTime / timeStep);
@@ -610,9 +621,6 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         follow.orbSimPathTimes.emplace_back(simTime);
 
         
-
-
-
 
         // create the follow point using approach curve
         cv::Point2f virtualFollow = followApproachCurve(virtualOrb.position(), follow, ppRad(virtualOrb.moveSpeed())); // ppRad(virtualOrb.moveSpeed())
@@ -654,7 +662,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         float timeMargin = oppETA - simTime; // how much later the opp will get to current position than we do
         float timeFraction = (oppETA - simTime) / oppETA;
 
-        if(timeMargin < 0.0f && !safe) { // 0.35
+        if(timeMargin < 0.1f && !safe) { // 0.35
         // if(timeFraction < 0.5f && !safe) { // 0.35
             std::cout << "hitting";
             simTime = maxTime;
@@ -668,10 +676,10 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
             // if we're hitting them in a valid way, return the actual sim time
             // if(virtualOrb.facing(follow.opp, follow.forward) && turningCorrect) { break; }
             // if(anglePercent > 1.0f && virtualOrb.facing(follow.opp, follow.forward)) { break; }
-            if(virtualOrb.facing(follow.opp, follow.forward) && virtualOrb.moveSpeed() > 100.0f) { break; }
+            // if(virtualOrb.facing(follow.opp, follow.forward) && virtualOrb.moveSpeed() > 100.0f) { break; }
 
             // otherwise we're hitting them in an invalid way, so return max time
-            simTime = maxTime*99;
+            // simTime = maxTime*99;
             break;
         }
 
