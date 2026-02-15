@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <map>
 #include <opencv2/imgproc.hpp>
 
 #include "../../Clock.h"
@@ -223,8 +222,8 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // Update position and velocity
   _pos += deltaPos;
 
-  // Slowly pull _pos toward centroid of tracked points
-  _InterpolatePosTowardCenter(tracksNext);
+  // // Slowly pull _pos toward centroid of tracked points
+  // _InterpolatePosTowardCenter(tracksNext);
 
   cv::Point2f visualVelocity = cv::Point2f(0, 0);
   double deltaTime =
@@ -330,32 +329,15 @@ cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
   if (prevPts.size() != nextPts.size() || nextPts.size() != status.size()) {
     return cv::Point2f(0, 0);
   }
-  // Motion deltas for successfully tracked points
-  std::vector<cv::Point2f> deltas;
-  deltas.reserve(nextPts.size());
+  cv::Point2f sum(0, 0);
+  int n = 0;
   for (size_t i = 0; i < status.size(); ++i) {
     if (status[i] != 1) continue;
-    deltas.push_back(nextPts[i] - prevPts[i]);
+    sum += nextPts[i] - prevPts[i];
+    ++n;
   }
-  if (deltas.empty()) {
-    return cv::Point2f(0, 0);
-  }
-  // Binned 2D mode: find the densest cell of deltas, return its centroid.
-  const float binSize = 1.0f;
-  std::map<std::pair<int, int>, std::pair<int, cv::Point2f>> bins;
-  for (const auto& pt : deltas) {
-    int bx = static_cast<int>(std::floor(pt.x / binSize));
-    int by = static_cast<int>(std::floor(pt.y / binSize));
-    auto key = std::make_pair(bx, by);
-    auto& entry = bins[key];
-    entry.first += 1;
-    entry.second += pt;
-  }
-  const auto best = std::max_element(bins.begin(), bins.end(),
-                                     [](const auto& a, const auto& b) {
-                                       return a.second.first < b.second.first;
-                                     });
-  return best->second.second / static_cast<float>(best->second.first);
+  if (n == 0) return cv::Point2f(0, 0);
+  return sum / static_cast<float>(n);
 }
 
 void LKFlowTracker::_DrawDebugImage(
