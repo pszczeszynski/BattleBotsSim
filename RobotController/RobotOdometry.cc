@@ -536,12 +536,11 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   if (backAnnotate.swapHeuristic) {
     _odometry_Heuristic.SwitchRobots();
   }
-
   if (backAnnotate.swapBlob) {
     _odometry_Blob.SwitchRobots();
   }
 
-  // Robot Position and velocity - Heuristic
+  // Robot Position
   if (backAnnotate.setRobotPos_Heuristic && robot.pos.has_value()) {
     if (backAnnotate.forceRobotPos_Heuristic) {
       _odometry_Heuristic.ForcePosition(robot.pos.value().position, false);
@@ -550,57 +549,42 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     }
     _odometry_Heuristic.SetVelocity(robot.pos.value().velocity, false);
   }
-
-  // Robot Position and velocity - Blob
   if (backAnnotate.setRobotPos_Blob && robot.pos.has_value()) {
-    if (backAnnotate.forceRobotPos_Blob) {
-      _odometry_Blob.ForcePosition(robot.pos.value().position, false);
-    } else {
-      _odometry_Blob.SetPosition(robot.pos.value().position, false);
-    }
+    _odometry_Blob.SetPosition(robot.pos.value().position, false);
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
   }
 
-  // Robot Angle - Heuristic
+  // Robot Angle
   if (backAnnotate.setRobotAngle_Heuristic && robot.angle.has_value()) {
     _odometry_Heuristic.SetAngle(robot.angle.value(), false);
   }
-
-  // Robot Angle - Blob
   if (backAnnotate.setRobotAngle_Blob && robot.angle.has_value()) {
     _odometry_Blob.SetAngle(robot.angle.value(), false);
   }
 
-  // Opponent Position and velocity - Heuristic
+  // Opponent Position
   if (backAnnotate.setOpponentPos_Heuristic && opponent.pos.has_value()) {
     _odometry_Heuristic.SetPosition(opponent.pos.value().position, true);
     _odometry_Heuristic.SetVelocity(opponent.pos.value().velocity, true);
   }
-
-  // Opponent Position and velocity - Blob
   if (backAnnotate.setOpponentPos_Blob && opponent.pos.has_value()) {
     _odometry_Blob.SetPosition(opponent.pos.value().position, true);
     _odometry_Blob.SetVelocity(opponent.pos.value().velocity, true);
   }
+  if (backAnnotate.setOpponentPos_LKFlow && opponent.pos.has_value()) {
+    _odometry_LKFlow.SetPosition(opponent.pos.value().position, true);
+    _odometry_LKFlow.SetVelocity(opponent.pos.value().velocity, true);
+  }
 
-  // Opponent Angle - Heuristic
+  // Opponent Angle
   if (backAnnotate.setOpponentAngle_Heuristic && opponent.angle.has_value()) {
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
   }
-
-  // Opponent Angle - Blob
   if (backAnnotate.setOpponentAngle_Blob && opponent.angle.has_value()) {
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
   }
-
-  // Opponent Angle - LKFlow
   if (backAnnotate.setOpponentAngle_LKFlow && opponent.angle.has_value()) {
     _odometry_LKFlow.SetAngle(opponent.angle.value(), true);
-  }
-
-  // LKFlow ROI update
-  if (backAnnotate.setOpponentPos_LKFlow && opponent.pos.has_value()) {
-    _odometry_LKFlow.SetPosition(opponent.pos.value().position, true);
   }
 }
 

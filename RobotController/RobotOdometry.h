@@ -47,7 +47,6 @@ struct BackAnnotation {
     bool setRobotPos_Heuristic = false;
     bool setRobotPos_Blob = false;
     bool forceRobotPos_Heuristic = false;
-    bool forceRobotPos_Blob = false;
     bool setRobotAngle_Heuristic = false;
     bool setRobotAngle_Blob = false;
     
