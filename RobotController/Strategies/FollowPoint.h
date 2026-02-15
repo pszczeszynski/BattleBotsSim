@@ -32,6 +32,8 @@ public:
     float endingAngle; // angle at which the approach path targets opp
 
     int enforceTurnDirection; // forces curvature control to turn a certain way, used for walls mainly
+    bool crossesOppFront; // if we cross by the opp's front during the sim path
+    bool hit; // if the opp hits us
 
     std::vector<float> directionScores; // score numbers for how good this follow point is, last entry is the total score
 
