@@ -148,26 +148,17 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 }
 
 bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
-  // Clear existing tracks and initialize with points from ROI
   _tracks.clear();
 
   cv::Rect roi = _GetROI();
-  // Use _RespawnPoints to find points, requesting all available points
+
   if (!_RespawnPoints(gray, roi, _tracks, kMaxCorners)) {
     return false;
   }
 
-  // Require at least 8 points for initialization
   if (_tracks.size() < 8) {
     _tracks.clear();
     return false;
-  }
-
-  // Extract points for center computation
-  std::vector<cv::Point2f> pts;
-  pts.reserve(_tracks.size());
-  for (const auto& track : _tracks) {
-    pts.push_back(track.pt);
   }
 
   _angle = Angle(0);
