@@ -119,11 +119,9 @@ void EnforceGrayscale(cv::Mat& currFrame, cv::Mat& gray) {
 }
 
 void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
-  // Convert to grayscale if needed
   cv::Mat gray;
   EnforceGrayscale(currFrame, gray);
 
-  // Update image size for ROI clipping
   _imageSize = gray.size();
 
   cv::Rect roi = _GetROI();
@@ -134,25 +132,17 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     _lastRespawnTime = frameTime;
   }
 
-  // If previous image is empty, store it for next frame
-  // OR if we don't have enough points, skip update and force initialization
-  // next frame
-
   if (_prevGray.empty() || _tracks.size() < 6) {
     _prevGray = gray;
     std::cout << "No points, skipping update" << std::endl;
     return;
   }
 
-  // Update tracking
   bool success = _UpdateTracking(_prevGray, gray, frameTime);
 
-  // Always advance _prevGray to prevent failure spiral
-  // (if we keep old frame, next LK flow will have larger motion and fail more)
   _prevGray = gray;
 
   if (!success) {
-    // Force re-initialization on next frame if tracking failed
     _initialized = false;
   }
 }
