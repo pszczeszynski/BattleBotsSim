@@ -227,7 +227,7 @@ void RobotOdometry::Update() {
                 trackingInfo->GetDebugOffset("Fusion"));
 }
 
-FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
+FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
                                  const OdometryData &prevRobot,
                                  const OdometryData &prevOpponent) {
   FusionOutput output{};
@@ -236,238 +236,127 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
   output.robot = prevRobot;
   output.opponent = prevOpponent;
 
-  // Extrapolate input data to current time
-  OdometryData ext_dataRobot_Blob = inputs.us_blob.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Heuristic =
-      inputs.us_heuristic.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Neural = inputs.us_neural;
-  OdometryData ext_dataRobot_NeuralRot =
-      inputs.us_neuralrot.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_IMU = inputs.us_imu.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataRobot_Human = inputs.us_human.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_Human =
-      inputs.them_human.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_Blob =
-      inputs.them_blob.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_Heuristic =
-      inputs.them_heuristic.ExtrapolateBoundedTo(now);
-  OdometryData ext_dataOpponent_LKFlow =
-      inputs.them_lkflow.ExtrapolateBoundedTo(now);
-
-  // Opponent rotation
-  if (isFresh(inputs.them_human.angle) && inputs.them_human_is_new) {
-    output.opponent.angle = ext_dataOpponent_Human.angle;
-    output.opponent.angle.value().velocity = 0;
-
-    output.backAnnotate.setOpponentAngle_Heuristic = true;
-    output.backAnnotate.setOpponentAngle_Blob = true;
-    output.backAnnotate.setOpponentAngle_LKFlow = true;
-  }
-
-  // G1) if Neural US = Heuristic.them: SWAP Heuristic
+  // G1) if Neural US = Heuristic.them: SWAP Heuristic and invalidate them
+  // (nullopt)
   if (isFresh(inputs.us_neural.pos) && isFresh(inputs.them_heuristic.pos) &&
-      ext_dataRobot_Neural.pos.has_value() &&
-      ext_dataOpponent_Heuristic.IsPointInside(
-          ext_dataRobot_Neural.pos.value().position)) {
+      inputs.them_heuristic.IsPointInside(
+          inputs.us_neural.pos.value().position)) {
     output.backAnnotate.swapHeuristic = true;
-
-    ext_dataRobot_Heuristic.pos.reset();
-    ext_dataRobot_Heuristic.angle.reset();
-    ext_dataOpponent_Heuristic.pos.reset();
-    ext_dataOpponent_Heuristic.angle.reset();
+    inputs.them_heuristic.pos.reset();
+    inputs.them_heuristic.angle.reset();
   }
-
-  // Same check for Blob
+  // Same for Blob
   if (isFresh(inputs.us_neural.pos) && isFresh(inputs.them_blob.pos) &&
-      ext_dataOpponent_Blob.IsPointInside(
-          ext_dataRobot_Neural.pos.value().position)) {
-    // Mark for swap (will be applied in back-annotation)
+      inputs.them_blob.IsPointInside(inputs.us_neural.pos.value().position)) {
     output.backAnnotate.swapBlob = true;
-
-    ext_dataRobot_Blob.pos.reset();
-    ext_dataRobot_Blob.angle.reset();
-    ext_dataOpponent_Blob.pos.reset();
-    ext_dataOpponent_Blob.angle.reset();
+    inputs.them_blob.pos.reset();
+    inputs.them_blob.angle.reset();
   }
 
   // G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
-  if (isFresh(ext_dataRobot_Neural.pos) && isFresh(ext_dataRobot_Blob.pos) &&
-      ext_dataRobot_Blob.IsPointInside(
-          ext_dataRobot_Neural.pos.value().position)) {
-    // Force position if heuristic doesn't agree
-    if (!isFresh(ext_dataRobot_Heuristic.pos) ||
-        !ext_dataRobot_Heuristic.IsPointInside(
-            ext_dataRobot_Neural.pos.value().position)) {
-      ext_dataRobot_Heuristic.pos.reset();
-      ext_dataRobot_Heuristic.angle.reset();
+  if (isFresh(inputs.us_neural.pos) && isFresh(inputs.us_blob.pos) &&
+      inputs.us_blob.IsPointInside(inputs.us_neural.pos.value().position) &&
+      // Heuristic is invalid or doesn't aggree with neural
+      (!isFresh(inputs.us_heuristic.pos) ||
+       !inputs.us_heuristic.IsPointInside(
+           inputs.us_neural.pos.value().position))) {
+    inputs.us_heuristic.pos.reset();
+    inputs.us_heuristic.angle.reset();
+    output.robot.pos = inputs.us_neural.pos;
 
-      output.robot.pos = PositionData(ext_dataRobot_Neural.pos.value().position,
-                                      ext_dataRobot_Neural.pos.value().velocity,
-                                      ext_dataRobot_Neural.pos.value().time);
-      if (ext_dataRobot_Neural.pos.value().rect.has_value()) {
-        output.robot.pos.value().rect = ext_dataRobot_Neural.pos.value().rect;
-      }
-
-      // What about velocity? We'll keep velocity where it was calculated before
-      // for now Check below for velocity calculation
-    }
+    // What about velocity? We'll keep velocity where it was calculated before
+    // for now Check below for velocity calculation
   }
 
-  // ******************************
-  // PRIORITIES
-  // ******************************
-  //  US POS:
-  //           Rule:  1) Heuristic, 2) Neural Pos, 3) Blob
-  //           Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold,
-  //           setpos on blob If Heuristic.invalid, 1) setpos(blob) 2)
-  //           setpos(neural)
-
-  if (isFresh(ext_dataRobot_Heuristic.pos)) {
-    output.robot.pos =
-        PositionData(ext_dataRobot_Heuristic.pos.value().position,
-                     ext_dataRobot_Heuristic.pos.value().velocity,
-                     ext_dataRobot_Heuristic.pos.value().time);
-    if (ext_dataRobot_Heuristic.pos.value().rect.has_value()) {
-      output.robot.pos.value().rect = ext_dataRobot_Heuristic.pos.value().rect;
-    }
+  // Robot position
+  if (isFresh(inputs.us_heuristic.pos)) {
+    output.robot.pos = inputs.us_heuristic.pos;
 
     // If blob position isn't inside our rectangle then set position
-    if (isFresh(ext_dataRobot_Blob.pos) &&
-        !ext_dataRobot_Heuristic.IsPointInside(
-            ext_dataRobot_Blob.pos.value().position)) {
-      ext_dataRobot_Blob.pos.reset();
+    if (isFresh(inputs.us_blob.pos) &&
+        !inputs.us_heuristic.IsPointInside(
+            inputs.us_blob.pos.value().position)) {
+      inputs.us_blob.pos.reset();
     }
-  } else if (isFresh(ext_dataRobot_Neural.pos)) {
-    output.robot.pos = PositionData(ext_dataRobot_Neural.pos.value().position,
-                                    ext_dataRobot_Neural.pos.value().velocity,
-                                    ext_dataRobot_Neural.pos.value().time);
-    if (ext_dataRobot_Neural.pos.value().rect.has_value()) {
-      output.robot.pos.value().rect = ext_dataRobot_Neural.pos.value().rect;
-    }
-  } else if (isFresh(ext_dataRobot_Blob.pos)) {
-    output.robot.pos = PositionData(ext_dataRobot_Blob.pos.value().position,
-                                    ext_dataRobot_Blob.pos.value().velocity,
-                                    ext_dataRobot_Blob.pos.value().time);
-    if (ext_dataRobot_Blob.pos.value().rect.has_value()) {
-      output.robot.pos.value().rect = ext_dataRobot_Blob.pos.value().rect;
-    }
+  } else if (isFresh(inputs.us_neural.pos)) {
+    output.robot.pos = inputs.us_neural.pos;
+  } else if (isFresh(inputs.us_blob.pos)) {
+    output.robot.pos = inputs.us_blob.pos;
   }
 
-  //  US VEL:
-  //           Rule: 1) Heuristic, 2) Blob
-  if (isFresh(ext_dataRobot_Heuristic.pos) && output.robot.pos.has_value()) {
+  // Robot velocity
+  if (isFresh(inputs.us_heuristic.pos) && output.robot.pos.has_value()) {
     output.robot.pos.value().velocity =
-        ext_dataRobot_Heuristic.pos.value().velocity;
-  } else if (isFresh(ext_dataRobot_Blob.pos) && output.robot.pos.has_value()) {
-    output.robot.pos.value().velocity = ext_dataRobot_Blob.pos.value().velocity;
+        inputs.us_heuristic.pos.value().velocity;
+  } else if (isFresh(inputs.us_blob.pos) && output.robot.pos.has_value()) {
+    output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
   }
 
-  //  US ROT:
-  //            Rule: 1) IMU (Neural is already fused), 2) Neural Rot 3)
-  //            Heuristic 4) Blob
-  if (isFresh(ext_dataRobot_IMU.angle)) {
-    output.robot.angle = AngleData(ext_dataRobot_IMU.angle.value().angle,
-                                   ext_dataRobot_IMU.angle.value().velocity,
-                                   ext_dataRobot_IMU.angle.value().time);
+  // Robot angle
+  if (isFresh(inputs.us_imu.angle)) {
+    output.robot.angle = inputs.us_imu.angle;
 
     // Reset heuristic angle calculation
-    ext_dataRobot_Heuristic.angle.reset();
-    ext_dataRobot_Blob.angle.reset();
-  } else if (isFresh(ext_dataRobot_NeuralRot.angle)) {
-    // TODO: decide if we want to use neuralRot velocity
-    // Currently uses heuristic's angular velocity or otherwise 0
-    double angleVelocity = ext_dataRobot_Heuristic.angle.has_value()
-                               ? ext_dataRobot_Heuristic.angle.value().velocity
-                               : 0;
-    output.robot.angle =
-        AngleData(ext_dataRobot_NeuralRot.angle.value().angle, angleVelocity,
-                  ext_dataRobot_NeuralRot.angle.value().time);
+    inputs.us_heuristic.angle.reset();
+    inputs.us_blob.angle.reset();
+  } else if (isFresh(inputs.us_neuralrot.angle)) {
+    output.robot.angle = inputs.us_neuralrot.angle;
+    output.robot.angle.value().velocity =
+        inputs.them_lkflow.angle.has_value()
+            ? inputs.them_lkflow.angle.value().velocity
+            : 0;
 
     // Set heuristor to neural
-    ext_dataRobot_Heuristic.angle.reset();
-    ext_dataRobot_Blob.angle.reset();
-  } else if (isFresh(ext_dataRobot_Blob.angle)) {
-    output.robot.angle = AngleData(ext_dataRobot_Blob.angle.value().angle,
-                                   ext_dataRobot_Blob.angle.value().velocity,
-                                   ext_dataRobot_Blob.angle.value().time);
+    inputs.us_heuristic.angle.reset();
+    inputs.us_blob.angle.reset();
+  } else if (isFresh(inputs.us_blob.angle)) {
+    output.robot.angle = inputs.us_blob.angle;
   }
 
-  //  THEM POS:
-  //            Rule: 1) Heuristic, 2) Blob
-  //            Post: If Heuristic.valid && Blob.pos-Heauristic.pos > threshold,
-  //            setpos on blob If Heuristic.invalid, setpos(blob)
-  if (isFresh(ext_dataOpponent_Heuristic.pos)) {
-    output.opponent.pos =
-        PositionData(ext_dataOpponent_Heuristic.pos.value().position,
-                     ext_dataOpponent_Heuristic.pos.value().velocity,
-                     ext_dataOpponent_Heuristic.pos.value().time);
-    if (ext_dataOpponent_Heuristic.pos.value().rect.has_value()) {
-      output.opponent.pos.value().rect =
-          ext_dataOpponent_Heuristic.pos.value().rect;
-    }
+  // Opponent position
+  if (isFresh(inputs.them_heuristic.pos)) {
+    output.opponent.pos = inputs.them_heuristic.pos;
 
     // If blob position isn't inside our rectangle then set position
-    if (isFresh(ext_dataOpponent_Blob.pos) &&
-        !ext_dataOpponent_Heuristic.IsPointInside(
-            ext_dataOpponent_Blob.pos.value().position)) {
-      ext_dataOpponent_Blob.pos.reset();
+    if (isFresh(inputs.them_blob.pos) &&
+        !inputs.them_heuristic.IsPointInside(
+            inputs.them_blob.pos.value().position)) {
+      inputs.them_blob.pos.reset();
     }
-  } else if (isFresh(ext_dataOpponent_Blob.pos)) {
-    output.opponent.pos =
-        PositionData(ext_dataOpponent_Blob.pos.value().position,
-                     ext_dataOpponent_Blob.pos.value().velocity,
-                     ext_dataOpponent_Blob.pos.value().time);
-    if (ext_dataOpponent_Blob.pos.value().rect.has_value()) {
-      output.opponent.pos.value().rect = ext_dataOpponent_Blob.pos.value().rect;
-    }
-
-    ext_dataOpponent_Heuristic.pos.reset();
+  } else if (isFresh(inputs.them_blob.pos)) {
+    output.opponent.pos = inputs.them_blob.pos;
   }
 
-  //  THEM VEL:
-  //            Rule: 1) Heuristic, 2) Blob
-  if (isFresh(ext_dataOpponent_Heuristic.pos)) {
-    if (output.opponent.pos.has_value()) {
+  // Opponent velocity
+  if (output.opponent.pos.has_value()) {
+    if (isFresh(inputs.them_heuristic.pos)) {
       output.opponent.pos.value().velocity =
-          ext_dataOpponent_Heuristic.pos.value().velocity;
-    }
-  } else if (isFresh(ext_dataOpponent_Blob.pos)) {
-    if (output.opponent.pos.has_value()) {
+          inputs.them_heuristic.pos.value().velocity;
+    } else if (isFresh(inputs.them_blob.pos)) {
       output.opponent.pos.value().velocity =
-          ext_dataOpponent_Blob.pos.value().velocity;
+          inputs.them_blob.pos.value().velocity;
     }
   }
 
-  //  THEM ROT:
-  //            Rule: 1) LKFlow, 2) Human, 3) Heuristic, 4) Blob
-  if (isFresh(ext_dataOpponent_LKFlow.angle)) {
-    output.opponent.angle =
-        AngleData(ext_dataOpponent_LKFlow.angle.value().angle,
-                  ext_dataOpponent_LKFlow.angle.value().velocity,
-                  ext_dataOpponent_LKFlow.angle.value().time);
-  } else if (isFresh(ext_dataOpponent_Human.angle)) {
-    output.opponent.angle =
-        AngleData(ext_dataOpponent_Human.angle.value().angle,
-                  ext_dataOpponent_Human.angle.value().velocity,
-                  ext_dataOpponent_Human.angle.value().time);
-  } else if (isFresh(ext_dataOpponent_Blob.angle)) {
-    output.opponent.angle =
-        AngleData(ext_dataOpponent_Blob.angle.value().angle,
-                  ext_dataOpponent_Blob.angle.value().velocity,
-                  ext_dataOpponent_Blob.angle.value().time);
+  // Opponent rotation:
+  // Rule: 1) Human 2) LKFlow, 3) Blob, 4) Heuristic
+  if (isFresh(inputs.us_human.angle)) {
+    output.opponent.angle = inputs.us_human.angle;
+  } else if (isFresh(inputs.them_lkflow.angle)) {
+    output.opponent.angle = inputs.them_lkflow.angle;
+  } else if (isFresh(inputs.them_blob.angle)) {
+    output.opponent.angle = inputs.them_blob.angle;
+  } else if (isFresh(inputs.them_heuristic.angle)) {
+    output.opponent.angle = inputs.them_heuristic.angle;
   }
-
-  // *********************************************
-  // Back Annotate data to invalid readings
-  // *********************************************
 
   // Robot Position and velocity:
   //   Heuristic, Blob need back-annotated robot positions and velocities
   if (isFresh(output.robot.pos)) {
-    if (!isFresh(ext_dataRobot_Heuristic.pos)) {
+    if (!isFresh(inputs.us_heuristic.pos)) {
       output.backAnnotate.setRobotPos_Heuristic = true;
     }
-    if (!isFresh(ext_dataRobot_Blob.pos)) {
+    if (!isFresh(inputs.us_blob.pos)) {
       output.backAnnotate.setRobotPos_Blob = true;
     }
   }
@@ -475,32 +364,32 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
   // Robot Angle + velocity:
   // Heuristic, Blob will need it back annotated
   if (isFresh(output.robot.angle)) {
-    if (!isFresh(ext_dataRobot_Heuristic.angle)) {
+    if (!isFresh(inputs.us_heuristic.angle)) {
       output.backAnnotate.setRobotAngle_Heuristic = true;
     }
-    if (!isFresh(ext_dataRobot_Blob.angle)) {
+    if (!isFresh(inputs.us_blob.angle)) {
       output.backAnnotate.setRobotAngle_Blob = true;
     }
   }
 
   // OPPONENT same things:
   if (isFresh(output.opponent.pos)) {
-    if (!isFresh(ext_dataOpponent_Heuristic.pos)) {
+    if (!isFresh(inputs.them_heuristic.pos)) {
       output.backAnnotate.setOpponentPos_Heuristic = true;
     }
-    if (!isFresh(ext_dataOpponent_Blob.pos)) {
+    if (!isFresh(inputs.them_blob.pos)) {
       output.backAnnotate.setOpponentPos_Blob = true;
     }
   }
 
   if (isFresh(output.opponent.angle)) {
-    if (!isFresh(ext_dataOpponent_Heuristic.angle)) {
+    if (!isFresh(inputs.them_heuristic.angle)) {
       output.backAnnotate.setOpponentAngle_Heuristic = true;
     }
-    if (!isFresh(ext_dataOpponent_Blob.angle)) {
+    if (!isFresh(inputs.them_blob.angle)) {
       output.backAnnotate.setOpponentAngle_Blob = true;
     }
-    if (!isFresh(ext_dataOpponent_LKFlow.angle)) {
+    if (!isFresh(inputs.them_lkflow.angle)) {
       output.backAnnotate.setOpponentAngle_LKFlow = true;
     }
   }
@@ -518,6 +407,10 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
       AngleData(Angle(opponentData.rotation), opponentData.rotationVelocity,
                 opponentData.timestamp);
 #endif
+
+  // Extrapolate output to current time
+  output.robot = output.robot.ExtrapolateBoundedTo(now);
+  output.opponent = output.opponent.ExtrapolateBoundedTo(now);
 
   return output;
 }
