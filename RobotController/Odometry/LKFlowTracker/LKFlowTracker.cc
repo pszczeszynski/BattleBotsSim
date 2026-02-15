@@ -161,7 +161,6 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
     return false;
   }
 
-  _angle = Angle(0);
   _initialized = true;
   _lastRespawnTime = Clock::programClock.getElapsedTime();
 
