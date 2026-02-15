@@ -19,13 +19,13 @@ constexpr int kMaxLevel = 3;
 constexpr int kNumRotationPairs = 200;
 constexpr int kMinTrackFrames = 2;
 constexpr double kRespawnIntervalSeconds = 0.3;
+constexpr int kTargetPointCount = 40;
 }  // namespace
 
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
     : OdometryBase(videoSource),
       _imageSize(0, 0),
       _angle(Angle(0)),
-      _targetPointCount(40),
       _initialized(false),
       _lastRespawnTime(0.0),
       _rng(std::random_device{}()) {
@@ -82,9 +82,10 @@ void LKFlowTracker::_StartCalled(void) {
   _prevTime.reset();
 }
 
+// Clips the ROI to be within the image bounds.
 cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) const {
   if (bounds.width <= 0 || bounds.height <= 0) {
-    return roi;  // No valid bounds, return as-is
+    return roi;
   }
 
   int x = (std::max)(0, roi.x);
@@ -92,7 +93,6 @@ cv::Rect LKFlowTracker::_ClipROIToBounds(cv::Rect roi, cv::Size bounds) const {
   int w = (std::min)(roi.width, bounds.width - x);
   int h = (std::min)(roi.height, bounds.height - y);
 
-  // Ensure width and height are non-negative
   if (w < 0) w = 0;
   if (h < 0) h = 0;
 
@@ -128,7 +128,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 
   if (roi.width > 0 && roi.height > 0 &&
       ((frameTime - _lastRespawnTime) >= kRespawnIntervalSeconds) &&
-      _RespawnPoints(gray, roi, _tracks, _targetPointCount)) {
+      _RespawnPoints(gray, roi, _tracks, kTargetPointCount)) {
     _lastRespawnTime = frameTime;
   }
 
@@ -169,14 +169,12 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
 
 bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
                                     double frameTime) {
-  // Extract points from tracks for optical flow
   std::vector<cv::Point2f> prevPts;
   prevPts.reserve(_tracks.size());
   for (const auto& track : _tracks) {
     prevPts.push_back(track.pt);
   }
 
-  // Calculate optical flow
   std::vector<cv::Point2f> nextPts;
   std::vector<uchar> status;
   std::vector<float> err;

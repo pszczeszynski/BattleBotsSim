@@ -17,7 +17,8 @@ struct RotationResult {
 // Tracked point with age
 struct TrackPt {
   cv::Point2f pt;
-  int age;  // Number of consecutive frames successfully tracked
+  // Number of consecutive frames successfully tracked
+  int age;
 };
 
 // LKFlowTracker Odometry
@@ -63,15 +64,13 @@ class LKFlowTracker : public OdometryBase {
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
   void _FilterPointsByROI(std::vector<TrackPt>& tracks);
   cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds) const;
-
-  // Internal state
-  cv::Size _imageSize;  // Last known image size for ROI clipping
+  // Last known image size for ROI clipping
+  cv::Size _imageSize;
   cv::Mat _prevGray;
-  std::vector<TrackPt> _tracks;  // Replaces _prevPts + _pointTrackCounts
+  std::vector<TrackPt> _tracks;
   Angle _angle;
   cv::Point2f _pos;
 
-  int _targetPointCount;  // Target/baseline number of points to maintain
   bool _initialized;
   double _lastRespawnTime;  // Time of last respawn operation
 
