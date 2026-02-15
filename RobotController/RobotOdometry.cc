@@ -206,14 +206,12 @@ void RobotOdometry::Update() {
       prevOpponent = _dataOpponent;
     }
 
-    // Call fusion (pure function, no shared state access)
     FusionOutput fusionResult = Fuse(inputs, currTime, prevRobot, prevOpponent);
 
     // Apply fusion results
     std::unique_lock<std::mutex> locker(_updateMutex);
     _dataRobot = fusionResult.robot;
     _dataOpponent = fusionResult.opponent;
-
     locker.unlock();
 
     // Apply back-annotation (these modify algorithm state, so outside mutex)
@@ -255,9 +253,6 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
       inputs.them_heuristic.ExtrapolateBoundedTo(now);
   OdometryData ext_dataOpponent_LKFlow =
       inputs.them_lkflow.ExtrapolateBoundedTo(now);
-
-  // If we determine a force position is required, mark it using this variable
-  bool forceUsPosition = false;
 
   // Opponent rotation
   if (isFresh(inputs.them_human.angle) && inputs.them_human_is_new) {
@@ -313,7 +308,6 @@ FusionOutput RobotOdometry::Fuse(const RawInputs &inputs, double now,
         output.robot.pos.value().rect = ext_dataRobot_Neural.pos.value().rect;
       }
 
-      forceUsPosition = true;
       // What about velocity? We'll keep velocity where it was calculated before
       // for now Check below for velocity calculation
     }
