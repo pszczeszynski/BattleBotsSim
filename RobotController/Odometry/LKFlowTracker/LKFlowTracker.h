@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "../../CameraReceiver.h"
-#include "../../Clock.h"
 #include "../OdometryBase.h"
 
 // Helper structure for rotation results
@@ -64,16 +63,6 @@ class LKFlowTracker : public OdometryBase {
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
   void _FilterPointsByROI(std::vector<TrackPt>& tracks);
   cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds) const;
-
-  // Configuration constants
-  static constexpr int LK_MAX_CORNERS = 200;
-  static constexpr double LK_QUALITY_LEVEL = 0.001;
-  static constexpr double LK_MIN_DISTANCE = 7.0;
-  static const cv::Size LK_WIN_SIZE;
-  static constexpr int LK_MAX_LEVEL = 3;
-  static constexpr int LK_NUM_PAIRS = 200;
-  static constexpr int LK_MIN_TRACK_FRAMES = 2;
-  static constexpr double RESPAWN_INTERVAL = 0.3;  // seconds - respawn interval
 
   // Internal state
   cv::Size _imageSize;  // Last known image size for ROI clipping

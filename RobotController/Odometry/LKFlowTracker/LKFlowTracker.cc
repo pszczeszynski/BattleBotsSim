@@ -10,12 +10,16 @@
 
 namespace {
 constexpr int kRoiSize = 60;
-// blend _pos toward center
 constexpr float kPosInterpolationAlpha = 0.00f;
+constexpr int kMaxCorners = 200;
+constexpr double kQualityLevel = 0.001;
+constexpr double kMinCornerDistance = 7.0;
+const cv::Size kWindowSize(15, 15);
+constexpr int kMaxLevel = 3;
+constexpr int kNumRotationPairs = 200;
+constexpr int kMinTrackFrames = 2;
+constexpr double kRespawnIntervalSeconds = 0.3;
 }  // namespace
-
-// Static member initialization
-const cv::Size LKFlowTracker::LK_WIN_SIZE(15, 15);
 
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
     : OdometryBase(videoSource),
@@ -125,7 +129,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   cv::Rect roi = _GetROI();
 
   if (roi.width > 0 && roi.height > 0 &&
-      ((frameTime - _lastRespawnTime) >= RESPAWN_INTERVAL) &&
+      ((frameTime - _lastRespawnTime) >= kRespawnIntervalSeconds) &&
       _RespawnPoints(gray, roi, _tracks, _targetPointCount)) {
     _lastRespawnTime = frameTime;
   }
@@ -159,7 +163,7 @@ bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
 
   cv::Rect roi = _GetROI();
   // Use _RespawnPoints to find points, requesting all available points
-  if (!_RespawnPoints(gray, roi, _tracks, LK_MAX_CORNERS)) {
+  if (!_RespawnPoints(gray, roi, _tracks, kMaxCorners)) {
     return false;
   }
 
@@ -198,8 +202,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   std::vector<float> err;
 
   cv::calcOpticalFlowPyrLK(
-      prevGray, currGray, prevPts, nextPts, status, err, LK_WIN_SIZE,
-      LK_MAX_LEVEL,
+      prevGray, currGray, prevPts, nextPts, status, err, kWindowSize, kMaxLevel,
       cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30,
                        0.01));
 
@@ -228,7 +231,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
 
   _FilterPointsByROI(tracksNext);
-  _DeduplicateTracks(tracksNext, LK_MIN_DISTANCE * 0.8f);  // tune: 0.6–1.0
+  _DeduplicateTracks(tracksNext, kMinCornerDistance * 0.8f);  // tune: 0.6–1.0
 
   // If we have too few points after tracking, fail (respawn handled in
   // _ProcessNewFrame)
@@ -307,8 +310,8 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
     }
 
     // Check that both points have been tracked for at least LK_MIN_TRACK_FRAMES
-    if (_tracks[idx1].age < LK_MIN_TRACK_FRAMES ||
-        _tracks[idx2].age < LK_MIN_TRACK_FRAMES) {
+    if (_tracks[idx1].age < kMinTrackFrames ||
+        _tracks[idx2].age < kMinTrackFrames) {
       continue;
     }
 
@@ -492,7 +495,7 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
 
   // Request more points than needed since some may be filtered out for being
   // too close to existing points
-  int maxToRequest = (std::min)(needed * 2, LK_MAX_CORNERS);
+  int maxToRequest = (std::min)(needed * 2, kMaxCorners);
 
   // Clip ROI to image bounds (safety check in case image size changed)
   cv::Rect validROI = _ClipROIToBounds(roi, gray.size());
@@ -503,8 +506,8 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
   cv::Mat roiGray = gray(validROI);
 
   std::vector<cv::Point2f> newPts;
-  cv::goodFeaturesToTrack(roiGray, newPts, maxToRequest, LK_QUALITY_LEVEL,
-                          LK_MIN_DISTANCE);
+  cv::goodFeaturesToTrack(roiGray, newPts, maxToRequest, kQualityLevel,
+                          kMinCornerDistance);
 
   if (newPts.empty()) {
     return false;
@@ -519,7 +522,8 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
   // Filter new points: only add those that are sufficiently far from existing
   // tracks
   const double minDistSq =
-      LK_MIN_DISTANCE * LK_MIN_DISTANCE;  // Use squared distance for efficiency
+      kMinCornerDistance *
+      kMinCornerDistance;  // Use squared distance for efficiency
   int added = 0;
   for (const auto& newPt : newPts) {
     if (added >= needed) {
@@ -592,7 +596,8 @@ std::vector<std::pair<int, int>> LKFlowTracker::_GeneratePointPairs(int nPts) {
   }
 
   // Select a random subset if we have more pairs than needed
-  int numPairs = (std::min)(LK_NUM_PAIRS, static_cast<int>(allPairs.size()));
+  int numPairs =
+      (std::min)(kNumRotationPairs, static_cast<int>(allPairs.size()));
   if (static_cast<int>(allPairs.size()) > numPairs) {
     std::shuffle(allPairs.begin(), allPairs.end(), _rng);
     pairs.assign(allPairs.begin(), allPairs.begin() + numPairs);
