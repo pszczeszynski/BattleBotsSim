@@ -651,30 +651,22 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
       PositionData(newPos, newVel, Clock::programClock.getElapsedTime());
 }
 
-// Run Code
 bool RobotOdometry::Run(OdometryAlg algorithm) {
   switch (algorithm) {
     case OdometryAlg::Blob:
       return _odometry_Blob.Run();
-
     case OdometryAlg::Heuristic:
       return _odometry_Heuristic.Run();
-
     case OdometryAlg::IMU:
       return _odometry_IMU.Run();
-
     case OdometryAlg::Neural:
       return _odometry_Neural.Run();
-
     case OdometryAlg::Human:
       return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
-
     case OdometryAlg::NeuralRot:
       return _odometry_NeuralRot.Run();
-
     case OdometryAlg::LKFlow:
       return _odometry_LKFlow.Run();
-
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
       return _odometry_opencv.Run();
@@ -686,30 +678,22 @@ bool RobotOdometry::Run(OdometryAlg algorithm) {
   return false;
 }
 
-// Stop Code
 bool RobotOdometry::Stop(OdometryAlg algorithm) {
   switch (algorithm) {
     case OdometryAlg::Blob:
       return _odometry_Blob.Stop();
-
     case OdometryAlg::Heuristic:
       return _odometry_Heuristic.Stop();
-
     case OdometryAlg::IMU:
       return _odometry_IMU.Stop();
-
     case OdometryAlg::Neural:
       return _odometry_Neural.Stop();
-
     case OdometryAlg::Human:
-      return _odometry_Human.Stop() && _odometry_Human_Heuristic.Stop();
-
+      return _odometry_Human.Stop();
     case OdometryAlg::NeuralRot:
       return _odometry_NeuralRot.Stop();
-
     case OdometryAlg::LKFlow:
       return _odometry_LKFlow.Stop();
-
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
       return _odometry_opencv.Stop();
@@ -724,26 +708,19 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm) {
   switch (algorithm) {
     case OdometryAlg::Blob:
       return _odometry_Blob.IsRunning();
-
     case OdometryAlg::Heuristic:
       return _odometry_Heuristic.IsRunning();
-
     case OdometryAlg::IMU:
       return _odometry_IMU.IsRunning();
-
     case OdometryAlg::Neural:
       return _odometry_Neural.IsRunning();
-
     case OdometryAlg::Human:
       return _odometry_Human.IsRunning() &&
              _odometry_Human_Heuristic.IsRunning();
-
     case OdometryAlg::NeuralRot:
       return _odometry_NeuralRot.IsRunning();
-
     case OdometryAlg::LKFlow:
       return _odometry_LKFlow.IsRunning();
-
 #ifdef USE_OPENCV_TRACKER
     case OdometryAlg::OpenCV:
       return _odometry_opencv.IsRunning();
