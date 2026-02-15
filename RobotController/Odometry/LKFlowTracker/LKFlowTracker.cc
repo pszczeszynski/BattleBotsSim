@@ -242,14 +242,12 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   // Update tracks with compacted results
   _tracks = tracksNext;
 
-  // Build sample and publish
   OdometryData sample{};
   sample.id = _frameID++;
   sample.pos = PositionData(_pos, visualVelocity, frameTime);
   sample.angle = AngleData(_angle, angularVelocity, frameTime);
   OdometryBase::Publish(sample, true);
 
-  // Update local previous data for next iteration
   _prevTime = frameTime;
 
   _DrawDebugImage(currGray.size(), nextPts, validPairs);
