@@ -104,8 +104,6 @@ public:
 
     bool IsTrackingGoodQuality();
 
-    void SwitchRobots(); // Switches who's who
-
     // used for calibration
     void UpdateForceSetAngle(double newAngle, bool opponentRobot );
     void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity, bool opponentRobot );

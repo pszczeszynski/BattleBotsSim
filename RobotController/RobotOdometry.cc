@@ -651,20 +651,6 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
       PositionData(newPos, newVel, Clock::programClock.getElapsedTime());
 }
 
-// Switch position of robots
-void RobotOdometry::SwitchRobots() {
-  // Switch all the Odometry
-  _odometry_Blob.SwitchRobots();
-  _odometry_Heuristic.SwitchRobots();
-
-  // Update our own data
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  OdometryData tempData = _dataRobot;
-  _dataRobot = _dataOpponent;
-  _dataOpponent = tempData;
-}
-
 // Run Code
 bool RobotOdometry::Run(OdometryAlg algorithm) {
   switch (algorithm) {
