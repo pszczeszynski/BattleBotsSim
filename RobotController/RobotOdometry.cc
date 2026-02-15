@@ -263,9 +263,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     inputs.us_heuristic.pos.reset();
     inputs.us_heuristic.angle.reset();
     output.robot.pos = inputs.us_neural.pos;
-
-    // What about velocity? We'll keep velocity where it was calculated before
-    // for now Check below for velocity calculation
   }
 
   // Robot position
