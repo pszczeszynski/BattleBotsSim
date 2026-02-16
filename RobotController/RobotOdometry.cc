@@ -83,13 +83,14 @@ void RobotOdometry::_AdjustAngleWithArrowKeys() {
   }
 
   // opponent with up and 1 and 3
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_1) &&
-      _dataOpponent.angle.has_value()) {
-    UpdateForceSetAngle(_dataOpponent.angle.value().angle - angleUserAdjust,
-                        true);
+  if (InputState::GetInstance().IsKeyDown(ImGuiKey_1)) {
+    if (auto a = _dataOpponent.angle) {
+      UpdateForceSetAngle(a.value().angle - angleUserAdjust, true);
+    }
   } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_3)) {
-    UpdateForceSetAngle(_dataOpponent.angle.value().angle + angleUserAdjust,
-                        true);
+    if (auto a = _dataOpponent.angle) {
+      UpdateForceSetAngle(a.value().angle + angleUserAdjust, true);
+    }
   }
 }
 
