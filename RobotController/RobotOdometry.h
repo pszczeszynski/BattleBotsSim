@@ -90,9 +90,6 @@ class RobotOdometry {
   void ApplyBackAnnotation(const BackAnnotation& backAnnotate,
                            const OdometryData& robot,
                            const OdometryData& opponent);
-  void DrawTrackingVisualization();
-
-  bool IsTrackingGoodQuality();
 
   // used for calibration
   void UpdateForceSetAngle(double newAngle, bool opponentRobot);

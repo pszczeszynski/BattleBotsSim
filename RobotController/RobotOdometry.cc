@@ -231,9 +231,6 @@ void RobotOdometry::Update() {
     // Pass fused outputs directly to avoid race conditions with other threads
     ApplyBackAnnotation(fusionResult.backAnnotate, fusionResult.robot,
                         fusionResult.opponent);
-
-    // Draw debug visualization
-    DrawTrackingVisualization();
   }
 }
 
@@ -408,97 +405,6 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
   }
-}
-
-void RobotOdometry::DrawTrackingVisualization() {
-  TrackingWidget *trackingWidget = TrackingWidget::GetInstance();
-
-  cv::Mat trackingMat;
-  if (trackingWidget) {
-    trackingMat = TrackingWidget::GetInstance()->GetTrackingMat();
-  }
-
-  if (!trackingMat.empty()) {
-    // Draw robot as a square
-    int size = (MIN_ROBOT_BLOB_SIZE + MAX_ROBOT_BLOB_SIZE) / 4;
-    if (_dataRobot.pos.has_value()) {
-      cv::rectangle(trackingMat,
-                    _dataRobot.pos.value().position - cv::Point2f(size, size),
-                    _dataRobot.pos.value().position + cv::Point2f(size, size),
-                    cv::Scalar(255, 255, 255), 2);
-    }
-
-    if (_dataOpponent.pos.has_value()) {
-      // Draw opponent as a circle
-      size = (MIN_OPPONENT_BLOB_SIZE + MAX_OPPONENT_BLOB_SIZE) / 4;
-      safe_circle(trackingMat, _dataOpponent.pos.value().position, size,
-                  cv::Scalar(255, 255, 255), 2);
-    }
-  }
-}
-
-/*
- * Returns true if the tracking data can be trusted + used for orbit + kill mode
- * False otherwise.
- *
- * Criteria are:
- * 1. Good if both blob + heuristic are valid + agree, and neural net isn't
- * running
- * 2. Good if the current selected robot pos with the neural net + neural net
- * valid + recent
- * 3. Bad otherwise
- */
-bool RobotOdometry::IsTrackingGoodQuality() {
-  const double AGREEMENT_DIST_THRESH_PX = 50;
-
-  bool heuristicValid = _odometry_Heuristic.IsRunning() &&
-                        _prevInputs.us_heuristic.pos.has_value() &&
-                        _prevInputs.us_heuristic.pos.value().GetAge() < 0.3;
-  bool blobValid =
-      _odometry_Blob
-          .IsRunning();  // don't include valid, since it might just be stopped
-  // the neural is valid if it isn't too old && it's running
-  bool neuralValid = _odometry_Neural.IsRunning() &&
-                     _prevInputs.us_neural.pos.has_value() &&
-                     _prevInputs.us_neural.pos.value().GetAge() < 0.1;
-
-  // crying, return false :(
-  if (!heuristicValid && !blobValid && !neuralValid) {
-    return false;
-  }
-
-  // if heuristic and blob valid, but neural net isn't running
-  if (heuristicValid && blobValid && !neuralValid &&
-      _prevInputs.us_heuristic.pos.has_value()) {
-    double distBetweenRobot =
-        cv::norm(_prevInputs.us_heuristic.pos.value().position -
-                 _prevInputs.us_blob.pos.value().position);
-    double distBetweenOpponent =
-        cv::norm(_prevInputs.them_heuristic.pos.value().position -
-                 _prevInputs.them_blob.pos.value().position);
-
-    // return true if they agree, false otherwise
-    return distBetweenRobot < AGREEMENT_DIST_THRESH_PX &&
-           distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
-  }
-
-  // if the neural net is running and predicting
-  if (neuralValid && _dataRobot.pos.has_value() &&
-      _prevInputs.us_neural.pos.has_value()) {
-    // check for agreement with neural net + agreement between the other two
-    // algorithms for the opponent
-    double distToRobot = cv::norm(_dataRobot.pos.value().position -
-                                  _prevInputs.us_neural.pos.value().position);
-    double distBetweenOpponent =
-        cv::norm(_prevInputs.them_heuristic.pos.value().position -
-                 _prevInputs.them_blob.pos.value().position);
-
-    return distToRobot < AGREEMENT_DIST_THRESH_PX &&
-           distBetweenOpponent < AGREEMENT_DIST_THRESH_PX;
-  }
-
-  // otherwise return false, since we don't have enough confidence
-  return false;
 }
 
 /**

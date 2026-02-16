@@ -587,17 +587,4 @@ void RobotController::DrawStatusIndicators() {
   safe_circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
   cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254),
               cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  std::string trackText = "";
-  // tracking status indicator
-  if (odometry.IsTrackingGoodQuality()) {
-    color = cv::Scalar(0, 255, 0);
-    trackText = "GOOD TRACK";
-  } else {
-    color = cv::Scalar(0, 0, 255);
-    trackText = "MID TRACK";
-  }
-
-  cv::putText(drawingImage, trackText,
-              cv::Point2f(WIDTH / 2 - 100, HEIGHT * 0.9), 1, 2, color, 3);
 }
