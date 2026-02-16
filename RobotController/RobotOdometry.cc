@@ -488,7 +488,7 @@ bool RobotOdometry::Run(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
-  OdometryBase* p = _algorithms.at(algorithm);
+  OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->Run();
 }
 
@@ -496,7 +496,7 @@ bool RobotOdometry::Stop(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Stop() && _odometry_Human_Heuristic.Stop();
   }
-  OdometryBase* p = _algorithms.at(algorithm);
+  OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->Stop();
 }
 
@@ -504,7 +504,7 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.IsRunning() && _odometry_Human_Heuristic.IsRunning();
   }
-  OdometryBase* p = _algorithms.at(algorithm);
+  OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->IsRunning();
 }
 
@@ -650,31 +650,25 @@ void RobotOdometry::GetDebugImage(cv::Mat &debugImage, cv::Point offset) {
     debugImage = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0));
   }
 
-  debugImage = cv::Mat::zeros(debugImage.size(),
-                              debugImage.type());  // Clear the target image
+  debugImage = cv::Mat::zeros(debugImage.size(), debugImage.type());
 
-  // X-coordinates for left and right columns
-  const int leftX = 10 + offset.x;  // Left column for Robot Data
+  const int leftX = 10 + offset.x;
 
-  // Draw robot data (top-left)
-  int yLeft = 20 + offset.y;  // Start at top
+  int yLeft = 20 + offset.y;
   printText("Final Robot Data:", debugImage, yLeft, leftX);
   _dataRobot.GetDebugImage(debugImage, cv::Point(leftX + 10, yLeft + 14));
 
-  yLeft = 20 + offset.y;  // Reset to top
+  yLeft = 20 + offset.y;
 
-  // Draw opponent data next to it
   printText("Final Opp Data:", debugImage, yLeft, leftX + 230);
   _dataOpponent.GetDebugImage(debugImage,
                               cv::Point(leftX + 10 + 230, yLeft + 14));
 
-  yLeft += 140;  // Move down for the next section
+  yLeft += 140;
 
-  // Check if debugImage is empty    // Get unique access to _debugImage
   std::unique_lock<std::mutex> locker(_mutexDebugImage);
 
-  // Add debug string
   printText(_debugString, debugImage, yLeft, offset.x);
 
-  locker.unlock();  // Unlock mutex after operation
+  locker.unlock();
 }
