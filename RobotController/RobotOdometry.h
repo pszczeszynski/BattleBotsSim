@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <fstream>
 #include <opencv2/opencv.hpp>
 
@@ -34,7 +35,8 @@ enum OdometryAlg {
   NeuralRot,
   OpenCV,
   LKFlow,
-  Gyro
+  Gyro,
+  kOdometryAlgCount
 };
 
 // Back-annotation instructions for algorithms that need position/angle updates
@@ -97,9 +99,6 @@ class RobotOdometry {
   void UpdateForceSetPosAndVel(cv::Point2f position, cv::Point2f velocity,
                                bool opponentRobot);
 
-  void ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos, bool opponent);
-  void ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel, bool opponent);
-
   OdometryIMU& GetIMUOdometry();
   HeuristicOdometry& GetHeuristicOdometry();
   CVPosition& GetNeuralOdometry();
@@ -125,7 +124,7 @@ class RobotOdometry {
   OdometryPoller _poller;
   RawInputs _prevInputs;
 
-  // Odometry algorithms
+  // Odometry algorithms (stored for lifetime and typed access)
   BlobDetection _odometry_Blob;
   HeuristicOdometry _odometry_Heuristic;
   CVPosition _odometry_Neural;
@@ -138,6 +137,10 @@ class RobotOdometry {
 #ifdef USE_OPENCV_TRACKER
   OpenCVTracker _odometry_opencv;
 #endif
+
+  // Dispatch table indexed by OdometryAlg (avoids duplicated switch statements)
+  std::array<OdometryBase*, kOdometryAlgCount> _algorithms{};
+  void _InitAlgorithmTable();
 
   // Final Data
   std::mutex _updateMutex;  // Mutex for updating core results

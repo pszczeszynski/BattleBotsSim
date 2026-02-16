@@ -49,6 +49,23 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
               _odometry_opencv
 #endif
       ) {
+  _InitAlgorithmTable();
+}
+
+void RobotOdometry::_InitAlgorithmTable() {
+  _algorithms[OdometryAlg::Blob] = &_odometry_Blob;
+  _algorithms[OdometryAlg::Heuristic] = &_odometry_Heuristic;
+  _algorithms[OdometryAlg::IMU] = &_odometry_IMU;
+  _algorithms[OdometryAlg::Neural] = &_odometry_Neural;
+  _algorithms[OdometryAlg::Human] = &_odometry_Human;
+  _algorithms[OdometryAlg::NeuralRot] = &_odometry_NeuralRot;
+  _algorithms[OdometryAlg::LKFlow] = &_odometry_LKFlow;
+  _algorithms[OdometryAlg::Gyro] = nullptr;
+#ifdef USE_OPENCV_TRACKER
+  _algorithms[OdometryAlg::OpenCV] = &_odometry_opencv;
+#else
+  _algorithms[OdometryAlg::OpenCV] = nullptr;
+#endif
 }
 
 RobotOdometry::~RobotOdometry() {
@@ -573,84 +590,27 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
 }
 
 bool RobotOdometry::Run(OdometryAlg algorithm) {
-  switch (algorithm) {
-    case OdometryAlg::Blob:
-      return _odometry_Blob.Run();
-    case OdometryAlg::Heuristic:
-      return _odometry_Heuristic.Run();
-    case OdometryAlg::IMU:
-      return _odometry_IMU.Run();
-    case OdometryAlg::Neural:
-      return _odometry_Neural.Run();
-    case OdometryAlg::Human:
-      return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
-    case OdometryAlg::NeuralRot:
-      return _odometry_NeuralRot.Run();
-    case OdometryAlg::LKFlow:
-      return _odometry_LKFlow.Run();
-#ifdef USE_OPENCV_TRACKER
-    case OdometryAlg::OpenCV:
-      return _odometry_opencv.Run();
-#endif
-    default:
-      break;
+  if (algorithm == OdometryAlg::Human) {
+    return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
-
-  return false;
+  OdometryBase *p = _algorithms[algorithm];
+  return p != nullptr && p->Run();
 }
 
 bool RobotOdometry::Stop(OdometryAlg algorithm) {
-  switch (algorithm) {
-    case OdometryAlg::Blob:
-      return _odometry_Blob.Stop();
-    case OdometryAlg::Heuristic:
-      return _odometry_Heuristic.Stop();
-    case OdometryAlg::IMU:
-      return _odometry_IMU.Stop();
-    case OdometryAlg::Neural:
-      return _odometry_Neural.Stop();
-    case OdometryAlg::Human:
-      return _odometry_Human.Stop();
-    case OdometryAlg::NeuralRot:
-      return _odometry_NeuralRot.Stop();
-    case OdometryAlg::LKFlow:
-      return _odometry_LKFlow.Stop();
-#ifdef USE_OPENCV_TRACKER
-    case OdometryAlg::OpenCV:
-      return _odometry_opencv.Stop();
-#endif
+  if (algorithm == OdometryAlg::Human) {
+    return _odometry_Human.Stop() && _odometry_Human_Heuristic.Stop();
   }
-
-  return false;
+  OdometryBase *p = _algorithms[algorithm];
+  return p != nullptr && p->Stop();
 }
 
-// IsRunning Code
 bool RobotOdometry::IsRunning(OdometryAlg algorithm) {
-  switch (algorithm) {
-    case OdometryAlg::Blob:
-      return _odometry_Blob.IsRunning();
-    case OdometryAlg::Heuristic:
-      return _odometry_Heuristic.IsRunning();
-    case OdometryAlg::IMU:
-      return _odometry_IMU.IsRunning();
-    case OdometryAlg::Neural:
-      return _odometry_Neural.IsRunning();
-    case OdometryAlg::Human:
-      return _odometry_Human.IsRunning() &&
-             _odometry_Human_Heuristic.IsRunning();
-    case OdometryAlg::NeuralRot:
-      return _odometry_NeuralRot.IsRunning();
-    case OdometryAlg::LKFlow:
-      return _odometry_LKFlow.IsRunning();
-#ifdef USE_OPENCV_TRACKER
-    case OdometryAlg::OpenCV:
-      return _odometry_opencv.IsRunning();
-#endif
-    default:
-      break;
+  if (algorithm == OdometryAlg::Human) {
+    return _odometry_Human.IsRunning() && _odometry_Human_Heuristic.IsRunning();
   }
-
-  return false;
+  OdometryBase *p = _algorithms[algorithm];
+  return p != nullptr && p->IsRunning();
 }
 
 HeuristicOdometry &RobotOdometry::GetHeuristicOdometry() {
@@ -780,58 +740,6 @@ std::stringstream RobotOdometry::GetOdometryLog(const std::string &name,
   }
 
   return ss;
-}
-
-/**
- * @brief Forces the position of a tracking algorithm to be a certain value
- *
- * @param alg - the algorithm to set the position of
- * @param pos - the position to set it to
- * @param opponent - whether to set the opponent or not
- */
-void RobotOdometry::ForceSetPositionOfAlg(OdometryAlg alg, cv::Point2f pos,
-                                          bool opponent) {
-  if (alg == OdometryAlg::Blob) {
-    _odometry_Blob.SetPosition(pos, opponent);
-  } else if (alg == OdometryAlg::Heuristic) {
-    _odometry_Heuristic.SetPosition(pos, opponent);
-  } else if (alg == OdometryAlg::IMU) {
-    _odometry_IMU.SetPosition(pos, opponent);
-  } else if (alg == OdometryAlg::Neural) {
-    _odometry_Neural.SetPosition(pos, opponent);
-  }
-#ifdef USE_OPENCV_TRACKER
-  else if (alg == OdometryAlg::OpenCV) {
-    _odometry_opencv.SetPosition(pos, opponent);
-  }
-#endif
-}
-
-/**
- * @brief Forces the velocity of a tracking algorithm to be a certain value
- *
- * @param alg - the algorithm to set the velocity of
- * @param vel - the velocity to set it to
- * @param opponent - whether to set the opponent or not
- */
-void RobotOdometry::ForceSetVelocityOfAlg(OdometryAlg alg, cv::Point2f vel,
-                                          bool opponent) {
-  if (alg == OdometryAlg::Blob) {
-    _odometry_Blob.SetVelocity(vel, opponent);
-  } else if (alg == OdometryAlg::Heuristic) {
-    _odometry_Heuristic.SetVelocity(vel, opponent);
-  } else if (alg == OdometryAlg::IMU) {
-    std::cerr << "ERROR: Cannot set velocity for IMU" << std::endl;
-  } else if (alg == OdometryAlg::Neural) {
-    _odometry_Neural.SetVelocity(vel, opponent);
-  } else if (alg == OdometryAlg::NeuralRot) {
-    std::cerr << "ERROR: Cannot set velocity for NeuralRot" << std::endl;
-  }
-#ifdef USE_OPENCV_TRACKER
-  else if (alg == OdometryAlg::OpenCV) {
-    std::cerr << "ERROR: Cannot set velocity for opencv" << std::endl;
-  }
-#endif
 }
 
 std::string RobotOdometry::GetDebugString() {
