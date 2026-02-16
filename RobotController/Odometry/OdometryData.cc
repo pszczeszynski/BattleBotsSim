@@ -44,7 +44,7 @@ OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
   double baseTime = pos.has_value()
                         ? pos.value().time
                         : (angle.has_value() ? angle.value().time : 0);
-  return _ExtrapolateTo((std::min)(targetTime, baseTime + maxRelativeTime));
+  return _ExtrapolateTo(std::min(targetTime, baseTime + maxRelativeTime));
 }
 
 // Adds to the passed image odometry data for debugging purposes.
@@ -59,7 +59,7 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   ss << std::fixed << std::setprecision(1);
 
   // ID
-  ss << " ID: " << ( id == 0 ? "Not set" : std::to_string(id));
+  ss << " ID: " << (id == 0 ? "Not set" : std::to_string(id));
   ss << "\n";
 
   // Position

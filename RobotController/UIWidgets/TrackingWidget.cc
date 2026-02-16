@@ -8,7 +8,6 @@
 #include "CameraWidget.h"
 #include "ColorScheme.h"
 
-
 TrackingWidget* TrackingWidget::_instance = nullptr;
 cv::Point2f TrackingWidget::robotMouseClickPoint = cv::Point2f(0, 0);
 cv::Point2f TrackingWidget::opponentMouseClickPoint = cv::Point2f(0, 0);
@@ -595,6 +594,39 @@ void TrackingWidget::_RenderFrames() {
 
   // Use the camera image size as the output size
   cv::Size outputSize = GetDebugImage("Camera").size();
+
+  // Pull debug images from RobotOdometry at draw time (only for visible
+  // variants)
+  RobotOdometry& odometry = RobotController::GetInstance().odometry;
+  if (showBlob) {
+    odometry.GetBlobOdometry().GetDebugImage(GetDebugImage("Blob"),
+                                             GetDebugOffset("Blob"));
+  }
+  if (showHeuristic) {
+    odometry.GetHeuristicOdometry().GetDebugImage(GetDebugImage("Heuristic"),
+                                                  GetDebugOffset("Heuristic"));
+  }
+  if (showNeural) {
+    odometry.GetNeuralOdometry().GetDebugImage(GetDebugImage("Neural"),
+                                               GetDebugOffset("Neural"));
+  }
+  if (showFusion) {
+    odometry.GetDebugImage(GetDebugImage("Fusion"), GetDebugOffset("Fusion"));
+  }
+  if (showNeuralRot) {
+    odometry.GetNeuralRotOdometry().GetDebugImage(GetDebugImage("NeuralRot"),
+                                                  GetDebugOffset("NeuralRot"));
+  }
+  if (showLKFlow) {
+    odometry.GetLKFlowOdometry().GetDebugImage(GetDebugImage("LKFlow"),
+                                               GetDebugOffset("LKFlow"));
+  }
+#ifdef USE_OPENCV_TRACKER
+  if (showOpencv) {
+    odometry.GetOpenCVOdometry().GetDebugImage(GetDebugImage("Opencv"),
+                                               GetDebugOffset("Opencv"));
+  }
+#endif
 
   // Initialize output image as a black color image (CV_8UC3)
   _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);

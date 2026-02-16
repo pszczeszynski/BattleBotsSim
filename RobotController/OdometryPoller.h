@@ -14,8 +14,6 @@
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
 #endif
 
-class TrackingWidget;
-
 /**
  * @brief Structure holding raw odometry data from all algorithms for one update
  * cycle
@@ -98,12 +96,11 @@ class OdometryPoller {
   /**
    * @brief Poll all odometry algorithms for new data
    *
-   * @param trackingInfo UI widget for debug visualization (can be nullptr)
    * @param prevInputs Previous cycle's inputs (used for tracking human
    * interface updates)
    * @return RawInputs containing all available odometry data and update flags
    */
-  RawInputs Poll(TrackingWidget* trackingInfo, const RawInputs& prevInputs);
+  RawInputs Poll(const RawInputs& prevInputs);
 
  private:
   // References to all odometry algorithm instances

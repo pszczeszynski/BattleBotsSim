@@ -5,7 +5,6 @@
 #include "../Globals.h"
 #include "OdometryData.h"
 
-
 // clock widget
 #include "../Odometry/Heuristic1/RobotTracker.h"
 
@@ -14,7 +13,10 @@
 // ***********************************************
 
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
-    : _videoSource(videoSource) {};
+    : _videoSource(videoSource) {
+  _data[0] = OdometryData{};
+  _data[1] = OdometryData{};
+};
 
 OdometryBase::OdometryBase(void) {};
 
