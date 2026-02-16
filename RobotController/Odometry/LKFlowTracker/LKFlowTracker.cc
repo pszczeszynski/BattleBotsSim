@@ -576,7 +576,6 @@ void LKFlowTracker::_FilterPointsByROI(std::vector<TrackPt>& tracks) {
   // Remove points that are outside the ROI
   tracks.erase(std::remove_if(tracks.begin(), tracks.end(),
                               [roi](const TrackPt& track) {
-                                // Check ROI bounds
                                 if (track.pt.x < roi.x ||
                                     track.pt.x >= roi.x + roi.width ||
                                     track.pt.y < roi.y ||

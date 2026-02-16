@@ -13,6 +13,8 @@ struct AngleData {
   Angle angle;
   double velocity = 0;
   double time;
+  // When set, this angle was extrapolated to this time; time remains creation.
+  std::optional<double> extrapolated_time;
 
   double GetAge() const { return Clock::programClock.getElapsedTime() - time; }
 
@@ -24,6 +26,8 @@ struct PositionData {
   cv::Point2f velocity;
   std::optional<cv::Rect> rect;
   double time = 0;
+  // When set, this position was extrapolated to this time; time remains creation.
+  std::optional<double> extrapolated_time;
 
   PositionData(cv::Point2f pos, cv::Point2f vel, double t)
       : position(pos), velocity(vel), rect(std::nullopt), time(t) {}
@@ -66,8 +70,10 @@ class OdometryData {
     return cv::Point2f(0, 0);
   }
 
-  // returns a new instance of the data extrapolated to the target time
-  // the maxRelativeTime is the maximum time to extrapolate forward
+  // Returns a new instance with position/angle extrapolated to a target time.
+  // Creation times (pos.time, angle.time) are unchanged; pos.extrapolated_time
+  // and angle.extrapolated_time are set to the time we extrapolated to. The
+  // extrapolation is clamped so the disparity never exceeds maxRelativeTime.
   OdometryData ExtrapolateBoundedTo(
       double targetTime, double maxRelativeTime = kMaxExtrapTimeS) const;
 
@@ -89,6 +95,6 @@ class OdometryData {
       cv::Point offset = cv::Point(
           0, 0));  // Returns an image that is used for debugging purposes.
  private:
-  // extrapolates the data to the new time without bound!
-  OdometryData _ExtrapolateTo(double newtime) const;
+  std::optional<PositionData> _ExtrapolatePosition(double posExtrapTime) const;
+  std::optional<AngleData> _ExtrapolateAngle(double angleExtrapTime) const;
 };

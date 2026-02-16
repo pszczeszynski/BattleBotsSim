@@ -7,44 +7,57 @@
 
 // Clear all position data
 void OdometryData::Clear() {
-  // Clear position and angle data
   pos.reset();
   angle.reset();
-
-  // Clear user data
   userDataDouble.clear();
 }
 
-OdometryData OdometryData::_ExtrapolateTo(double newtime) const {
-  OdometryData result = *this;  // Create a copy of current data
-
-  // Extrapolate position if valid
-  if (pos.has_value()) {
-    double deltaTime = newtime - pos.value().time;
-    PositionData newPos = pos.value();
-    newPos.position += newPos.velocity * static_cast<float>(deltaTime);
-    newPos.time = newtime;
-    result.pos = newPos;
+std::optional<PositionData> OdometryData::_ExtrapolatePosition(
+    double posExtrapTime) const {
+  if (!pos.has_value()) {
+    return std::nullopt;
   }
+  double deltaTime =
+      posExtrapTime - (pos.value().extrapolated_time.has_value()
+                           ? pos.value().extrapolated_time.value()
+                           : pos.value().time);
+  PositionData newPos = pos.value();
+  newPos.position += newPos.velocity * deltaTime;
+  newPos.extrapolated_time = posExtrapTime;
+  return newPos;
+}
 
-  // Extrapolate angle if valid
-  if (angle.has_value()) {
-    double deltaTime = newtime - angle.value().time;
-    Angle newAngle =
-        angle.value().angle + Angle(angle.value().velocity * deltaTime);
-    result.angle = AngleData(newAngle, angle.value().velocity, newtime);
+std::optional<AngleData> OdometryData::_ExtrapolateAngle(
+    double angleExtrapTime) const {
+  if (!angle.has_value()) {
+    return std::nullopt;
   }
+  double deltaTime =
+      angleExtrapTime - (angle.value().extrapolated_time.has_value()
+                             ? angle.value().extrapolated_time.value()
+                             : angle.value().time);
 
+  Angle newAngle =
+      angle.value().angle + Angle(angle.value().velocity * deltaTime);
+  AngleData result(newAngle, angle.value().velocity, angle.value().time);
+  result.extrapolated_time = angleExtrapTime;
   return result;
 }
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
                                                 double maxRelativeTime) const {
-  // Use position time if available, otherwise angle time, otherwise 0
-  double baseTime = pos.has_value()
-                        ? pos.value().time
-                        : (angle.has_value() ? angle.value().time : 0);
-  return _ExtrapolateTo(std::min(targetTime, baseTime + maxRelativeTime));
+  OdometryData result = *this;
+  if (pos.has_value()) {
+    double posExtrapTime =
+        std::min(targetTime, pos.value().time + maxRelativeTime);
+    result.pos = _ExtrapolatePosition(posExtrapTime).value();
+  }
+  if (angle.has_value()) {
+    double angleExtrapTime =
+        std::min(targetTime, angle.value().time + maxRelativeTime);
+    result.angle = _ExtrapolateAngle(angleExtrapTime).value();
+  }
+  return result;
 }
 
 // Adds to the passed image odometry data for debugging purposes.
