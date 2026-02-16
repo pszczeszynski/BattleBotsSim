@@ -166,12 +166,7 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
 
 // Updates internal Odometry data
 void RobotOdometry::Update() {
-  // ******************************
-  // Retrieve new data if available
-  TrackingWidget *trackingInfo = TrackingWidget::GetInstance();
-
-  // Poll all odometry algorithms
-  RawInputs inputs = _poller.Poll(trackingInfo, _prevInputs);
+  RawInputs inputs = _poller.Poll(_prevInputs);
 
   // No new data and thus nothing to do
   if (!inputs.HasUpdates()) {
@@ -222,9 +217,6 @@ void RobotOdometry::Update() {
     // Draw debug visualization
     DrawTrackingVisualization();
   }
-
-  GetDebugImage(trackingInfo->GetDebugImage("Fusion"),
-                trackingInfo->GetDebugOffset("Fusion"));
 }
 
 FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
@@ -236,39 +228,41 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
   output.robot = prevRobot;
   output.opponent = prevOpponent;
 
-  // G1) if Neural US = Heuristic.them: SWAP Heuristic and invalidate them
-  // (nullopt)
-  if (isFresh(inputs.us_neural.pos) && isFresh(inputs.them_heuristic.pos) &&
-      inputs.them_heuristic.IsPointInside(
-          inputs.us_neural.pos.value().position)) {
-    output.backAnnotate.swapHeuristic = true;
-    inputs.them_heuristic.pos.reset();
-    inputs.them_heuristic.angle.reset();
-  }
-  // Same for Blob
-  if (isFresh(inputs.us_neural.pos) && isFresh(inputs.them_blob.pos) &&
-      inputs.them_blob.IsPointInside(inputs.us_neural.pos.value().position)) {
-    output.backAnnotate.swapBlob = true;
-    inputs.them_blob.pos.reset();
-    inputs.them_blob.angle.reset();
-  }
+  // Neural-based rules and disqualifications
+  if (isFresh(inputs.us_neural.pos)) {
+    // G1) if Neural US = Heuristic.them: SWAP Heuristic and invalidate them
+    if (isFresh(inputs.them_heuristic.pos) &&
+        inputs.them_heuristic.IsPointInside(
+            inputs.us_neural.pos.value().position)) {
+      output.backAnnotate.swapHeuristic = true;
+      inputs.them_heuristic.pos.reset();
+      inputs.them_heuristic.angle.reset();
+    }
+    // Same for Blob
+    if (isFresh(inputs.them_blob.pos) &&
+        inputs.them_blob.IsPointInside(inputs.us_neural.pos.value().position)) {
+      output.backAnnotate.swapBlob = true;
+      inputs.them_blob.pos.reset();
+      inputs.them_blob.angle.reset();
+    }
 
-  // G2) if Neural != Heuristic.us && Neural=Blob.us: Heuristic.ForceUs(Neural)
-  if (isFresh(inputs.us_neural.pos) && isFresh(inputs.us_blob.pos) &&
-      inputs.us_blob.IsPointInside(inputs.us_neural.pos.value().position) &&
-      // Heuristic is invalid or doesn't aggree with neural
-      (!isFresh(inputs.us_heuristic.pos) ||
-       !inputs.us_heuristic.IsPointInside(
-           inputs.us_neural.pos.value().position))) {
-    inputs.us_heuristic.pos.reset();
-    inputs.us_heuristic.angle.reset();
-    output.robot.pos = inputs.us_neural.pos;
+    // Neural agrees with blob, but heuristic doesn't agree
+    if (isFresh(inputs.us_blob.pos) &&
+        inputs.us_blob.IsPointInside(inputs.us_neural.pos.value().position) &&
+        // Heuristic is invalid or doesn't agree with neural
+        (!isFresh(inputs.us_heuristic.pos) ||
+         !inputs.us_heuristic.IsPointInside(
+             inputs.us_neural.pos.value().position))) {
+      inputs.us_heuristic.pos.reset();
+      inputs.us_heuristic.angle.reset();
+      output.robot.pos = inputs.us_neural.pos;
+      output.backAnnotate.forceRobotPos_Heuristic = true;
+    }
   }
 
   // Robot position
   if (isFresh(inputs.us_heuristic.pos)) {
     output.robot.pos = inputs.us_heuristic.pos;
-
     // If blob position isn't inside our rectangle then set position
     if (isFresh(inputs.us_blob.pos) &&
         !inputs.us_heuristic.IsPointInside(
@@ -282,30 +276,21 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
   }
 
   // Robot velocity
-  if (isFresh(inputs.us_heuristic.pos) && output.robot.pos.has_value()) {
-    output.robot.pos.value().velocity =
-        inputs.us_heuristic.pos.value().velocity;
-  } else if (isFresh(inputs.us_blob.pos) && output.robot.pos.has_value()) {
-    output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
+  if (output.robot.pos.has_value()) {
+    if (isFresh(inputs.us_heuristic.pos)) {
+      output.robot.pos.value().velocity =
+          inputs.us_heuristic.pos.value().velocity;
+    } else if (isFresh(inputs.us_blob.pos)) {
+      output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
+    }
   }
 
   // Robot angle
   if (isFresh(inputs.us_imu.angle)) {
     output.robot.angle = inputs.us_imu.angle;
-
-    // Reset heuristic angle calculation
-    inputs.us_heuristic.angle.reset();
-    inputs.us_blob.angle.reset();
   } else if (isFresh(inputs.us_neuralrot.angle)) {
     output.robot.angle = inputs.us_neuralrot.angle;
-    output.robot.angle.value().velocity =
-        inputs.them_lkflow.angle.has_value()
-            ? inputs.them_lkflow.angle.value().velocity
-            : 0;
-
-    // Set heuristor to neural
-    inputs.us_heuristic.angle.reset();
-    inputs.us_blob.angle.reset();
+    output.robot.angle.value().velocity = 0;
   } else if (isFresh(inputs.us_blob.angle)) {
     output.robot.angle = inputs.us_blob.angle;
   }
@@ -313,13 +298,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
   // Opponent position
   if (isFresh(inputs.them_heuristic.pos)) {
     output.opponent.pos = inputs.them_heuristic.pos;
-
-    // If blob position isn't inside our rectangle then set position
-    if (isFresh(inputs.them_blob.pos) &&
-        !inputs.them_heuristic.IsPointInside(
-            inputs.them_blob.pos.value().position)) {
-      inputs.them_blob.pos.reset();
-    }
   } else if (isFresh(inputs.them_blob.pos)) {
     output.opponent.pos = inputs.them_blob.pos;
   }
@@ -336,7 +314,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
   }
 
   // Opponent rotation:
-  // Rule: 1) Human 2) LKFlow, 3) Blob, 4) Heuristic
   if (isFresh(inputs.us_human.angle)) {
     output.opponent.angle = inputs.us_human.angle;
   } else if (isFresh(inputs.them_lkflow.angle)) {
@@ -345,50 +322,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     output.opponent.angle = inputs.them_blob.angle;
   } else if (isFresh(inputs.them_heuristic.angle)) {
     output.opponent.angle = inputs.them_heuristic.angle;
-  }
-
-  // Robot Position and velocity:
-  //   Heuristic, Blob need back-annotated robot positions and velocities
-  if (isFresh(output.robot.pos)) {
-    if (!isFresh(inputs.us_heuristic.pos)) {
-      output.backAnnotate.setRobotPos_Heuristic = true;
-    }
-    if (!isFresh(inputs.us_blob.pos)) {
-      output.backAnnotate.setRobotPos_Blob = true;
-    }
-  }
-
-  // Robot Angle + velocity:
-  // Heuristic, Blob will need it back annotated
-  if (isFresh(output.robot.angle)) {
-    if (!isFresh(inputs.us_heuristic.angle)) {
-      output.backAnnotate.setRobotAngle_Heuristic = true;
-    }
-    if (!isFresh(inputs.us_blob.angle)) {
-      output.backAnnotate.setRobotAngle_Blob = true;
-    }
-  }
-
-  // OPPONENT same things:
-  if (isFresh(output.opponent.pos)) {
-    if (!isFresh(inputs.them_heuristic.pos)) {
-      output.backAnnotate.setOpponentPos_Heuristic = true;
-    }
-    if (!isFresh(inputs.them_blob.pos)) {
-      output.backAnnotate.setOpponentPos_Blob = true;
-    }
-  }
-
-  if (isFresh(output.opponent.angle)) {
-    if (!isFresh(inputs.them_heuristic.angle)) {
-      output.backAnnotate.setOpponentAngle_Heuristic = true;
-    }
-    if (!isFresh(inputs.them_blob.angle)) {
-      output.backAnnotate.setOpponentAngle_Blob = true;
-    }
-    if (!isFresh(inputs.them_lkflow.angle)) {
-      output.backAnnotate.setOpponentAngle_LKFlow = true;
-    }
   }
 
 #ifdef FORCE_SIM_DATA
@@ -425,50 +358,37 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   }
 
   // Robot Position
-  if (backAnnotate.setRobotPos_Heuristic && robot.pos.has_value()) {
+  if (robot.pos.has_value()) {
     if (backAnnotate.forceRobotPos_Heuristic) {
       _odometry_Heuristic.ForcePosition(robot.pos.value().position, false);
     } else {
       _odometry_Heuristic.SetPosition(robot.pos.value().position, false);
     }
     _odometry_Heuristic.SetVelocity(robot.pos.value().velocity, false);
-  }
-  if (backAnnotate.setRobotPos_Blob && robot.pos.has_value()) {
     _odometry_Blob.SetPosition(robot.pos.value().position, false);
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
   }
 
   // Robot Angle
-  if (backAnnotate.setRobotAngle_Heuristic && robot.angle.has_value()) {
+  if (robot.angle.has_value()) {
     _odometry_Heuristic.SetAngle(robot.angle.value(), false);
-  }
-  if (backAnnotate.setRobotAngle_Blob && robot.angle.has_value()) {
     _odometry_Blob.SetAngle(robot.angle.value(), false);
   }
 
   // Opponent Position
-  if (backAnnotate.setOpponentPos_Heuristic && opponent.pos.has_value()) {
+  if (opponent.pos.has_value()) {
     _odometry_Heuristic.SetPosition(opponent.pos.value().position, true);
     _odometry_Heuristic.SetVelocity(opponent.pos.value().velocity, true);
-  }
-  if (backAnnotate.setOpponentPos_Blob && opponent.pos.has_value()) {
     _odometry_Blob.SetPosition(opponent.pos.value().position, true);
     _odometry_Blob.SetVelocity(opponent.pos.value().velocity, true);
-  }
-  if (backAnnotate.setOpponentPos_LKFlow && opponent.pos.has_value()) {
     _odometry_LKFlow.SetPosition(opponent.pos.value().position, true);
     _odometry_LKFlow.SetVelocity(opponent.pos.value().velocity, true);
   }
 
   // Opponent Angle
-  if (backAnnotate.setOpponentAngle_Heuristic && opponent.angle.has_value()) {
+  if (opponent.angle.has_value()) {
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
-  }
-  if (backAnnotate.setOpponentAngle_Blob && opponent.angle.has_value()) {
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
-  }
-  if (backAnnotate.setOpponentAngle_LKFlow && opponent.angle.has_value()) {
-    _odometry_LKFlow.SetAngle(opponent.angle.value(), true);
   }
 }
 

@@ -353,8 +353,7 @@ void BlobDetection::_UpdateAnglePathTangent(BlobTrackState& state,
 
 void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
                                       double timestamp) {
-  OdometryData sample;
-  sample.Clear();
+  OdometryData sample {};
 
   // Set position data
   if (state.have_pos && state.last_position.has_value()) {
@@ -384,7 +383,6 @@ void BlobDetection::SwitchRobots(void) {
 }
 
 void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {
-  std::cout << "SetPosition: " << newPos << std::endl;
   constexpr float IGNORE_THRESH_PX = 10;
 
   BlobTrackState& state = opponentRobot ? _themState : _usState;
