@@ -488,7 +488,7 @@ bool RobotOdometry::Run(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
-  OdometryBase *p = _algorithms[algorithm];
+  OdometryBase* p = _algorithms.at(algorithm);
   return p != nullptr && p->Run();
 }
 
@@ -496,7 +496,7 @@ bool RobotOdometry::Stop(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Stop() && _odometry_Human_Heuristic.Stop();
   }
-  OdometryBase *p = _algorithms[algorithm];
+  OdometryBase* p = _algorithms.at(algorithm);
   return p != nullptr && p->Stop();
 }
 
@@ -504,7 +504,7 @@ bool RobotOdometry::IsRunning(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.IsRunning() && _odometry_Human_Heuristic.IsRunning();
   }
-  OdometryBase *p = _algorithms[algorithm];
+  OdometryBase* p = _algorithms.at(algorithm);
   return p != nullptr && p->IsRunning();
 }
 

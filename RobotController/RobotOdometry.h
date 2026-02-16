@@ -19,14 +19,14 @@
 #ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
 #endif
-#include "UIWidgets/ImageWidget.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
 #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
 
 class OdometryIMU;
 
-enum OdometryAlg {
+// Contiguous enum with size_t underlying type for use as std::array index (no casts).
+enum OdometryAlg : size_t {
   Blob = 0,
   Heuristic,
   IMU,
@@ -135,7 +135,7 @@ class RobotOdometry {
   OpenCVTracker _odometry_opencv;
 #endif
 
-  // Dispatch table indexed by OdometryAlg (avoids duplicated switch statements)
+  // Dispatch table: std::array indexed by OdometryAlg.
   std::array<OdometryBase*, kOdometryAlgCount> _algorithms{};
   void _InitAlgorithmTable();
 
