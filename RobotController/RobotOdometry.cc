@@ -139,28 +139,18 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
 
   if (_dataRobot.angle.has_value()) {
     _odometry_Heuristic.SetAngle(_dataRobot.angle.value(), false);
+    _odometry_Blob.SetAngle(_dataRobot.angle.value(), false);
+    _odometry_LKFlow.SetAngle(_dataRobot.angle.value(), false);
   }
   if (_dataRobot.pos.has_value()) {
     _odometry_Heuristic.SetVelocity(_dataRobot.pos.value().velocity, false);
+    _odometry_Blob.SetPosition(_dataRobot.pos.value().position, false);
+    _odometry_LKFlow.SetPosition(_dataRobot.pos.value().position, false);
   }
   if (_dataOpponent.angle.has_value()) {
     _odometry_Heuristic.SetAngle(_dataOpponent.angle.value(), true);
-  }
-
-  if (_dataRobot.pos.has_value()) {
-    _odometry_Blob.ForcePosition(_dataRobot.pos.value().position, false);
-  }
-  if (_dataRobot.angle.has_value()) {
-    _odometry_Blob.SetAngle(_dataRobot.angle.value(), false);
-  }
-  if (_dataOpponent.pos.has_value()) {
-    _odometry_Blob.ForcePosition(_dataOpponent.pos.value().position, true);
-  }
-  if (_dataOpponent.angle.has_value()) {
     _odometry_Blob.SetAngle(_dataOpponent.angle.value(), true);
-  }
-  if (_odometry_LKFlow.IsRunning()) {
-    _odometry_LKFlow.SetPosition(_dataOpponent.GetPositionOrZero(), true);
+    _odometry_LKFlow.SetAngle(_dataOpponent.angle.value(), true);
   }
 
 #ifdef USE_OPENCV_TRACKER
