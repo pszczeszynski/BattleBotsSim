@@ -285,7 +285,7 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     // Angle remains invalid (not set)
 
     // Publish the sample (base class increments id automatically)
-    OdometryBase::Publish(sample, /*isOpponent=*/false);
+    OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
   }
 }
 

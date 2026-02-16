@@ -5,6 +5,32 @@
 #include "../Globals.h"
 #include "../Odometry/Heuristic1/RobotTracker.h"
 
+static const char* OdometryAlgToString(OdometryAlg a) {
+  switch (a) {
+    case OdometryAlg::Blob:
+      return "Blob";
+    case OdometryAlg::Heuristic:
+      return "Heuristic";
+    case OdometryAlg::IMU:
+      return "IMU";
+    case OdometryAlg::Neural:
+      return "Neural";
+    case OdometryAlg::Human:
+      return "Human";
+    case OdometryAlg::NeuralRot:
+      return "NeuralRot";
+    case OdometryAlg::OpenCV:
+      return "OpenCV";
+    case OdometryAlg::LKFlow:
+      return "LKFlow";
+    case OdometryAlg::Gyro:
+      return "Gyro";
+    case OdometryAlg::UnknownAlg:
+    default:
+      return "Unknown";
+  }
+}
+
 // Clear all position data
 void OdometryData::Clear() {
   pos.reset();
@@ -86,9 +112,11 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
     ss << "(" << pos.value().position.x << ", " << pos.value().position.y
        << ")";
   } else {
-    ss << "(-1, -1)";
+    ss << "no value";
   }
-  ss << "\n";
+  ss << " [" << (pos.has_value() ? OdometryAlgToString(pos.value().algorithm)
+                                 : "not set")
+     << "]\n";
 
   // Velocity
   if (!pos.has_value()) {
@@ -104,7 +132,7 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
         CV_PI;  // Convert to degrees
     ss << " Vel: " << magnitude << " px/s, " << velAngle << " deg";
   } else {
-    ss << " Vel: 0 px/s, 0 deg";
+    ss << " Vel: no value";
   }
 
   ss << "\n";
@@ -119,10 +147,12 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   if (angle.has_value()) {
     ss << angle.value().angle.degrees() << " deg";
   } else {
-    ss << "0 deg";
+    ss << "no value";
   }
-
-  ss << "\n";
+  ss << " [" << (angle.has_value()
+                     ? OdometryAlgToString(angle.value().algorithm)
+                     : "Unknown")
+     << "]\n";
   if (!angle.has_value()) {
     ss << "Invalid ";
   } else {
@@ -132,7 +162,7 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   if (angle.has_value()) {
     ss << angle.value().velocity << " rad/s";
   } else {
-    ss << "0 rad/s";
+    ss << "no value";
   }
 
   printText(ss.str(), target, offset.y, offset.x);

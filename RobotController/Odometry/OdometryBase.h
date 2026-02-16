@@ -44,8 +44,7 @@ protected:
     virtual void _ProcessNewFrame(cv::Mat currFrame, double frameTime){ }; // Run every time a new frame is available. currFrame is a copy.
     virtual void _StopCalled(){};                                         // Run when stop is initiated
 
-    // Centralized publish function - algorithms build a sample and call this
-    void Publish(OdometryData sample, bool isOpponent);
+    void Publish(OdometryData sample, bool isOpponent, OdometryAlg alg);
 
     ICameraReceiver *_videoSource = nullptr;
 

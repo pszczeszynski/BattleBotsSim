@@ -172,7 +172,7 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 
           // Publish outside lock (OdometryBase::Publish is internally
           // thread-safe)
-          OdometryBase::Publish(sample, /*isOpponent=*/false);
+          OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::OpenCV);
         }
       }
       // If invalid, do nothing (no publish)
@@ -256,7 +256,7 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 
           // Publish outside lock (OdometryBase::Publish is internally
           // thread-safe)
-          OdometryBase::Publish(sample, /*isOpponent=*/true);
+          OdometryBase::Publish(sample, /*isOpponent=*/true, OdometryAlg::OpenCV);
         }
       }
       // If invalid, do nothing (no publish)

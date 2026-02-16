@@ -25,20 +25,6 @@
 
 class OdometryIMU;
 
-// Contiguous enum with size_t underlying type for use as std::array index (no casts).
-enum OdometryAlg : size_t {
-  Blob = 0,
-  Heuristic,
-  IMU,
-  Neural,
-  Human,
-  NeuralRot,
-  OpenCV,
-  LKFlow,
-  Gyro,
-  kOdometryAlgCount
-};
-
 // Back-annotation instructions for algorithms that need position/angle updates
 struct BackAnnotation {
   // Swap operations (must happen before other back-annotations)

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
 #include <optional>
@@ -9,12 +10,28 @@
 
 constexpr float kMaxExtrapTimeS = 0.1;
 
+enum OdometryAlg : size_t {
+  Blob = 0,
+  Heuristic,
+  IMU,
+  Neural,
+  Human,
+  NeuralRot,
+  OpenCV,
+  LKFlow,
+  Gyro,
+  UnknownAlg,
+  kOdometryAlgCount
+};
+
 struct AngleData {
   Angle angle;
   double velocity = 0;
   double time;
   // When set, this angle was extrapolated to this time; time remains creation.
   std::optional<double> extrapolated_time;
+  // Algorithm that produced this angle (set by Publish). Unknown until published.
+  OdometryAlg algorithm = OdometryAlg::UnknownAlg;
 
   double GetAge() const { return Clock::programClock.getElapsedTime() - time; }
 
@@ -28,6 +45,8 @@ struct PositionData {
   double time = 0;
   // When set, this position was extrapolated to this time; time remains creation.
   std::optional<double> extrapolated_time;
+  // Algorithm that produced this position (set by Publish). Unknown until published.
+  OdometryAlg algorithm = OdometryAlg::UnknownAlg;
 
   PositionData(cv::Point2f pos, cv::Point2f vel, double t)
       : position(pos), velocity(vel), rect(std::nullopt), time(t) {}

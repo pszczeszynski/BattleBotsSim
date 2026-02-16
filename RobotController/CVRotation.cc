@@ -76,7 +76,7 @@ void CVRotation::_ProcessNewFrame(const cv::Mat frame, double frameTime) {
   sample.angle = AngleData(Angle(rotation), 0.0, frameTime);
   sample.pos = std::nullopt;
 
-  Publish(sample, /*isOpponent=*/false);
+  Publish(sample, /*isOpponent=*/false, OdometryAlg::NeuralRot);
 }
 
 bool CVRotation::_CropImage(const cv::Mat& input, cv::Mat& cropped,

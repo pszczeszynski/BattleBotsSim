@@ -246,7 +246,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   sample.id = _frameID++;
   sample.pos = PositionData(_pos, visualVelocity, frameTime);
   sample.angle = AngleData(_angle, angularVelocity, frameTime);
-  OdometryBase::Publish(sample, true);
+  OdometryBase::Publish(sample, true, OdometryAlg::LKFlow);
 
   _prevTime = frameTime;
 
@@ -505,10 +505,6 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
       added++;
     }
   }
-
-  std::cout << "Respawned " << added << " points (filtered from "
-            << newPts.size() << " candidates) for a total of " << tracks.size()
-            << " points" << std::endl;
 
   // Return true if we added at least some points (even if fewer than requested)
   return added > 0;

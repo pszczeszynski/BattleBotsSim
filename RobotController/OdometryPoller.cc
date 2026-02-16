@@ -57,7 +57,7 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
 }
 
 RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
-  // Explicitly zero-initialize to prevent "ghost fusion" bugs
+  // Explicitly zero-initialize
   RawInputs inputs{};
 
   // Poll Blob tracker (us and them)
@@ -91,6 +91,15 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
                        RawInputs::THEM_OPENCV, true},
              inputs.updatedMask);
 #endif
+  // Poll LKFlow tracker (us and them)
+  PollStream(_odometry_LKFlow,
+             StreamRef{inputs.us_lkflow, prevInputs.us_lkflow,
+                       RawInputs::US_LKFLOW, false},
+             inputs.updatedMask);
+  PollStream(_odometry_LKFlow,
+             StreamRef{inputs.them_lkflow, prevInputs.them_lkflow,
+                       RawInputs::THEM_LKFLOW, true},
+             inputs.updatedMask);
 
   // Poll IMU tracker (us only)
   PollStream(
@@ -102,12 +111,6 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
   PollStream(_odometry_NeuralRot,
              StreamRef{inputs.us_neuralrot, prevInputs.us_neuralrot,
                        RawInputs::US_NEURALROT, false},
-             inputs.updatedMask);
-
-  // Poll LKFlow tracker (them only)
-  PollStream(_odometry_LKFlow,
-             StreamRef{inputs.them_lkflow, prevInputs.them_lkflow,
-                       RawInputs::THEM_LKFLOW, true},
              inputs.updatedMask);
 
   // Poll Neural Position (special case: always returns data when running)
@@ -130,10 +133,6 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
                  StreamRef{inputs.them_human, prevInputs.them_human,
                            RawInputs::THEM_HUMAN, true},
                  inputs.updatedMask);
-
-  // Set is_new flags based on whether data was updated
-  inputs.us_human_is_new = us_human_updated;
-  inputs.them_human_is_new = them_human_updated;
 
   return inputs;
 }

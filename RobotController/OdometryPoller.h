@@ -30,6 +30,7 @@ struct RawInputs {
   OdometryData us_neuralrot;
   OdometryData us_imu;
   OdometryData us_human;
+  OdometryData us_lkflow;
 
   // Opponent (them) data
   OdometryData them_blob;
@@ -54,18 +55,15 @@ struct RawInputs {
     US_IMU = 1 << 6,
     US_HUMAN = 1 << 7,
     THEM_HUMAN = 1 << 8,
-    THEM_LKFLOW = 1 << 9,
+    US_LKFLOW = 1 << 9,
+    THEM_LKFLOW = 1 << 10,
 #ifdef USE_OPENCV_TRACKER
-    US_OPENCV = 1 << 10,
-    THEM_OPENCV = 1 << 11,
+    US_OPENCV = 1 << 11,
+    THEM_OPENCV = 1 << 12,
 #endif
   };
 
   uint32_t updatedMask = 0;  // In-class init to prevent uninitialized bugs
-
-  // Flags for human interface
-  bool us_human_is_new = false;
-  bool them_human_is_new = false;
 
   RawInputs() = default;  // Now uses in-class initializers
 

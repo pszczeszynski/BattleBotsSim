@@ -846,7 +846,7 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker* tracker, bool isOpponent, 
     sample.angle = AngleData(newAngle, newAngleVelocity, timestamp);
 
     // Publish the sample
-    OdometryBase::Publish(sample, isOpponent);
+    OdometryBase::Publish(sample, isOpponent, OdometryAlg::Heuristic);
 
     // Update state with newly published values
     state.last_pos = sample.pos;

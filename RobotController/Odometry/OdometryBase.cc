@@ -166,7 +166,10 @@ void OdometryBase::SetAngle(AngleData angleData, bool opponentRobot) {
 }
 
 // Centralized publish function
-void OdometryBase::Publish(OdometryData sample, bool isOpponent) {
+void OdometryBase::Publish(OdometryData sample, bool isOpponent,
+                           OdometryAlg alg) {
+  if (sample.pos.has_value()) sample.pos.value().algorithm = alg;
+  if (sample.angle.has_value()) sample.angle.value().algorithm = alg;
   std::lock_guard<std::mutex> lk(_updateMutex);
   int slot = isOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
   auto &out = _data[slot];

@@ -277,6 +277,8 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     output.robot.pos = inputs.us_neural.pos;
   } else if (isFresh(inputs.us_blob.pos)) {
     output.robot.pos = inputs.us_blob.pos;
+  } else if (isFresh(inputs.us_lkflow.pos)) {
+    output.robot.pos = inputs.us_lkflow.pos;
   }
 
   // Robot velocity
@@ -297,6 +299,8 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     output.robot.angle.value().velocity = 0;
   } else if (isFresh(inputs.us_blob.angle)) {
     output.robot.angle = inputs.us_blob.angle;
+  } else if (isFresh(inputs.us_lkflow.angle)) {
+    output.robot.angle = inputs.us_lkflow.angle;
   }
 
   // Opponent position
@@ -304,6 +308,8 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     output.opponent.pos = inputs.them_heuristic.pos;
   } else if (isFresh(inputs.them_blob.pos)) {
     output.opponent.pos = inputs.them_blob.pos;
+  } else if (isFresh(inputs.them_lkflow.pos)) {
+    output.opponent.pos = inputs.them_lkflow.pos;
   }
 
   // Opponent velocity

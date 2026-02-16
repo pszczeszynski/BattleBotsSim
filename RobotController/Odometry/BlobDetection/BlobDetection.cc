@@ -372,7 +372,7 @@ void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
   }
 
   // Publish (base class will increment id from previous value)
-  OdometryBase::Publish(sample, isOpponent);
+  OdometryBase::Publish(sample, isOpponent, OdometryAlg::Blob);
 }
 
 void BlobDetection::SwitchRobots(void) {

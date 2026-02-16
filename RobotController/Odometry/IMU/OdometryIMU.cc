@@ -119,7 +119,7 @@ void OdometryIMU::_UpdateData(IMUData& imuData, double timestamp) {
   sample.angle = AngleData(integrated, imuData.rotationVelocity, timestamp);
 
   // Publish (this increments id internally)
-  OdometryBase::Publish(sample, /*isOpponent=*/false);
+  OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::IMU);
 
   // Commit all state changes in one lock
   {
