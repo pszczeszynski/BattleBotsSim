@@ -75,6 +75,21 @@ bool Field::insideFieldBounds(cv::Point2f point) {
 
 
 
+// what point this line intersects the bounds at
+cv::Point2f Field::boundIntersection(Line testLine) {
+
+    // check all the bound lines, return the first intersection point found
+    for(int bound = 0; bound < boundLines.size(); bound++) {
+
+        cv::Point2f intersection = boundLines[bound].getIntersectionPoint(testLine);
+        if(intersection != cv::Point2f(-1.0f, -1.0f)) {
+            return intersection;
+        }
+    }
+}
+
+
+
 // clips a point to be fully in bounds if needed
 cv::Point2f Field::clipPointInBounds(cv::Point2f testPoint) {
 

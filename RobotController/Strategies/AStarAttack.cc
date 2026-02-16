@@ -113,8 +113,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     FollowPoint follow = createFollowPoint(deltaTime, forwardInput, enable, follows, followsFocussed); // generate follow point
 
 
-    // _lastFollowPoints = followsFocussed; // store the followPoints for debugging/display
-    _lastFollowPoints = follows;
+    _lastFollowPoints = followsFocussed; // store the followPoints for debugging/display
+    // _lastFollowPoints = follows;
 
     
 
@@ -206,6 +206,9 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     }
 
 
+    cv::Scalar wallColor = follow.CW? cv::Scalar(0, 215, 255) : cv::Scalar(0, 165, 255);
+
+
     
     // display every orb sim path
     for(int testFollow = 0; testFollow < follows.size(); testFollow++) {
@@ -233,6 +236,12 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     DisplayUtils::displayPath(orbFiltered.getPath(), cv::Scalar(100, 100, 100), colorOrbLight, 3); // display orb path
     DisplayUtils::displayPath(follow.opp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
     DisplayUtils::displayPath(follow.approach, cv::Scalar(200, 255, 200), cv::Scalar(100, 255, 100), 2); // display approach curve
+    DisplayUtils::displayPoints(follow.wallScanPoints, wallColor, wallColor, 2);
+
+
+    if(follow.wallScanPoints.empty()) {
+        std::cout << "empty";
+    }
 
     // display lines
     cv::Point2f oppOrientationEnd = cv::Point2f(oppFiltered.position().x + oppFiltered.getSizeRadius()*cos(oppFiltered.angle(true)), oppFiltered.position().y + oppFiltered.getSizeRadius()*sin(oppFiltered.angle(true)));
@@ -322,7 +331,7 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                 float lowestScoreFocussed = 0.0f;
                 int lowestIndexFocussed = 0;
 
-                int totalPathEnds = 20; // how many circular divisions around opp are available, only on his back region
+                int totalPathEnds = 3; // how many circular divisions around opp are available, only on his back region
                 float backRegion = 2*(M_PI - oppFiltered.getWeaponAngleReach()); // angular span of opp's back region
                 float endSpacing = backRegion / (totalPathEnds + 1); // angle between adjacent path ends
 
@@ -370,8 +379,6 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                     avoidBoundsVector(testFollow); // adjust turn direction to avoid wall if needed
                     directionScore(testFollow, forwardInput); // score this point
 
-
-                    
 
 
                     follows.emplace_back(testFollow); // add to the list
@@ -641,12 +648,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
     std::vector<float> slowVel = virtualOrb.getVelFilteredSlow();
     virtualOrb.setVel({slowVel[0], slowVel[1], slowVel[2]});
 
-
-    // float startingAngle = angle(follow.opp.position(), virtualOrb.position());
-    // follow.endingAngle = angle_wrap(startingAngle + follow.simRadGain*(follow.CW? 1 : -1));
-    approachCurve(follow);
-    
-    // DisplayUtils::displayPoints(follow.approach, cv::Scalar{255, 255, 0}, cv::Scalar{255, 255, 255}, 2);
+    approachCurve(follow); // generate approach curve for this point
 
     bool reachedFollowPoint = false; // if we've been aligned with the follow point yet
     bool reachedSpeed = false; // if we've reached a threshold speed yet
@@ -654,6 +656,9 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
     // what side of opp we start on
     float startingAngle = follow.opp.angleTo(virtualOrb.position(), true);
+
+
+    follow.worstTimeMargin = 99999.0f; // default
 
  
 
@@ -723,13 +728,17 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         }
 
 
-        if(timeMargin < 0.2f && !reachedFollowPoint) { // 0.35
-        // if(timeFraction < 0.5f && !safe) { // 0.35
-            // std::cout << "hitting";
-            follow.hit = true;
-            simTime = maxTime;
-            break;
-        }
+        // if(timeMargin < 0.2f && !reachedFollowPoint) { // 0.35
+        // // if(timeFraction < 0.5f && !safe) { // 0.35
+        //     // std::cout << "hitting";
+        //     follow.hit = true;
+        //     simTime = maxTime;
+        //     break;
+        // }
+
+
+        // save the worst time margin for unsafe points
+        if(timeMargin < follow.worstTimeMargin && !safe) { follow.worstTimeMargin = timeMargin; }
 
         
 
@@ -954,76 +963,55 @@ int AStarAttack::vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2
 
 
 // spirals out from our current radius from opp to see how walls will affect us
-float AStarAttack::wallScore(FollowPoint follow) {
+float AStarAttack::wallScore(FollowPoint &follow) {
 
     const float maxPathLength = 500.0f; // length of predicted path we'll sweep
 
-    std::vector<cv::Point2f> scanPoints;
-    std::vector<Line> scanLines = {};
+    follow.wallScanPoints = {}; // reset just in case
     const float sweepIncrement = follow.CW ? 5.0f*TO_RAD : -5.0f*TO_RAD; // how much to increment sweep angle for each point
 
     float startAngle = angle(oppFiltered.position(), orbFiltered.position());
-
-
     float score = 0.0f; // integrated score of all the points
     float pathLength = 0.0f; // accumlated predicted path length
+
+
+    cv::Point2f center = field.clipPointInBounds(oppFiltered.position()); // center the sweep around opp's position
 
     // scan up to a full circle
     for (float sweptAngle = 0; abs(sweptAngle) < 2*M_PI; sweptAngle += sweepIncrement) {
 
         float currAngle = angle_wrap(startAngle + sweptAngle); // current angle we're scanning at
+        float spiralRadius = abs(sweptAngle)*110.0f + oppFiltered.distanceTo(orbFiltered.position()); // radius of predicted spiral here
 
-        cv::Point2f testPoint = field.clipPointInBounds(oppFiltered.position()); // point to ray cast
-        constexpr int kMaxRaycastSteps = 400;
+        // make a line from the center at the current angle at the sprial radius
+        cv::Point2f spiralPoint = center + spiralRadius*cv::Point2f(cos(currAngle), sin(currAngle));
+        Line scanLine = Line(center, spiralPoint);
 
+        // find if this line intersects a bound
+        cv::Point2f intersect = field.boundIntersection(scanLine);
 
-        // increment the point outwards until it's out of bounds or further than our spiral
-        for(int i = 0; i < kMaxRaycastSteps; i++) {
+        // if it does intersect
+        if(intersect != cv::Point2f(-1.0f, -1.0f)) {
 
-            testPoint += 20.0f * cv::Point2f(cos(currAngle), sin(currAngle)); // 5
+            spiralPoint = intersect; // set to intersected point
 
-            // if the ray cast has exited the field
-            if(!field.insideFieldBounds(testPoint)) {
-                testPoint = field.closestBoundPoint(testPoint); // raycasted point might lie slightly outside, so make sure to re-clip after
+            float gapSize = std::max(oppFiltered.distanceTo(spiralPoint) - oppFiltered.getSizeRadius(), 0.0f); // how big is the gap to drive in
+            float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
+            float sweptPercent = pathLength / maxPathLength; // roughly what percentage has been swept so far
 
-                float gapSize = std::max(oppFiltered.distanceTo(testPoint) - oppFiltered.getSizeRadius(), 0.0f); // how big is the gap to drive in
-                float margin = std::max(gapSize - 2*orbFiltered.getSizeRadius(), 0.01f); // how much margin would we have if we had to drive past this point
-                float sweptPercent = pathLength / maxPathLength; // roughly what percentage has been swept so far
+            float rangeWeight = cos(-sweptPercent * 0.5f * M_PI);
 
-                float rangeWeight = cos(-sweptPercent * 0.5f * M_PI);
-
-                score += pow(margin, -0.6f) + rangeWeight; // score function is integrated based on how much gap we have
-
-                break;
-            }
-
-            float spiralRadius = abs(sweptAngle)*110.0f + oppFiltered.distanceTo(orbFiltered.position()); // slope of predicted spiral
-            
-            // if the point has gotten to the spiral, don't add to score
-            if(oppFiltered.distanceTo(testPoint) > spiralRadius) { break; }
+            score += pow(margin, -0.6f) + rangeWeight; // score function is integrated based on how much gap we have
         }
+
 
         // total up the path length
-        if(!scanPoints.empty()) {
-            pathLength += cv::norm(scanPoints.back() - testPoint);
+        if(!follow.wallScanPoints.empty()) {
+            pathLength += cv::norm(follow.wallScanPoints.back() - spiralPoint);
         }
         
-        
-        scanPoints.emplace_back(testPoint); // add to the list to display later
-        scanLines.emplace_back(Line(oppFiltered.position(), testPoint));
-
-        
-
-        // display scanned points
-        // cv::Scalar color = cv::Scalar(150, 255, 150);
-        // if(!follow.CW) { color = cv::Scalar(150, 150, 255); }
-        // safe_circle(RobotController::GetInstance().GetDrawingImage(), testPoint, 2, color, 2);
-
-
-        // // if we have at least 2 points start drawing lines
-        // if(scanPoints.size() > 1) {
-        //     cv::line(RobotController::GetInstance().GetDrawingImage(), scanPoints[scanPoints.size() - 2], testPoint, color, 2);
-        // }
+        // add new point to the list
+        follow.wallScanPoints.emplace_back(spiralPoint);
 
         
         // if the points are so far away now then stop counting
@@ -1348,6 +1336,14 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     // better points collide with the opponent faster
     // ADD VELOCITY SCORE
 
+
+
+
+    // add score for unsafe points
+    float safeScore = 999999.0f;
+    if(follow.worstTimeMargin > 0.001f) { safeScore = 1.0f / follow.worstTimeMargin; }
+    
+    follow.directionScores.emplace_back(safeScore);
 
 
 

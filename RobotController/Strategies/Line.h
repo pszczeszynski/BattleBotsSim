@@ -27,6 +27,9 @@ public:
     /// Return the endpoints as a pair
     std::pair<cv::Point2f, cv::Point2f> getLinePoints() const;
 
+    // returns intersection of 2 lines
+    cv::Point2f getIntersectionPoint(const Line& other) const;
+
 private:
     cv::Point2f point1, point2;  // endpoints
     cv::Point2f _d;              // = point2 - point1

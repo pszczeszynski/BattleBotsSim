@@ -19,12 +19,14 @@ public:
     std::vector<cv::Point2f> orbSimFollowPoints; // list of follow points used to generate the sim path
     std::vector<cv::Point2f> approach; // curve that defines the approach to opp
     std::vector<cv::Point2f> oppSimPath; // extrapolated path for opp for where they'll be if we were to kill rn
+    std::vector<cv::Point2f> wallScanPoints; // points generated in wall score algorithm
 
     // these variables are what make a follow point unique
     bool forward; // if we're driving forwards (or backwards) to the point
     bool CW; // if this point is meant to go CW (or CCW) around the opp
     bool turnAway; // if this point is making sure to turn away from opp at first
     float simRadGain; // the rad gain used in sim to generate the path for this point
+    float worstTimeMargin; // how much can the opp beat us to unsafe points on the path
 
     float driveAngle; // angle to drive when this point is active
     float oppETA; // opp time for this point

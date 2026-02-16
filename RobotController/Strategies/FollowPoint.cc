@@ -19,6 +19,7 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, float simRadGain,
     orbETA = 0;
     enforceTurnDirection = 0;
     endingAngle = 0;
+    worstTimeMargin = 0;
     crossesOppFront = false;
     hit = false;
 
@@ -28,4 +29,5 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, float simRadGain,
     directionScores = {};
     orbSimFollowPoints = {};
     approach = {};
+    wallScanPoints = {};
 }

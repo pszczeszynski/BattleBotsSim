@@ -22,6 +22,7 @@ public:
     void generateBoundLines();
     void resetBoundsToDefault();
     std::pair<float, int> Field::closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
+    cv::Point2f boundIntersection(Line testLine);
 
 
 

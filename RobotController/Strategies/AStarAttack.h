@@ -75,7 +75,7 @@ private:
     cv::Point2f followApproachCurve(cv::Point2f currPosition, FollowPoint follow, float ppRad);
     void orbToOppPath(FollowPoint &follow);
     void oppToOrbETA(FollowPoint &follow);
-    float wallScore(FollowPoint follow);
+    float wallScore(FollowPoint &follow);
     float turnScore(FollowPoint follow);
     float ppRad(float speed);
     float ppRadWall();

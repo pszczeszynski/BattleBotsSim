@@ -81,3 +81,33 @@ bool Line::doesIntersectLine(const Line& other) const {
 std::pair<cv::Point2f, cv::Point2f> Line::getLinePoints() const {
     return { point1, point2 };
 }
+
+
+cv::Point2f Line::getIntersectionPoint(const Line& other) const {
+    const cv::Point2f& A = point1;
+    const cv::Point2f& B = point2;
+    const cv::Point2f& C = other.point1;
+    const cv::Point2f& D = other.point2;
+
+    cv::Point2f r = B - A;
+    cv::Point2f s = D - C;
+    cv::Point2f Delta = C - A;
+
+    float rxs = cross(r, s);
+    const float eps = 1e-6f;
+
+    // Parallel (including collinear)
+    if (std::fabs(rxs) < eps) {
+        return cv::Point2f(-1.0f, -1.0f);
+    }
+
+    float t = cross(Delta, s) / rxs;
+    float u = cross(Delta, r) / rxs;
+
+    // Check if intersection lies on both segments
+    if (t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f) {
+        return A + r * t;
+    }
+
+    return cv::Point2f(-1.0f, -1.0f);
+}
