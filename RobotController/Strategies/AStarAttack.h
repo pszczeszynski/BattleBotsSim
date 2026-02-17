@@ -70,7 +70,7 @@ private:
     int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);
     void approachCurve(FollowPoint &follow);
-    float approachRadiusEquation(float offsetAngle);
+    float approachRadiusEquation(float offsetAngle, float orbRad, float sweepRange);
     cv::Point2f approachPP(cv::Point2f currPosition, FollowPoint follow, float ppRad);
     cv::Point2f followApproachCurve(cv::Point2f currPosition, FollowPoint follow, float ppRad);
     void orbToOppPath(FollowPoint &follow);

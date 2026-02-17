@@ -22,6 +22,8 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, float simRadGain,
     worstTimeMargin = 0;
     crossesOppFront = false;
     hit = false;
+    orbRad = 0;
+    approachSweepRange = 0;
 
     directionScores = {};
     orbSimPath = {};

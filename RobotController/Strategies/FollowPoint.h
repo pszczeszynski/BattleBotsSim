@@ -27,6 +27,8 @@ public:
     bool turnAway; // if this point is making sure to turn away from opp at first
     float simRadGain; // the rad gain used in sim to generate the path for this point
     float worstTimeMargin; // how much can the opp beat us to unsafe points on the path
+    float orbRad;
+    float approachSweepRange;
 
     float driveAngle; // angle to drive when this point is active
     float oppETA; // opp time for this point
