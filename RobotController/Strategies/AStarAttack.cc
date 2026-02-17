@@ -126,7 +126,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
 
-    std::cout << "orb eta = " << follow.orbETA << ", opp eta = " << follow.oppETA;
+    std::cout << ", orb eta = " << follow.orbETA << ", opp eta = " << follow.oppETA;
+    std::cout << ", turn enforce = " << follow.enforceTurnDirection;
     std::cout << std::endl;
 
 
@@ -376,7 +377,7 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                     testFollow.point = testFollow.orbSimFollowPoints[followIndex]; // set the follow point to the first used in the sim
 
                     driveAngle(testFollow); // generate drive angle for this point
-                    // avoidBoundsVector(testFollow); // adjust turn direction to avoid wall if needed
+                    avoidBoundsVector(testFollow); // adjust turn direction to avoid wall if needed
                     directionScore(testFollow, forwardInput); // score this point
 
 
@@ -1301,6 +1302,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
     // intersection of pp radius and drive angle
     cv::Point2f drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(follow.driveAngle), sin(follow.driveAngle));
 
+
     // if drive point isn't in the field we need to change it
     if(!field.insideFieldBounds(drivePoint)) {
 
@@ -1314,6 +1316,9 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
     }
 
 
+    drivePoint = orbFiltered.position() + ppRadWall()*cv::Point2f(cos(follow.driveAngle), sin(follow.driveAngle));
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), drivePoint, 8, cv::Scalar(255, 0, 255), 3);
+
 
 
 
@@ -1326,11 +1331,10 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
     float orbOffset = angle_wrap(angleToBound - orbFiltered.angle(follow.forward));
     float driveOffset = angle_wrap(angleToBound - follow.driveAngle);
 
+    follow.enforceTurnDirection = 0;
+
     // only change the direction enforcement if turning the wrong way would make us go way out of the field
     if(abs(orbOffset) > 5.0f*TO_RAD) { 
-
-        // stop enforcing direction bc that might make it go out
-        follow.turnAway = false;
 
         if(orbOffset > 0 && driveOffset < 0) { follow.enforceTurnDirection = -1; }
         if(orbOffset < 0 && driveOffset > 0) { follow.enforceTurnDirection = 1; }
@@ -1394,7 +1398,7 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
 
     // how close is the nearest wall in this direction
     float wallGain = 70.0f;
-    // follow.directionScores.emplace_back(wallScore(follow)*wallGain);
+    follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
     // // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
