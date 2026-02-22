@@ -113,8 +113,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     FollowPoint follow = createFollowPoint(deltaTime, forwardInput, enable, follows, followsFocussed); // generate follow point
 
 
-    // _lastFollowPoints = followsFocussed; // store the followPoints for debugging/display
-    _lastFollowPoints = follows;
+    _lastFollowPoints = followsFocussed; // store the followPoints for debugging/display
+    // _lastFollowPoints = follows;
 
     
 
@@ -301,7 +301,7 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
     int lowestIndex = 0;
 
     // default values for parameters that don't vary
-    bool defaultForward = true;
+    bool defaultForward = forwardInput;
     bool defaultCW = true;
     bool defaultTurnAway = false;
 
@@ -475,21 +475,21 @@ cv::Point2f AStarAttack::followApproachCurve(cv::Point2f currPosition, FollowPoi
     if(follow.approach.size() == 0) { return point; } // no crashy
 
 
+
+    // target the opp directly if you're wrapping around
     float angleHere = angle(follow.opp.position(), currPosition);
 
     float wrapOffset = 90.0f*TO_RAD; wrapOffset *= follow.CW? 1 : -1;
     float offsetAngle = angle_wrap(follow.endingAngle - angleHere - wrapOffset) + wrapOffset;
 
-
-    // target the opp directly if you're wrapping around
     if(offsetAngle*(follow.CW? 1 : -1) < 0.0f*TO_RAD) { return point; }
+
+
 
 
     float radiusHere = approachRadiusEquation(offsetAngle, follow.orbRad, follow.approachSweepRange);
     float distanceFromCenter = cv::norm(currPosition - follow.opp.position());
     bool outsideApproach = distanceFromCenter > radiusHere;
-
-    // std::cout << "outside = " << outsideApproach;
 
 
 
@@ -577,12 +577,14 @@ cv::Point2f AStarAttack::approachPP(cv::Point2f currPosition, FollowPoint follow
             return follow.approach[i]; 
         }
 
+        // save which point was closest to us in case there is no pp intersection
         if(distance < closestDistance) {
             closestDistance = distance;
             closestIndex = i;
         }
     }
 
+    // return closest point if there was no pp intersection
     return follow.approach[closestIndex];
 }
 
@@ -707,7 +709,9 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
         // how far off we are from the simulated follow point
         float angleError = virtualOrb.angleTo(virtualFollow, follow.forward); 
-        float angleErrorRaw = angleError;
+    
+        // how far off we are form opp
+        float angleToOpp = virtualOrb.angleTo(follow.opp.position(), follow.forward); 
 
 
 
@@ -743,7 +747,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
 
         // exit conditions occur when we hit the opp
-        if(virtualOrb.colliding(follow.opp, 0.0f) && abs(angleError) < 80.0f*TO_RAD) {
+        if(virtualOrb.colliding(follow.opp, 0.0f) && abs(angleError) < 80.0f*TO_RAD && abs(angleToOpp) < 80.0f*TO_RAD) {
             break;
         }
 
