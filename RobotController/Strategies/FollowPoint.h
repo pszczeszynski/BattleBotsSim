@@ -16,7 +16,6 @@ public:
 
     std::vector<cv::Point2f> orbSimPath; // simulated path for orb to the opponent for this point's settings
     std::vector<float> orbSimPathTimes; // how long it takes orb to get to each point in the sim path
-    std::vector<cv::Point2f> orbSimFollowPoints; // list of follow points used to generate the sim path
     std::vector<cv::Point2f> approach; // curve that defines the approach to opp
     std::vector<cv::Point2f> oppSimPath; // extrapolated path for opp for where they'll be if we were to kill rn
     std::vector<cv::Point2f> wallScanPoints; // points generated in wall score algorithm

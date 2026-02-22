@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_PixelRect:
     serializedVersion: 2
-    x: 585.5
-    y: 166.5
+    x: 664
+    y: 146
     width: 875
     height: 559
   m_ShowMode: 4
@@ -119,7 +119,7 @@ MonoBehaviour:
   m_MinSize: {x: 300, y: 100}
   m_MaxSize: {x: 24288, y: 16192}
   vertical: 0
-  controlID: 78
+  controlID: 115
   draggingID: 0
 --- !u!114 &6
 MonoBehaviour:
@@ -171,7 +171,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 50}
   m_MaxSize: {x: 16192, y: 8096}
   vertical: 0
-  controlID: 19
+  controlID: 68
   draggingID: 0
 --- !u!114 &8
 MonoBehaviour:
@@ -302,8 +302,8 @@ MonoBehaviour:
     m_Tooltip: 
   m_Pos:
     serializedVersion: 2
-    x: 690.5
-    y: 196.5
+    x: 769
+    y: 176
     width: 626.5
     height: 334
   m_SerializedDataModeController:
@@ -402,8 +402,8 @@ MonoBehaviour:
     m_Tooltip: 
   m_Pos:
     serializedVersion: 2
-    x: 585.5
-    y: 196.5
+    x: 664
+    y: 176
     width: 104
     height: 334
   m_SerializedDataModeController:
@@ -466,8 +466,8 @@ MonoBehaviour:
     m_Tooltip: 
   m_Pos:
     serializedVersion: 2
-    x: 690.5
-    y: 196.5
+    x: 769
+    y: 176
     width: 626.5
     height: 334
   m_SerializedDataModeController:
@@ -1226,8 +1226,8 @@ MonoBehaviour:
     m_Tooltip: 
   m_Pos:
     serializedVersion: 2
-    x: 585.5
-    y: 551.5
+    x: 664
+    y: 531
     width: 732.5
     height: 133
   m_SerializedDataModeController:
@@ -1261,8 +1261,8 @@ MonoBehaviour:
     m_Tooltip: 
   m_Pos:
     serializedVersion: 2
-    x: 1319
-    y: 196.5
+    x: 1397.5
+    y: 176
     width: 140.5
     height: 488
   m_SerializedDataModeController:
