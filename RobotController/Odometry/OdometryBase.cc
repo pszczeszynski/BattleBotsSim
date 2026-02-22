@@ -5,13 +5,6 @@
 #include "../Globals.h"
 #include "OdometryData.h"
 
-// clock widget
-#include "../Odometry/Heuristic1/RobotTracker.h"
-
-// ***********************************************
-// ************ Odometry Base ********************
-// ***********************************************
-
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
     : _videoSource(videoSource) {
   _data[0] = OdometryData{};
@@ -193,14 +186,13 @@ void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
   const int leftX = 10 + offset.x;  // Left column for Robot Data
 
   // Draw robot data (top-left)
-  int yLeft = 20 + offset.y;  // Start at top
+  int yLeft = 20 + offset.y;
   cv::putText(target, "Robot Data:", cv::Point(leftX, yLeft),
               cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
   _data[(int)RobotSlot::Us].GetDebugImage(target,
                                           cv::Point(leftX + 10, yLeft + 14));
 
-  yLeft = 20 + offset.y;  // Reset to top
-
+  yLeft = 20 + offset.y;
   // Draw opponent data next to it
   cv::putText(target, "Opponent Data:", cv::Point(leftX + 190, yLeft),
               cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);

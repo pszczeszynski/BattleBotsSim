@@ -110,6 +110,7 @@ set(SOURCES
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     UIWidgets/CameraWidget.cc
+    UIWidgets/DebugVariant.cc
     UIWidgets/ColorScheme.cc
     UIWidgets/AStarAttackWidget.cc
     CVRotation.cc

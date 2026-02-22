@@ -36,26 +36,29 @@ TrackingWidget::TrackingWidget()
   }
 
   // Initialize default colors for each variant using our color scheme
-  variantColors["Camera"] = ColorScheme::GetVariantColor("Camera");
-  variantOffsets["Camera"] = cv::Point(0, 0);  // No offset for Camera
+  variantColors[DebugVariant::Camera] = ColorScheme::GetVariantColor(DebugVariant::Camera);
+  variantOffsets[DebugVariant::Camera] = cv::Point(0, 0);
 
-  variantColors["Blob"] = ColorScheme::GetVariantColor("Blob");
-  variantOffsets["Blob"] = cv::Point(0, 0);  // No offset for Blob
+  variantColors[DebugVariant::Blob] = ColorScheme::GetVariantColor(DebugVariant::Blob);
+  variantOffsets[DebugVariant::Blob] = cv::Point(0, 0);
 
-  variantColors["Heuristic"] = ColorScheme::GetVariantColor("Heuristic");
-  variantOffsets["Heuristic"] = cv::Point(0, 0);  // No offset for Heuristic
+  variantColors[DebugVariant::Heuristic] = ColorScheme::GetVariantColor(DebugVariant::Heuristic);
+  variantOffsets[DebugVariant::Heuristic] = cv::Point(0, 0);
 
-  variantColors["Neural"] = ImVec4(0.0f, 0.5f, 0.5f, 1.0f);  // Default: Cyan
-  variantOffsets["Neural"] = cv::Point(0, 0);  // No offset for Neural
+  variantColors[DebugVariant::Neural] = ColorScheme::GetVariantColor(DebugVariant::Neural);
+  variantOffsets[DebugVariant::Neural] = cv::Point(0, 0);
 
-  variantColors["Fusion"] = ImVec4(0.8f, 0.8f, 0.0f, 1.0f);  // Default: Yellow
-  variantOffsets["Fusion"] = cv::Point(0, 0);  // No offset for Fusion
+  variantColors[DebugVariant::Fusion] = ColorScheme::GetVariantColor(DebugVariant::Fusion);
+  variantOffsets[DebugVariant::Fusion] = cv::Point(0, 0);
 
-  variantColors["Opencv"] = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);  // Default: Grey
-  variantOffsets["Opencv"] = cv::Point(0, 0);
+  variantColors[DebugVariant::Opencv] = ColorScheme::GetVariantColor(DebugVariant::Opencv);
+  variantOffsets[DebugVariant::Opencv] = cv::Point(0, 0);
 
-  variantColors["NeuralRot"] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);  // Default: Grey
-  variantOffsets["NeuralRot"] = cv::Point(0, 0);
+  variantColors[DebugVariant::NeuralRot] = ColorScheme::GetVariantColor(DebugVariant::NeuralRot);
+  variantOffsets[DebugVariant::NeuralRot] = cv::Point(0, 0);
+
+  variantColors[DebugVariant::LKFlow] = ColorScheme::GetVariantColor(DebugVariant::LKFlow);
+  variantOffsets[DebugVariant::LKFlow] = cv::Point(0, 0);
 
   RestoreGUISettings(VISION_TRACKING_GUI);
 }
@@ -66,7 +69,7 @@ void TrackingWidget::_GrabFrame() {
   // 1. populate the tracking mat (for display purposes)
   static ICameraReceiver* camera = ICameraReceiver::GetInstance();
   if (camera != nullptr && camera->NewFrameReady(last_id)) {
-    last_id = camera->GetFrame(GetDebugImage("Camera"), last_id);
+    last_id = camera->GetFrame(GetDebugImage(DebugVariant::Camera), last_id);
   }
 }
 
@@ -238,53 +241,36 @@ void TrackingWidget::_DrawAlgorithmData() {
                cv::Scalar(0, 255, 255), 3);
   }
 
-  // The color format seems to be BLUE, GREEN, RED
-  // blob is blue
+  // BGR scalars from variant colors
   cv::Scalar blobColor = cv::Scalar(255, 0, 0);
-  if (variantColors.find("Blob") != variantColors.end()) {
-    blobColor =
-        cv::Scalar(variantColors["Blob"].z * 255, variantColors["Blob"].y * 255,
-                   variantColors["Blob"].x * 255);
+  if (variantColors.find(DebugVariant::Blob) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::Blob];
+    blobColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
-
-  // neural is purple
   cv::Scalar neuralColor = cv::Scalar(255, 0, 255);
-  if (variantColors.find("Neural") != variantColors.end()) {
-    neuralColor = cv::Scalar(variantColors["Neural"].z * 255,
-                             variantColors["Neural"].y * 255,
-                             variantColors["Neural"].x * 255);
+  if (variantColors.find(DebugVariant::Neural) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::Neural];
+    neuralColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
-
-  // heursitic is yellow - orange
   cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
-  if (variantColors.find("Heuristic") != variantColors.end()) {
-    heuristicColor = cv::Scalar(variantColors["Heuristic"].z * 255,
-                                variantColors["Heuristic"].y * 255,
-                                variantColors["Heuristic"].x * 255);
+  if (variantColors.find(DebugVariant::Heuristic) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::Heuristic];
+    heuristicColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
-
-  // opencv is red
   cv::Scalar opencvColor = cv::Scalar(0, 0, 255);
-  if (variantColors.find("Opencv") != variantColors.end()) {
-    opencvColor = cv::Scalar(variantColors["Opencv"].z * 255,
-                             variantColors["Opencv"].y * 255,
-                             variantColors["Opencv"].x * 255);
+  if (variantColors.find(DebugVariant::Opencv) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::Opencv];
+    opencvColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
-
-  // Fusion color
   cv::Scalar fusionColor = cv::Scalar(255, 255, 255);
-  if (variantColors.find("Fusion") != variantColors.end()) {
-    fusionColor = cv::Scalar(variantColors["Fusion"].z * 255,
-                             variantColors["Fusion"].y * 255,
-                             variantColors["Fusion"].x * 255);
+  if (variantColors.find(DebugVariant::Fusion) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::Fusion];
+    fusionColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
-
-  // LKFlow is cyan
   cv::Scalar lkFlowColor = cv::Scalar(255, 255, 0);
-  if (variantColors.find("LKFlow") != variantColors.end()) {
-    lkFlowColor = cv::Scalar(variantColors["LKFlow"].z * 255,
-                             variantColors["LKFlow"].y * 255,
-                             variantColors["LKFlow"].x * 255);
+  if (variantColors.find(DebugVariant::LKFlow) != variantColors.end()) {
+    const ImVec4& c = variantColors[DebugVariant::LKFlow];
+    lkFlowColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
   }
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   BlobDetection& _odometry_Blob = odometry.GetBlobOdometry();
@@ -502,74 +488,64 @@ void TrackingWidget::Update() {
 // New function to store an image with a given label
 // The image should be a clone of the original image to avoid issues with
 // references
-void TrackingWidget::UpdateDebugImage(const std::string& label,
+void TrackingWidget::UpdateDebugImage(DebugVariant variant,
                                       const cv::Mat& image) {
-  variantImages[label] = image;
+  variantImages[variant] = image;
 }
 
-// Returns the old debug image, creates a new one if it doesn't exist
-cv::Mat& TrackingWidget::GetDebugImage(const std::string& label) {
-  if (variantImages.find(label) == variantImages.end()) {
-    variantImages[label] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
+cv::Mat& TrackingWidget::GetDebugImage(DebugVariant variant) {
+  if (variantImages.find(variant) == variantImages.end()) {
+    variantImages[variant] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
   }
-
-  return variantImages[label];
+  return variantImages[variant];
 }
 
-cv::Point TrackingWidget::GetDebugOffset(const std::string& label) {
-  auto it = variantOffsets.find(label);
+cv::Point TrackingWidget::GetDebugOffset(DebugVariant variant) {
+  auto it = variantOffsets.find(variant);
   if (it == variantOffsets.end()) {
-    variantOffsets[label] =
-        cv::Point(0, 0);  // Initialize with default offset if not found
+    variantOffsets[variant] = cv::Point(0, 0);
   }
-
-  return variantOffsets[label];  // Default offset if not found
+  return variantOffsets[variant];
 }
 
-void TrackingWidget::_DrawShowButton(const char* label, bool& enabledFlag) {
-  ImGui::PushID(label);  // Ensure unique IDs for widgets
+void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
+  const char* label = DebugVariantToString(variant);
+  ImGui::PushID(label);
 
-  // Get the color for this variant (default to white if not found)
-  ImVec4 color = variantColors.count(label) ? variantColors[label]
-                                            : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+  ImVec4 color = variantColors.count(variant) ? variantColors[variant]
+                                              : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-  // Apply button colors based on enabled state
   if (enabledFlag) {
     ColorScheme::PushSuccessColors();
   } else {
     ColorScheme::PushButtonColors(ColorScheme::PRIMARY_BLUE);
   }
 
-  // Draw the toggle button
   if (ImGui::Button(enabledFlag ? "Shown" : "Hidden")) {
     enabledFlag = !enabledFlag;
   }
 
-  ColorScheme::PopButtonColors();  // Pop the button colors
+  ColorScheme::PopButtonColors();
 
-  // Draw the label
   ImGui::SameLine();
-  ImGui::Text(label);
+  ImGui::Text("%s", label);
 
-  // Add a color picker for this variant
   ImGui::SameLine();
   float colorArray[4] = {color.x, color.y, color.z, color.w};
   if (ImGui::ColorEdit4(("Color##" + std::string(label)).c_str(), colorArray,
                         ImGuiColorEditFlags_NoInputs)) {
-    variantColors[label] =
+    variantColors[variant] =
         ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
   }
 
-  // Add x, y offset inputs using DragInt2 for integers
   ImGui::SameLine();
-  ImGui::PushItemWidth(60);  // Set width for input fields
+  ImGui::PushItemWidth(60);
   cv::Point offset =
-      variantOffsets.count(label) ? variantOffsets[label] : cv::Point(0, 0);
+      variantOffsets.count(variant) ? variantOffsets[variant] : cv::Point(0, 0);
   int offsetArray[2] = {offset.x, offset.y};
   if (ImGui::DragInt2(("Offset##" + std::string(label)).c_str(), offsetArray, 1,
                       -1000, 1000)) {
-    // Update stored offset if changed
-    variantOffsets[label] = cv::Point(offsetArray[0], offsetArray[1]);
+    variantOffsets[variant] = cv::Point(offsetArray[0], offsetArray[1]);
   }
   ImGui::PopItemWidth();
 
@@ -580,49 +556,56 @@ void TrackingWidget::_RenderFrames() {
   // Initialize the output image as empty
   _trackingMat = cv::Mat();
 
-  // List of variant labels and their corresponding visibility flags
-  std::vector<std::pair<std::string, bool>> variants = {
-      {"Camera", showCamera},       {"Blob", showBlob},
-      {"Heuristic", showHeuristic}, {"Neural", showNeural},
-      {"Fusion", showFusion},       {"NeuralRot", showNeuralRot},
+  // List of variants and their visibility flags
+  std::vector<std::pair<DebugVariant, bool>> variants = {
+      {DebugVariant::Camera, showCamera},
+      {DebugVariant::Blob, showBlob},
+      {DebugVariant::Heuristic, showHeuristic},
+      {DebugVariant::Neural, showNeural},
+      {DebugVariant::Fusion, showFusion},
+      {DebugVariant::NeuralRot, showNeuralRot},
 #ifdef USE_OPENCV_TRACKER
-      {"Opencv", showOpencv},
+      {DebugVariant::Opencv, showOpencv},
 #endif
-      {"LKFlow", showLKFlow}};
+      {DebugVariant::LKFlow, showLKFlow},
+  };
 
-  // Use the camera image size as the output size
-  cv::Size outputSize = GetDebugImage("Camera").size();
+  cv::Size outputSize = GetDebugImage(DebugVariant::Camera).size();
 
-  // Pull debug images from RobotOdometry at draw time (only for visible
-  // variants)
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   if (showBlob) {
-    odometry.GetBlobOdometry().GetDebugImage(GetDebugImage("Blob"),
-                                             GetDebugOffset("Blob"));
+    odometry.GetBlobOdometry().GetDebugImage(GetDebugImage(DebugVariant::Blob),
+                                             GetDebugOffset(DebugVariant::Blob));
   }
   if (showHeuristic) {
-    odometry.GetHeuristicOdometry().GetDebugImage(GetDebugImage("Heuristic"),
-                                                  GetDebugOffset("Heuristic"));
+    odometry.GetHeuristicOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::Heuristic),
+        GetDebugOffset(DebugVariant::Heuristic));
   }
   if (showNeural) {
-    odometry.GetNeuralOdometry().GetDebugImage(GetDebugImage("Neural"),
-                                               GetDebugOffset("Neural"));
+    odometry.GetNeuralOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::Neural),
+        GetDebugOffset(DebugVariant::Neural));
   }
   if (showFusion) {
-    odometry.GetDebugImage(GetDebugImage("Fusion"), GetDebugOffset("Fusion"));
+    odometry.GetDebugImage(GetDebugImage(DebugVariant::Fusion),
+                           GetDebugOffset(DebugVariant::Fusion));
   }
   if (showNeuralRot) {
-    odometry.GetNeuralRotOdometry().GetDebugImage(GetDebugImage("NeuralRot"),
-                                                  GetDebugOffset("NeuralRot"));
+    odometry.GetNeuralRotOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::NeuralRot),
+        GetDebugOffset(DebugVariant::NeuralRot));
   }
   if (showLKFlow) {
-    odometry.GetLKFlowOdometry().GetDebugImage(GetDebugImage("LKFlow"),
-                                               GetDebugOffset("LKFlow"));
+    odometry.GetLKFlowOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::LKFlow),
+        GetDebugOffset(DebugVariant::LKFlow));
   }
 #ifdef USE_OPENCV_TRACKER
   if (showOpencv) {
-    odometry.GetOpenCVOdometry().GetDebugImage(GetDebugImage("Opencv"),
-                                               GetDebugOffset("Opencv"));
+    odometry.GetOpenCVOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::Opencv),
+        GetDebugOffset(DebugVariant::Opencv));
   }
 #endif
 
@@ -632,26 +615,22 @@ void TrackingWidget::_RenderFrames() {
   // Pre-allocate working matrices to avoid repeated allocations
   cv::Mat colorized, mask, temp3channel;
 
-  // Iterate through each variant to overlay images
   for (const auto& variant : variants) {
-    const std::string& label = variant.first;
+    DebugVariant v = variant.first;
     bool isVisible = variant.second;
 
-    // Skip if the variant is not visible or the image doesn't exist
-    if (!isVisible || variantImages.find(label) == variantImages.end()) {
+    if (!isVisible || variantImages.find(v) == variantImages.end()) {
       continue;
     }
 
-    const cv::Mat& srcImage = variantImages[label];
-    // Skip empty or invalid images
+    const cv::Mat& srcImage = variantImages[v];
     if (srcImage.empty() || srcImage.cols != outputSize.width ||
         srcImage.rows != outputSize.height) {
       continue;
     }
 
-    // Get the color for this variant (default to white if not found)
-    ImVec4 color = variantColors.count(label) ? variantColors[label]
-                                              : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+    ImVec4 color = variantColors.count(v) ? variantColors[v]
+                                          : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
     cv::Scalar bgrColor(color.z * 255, color.y * 255,
                         color.x * 255);  // Convert RGB to BGR for OpenCV
     float alpha = color.w;               // Use the alpha value from ImVec4
@@ -757,17 +736,16 @@ void TrackingWidget::AutoMatchStart(bool left) {
 void TrackingWidget::DrawGUI() {
   ImGui::Begin("Tracking Config");
 
-  // Draw buttons and inputs for each variant
-  _DrawShowButton("Camera", showCamera);
-  _DrawShowButton("Blob", showBlob);
-  _DrawShowButton("Heuristic", showHeuristic);
-  _DrawShowButton("Neural", showNeural);
-  _DrawShowButton("NeuralRot", showNeuralRot);
+  _DrawShowButton(DebugVariant::Camera, showCamera);
+  _DrawShowButton(DebugVariant::Blob, showBlob);
+  _DrawShowButton(DebugVariant::Heuristic, showHeuristic);
+  _DrawShowButton(DebugVariant::Neural, showNeural);
+  _DrawShowButton(DebugVariant::NeuralRot, showNeuralRot);
 #ifdef USE_OPENCV_TRACKER
-  _DrawShowButton("Opencv", showOpencv);
+  _DrawShowButton(DebugVariant::Opencv, showOpencv);
 #endif
-  _DrawShowButton("LKFlow", showLKFlow);
-  _DrawShowButton("Fusion", showFusion);
+  _DrawShowButton(DebugVariant::LKFlow, showLKFlow);
+  _DrawShowButton(DebugVariant::Fusion, showFusion);
 
   // Add two line spacers
   ImGui::Separator();
@@ -888,18 +866,17 @@ std::string TrackingWidget::SaveGUISettings() {
   // Save outputVideoFile
   ss << "outputVideoFile=" << outputVideoFile << ";";
 
-  // Save variantColors
   ss << "variantColors=";
   for (const auto& pair : variantColors) {
-    ss << pair.first << ":" << pair.second.x << "," << pair.second.y << ","
-       << pair.second.z << "," << pair.second.w << "|";
+    ss << DebugVariantToString(pair.first) << ":" << pair.second.x << ","
+       << pair.second.y << "," << pair.second.z << "," << pair.second.w << "|";
   }
   ss << ";";
 
-  // Save variantOffsets
   ss << "variantOffsets=";
   for (const auto& pair : variantOffsets) {
-    ss << pair.first << ":" << pair.second.x << "," << pair.second.y << "|";
+    ss << DebugVariantToString(pair.first) << ":" << pair.second.x << ","
+       << pair.second.y << "|";
   }
   ss << ";";
 
@@ -956,7 +933,6 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
           '\0';  // Ensure null-termination
     }
 
-    // Restore variantColors
     else if (key == "variantColors") {
       variantColors.clear();
       auto colorEntries = split(value, '|');
@@ -966,13 +942,12 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         if (colorData.size() != 2) continue;
         auto colors = split(colorData[1], ',');
         if (colors.size() != 4) continue;
-        variantColors[colorData[0]] =
-            ImVec4(std::stof(colors[0]), std::stof(colors[1]),
-                   std::stof(colors[2]), std::stof(colors[3]));
+        variantColors[DebugVariantFromString(colorData[0])] = ImVec4(
+            std::stof(colors[0]), std::stof(colors[1]), std::stof(colors[2]),
+            std::stof(colors[3]));
       }
     }
 
-    // Restore variantOffsets
     else if (key == "variantOffsets") {
       variantOffsets.clear();
       auto offsetEntries = split(value, '|');
@@ -982,7 +957,7 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         if (offsetData.size() != 2) continue;
         auto offsets = split(offsetData[1], ',');
         if (offsets.size() != 2) continue;
-        variantOffsets[offsetData[0]] =
+        variantOffsets[DebugVariantFromString(offsetData[0])] =
             cv::Point(std::stoi(offsets[0]), std::stoi(offsets[1]));
       }
     }
