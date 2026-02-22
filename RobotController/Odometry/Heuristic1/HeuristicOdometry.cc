@@ -655,10 +655,10 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime)
                   cv::Scalar(0, 100, 255), 2, cv::LINE_AA, 0);
     }
 
-    // Copy over to debug
-    std::unique_lock<std::mutex> debuglock(_mutexDebugImage); // Locks the mutex
-    cv::cvtColor(currFrameColor, _debugImage, cv::COLOR_BGR2GRAY); // Convert to RGB for debug image
-    debuglock.unlock(); // Unlock the mutex
+    // Copy over to debug (keep color for debug display)
+    std::unique_lock<std::mutex> debuglock(_mutexDebugImage);
+    _debugImage = currFrameColor.clone();
+    debuglock.unlock();
 
 
 

@@ -8,7 +8,7 @@
 #include "../Clock.h"
 #include "../MathUtils.h"
 
-constexpr float kMaxExtrapTimeS = 0.1;
+constexpr float kMaxExtrapTimeS = 0.03;
 
 enum OdometryAlg : size_t {
   Blob = 0,

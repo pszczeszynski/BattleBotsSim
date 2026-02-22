@@ -178,12 +178,12 @@ void OdometryBase::Publish(OdometryData sample, bool isOpponent,
   out.id = oldId + 1;
 }
 
-// Returns an image use for debugging. Empty by default
-// The image should be greyscale and of type CV_8UC1
+// Returns an image use for debugging. Empty by default.
+// Target can be CV_8UC3 (color) or CV_8UC1; drawing uses BGR when target is
+// color.
 void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
-  // This should not happen, but in case it does, we will create an empty image
   if (target.empty()) {
-    target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0));
+    target = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
   }
 
   target =
@@ -194,14 +194,16 @@ void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
 
   // Draw robot data (top-left)
   int yLeft = 20 + offset.y;  // Start at top
-  printText("Robot Data:", target, yLeft, leftX);
+  cv::putText(target, "Robot Data:", cv::Point(leftX, yLeft),
+              cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
   _data[(int)RobotSlot::Us].GetDebugImage(target,
                                           cv::Point(leftX + 10, yLeft + 14));
 
   yLeft = 20 + offset.y;  // Reset to top
 
   // Draw opponent data next to it
-  printText("Opponent Data:", target, yLeft, leftX + 190);
+  cv::putText(target, "Opponent Data:", cv::Point(leftX + 190, yLeft),
+              cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
   _data[(int)RobotSlot::Opponent].GetDebugImage(
       target, cv::Point(leftX + 10 + 190, yLeft + 14));
 }

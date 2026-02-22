@@ -152,6 +152,12 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
     _odometry_LKFlow.SetAngle(_dataOpponent.angle.value(), true);
   }
 
+  if (_dataOpponent.pos.has_value()) {
+    _odometry_Heuristic.ForcePosition(_dataOpponent.pos.value().position, true);
+    _odometry_Blob.ForcePosition(_dataOpponent.pos.value().position, true);
+    _odometry_LKFlow.ForcePosition(_dataOpponent.pos.value().position, true);
+  }
+
 #ifdef USE_OPENCV_TRACKER
   if (_dataOpponent.pos.has_value()) {
     _odometry_opencv.ForcePosition(_dataOpponent.pos.value().position, true);
@@ -399,6 +405,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   if (opponent.angle.has_value()) {
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
+    _odometry_LKFlow.SetAngle(opponent.angle.value(), true);
   }
 }
 

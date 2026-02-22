@@ -88,9 +88,8 @@ OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
 
 // Adds to the passed image odometry data for debugging purposes.
 void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
-  // This should not happen, but in case it does, we will create an empty image
   if (target.empty()) {
-    target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0));
+    target = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
   }
 
   std::stringstream ss;

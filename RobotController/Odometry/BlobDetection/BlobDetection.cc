@@ -7,7 +7,6 @@
 #include "../../RobotConfig.h"
 #include "../../SafeDrawing.h"
 
-
 // *********************************************************************
 // NOTE:
 // Blob detection is used for position and velocity of us and them.
@@ -133,13 +132,15 @@ VisionClassification BlobDetection::_DoBlobDetection(
   VisionClassification result = _robotClassifier.ClassifyBlobs(
       motionBlobs, currFrame, thresholdImg, usPrior, themPrior, frameTime);
 
-  // Build debug image (build locally, then swap under lock)
+  // Build debug image in BGR for color drawing (build locally, then swap under lock)
   cv::Mat debugLocal;
-  thresholdImg.copyTo(debugLocal);
+  cv::cvtColor(thresholdImg, debugLocal, cv::COLOR_GRAY2BGR);
+  const cv::Scalar kBlobRectColor(0, 255, 0);   // Green (BGR)
+  const cv::Scalar kBlobCenterColor(0, 255, 255);  // Yellow
 
   for (const MotionBlob& blob : motionBlobs) {
-    cv::rectangle(debugLocal, blob.rect, cv::Scalar(255), 2);
-    safe_circle(debugLocal, blob.center, 5, cv::Scalar(255), 2);
+    cv::rectangle(debugLocal, blob.rect, kBlobRectColor, 2);
+    safe_circle(debugLocal, blob.center, 5, kBlobCenterColor, 2);
   }
 
   {
@@ -151,22 +152,15 @@ VisionClassification BlobDetection::_DoBlobDetection(
 }
 
 void BlobDetection::GetDebugImage(cv::Mat& debugImage, cv::Point offset) {
-  OdometryBase::GetDebugImage(
-      debugImage, offset);  // Call base class to add the odometry data
+  OdometryBase::GetDebugImage(debugImage, offset);
 
-  // Get unique access to _debugImage
-  std::unique_lock<std::mutex> locker(_mutexDebugImage);
+  std::scoped_lock<std::mutex> locker(_mutexDebugImage);
   if (_debugImage.empty() || _debugImage.size() != debugImage.size() ||
       _debugImage.type() != debugImage.type()) {
-    locker.unlock();
-    return;  // No valid _debugImage to merge
+    return;
   }
 
-  // Add _debugImage to debugImage
-  cv::add(debugImage, _debugImage,
-          debugImage);  // Add images, store result in debugImage
-
-  locker.unlock();  // Unlock mutex after operation
+  cv::add(debugImage, _debugImage, debugImage);
 }
 
 void BlobDetection::_ProcessStream(const MotionBlob& blob,
@@ -353,16 +347,13 @@ void BlobDetection::_UpdateAnglePathTangent(BlobTrackState& state,
 
 void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
                                       double timestamp) {
-  OdometryData sample {};
+  OdometryData sample{};
 
   // Set position data
   if (state.have_pos && state.last_position.has_value()) {
-    PositionData posData(state.last_position.value(), state.last_velocity,
-                         timestamp);
-    if (state.last_rect.has_value()) {
-      posData.rect = state.last_rect.value();
-    }
-    sample.pos = posData;
+    sample.pos = PositionData{state.last_position.value(), state.last_velocity,
+                              timestamp};
+    sample.pos.value().rect = state.last_rect;
   }
 
   // Set angle data (if we have angle reference)
@@ -383,13 +374,12 @@ void BlobDetection::SwitchRobots(void) {
 }
 
 void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {
-  constexpr float IGNORE_THRESH_PX = 10;
-
   BlobTrackState& state = opponentRobot ? _themState : _usState;
 
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   // ignore the request if our existing position is fine
+  constexpr float IGNORE_THRESH_PX = 10;
   if (state.have_pos && state.last_position.has_value() &&
       cv::norm(newPos - state.last_position.value()) < IGNORE_THRESH_PX) {
     return;

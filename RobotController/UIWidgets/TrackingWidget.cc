@@ -510,9 +510,7 @@ void TrackingWidget::UpdateDebugImage(const std::string& label,
 // Returns the old debug image, creates a new one if it doesn't exist
 cv::Mat& TrackingWidget::GetDebugImage(const std::string& label) {
   if (variantImages.find(label) == variantImages.end()) {
-    variantImages[label] =
-        cv::Mat(HEIGHT, WIDTH, CV_8UC1,
-                cv::Scalar(0));  // Create an empty image if it doesn't exist
+    variantImages[label] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
   }
 
   return variantImages[label];

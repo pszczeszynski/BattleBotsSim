@@ -330,7 +330,10 @@ cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
   cv::Point2f sum(0, 0);
   int n = 0;
   for (size_t i = 0; i < status.size(); ++i) {
-    if (status[i] != 1) continue;
+    if (_tracks[i].age < 10 || status[i] != 1) {
+      continue;
+    }
+
     sum += nextPts[i] - prevPts[i];
     ++n;
   }
@@ -342,30 +345,35 @@ void LKFlowTracker::_DrawDebugImage(
     cv::Size imageSize, const std::vector<cv::Point2f>& nextPts,
     const std::vector<std::pair<int, int>>& validPairs) {
   std::unique_lock<std::mutex> debugLock(_mutexDebugImage);
-  _debugImage = cv::Mat::zeros(imageSize, CV_8UC1);
+  _debugImage = cv::Mat::zeros(imageSize, CV_8UC3);
+
+  const cv::Scalar kLineColor(200, 200, 200);    // Light gray (BGR)
+  const cv::Scalar kTrackColor(0, 255, 0);       // Green
+  const cv::Scalar kPosColor(0, 255, 255);       // Yellow (pos + arrow)
+  const cv::Scalar kRoiColor(255, 165, 0);      // Blue (ROI rectangle)
 
   for (const auto& pair : validPairs) {
     int idx1 = pair.first;
     int idx2 = pair.second;
     if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
         idx2 < static_cast<int>(nextPts.size())) {
-      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], cv::Scalar(200), 1);
+      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], kLineColor, 1);
     }
   }
 
   for (const auto& track : _tracks) {
-    cv::circle(_debugImage, track.pt, 2, cv::Scalar(255), -1);
+    cv::circle(_debugImage, track.pt, 2, kTrackColor, -1);
   }
-  cv::circle(_debugImage, _pos, 5, cv::Scalar(255), 2);
+  cv::circle(_debugImage, _pos, 5, kPosColor, 2);
 
   cv::Rect roi = _GetROI();
   if (roi.width > 0 && roi.height > 0) {
-    cv::rectangle(_debugImage, roi, cv::Scalar(128), 2);
+    cv::rectangle(_debugImage, roi, kRoiColor, 2);
   }
 
   // draw an arrow from _pos at the angle
   cv::Point2f arrowEnd = _pos + cv::Point2f(30 * cos(_angle), 30 * sin(_angle));
-  cv::arrowedLine(_debugImage, _pos, arrowEnd, cv::Scalar(255), 2);
+  cv::arrowedLine(_debugImage, _pos, arrowEnd, kPosColor, 2);
 }
 
 void LKFlowTracker::_UpdateAngleFromRotations(
@@ -591,6 +599,14 @@ void LKFlowTracker::SwitchRobots() {
 void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
   if (!opponentRobot) return;
 
+  // Only lightly interpolate
+  constexpr float kHardSkipThresholdPx = 10;
+  if (cv::norm(newPos - _pos) < kHardSkipThresholdPx) {
+    _pos = InterpolatePoints(_pos, newPos, 0.05f);
+    _FilterPointsByROI(_tracks);
+    return;
+  }
+
   _pos = newPos;
   _FilterPointsByROI(_tracks);
 }
@@ -602,7 +618,21 @@ void LKFlowTracker::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
 void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
   if (!opponentRobot) return;
 
+  // If we were the original producer of this angle, don't override it.
+  if (angleData.algorithm == OdometryAlg::LKFlow) {
+    return;
+  }
+
   std::lock_guard<std::mutex> lk(_updateMutex);
+
+  constexpr float kHardSkipThresholdRad = 10.0f * TO_RAD;
+  // check if the angle is really close
+  if (std::abs(angleData.angle - _angle) < kHardSkipThresholdRad) {
+    _angle = InterpolateAngles(_angle, angleData.angle, 0.05f);
+    return;
+  }
+
+  // Otherwise, set the angle to the new value
   _angle = angleData.angle;
 }
 
