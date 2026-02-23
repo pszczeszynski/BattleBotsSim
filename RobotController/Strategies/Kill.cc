@@ -5,17 +5,17 @@
 #include "Extrapolate.h"
 #include "../SafeDrawing.h"
 #include "DisplayUtils.h"
+#include "FilteredRobot.h"
 
 Kill::Kill()
 {
     // init filters
-    // init filters
-    orbFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
-        22.0f, 50.0f, 50.0f*TO_RAD, 20.0f);
-    oppFiltered = FilteredRobot(1.0f, 50.0f, 400.0f, 500.0f, 
-        15.0f, 50.0f, 60.0f*TO_RAD, 25.0f);
+    orbFiltered = FilteredRobot(1.0f, 40.0f, 430.0f, 800.0f, 
+        22.0f, 50.0f, 70.0f*TO_RAD, 20.0f);
 
-    // init field
+    oppFiltered = FilteredRobot(1.0f, 50.0f, 430.0f, 1200.0f, 
+        25.0f, 60.0f, 60.0f*TO_RAD, 28.0f);
+    
     field = Field();
 }
 
@@ -43,56 +43,20 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
 
 
-    // if we're inputting forward driving direction
-    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f);
+    bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if we're inputting forward driving direction
 
 
-    // generate the extrapolated opp to where we'll collide
+    // will be filled with final paths
+    std::vector<cv::Point2f> orbSimPath = {};
     std::vector<cv::Point2f> oppSimPath = {};
-    FilteredRobot oppExtrap = orbFiltered.createVirtualOpp(oppFiltered, forwardInput, true, true, 1.0f, oppSimPath);
 
-    // // if the opp extrapolated out of the field, clip it in
-    // if(!field.insideFieldBounds(oppExtrap.position())) {
-    //     cv::Point2f clippedPosition = field.closestBoundPoint(oppExtrap.position());
-    //     std::vector<float> clippedPos = {clippedPosition.x, clippedPosition.y, oppFiltered.getPosFiltered()[2]};
-    //     oppExtrap.setPos(clippedPos);
-    // }
-
-
-    // recalculate orb sim path for displaying
-    std::vector<cv::Point2f> orbSimPathCW = {};
-    std::vector<cv::Point2f> orbSimPathCCW = {};
-
-    // float orbTimeCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, true, true, false, -1.0f);
-    // float orbTimeCCW = orbFiltered.ETASim(oppExtrap, orbSimPathCW, false, false, forwardInput, false, true, false, -1.0f);
-
-    float orbTimeCW = 0.0f;
-    float orbTimeCCW = 0.0f;
-
-    std::vector<cv::Point2f> orbSimPath = orbSimPathCW;
-    float orbTime = orbTimeCW;
-
-    if(orbTimeCCW < orbTimeCW) {
-        orbSimPath = orbSimPathCCW;
-        orbTime = orbTimeCCW;
-    }
-    // std::cout << "orbTime = " << orbTime << std::endl;
-
+    // extrapolate opp
+    cv::Point2f target = extrapOpp(oppSimPath, orbSimPath, forwardInput);
 
 
     // calculate drive inputs based on curvature controller (it's just atan2)
-    float targetAngle = atan2(oppExtrap.position().y - orbFiltered.position().y, oppExtrap.position().x - orbFiltered.position().x);
-    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, gamepad.GetRightStickY(), deltaTime, 0, forwardInput);
-
-
-
-    // create and send drive command
-    DriverStationMessage ret;
-    ret.type = DriverStationMessageType::DRIVE_COMMAND;
-    ret.driveCommand.movement = driveInputs[0];
-    ret.driveCommand.turn = driveInputs[1];
-
-
+    float targetAngle = angle(orbFiltered.position(), target);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, gamepad.GetRightStickY(), deltaTime, forwardInput, 0);
 
 
 
@@ -120,9 +84,9 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     // display things we want
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppExtrap.position(), 10, colorOpp, 2); // draw dot on the extrap opp
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppSimPath.back(), 10, colorOpp, 2); // draw dot on the extrap opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppExtrap.position(), oppExtrap.getSizeRadius(), colorOpp, 2); // draw op size
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppSimPath.back(), oppFiltered.getSizeRadius(), colorOpp, 2); // draw op size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
 
     DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
@@ -131,7 +95,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(3) << orbTime;
+    oss << std::fixed << std::setprecision(3) << 0; //orbTime;
     
     std::string collisionTime = "Time to Collision: " + oss.str() + "s";
     std::string forwardStatus = forwardInput ? "Forward" : "Backward"; 
@@ -145,8 +109,125 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     
 
 
+    // create and send drive command
+    DriverStationMessage ret;
+    ret.type = DriverStationMessageType::DRIVE_COMMAND;
+    ret.driveCommand.movement = driveInputs[0];
+    ret.driveCommand.turn = driveInputs[1];
 
     // processingTimeVisualizer.markEnd();
     return ret;
 }
 
+
+
+
+// extraps the opp to a point at which orb will collide at the same time
+cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward) {
+
+    float maxExtrap = 1.0f; // furthest we'll ever extrap the opp
+    float increment = 0.02f; // increment of extrap time scanning
+    float extrapTime = 0.0f; // how much extrap we're currently checking
+
+    int maxSteps = (int) maxExtrap / increment;
+
+    oppSimPath = {}; // reset just in case
+
+    FilteredRobot virtualOpp = oppFiltered; // start virtual opp at opp's current state
+    virtualOpp.setToSlowVel(); // use slow vel to avoid noise
+
+
+    // extrap up to the max number of steps
+    for(int i = 0; i < maxSteps; i++) {
+
+        oppSimPath.emplace_back(virtualOpp.position()); // add position to sim path
+
+        float orbETA = orbTimeToPoint(virtualOpp.position(), orbSimPath, forward); // simulate orb's path to the point
+        if(orbETA < extrapTime) { break; } // break when we arrive at the same time
+
+
+
+
+        // now we need to extrapolate opp by another increment for the next update
+
+        std::vector<std::vector<float>> oppExtrap = virtualOpp.constVelExtrap(increment); // extrapolate opp another time step
+
+        float velLeft1Sec = 0.04f; // 0.01 what percent of velocity is left after each second
+        float velPercent = pow(velLeft1Sec, increment); // what percent of velocity is left after this timestep
+
+        float turnLeft1Sec = 0.003f; // 0.003
+        float turnPercent = pow(turnLeft1Sec, increment);
+
+        std::vector<float> newPos = oppExtrap[0]; // pull out new pos
+        std::vector<float> newVel = oppExtrap[1]; // pull out new vel
+
+        newVel[0] *= velPercent; 
+        newVel[1] *= velPercent;
+        newVel[2] *= turnPercent;
+
+        virtualOpp.setPos(newPos);
+        virtualOpp.setVel(newVel);
+        virtualOpp.setAccel({0, 0, 0});
+
+        extrapTime += increment;
+    }
+
+    return virtualOpp.position(); // return final opp position if max time is reached
+}
+
+
+
+// simulates orb's path to a point to estimate time
+float Kill::orbTimeToPoint(cv::Point2f point, std::vector<cv::Point2f> &orbSimPath, bool forward) {
+
+    float timeStep = 0.02f;
+    float maxTime = 3.0f;
+    float simTime = 0.0f; // amount of time elapsed since start of sim
+    int steps = (int) (maxTime / timeStep);
+
+    orbSimPath = {}; // reset just in case
+    FilteredRobot virtualOrb = orbFiltered; // start simulated orb at our current state
+
+    std::vector<float> slowVel = virtualOrb.getVelFilteredSlow();
+    virtualOrb.setVel({slowVel[0], slowVel[1], slowVel[2]});
+ 
+
+    // simulate orb's actions through each time step
+    for(int i = 0; i < steps; i++) { 
+
+        // add current position to the path
+        orbSimPath.emplace_back(virtualOrb.position()); 
+
+
+        // how far off we are from the simulated follow point
+        float angleError = virtualOrb.angleTo(point, forward); 
+
+
+        // exit conditions occur when we hit the point and we're facing it
+        bool colliding = virtualOrb.distanceTo(point) < orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius();
+        if(colliding && virtualOrb.facingPoint(point, forward)) { break; }
+
+
+        
+        // drive to the follow point
+        float driveAngle = angle(virtualOrb.position(), point);
+
+        std::vector<float> driveInputs = virtualOrb.curvatureController(driveAngle, 
+            1.0f, timeStep, forward, 0);
+
+        std::vector<float> modelInputs = {driveInputs[0], driveInputs[1], 0.0f, 0.0f, timeStep};
+        virtualOrb.tuneModel(false, modelInputs, {});
+
+
+        simTime += timeStep;
+    }
+
+    return simTime; 
+}
+
+
+
+// absolute angle made by 2 points
+float Kill::angle(cv::Point2f point1, cv::Point2f point2) {
+    return std::atan2(point2.y - point1.y, point2.x - point1.x);
+}

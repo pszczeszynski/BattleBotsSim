@@ -106,7 +106,7 @@ std::vector<std::vector<float>> FilteredRobot::kalmanExtrapAccel(float time) {
 
 
 
-// incrementally extrapolates with constant vel
+// extrapolates with constant vel
 std::vector<std::vector<float>> FilteredRobot::kalmanExtrapVel(float time) {
 
     float deltaXRobot = 0.0f;
@@ -199,6 +199,13 @@ std::vector<std::vector<float>> FilteredRobot::constVelExtrap(float time) {
 
     // return final values
     return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel};
+}
+
+
+
+// sets velFiltered to velFilteredSlow
+void FilteredRobot::setToSlowVel() {
+    velFiltered = velFilteredSlow;
 }
 
 

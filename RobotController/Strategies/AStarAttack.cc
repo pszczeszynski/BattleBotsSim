@@ -656,26 +656,18 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
     follow.orbSimPathTimes = {};
 
     FilteredRobot virtualOrb = orbFiltered; // start simulated orb at our current state
+    virtualOrb.setToSlowVel(); // use slow vel as starting reference
+
     // FilteredRobot virtualOpp = follow.opp; // start simulated opp at the opp
-
-    std::vector<float> slowVel = virtualOrb.getVelFilteredSlow();
-    virtualOrb.setVel({slowVel[0], slowVel[1], slowVel[2]});
-
-    // std::vector<float> slowVelOpp = virtualOpp.getVelFilteredSlow();
-    // virtualOpp.setVel({slowVelOpp[0], slowVelOpp[1], slowVelOpp[2]});
+    // virtualOpp.setToSlowVel();
 
 
     approachCurve(follow); // generate approach curve for this point
-    std::vector<cv::Point2f> ogApproach = follow.approach;
+    // std::vector<cv::Point2f> ogApproach = follow.approach;
 
     bool reachedFollowPoint = false; // if we've been aligned with the follow point yet
     bool reachedSpeed = false; // if we've reached a threshold speed yet
-
-
-    
     float startingAngle = follow.opp.angleTo(virtualOrb.position(), true); // what side of opp we start on
-
-
     follow.worstTimeMargin = 99999.0f; // default
 
  

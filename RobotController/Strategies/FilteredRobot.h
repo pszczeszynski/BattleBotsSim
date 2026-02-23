@@ -84,6 +84,7 @@ class FilteredRobot
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   float distanceToCollide(FilteredRobot opp);
   void printModel();
+  void setToSlowVel();
 
 
 
