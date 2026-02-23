@@ -35,7 +35,7 @@ public:
     OpenCVTracker(ICameraReceiver *videoSource);
 
     void SwitchRobots(void) override;
-    void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
+    void SetPosition(const PositionData& newPos, bool opponentRobot) override;
 
 private:
     void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;

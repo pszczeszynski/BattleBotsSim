@@ -35,8 +35,8 @@ public:
     HeuristicOdometry(ICameraReceiver *videoSource);
 
     void processNewFrame(cv::Mat &newFrame);
-    void SetPosition(cv::Point2f newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point
-    void ForcePosition(cv::Point2f newPos, bool opponentRobot) override;
+    void SetPosition(const PositionData& newPos, bool opponentRobot) override; // Will pick the tracked foreground thats closest to this point
+    void ForcePosition(const PositionData& newPos, bool opponentRobot) override;
     void SwitchRobots(void) override;                                  // Switches who's who
     void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
     void SetAngle(AngleData angleData, bool opponentRobot) override;

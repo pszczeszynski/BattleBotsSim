@@ -1,5 +1,7 @@
 #include "TrackingWidget.h"
 
+#include "../Clock.h"
+#include "../Odometry/OdometryData.h"
 #include "../Input/InputState.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
@@ -336,45 +338,75 @@ void TrackingWidget::_DrawAlgorithmData() {
 #ifdef USE_OPENCV_TRACKER
       if (editorState.IsOpenCVEditing()) {
         if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_opencv.SetPosition(GetMousePos(), false);
+          _odometry_opencv.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              false);
         } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_opencv.SetPosition(GetMousePos(), true);
+          _odometry_opencv.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              true);
         }
       }
 #endif
       if (editorState.IsBlobEditing()) {
         if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_Blob.SetPosition(GetMousePos(), false);
+          _odometry_Blob.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              false);
           // force velocity to 0
           _odometry_Blob.SetVelocity(cv::Point2f(0, 0), false);
         } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_Blob.SetPosition(GetMousePos(), true);
+          _odometry_Blob.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              true);
           _odometry_Blob.SetVelocity(cv::Point2f(0, 0), true);
         }
       }
 
       if (editorState.IsLKFlowEditing()) {
         if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_LKFlow.SetPosition(GetMousePos(), false);
+          _odometry_LKFlow.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              false);
         } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_LKFlow.SetPosition(GetMousePos(), true);
+          _odometry_LKFlow.SetPosition(
+              PositionData(GetMousePos(), cv::Point2f(0, 0),
+                          Clock::programClock.getElapsedTime()),
+              true);
         }
       }
 
       if (editorState.IsHeuristicEditing()) {
         if (InputState::GetInstance().IsMouseDown(0)) {
           if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftCtrl)) {
-            _odometry_Heuristic.SetPosition(GetMousePos(), false);
+            _odometry_Heuristic.SetPosition(
+                PositionData(GetMousePos(), cv::Point2f(0, 0),
+                             Clock::programClock.getElapsedTime()),
+                false);
           } else {
-            _odometry_Heuristic.ForcePosition(GetMousePos(), false);
+            _odometry_Heuristic.ForcePosition(
+                PositionData(GetMousePos(), cv::Point2f(0, 0),
+                            Clock::programClock.getElapsedTime()),
+                false);
           }
 
           _odometry_Heuristic.SetVelocity(cv::Point2f(0, 0), false);
         } else if (InputState::GetInstance().IsMouseDown(1)) {
           if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightCtrl)) {
-            _odometry_Heuristic.SetPosition(GetMousePos(), true);
+            _odometry_Heuristic.SetPosition(
+                PositionData(GetMousePos(), cv::Point2f(0, 0),
+                             Clock::programClock.getElapsedTime()),
+                true);
           } else {
-            _odometry_Heuristic.ForcePosition(GetMousePos(), true);
+            _odometry_Heuristic.ForcePosition(
+                PositionData(GetMousePos(), cv::Point2f(0, 0),
+                             Clock::programClock.getElapsedTime()),
+                true);
           }
           _odometry_Heuristic.SetVelocity(cv::Point2f(0, 0), true);
         }

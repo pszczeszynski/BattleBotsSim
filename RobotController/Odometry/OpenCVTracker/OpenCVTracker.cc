@@ -58,16 +58,17 @@ void OpenCVTracker::SwitchRobots(void) {
   _oppEpoch = tempEpoch + 1;    // Increment to invalidate
 }
 
-void OpenCVTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
+void OpenCVTracker::SetPosition(const PositionData& newPos, bool opponentRobot) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
+  cv::Point2f newPosPt = newPos.position;
   // tracker appears to like growing to entire robot more than shrinking to only
   // encompass it
   cv::Rect &bbox = (opponentRobot) ? _opponentBBox : _robotBBox;
   bbox.width = MIN_ROBOT_BLOB_SIZE;
   bbox.height = MIN_ROBOT_BLOB_SIZE;
-  bbox.x = int(newPos.x - MIN_ROBOT_BLOB_SIZE / 2);
-  bbox.y = int(newPos.y - MIN_ROBOT_BLOB_SIZE / 2);
+  bbox.x = int(newPosPt.x - MIN_ROBOT_BLOB_SIZE / 2);
+  bbox.y = int(newPosPt.y - MIN_ROBOT_BLOB_SIZE / 2);
 
   if (bbox.x < 0) bbox.x = 0;
   if (bbox.y < 0) bbox.y = 0;

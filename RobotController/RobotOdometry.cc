@@ -143,8 +143,8 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   }
   if (_dataRobot.pos.has_value()) {
     _odometry_Heuristic.SetVelocity(_dataRobot.pos.value().velocity, false);
-    _odometry_Blob.SetPosition(_dataRobot.pos.value().position, false);
-    _odometry_LKFlow.SetPosition(_dataRobot.pos.value().position, false);
+    _odometry_Blob.SetPosition(_dataRobot.pos.value(), false);
+    _odometry_LKFlow.SetPosition(_dataRobot.pos.value(), false);
   }
   if (_dataOpponent.angle.has_value()) {
     _odometry_Heuristic.SetAngle(_dataOpponent.angle.value(), true);
@@ -153,14 +153,14 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   }
 
   if (_dataOpponent.pos.has_value()) {
-    _odometry_Heuristic.ForcePosition(_dataOpponent.pos.value().position, true);
-    _odometry_Blob.ForcePosition(_dataOpponent.pos.value().position, true);
-    _odometry_LKFlow.ForcePosition(_dataOpponent.pos.value().position, true);
+    _odometry_Heuristic.ForcePosition(_dataOpponent.pos.value(), true);
+    _odometry_Blob.ForcePosition(_dataOpponent.pos.value(), true);
+    _odometry_LKFlow.ForcePosition(_dataOpponent.pos.value(), true);
   }
 
 #ifdef USE_OPENCV_TRACKER
   if (_dataOpponent.pos.has_value()) {
-    _odometry_opencv.ForcePosition(_dataOpponent.pos.value().position, true);
+    _odometry_opencv.ForcePosition(_dataOpponent.pos.value(), true);
   }
   if (_dataOpponent.angle.has_value()) {
     _odometry_opencv.SetAngle(_dataOpponent.angle.value(), true);
@@ -376,12 +376,12 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   // Robot Position
   if (robot.pos.has_value()) {
     if (backAnnotate.forceRobotPos_Heuristic) {
-      _odometry_Heuristic.ForcePosition(robot.pos.value().position, false);
+      _odometry_Heuristic.ForcePosition(robot.pos.value(), false);
     } else {
-      _odometry_Heuristic.SetPosition(robot.pos.value().position, false);
+      _odometry_Heuristic.SetPosition(robot.pos.value(), false);
     }
     _odometry_Heuristic.SetVelocity(robot.pos.value().velocity, false);
-    _odometry_Blob.SetPosition(robot.pos.value().position, false);
+    _odometry_Blob.SetPosition(robot.pos.value(), false);
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
   }
 
@@ -393,11 +393,11 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
 
   // Opponent Position
   if (opponent.pos.has_value()) {
-    _odometry_Heuristic.SetPosition(opponent.pos.value().position, true);
+    _odometry_Heuristic.SetPosition(opponent.pos.value(), true);
     _odometry_Heuristic.SetVelocity(opponent.pos.value().velocity, true);
-    _odometry_Blob.SetPosition(opponent.pos.value().position, true);
+    _odometry_Blob.SetPosition(opponent.pos.value(), true);
     _odometry_Blob.SetVelocity(opponent.pos.value().velocity, true);
-    _odometry_LKFlow.SetPosition(opponent.pos.value().position, true);
+    _odometry_LKFlow.SetPosition(opponent.pos.value(), true);
     _odometry_LKFlow.SetVelocity(opponent.pos.value().velocity, true);
   }
 
@@ -478,23 +478,26 @@ void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot) {
 void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
                                             cv::Point2f newVel,
                                             bool opponentRobot) {
+  PositionData posData(newPos, newVel, Clock::programClock.getElapsedTime());
   // Go through each Odometry and update it
-  _odometry_Blob.SetPosition(newPos, opponentRobot);
+  _odometry_Blob.SetPosition(posData, opponentRobot);
   _odometry_Blob.SetVelocity(newVel, opponentRobot);
 
-  _odometry_Heuristic.SetPosition(newPos, opponentRobot);
+  _odometry_Heuristic.SetPosition(posData, opponentRobot);
   _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
 
+  _odometry_LKFlow.SetPosition(posData, opponentRobot);
+  _odometry_LKFlow.SetVelocity(newVel, opponentRobot);
+
 #ifdef USE_OPENCV_TRACKER
-  _odometry_opencv.SetPosition(newPos, opponentRobot);
+  _odometry_opencv.SetPosition(posData, opponentRobot);
 #endif
 
   // Update our own data
   std::unique_lock<std::mutex> locker(_updateMutex);
   OdometryData &odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
 
-  odoData.pos =
-      PositionData(newPos, newVel, Clock::programClock.getElapsedTime());
+  odoData.pos = posData;
 }
 
 bool RobotOdometry::Run(OdometryAlg algorithm) {

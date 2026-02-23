@@ -28,7 +28,7 @@ class LKFlowTracker : public OdometryBase {
   LKFlowTracker(ICameraReceiver* videoSource);
 
   void SwitchRobots(void) override;
-  void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
+  void SetPosition(const PositionData& newPos, bool opponentRobot) override;
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
   void SetAngle(AngleData angleData, bool opponentRobot) override;
   void GetDebugImage(cv::Mat& target,
@@ -41,7 +41,6 @@ class LKFlowTracker : public OdometryBase {
   void _StartCalled(void) override;
 
   // Core tracking functions
-  bool _InitializePoints(cv::Mat& gray);
   bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime);
   void _ComputeRotationsFromPairs(const std::vector<cv::Point2f>& nextPts,
                                   const std::vector<uchar>& status,
@@ -54,9 +53,11 @@ class LKFlowTracker : public OdometryBase {
   void _UpdateAngleFromRotations(const std::vector<RotationResult>& rotations,
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
-                      std::vector<TrackPt>& tracks, int targetCount);
+                      std::vector<TrackPt>& tracks, int targetCount,
+                      double frameTime);
   void _DrawDebugImage(cv::Size imageSize,
                        const std::vector<cv::Point2f>& nextPts,
+                       const std::vector<uchar>& status,
                        const std::vector<std::pair<int, int>>& validPairs);
   void _DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist);
   cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);

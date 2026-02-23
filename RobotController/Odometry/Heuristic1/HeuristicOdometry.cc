@@ -855,10 +855,10 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker* tracker, bool isOpponent, 
 
 // Sets the position to a found tracker's position
 // If no tracker is found, tracker mutations are done but no publish occurs until tracker becomes valid
-void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
+void HeuristicOdometry::SetPosition(const PositionData& newPos, bool opponentRobot)
 {
     // Locate the robots
-    LocateRobots(newPos, opponentRobot); 
+    LocateRobots(newPos.position, opponentRobot); 
 
     // Update tracker if found - next frame will publish if tracker is valid
     RobotTracker *tracker = (opponentRobot) ? opponentRobotTracker : ourRobotTracker;
@@ -872,8 +872,9 @@ void HeuristicOdometry::SetPosition(cv::Point2f newPos, bool opponentRobot)
     }
 }
 
-void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
+void HeuristicOdometry::ForcePosition(const PositionData& newPos, bool opponentRobot)
 {
+    cv::Point2f newPosPt = newPos.position;
     // Here we assume newPos is inside the current tracked box.
     // If we have no tracker, use setPosition First
     // If setPosition fails, than continue on with force position
@@ -927,15 +928,15 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     int scenario = 0;
 
     // Case 1/2
-    if(firstbot->IsPointInside( newPos) && !firstbot->IsTrackerCombined())
+    if(firstbot->IsPointInside( newPosPt) && !firstbot->IsTrackerCombined())
     {
         scenario = 1;
     }
-    else if(firstbot->IsPointInside( newPos) && firstbot->IsTrackerCombined())
+    else if(firstbot->IsPointInside( newPosPt) && firstbot->IsTrackerCombined())
     {
         scenario = 2;
     }
-    else if( secondbot != nullptr && secondbot->IsPointInside( newPos) )
+    else if( secondbot != nullptr && secondbot->IsPointInside( newPosPt) )
     {
         scenario = 3;
     }
@@ -948,17 +949,17 @@ void HeuristicOdometry::ForcePosition(cv::Point2f newPos, bool opponentRobot)
     {
         case 1:
         case 2:
-                firstbot->position = newPos;                
+                firstbot->position = newPosPt;                
                 break;
         case 3:
-                secondbot->position = newPos;  
+                secondbot->position = newPosPt;  
                 // Will need to swap robots later            
                 break;
         case 4:
-                LocateRobots(newPos, opponentRobot, true);
+                LocateRobots(newPosPt, opponentRobot, true);
                 if( firstbot != nullptr)
                 {
-                    firstbot->position = newPos;  
+                    firstbot->position = newPosPt;  
                 }
                 break;
     }

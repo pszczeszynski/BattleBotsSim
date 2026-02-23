@@ -126,9 +126,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   cv::Rect roi = _GetROI();
 
   if (roi.width > 0 && roi.height > 0 &&
-      ((frameTime - _lastRespawnTime) >= kRespawnIntervalSeconds) &&
-      _RespawnPoints(gray, roi, _tracks, kTargetPointCount)) {
-    _lastRespawnTime = frameTime;
+      (frameTime - _lastRespawnTime) >= kRespawnIntervalSeconds) {
+    _RespawnPoints(gray, roi, _tracks, kTargetPointCount, frameTime);
   }
 
   if (_prevGray.empty() || _tracks.size() < 6) {
@@ -144,26 +143,6 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   if (!success) {
     _initialized = false;
   }
-}
-
-bool LKFlowTracker::_InitializePoints(cv::Mat& gray) {
-  _tracks.clear();
-
-  cv::Rect roi = _GetROI();
-
-  if (!_RespawnPoints(gray, roi, _tracks, kMaxCorners)) {
-    return false;
-  }
-
-  if (_tracks.size() < 8) {
-    _tracks.clear();
-    return false;
-  }
-
-  _initialized = true;
-  _lastRespawnTime = Clock::programClock.getElapsedTime();
-
-  return true;
 }
 
 bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
@@ -250,7 +229,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
 
   _prevTime = frameTime;
 
-  _DrawDebugImage(currGray.size(), nextPts, validPairs);
+  _DrawDebugImage(currGray.size(), nextPts, status, validPairs);
 
   return true;
 }
@@ -327,53 +306,66 @@ cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
   if (prevPts.size() != nextPts.size() || nextPts.size() != status.size()) {
     return cv::Point2f(0, 0);
   }
-  cv::Point2f sum(0, 0);
-  int n = 0;
+  std::vector<std::pair<float, cv::Point2f>> translations;
+  translations.reserve(status.size());
   for (size_t i = 0; i < status.size(); ++i) {
     if (_tracks[i].age < 10 || status[i] != 1) {
       continue;
     }
-
-    sum += nextPts[i] - prevPts[i];
-    ++n;
+    cv::Point2f d = nextPts[i] - prevPts[i];
+    float mag = static_cast<float>(cv::norm(d));
+    translations.emplace_back(mag, d);
   }
-  if (n == 0) return cv::Point2f(0, 0);
-  return sum / static_cast<float>(n);
+  if (translations.empty()) {
+    return cv::Point2f(0, 0);
+  }
+  const size_t topHalfCount =
+      (std::max)(size_t(1), static_cast<size_t>(translations.size() * 0.75));
+  std::partial_sort(
+      translations.begin(),
+      translations.begin() + static_cast<std::ptrdiff_t>(topHalfCount),
+      translations.end(),
+      [](const std::pair<float, cv::Point2f>& a,
+         const std::pair<float, cv::Point2f>& b) { return a.first > b.first; });
+  cv::Point2f sum(0, 0);
+  for (size_t i = 0; i < topHalfCount; ++i) {
+    sum += translations[i].second;
+  }
+  return sum / static_cast<float>(topHalfCount);
 }
 
 void LKFlowTracker::_DrawDebugImage(
     cv::Size imageSize, const std::vector<cv::Point2f>& nextPts,
+    const std::vector<uchar>& status,
     const std::vector<std::pair<int, int>>& validPairs) {
   std::unique_lock<std::mutex> debugLock(_mutexDebugImage);
   _debugImage = cv::Mat::zeros(imageSize, CV_8UC3);
 
-  const cv::Scalar kLineColor(200, 200, 200);    // Light gray (BGR)
-  const cv::Scalar kTrackColor(0, 255, 0);       // Green
-  const cv::Scalar kPosColor(0, 255, 255);       // Yellow (pos + arrow)
-  const cv::Scalar kRoiColor(255, 165, 0);      // Blue (ROI rectangle)
+  const cv::Scalar kGoodColor(0, 255, 0);   // Green – tracked successfully
+  const cv::Scalar kBadColor(0, 0, 255);    // Red – lost or bad status
+  const cv::Scalar kRoiColor(255, 165, 0);  // Blue (ROI rectangle)
 
-  for (const auto& pair : validPairs) {
-    int idx1 = pair.first;
-    int idx2 = pair.second;
-    if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
-        idx2 < static_cast<int>(nextPts.size())) {
-      cv::line(_debugImage, nextPts[idx1], nextPts[idx2], kLineColor, 1);
-    }
-  }
+  // Lines between rotation pairs (commented out)
+  // const cv::Scalar kLineColor(200, 200, 200);
+  // for (const auto& pair : validPairs) {
+  //   int idx1 = pair.first;
+  //   int idx2 = pair.second;
+  //   if (idx1 >= 0 && idx1 < static_cast<int>(nextPts.size()) && idx2 >= 0 &&
+  //       idx2 < static_cast<int>(nextPts.size())) {
+  //     cv::line(_debugImage, nextPts[idx1], nextPts[idx2], kLineColor, 1);
+  //   }
+  // }
 
-  for (const auto& track : _tracks) {
-    cv::circle(_debugImage, track.pt, 2, kTrackColor, -1);
+  for (size_t i = 0; i < nextPts.size(); ++i) {
+    cv::Scalar color =
+        (i < status.size() && status[i] == 1) ? kGoodColor : kBadColor;
+    cv::circle(_debugImage, nextPts[i], 2, color, -1);
   }
-  cv::circle(_debugImage, _pos, 5, kPosColor, 2);
 
   cv::Rect roi = _GetROI();
   if (roi.width > 0 && roi.height > 0) {
     cv::rectangle(_debugImage, roi, kRoiColor, 2);
   }
-
-  // draw an arrow from _pos at the angle
-  cv::Point2f arrowEnd = _pos + cv::Point2f(30 * cos(_angle), 30 * sin(_angle));
-  cv::arrowedLine(_debugImage, _pos, arrowEnd, kPosColor, 2);
 }
 
 void LKFlowTracker::_UpdateAngleFromRotations(
@@ -449,14 +441,12 @@ void LKFlowTracker::_UpdateAngleFromRotations(
 
 bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    std::vector<TrackPt>& tracks,
-                                   int targetCount) {
-  // Calculate how many points we need to reach the target
+                                   int targetCount, double frameTime) {
   const int needed = targetCount - tracks.size();
 
-  // If we already have enough points, no need to respawn
   if (needed <= 0) {
     std::cout << "Already have enough points, no need to respawn" << std::endl;
-    return true;  // Success (no action needed)
+    return true;
   }
 
   // Request more points than needed since some may be filtered out for being
@@ -514,7 +504,9 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
     }
   }
 
-  // Return true if we added at least some points (even if fewer than requested)
+  if (added > 0) {
+    _lastRespawnTime = frameTime;
+  }
   return added > 0;
 }
 
@@ -596,18 +588,20 @@ void LKFlowTracker::SwitchRobots() {
   std::cerr << "SwitchRobots not implemented for LKFlowTracker" << std::endl;
 }
 
-void LKFlowTracker::SetPosition(cv::Point2f newPos, bool opponentRobot) {
+void LKFlowTracker::SetPosition(const PositionData& newPos,
+                                bool opponentRobot) {
   if (!opponentRobot) return;
 
+  cv::Point2f newPosPt = newPos.position;
   // Only lightly interpolate
   constexpr float kHardSkipThresholdPx = 10;
-  if (cv::norm(newPos - _pos) < kHardSkipThresholdPx) {
-    _pos = InterpolatePoints(_pos, newPos, 0.05f);
+  if (cv::norm(newPosPt - _pos) < kHardSkipThresholdPx) {
+    _pos = InterpolatePoints(_pos, newPosPt, 0.05f);
     _FilterPointsByROI(_tracks);
     return;
   }
 
-  _pos = newPos;
+  _pos = newPosPt;
   _FilterPointsByROI(_tracks);
 }
 

@@ -26,7 +26,7 @@ class BlobDetection : public OdometryBase {
   BlobDetection(ICameraReceiver *videoSource);
 
   void SwitchRobots(void) override;
-  void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
+  void SetPosition(const PositionData& newPos, bool opponentRobot) override;
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
   void SetAngle(AngleData angleData, bool opponentRobot) override;
   void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0))
@@ -41,7 +41,6 @@ class BlobDetection : public OdometryBase {
     std::optional<cv::Rect> last_rect;
     cv::Point2f last_velocity = cv::Point2f(0, 0);
     double last_position_time = 0;
-    bool have_pos = false;
 
     // Blob area tracking
     double last_blob_area = 0;

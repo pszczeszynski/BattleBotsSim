@@ -114,13 +114,13 @@ VisionClassification BlobDetection::_DoBlobDetection(
   // Read state under lock for classifier
   {
     std::lock_guard<std::mutex> lock(_updateMutex);
-    if (_usState.have_pos && _usState.last_position.has_value()) {
+    if (_usState.last_position.has_value()) {
       usPrior.valid = true;
       usPrior.pos = _usState.last_position.value();
       usPrior.vel = _usState.last_velocity;
     }
 
-    if (_themState.have_pos && _themState.last_position.has_value()) {
+    if (_themState.last_position.has_value()) {
       themPrior.valid = true;
       themPrior.pos = _themState.last_position.value();
       themPrior.vel = _themState.last_velocity;
@@ -132,10 +132,11 @@ VisionClassification BlobDetection::_DoBlobDetection(
   VisionClassification result = _robotClassifier.ClassifyBlobs(
       motionBlobs, currFrame, thresholdImg, usPrior, themPrior, frameTime);
 
-  // Build debug image in BGR for color drawing (build locally, then swap under lock)
+  // Build debug image in BGR for color drawing (build locally, then swap under
+  // lock)
   cv::Mat debugLocal;
   cv::cvtColor(thresholdImg, debugLocal, cv::COLOR_GRAY2BGR);
-  const cv::Scalar kBlobRectColor(0, 255, 0);   // Green (BGR)
+  const cv::Scalar kBlobRectColor(0, 255, 0);      // Green (BGR)
   const cv::Scalar kBlobCenterColor(0, 255, 255);  // Yellow
 
   for (const MotionBlob& blob : motionBlobs) {
@@ -178,7 +179,6 @@ void BlobDetection::_ProcessStream(const MotionBlob& blob,
   state.last_position = newPos;
   state.last_rect = blob.rect;
   state.last_position_time = timestamp;
-  state.have_pos = true;
 
   // Update angle-path-tangent
   _UpdateAnglePathTangent(state, newPos, timestamp);
@@ -281,7 +281,7 @@ void BlobDetection::_UpdateAnglePathTangent(BlobTrackState& state,
 
   // Check both distance and time thresholds
   if (cv::norm(delta) < kDistBetweenAngUpdatesPx || elapsedAngleTime < 0.001 ||
-      !state.have_pos) {
+      !state.last_position.has_value()) {
     // Don't update angle - keep previous reference state
     return;
   }
@@ -350,7 +350,7 @@ void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
   OdometryData sample{};
 
   // Set position data
-  if (state.have_pos && state.last_position.has_value()) {
+  if (state.last_position.has_value()) {
     sample.pos = PositionData{state.last_position.value(), state.last_velocity,
                               timestamp};
     sample.pos.value().rect = state.last_rect;
@@ -373,26 +373,25 @@ void BlobDetection::SwitchRobots(void) {
   locker.unlock();
 }
 
-void BlobDetection::SetPosition(cv::Point2f newPos, bool opponentRobot) {
+void BlobDetection::SetPosition(const PositionData& newPos,
+                                bool opponentRobot) {
   BlobTrackState& state = opponentRobot ? _themState : _usState;
 
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   // ignore the request if our existing position is fine
   constexpr float IGNORE_THRESH_PX = 10;
-  if (state.have_pos && state.last_position.has_value() &&
-      cv::norm(newPos - state.last_position.value()) < IGNORE_THRESH_PX) {
+  if (state.last_position.has_value() &&
+      cv::norm(newPos.position - state.last_position.value()) <
+          IGNORE_THRESH_PX) {
     return;
   }
 
-  double currTime = Clock::programClock.getElapsedTime();
-
   // Update state
-  state.last_position = newPos;
-  state.last_position_time = currTime;
-  state.have_pos = true;
-  state.last_velocity = cv::Point2f(0, 0);
-  state.last_vel_time = currTime;
+  state.last_position = newPos.position;
+  state.last_position_time = newPos.time;
+  state.last_velocity = newPos.velocity;
+  state.last_vel_time = newPos.time;
 
   locker.unlock();
 }
