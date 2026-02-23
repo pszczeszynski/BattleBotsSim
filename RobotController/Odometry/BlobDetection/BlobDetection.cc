@@ -401,5 +401,15 @@ void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
 }
 
 void BlobDetection::SetAngle(AngleData angleData, bool opponentRobot) {
-  // Not implemented - angle is calculated from path tangent
+  OdometryBase::SetAngle(angleData, opponentRobot);
+
+  BlobTrackState& state = opponentRobot ? _themState : _usState;
+  std::lock_guard<std::mutex> lock(_updateMutex);
+
+  state.prev_angle_ref_angle = angleData.angle;
+  state.prev_angle_ref_angular_velocity = angleData.velocity;
+  state.prev_angle_ref_time = angleData.time;
+  if (state.last_position.has_value()) {
+    state.prev_angle_ref_pos = state.last_position.value();
+  }
 }

@@ -18,6 +18,8 @@ const char* DebugVariantToString(DebugVariant v) {
       return "Opencv";
     case DebugVariant::LKFlow:
       return "LKFlow";
+    case DebugVariant::kCount:
+      return "";
   }
   return "Camera";
 }

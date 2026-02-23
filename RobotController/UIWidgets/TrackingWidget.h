@@ -1,6 +1,6 @@
 #pragma once
 
-#include <map>
+#include <array>
 #include <opencv2/opencv.hpp>
 #include <string>
 
@@ -20,7 +20,6 @@ class TrackingWidget : public ImageWidget {
   TrackingWidget();
   void ClearMask();
   cv::Mat& GetMask();
-  cv::Mat& GetTrackingMat();
   void Update();
   void DrawGUI();
   void AutoMatchStart(bool left);
@@ -61,10 +60,12 @@ class TrackingWidget : public ImageWidget {
   bool showOpencv = false;
   bool showLKFlow = false;
 
-  // Store colors, images, and offsets per variant
-  std::map<DebugVariant, ImVec4> variantColors;
-  std::map<DebugVariant, cv::Mat> variantImages;
-  std::map<DebugVariant, cv::Point> variantOffsets;
+  // Store colors, images, and offsets per variant (indexed by DebugVariant)
+  static constexpr size_t kDebugVariantCount =
+      static_cast<size_t>(DebugVariant::kCount);
+  std::array<ImVec4, kDebugVariantCount> variantColors{};
+  std::array<cv::Mat, kDebugVariantCount> variantImages{};
+  std::array<cv::Point, kDebugVariantCount> variantOffsets{};
 
   void _DrawShowButton(DebugVariant variant, bool& enabledFlag);
   void _DrawAngles(OdometryData& robot, OdometryData& opponent,

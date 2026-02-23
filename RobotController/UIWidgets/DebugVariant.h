@@ -2,8 +2,8 @@
 
 #include <string>
 
-enum class DebugVariant {
-  Camera,
+enum class DebugVariant : size_t {
+  Camera = 0,
   Blob,
   Heuristic,
   Neural,
@@ -11,6 +11,7 @@ enum class DebugVariant {
   NeuralRot,
   Opencv,
   LKFlow,
+  kCount
 };
 
 const char* DebugVariantToString(DebugVariant v);

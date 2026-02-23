@@ -20,6 +20,7 @@ enum OdometryAlg : size_t {
   OpenCV,
   LKFlow,
   Gyro,
+  ManualOverride,
   UnknownAlg,
   kOdometryAlgCount
 };

@@ -8,6 +8,7 @@
 #include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/LKFlowTracker/LKFlowTracker.h"
+#include "Odometry/ManualOverride/ManualOverrideOdometry.h"
 #include "Odometry/Neural/CVPosition.h"
 
 #ifdef USE_OPENCV_TRACKER
@@ -31,12 +32,14 @@ struct RawInputs {
   OdometryData us_imu;
   OdometryData us_human;
   OdometryData us_lkflow;
+  OdometryData us_override;
 
   // Opponent (them) data
   OdometryData them_blob;
   OdometryData them_heuristic;
   OdometryData them_human;
   OdometryData them_lkflow;
+  OdometryData them_override;
 
 #ifdef USE_OPENCV_TRACKER
   OdometryData us_opencv;
@@ -57,9 +60,11 @@ struct RawInputs {
     THEM_HUMAN = 1 << 8,
     US_LKFLOW = 1 << 9,
     THEM_LKFLOW = 1 << 10,
+    US_OVERRIDE = 1 << 11,
+    THEM_OVERRIDE = 1 << 12,
 #ifdef USE_OPENCV_TRACKER
-    US_OPENCV = 1 << 11,
-    THEM_OPENCV = 1 << 12,
+    US_OPENCV = 1 << 13,
+    THEM_OPENCV = 1 << 14,
 #endif
   };
 
@@ -84,7 +89,7 @@ class OdometryPoller {
   OdometryPoller(BlobDetection& blob, HeuristicOdometry& heuristic,
                  CVPosition& neural, CVRotation& neuralrot, OdometryIMU& imu,
                  HumanPosition& human, HumanPosition& human_heuristic,
-                 LKFlowTracker& lkflow
+                 LKFlowTracker& lkflow, ManualOverrideOdometry& manual_override
 #ifdef USE_OPENCV_TRACKER
                  ,
                  OpenCVTracker& opencv
@@ -110,6 +115,7 @@ class OdometryPoller {
   HumanPosition& _odometry_Human;
   HumanPosition& _odometry_Human_Heuristic;
   LKFlowTracker& _odometry_LKFlow;
+  ManualOverrideOdometry& _odometry_Override;
 
 #ifdef USE_OPENCV_TRACKER
   OpenCVTracker& _odometry_opencv;

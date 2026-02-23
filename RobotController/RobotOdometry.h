@@ -12,6 +12,7 @@
 #include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/LKFlowTracker/LKFlowTracker.h"
+#include "Odometry/ManualOverride/ManualOverrideOdometry.h"
 #include "Odometry/Neural/CVPosition.h"
 #include "Odometry/OdometryBase.h"
 #include "OdometryPoller.h"
@@ -88,6 +89,7 @@ class RobotOdometry {
   BlobDetection& GetBlobOdometry();
   CVRotation& GetNeuralRotOdometry();
   LKFlowTracker& GetLKFlowOdometry();
+  ManualOverrideOdometry& GetManualOverrideOdometry();
 #ifdef USE_OPENCV_TRACKER
   OpenCVTracker& GetOpenCVOdometry();
 #endif
@@ -116,6 +118,7 @@ class RobotOdometry {
   HumanPosition _odometry_Human_Heuristic;
   OdometryIMU _odometry_IMU;
   LKFlowTracker _odometry_LKFlow;
+  ManualOverrideOdometry _odometry_Override;
 
 #ifdef USE_OPENCV_TRACKER
   OpenCVTracker _odometry_opencv;

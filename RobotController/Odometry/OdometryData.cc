@@ -25,6 +25,8 @@ static const char* OdometryAlgToString(OdometryAlg a) {
       return "LKFlow";
     case OdometryAlg::Gyro:
       return "Gyro";
+    case OdometryAlg::ManualOverride:
+      return "ManualOverride";
     case OdometryAlg::UnknownAlg:
     default:
       return "Unknown";

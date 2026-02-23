@@ -1,12 +1,11 @@
 #include "TrackingWidget.h"
 
 #include "../Clock.h"
-#include "../Odometry/OdometryData.h"
 #include "../Input/InputState.h"
+#include "../Odometry/OdometryData.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
 #include "../SafeDrawing.h"
-#include "../TrackingEditorState.h"
 #include "CameraWidget.h"
 #include "ColorScheme.h"
 
@@ -38,29 +37,11 @@ TrackingWidget::TrackingWidget()
   }
 
   // Initialize default colors for each variant using our color scheme
-  variantColors[DebugVariant::Camera] = ColorScheme::GetVariantColor(DebugVariant::Camera);
-  variantOffsets[DebugVariant::Camera] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::Blob] = ColorScheme::GetVariantColor(DebugVariant::Blob);
-  variantOffsets[DebugVariant::Blob] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::Heuristic] = ColorScheme::GetVariantColor(DebugVariant::Heuristic);
-  variantOffsets[DebugVariant::Heuristic] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::Neural] = ColorScheme::GetVariantColor(DebugVariant::Neural);
-  variantOffsets[DebugVariant::Neural] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::Fusion] = ColorScheme::GetVariantColor(DebugVariant::Fusion);
-  variantOffsets[DebugVariant::Fusion] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::Opencv] = ColorScheme::GetVariantColor(DebugVariant::Opencv);
-  variantOffsets[DebugVariant::Opencv] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::NeuralRot] = ColorScheme::GetVariantColor(DebugVariant::NeuralRot);
-  variantOffsets[DebugVariant::NeuralRot] = cv::Point(0, 0);
-
-  variantColors[DebugVariant::LKFlow] = ColorScheme::GetVariantColor(DebugVariant::LKFlow);
-  variantOffsets[DebugVariant::LKFlow] = cv::Point(0, 0);
+  for (size_t i = 0; i < kDebugVariantCount; ++i) {
+    DebugVariant v = static_cast<DebugVariant>(i);
+    variantColors[i] = ColorScheme::GetVariantColor(v);
+    variantOffsets[i] = cv::Point(0, 0);
+  }
 
   RestoreGUISettings(VISION_TRACKING_GUI);
 }
@@ -244,36 +225,16 @@ void TrackingWidget::_DrawAlgorithmData() {
   }
 
   // BGR scalars from variant colors
-  cv::Scalar blobColor = cv::Scalar(255, 0, 0);
-  if (variantColors.find(DebugVariant::Blob) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::Blob];
-    blobColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
-  cv::Scalar neuralColor = cv::Scalar(255, 0, 255);
-  if (variantColors.find(DebugVariant::Neural) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::Neural];
-    neuralColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
-  cv::Scalar heuristicColor = cv::Scalar(0, 180, 255);
-  if (variantColors.find(DebugVariant::Heuristic) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::Heuristic];
-    heuristicColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
-  cv::Scalar opencvColor = cv::Scalar(0, 0, 255);
-  if (variantColors.find(DebugVariant::Opencv) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::Opencv];
-    opencvColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
-  cv::Scalar fusionColor = cv::Scalar(255, 255, 255);
-  if (variantColors.find(DebugVariant::Fusion) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::Fusion];
-    fusionColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
-  cv::Scalar lkFlowColor = cv::Scalar(255, 255, 0);
-  if (variantColors.find(DebugVariant::LKFlow) != variantColors.end()) {
-    const ImVec4& c = variantColors[DebugVariant::LKFlow];
-    lkFlowColor = cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
-  }
+  auto toScalar = [this](DebugVariant v) {
+    const ImVec4& c = variantColors[static_cast<size_t>(v)];
+    return cv::Scalar(c.z * 255, c.y * 255, c.x * 255);
+  };
+  cv::Scalar blobColor = toScalar(DebugVariant::Blob);
+  cv::Scalar neuralColor = toScalar(DebugVariant::Neural);
+  cv::Scalar heuristicColor = toScalar(DebugVariant::Heuristic);
+  cv::Scalar opencvColor = toScalar(DebugVariant::Opencv);
+  cv::Scalar fusionColor = toScalar(DebugVariant::Fusion);
+  cv::Scalar lkFlowColor = toScalar(DebugVariant::LKFlow);
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   BlobDetection& _odometry_Blob = odometry.GetBlobOdometry();
   HeuristicOdometry& _odometry_Heuristic = odometry.GetHeuristicOdometry();
@@ -318,98 +279,24 @@ void TrackingWidget::_DrawAlgorithmData() {
   }
 
   // check if mouse is over the image
+  ManualOverrideOdometry& overrideOdo = odometry.GetManualOverrideOdometry();
   if (IsMouseOver()) {
     // if pressing not pressing shift
     if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
       if (InputState::GetInstance().IsMouseDown(0)) {
         robotMouseClickPoint = GetMousePos();
-        odometry.UpdateForceSetPosAndVel(robotMouseClickPoint,
-                                         cv::Point2f(0, 0), false);
+        overrideOdo.SetPosition(
+            PositionData(robotMouseClickPoint, cv::Point2f(0, 0),
+                         Clock::programClock.getElapsedTime()),
+            false);
       }
 
       if (InputState::GetInstance().IsMouseDown(1)) {
         opponentMouseClickPoint = GetMousePos();
-        odometry.UpdateForceSetPosAndVel(opponentMouseClickPoint,
-                                         cv::Point2f(0, 0), true);
-      }
-
-      TrackingEditorState& editorState = TrackingEditorState::GetInstance();
-
-#ifdef USE_OPENCV_TRACKER
-      if (editorState.IsOpenCVEditing()) {
-        if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_opencv.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              false);
-        } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_opencv.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              true);
-        }
-      }
-#endif
-      if (editorState.IsBlobEditing()) {
-        if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_Blob.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              false);
-          // force velocity to 0
-          _odometry_Blob.SetVelocity(cv::Point2f(0, 0), false);
-        } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_Blob.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              true);
-          _odometry_Blob.SetVelocity(cv::Point2f(0, 0), true);
-        }
-      }
-
-      if (editorState.IsLKFlowEditing()) {
-        if (InputState::GetInstance().IsMouseDown(0)) {
-          _odometry_LKFlow.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              false);
-        } else if (InputState::GetInstance().IsMouseDown(1)) {
-          _odometry_LKFlow.SetPosition(
-              PositionData(GetMousePos(), cv::Point2f(0, 0),
-                          Clock::programClock.getElapsedTime()),
-              true);
-        }
-      }
-
-      if (editorState.IsHeuristicEditing()) {
-        if (InputState::GetInstance().IsMouseDown(0)) {
-          if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftCtrl)) {
-            _odometry_Heuristic.SetPosition(
-                PositionData(GetMousePos(), cv::Point2f(0, 0),
-                             Clock::programClock.getElapsedTime()),
-                false);
-          } else {
-            _odometry_Heuristic.ForcePosition(
-                PositionData(GetMousePos(), cv::Point2f(0, 0),
-                            Clock::programClock.getElapsedTime()),
-                false);
-          }
-
-          _odometry_Heuristic.SetVelocity(cv::Point2f(0, 0), false);
-        } else if (InputState::GetInstance().IsMouseDown(1)) {
-          if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightCtrl)) {
-            _odometry_Heuristic.SetPosition(
-                PositionData(GetMousePos(), cv::Point2f(0, 0),
-                             Clock::programClock.getElapsedTime()),
-                true);
-          } else {
-            _odometry_Heuristic.ForcePosition(
-                PositionData(GetMousePos(), cv::Point2f(0, 0),
-                             Clock::programClock.getElapsedTime()),
-                true);
-          }
-          _odometry_Heuristic.SetVelocity(cv::Point2f(0, 0), true);
-        }
+        overrideOdo.SetPosition(
+            PositionData(opponentMouseClickPoint, cv::Point2f(0, 0),
+                         Clock::programClock.getElapsedTime()),
+            true);
       }
     }
     // else pressing shift
@@ -421,7 +308,9 @@ void TrackingWidget::_DrawAlgorithmData() {
         cv::Point2f currMousePos = GetMousePos();
         double newAngle =
             atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-        odometry.UpdateForceSetAngle(newAngle, false);
+        overrideOdo.SetAngle(
+            AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
+            false);
         robotMouseClickAngle = newAngle;
       } else if (InputState::GetInstance().IsMouseDown(1)) {
         // set the opponent angle
@@ -429,7 +318,9 @@ void TrackingWidget::_DrawAlgorithmData() {
         cv::Point2f currMousePos = GetMousePos();
         double newAngle = atan2(currMousePos.y - opponentPos.y,
                                 currMousePos.x - opponentPos.x);
-        odometry.UpdateForceSetAngle(newAngle, true);
+        overrideOdo.SetAngle(
+            AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
+            true);
         opponentMouseClickAngle = newAngle;
       }
     }
@@ -495,8 +386,6 @@ void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent,
   safe_circle(currMatt, opponent_ext.GetPositionOrZero(), size, arrowColor, 2);
 }
 
-cv::Mat& TrackingWidget::GetTrackingMat() { return _trackingMat; }
-
 void TrackingWidget::Update() {
   // Get the updated camera frame
   _GrabFrame();
@@ -522,30 +411,26 @@ void TrackingWidget::Update() {
 // references
 void TrackingWidget::UpdateDebugImage(DebugVariant variant,
                                       const cv::Mat& image) {
-  variantImages[variant] = image;
+  variantImages[static_cast<size_t>(variant)] = image;
 }
 
 cv::Mat& TrackingWidget::GetDebugImage(DebugVariant variant) {
-  if (variantImages.find(variant) == variantImages.end()) {
-    variantImages[variant] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
+  size_t i = static_cast<size_t>(variant);
+  if (variantImages[i].empty()) {
+    variantImages[i] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
   }
-  return variantImages[variant];
+  return variantImages[i];
 }
 
 cv::Point TrackingWidget::GetDebugOffset(DebugVariant variant) {
-  auto it = variantOffsets.find(variant);
-  if (it == variantOffsets.end()) {
-    variantOffsets[variant] = cv::Point(0, 0);
-  }
-  return variantOffsets[variant];
+  return variantOffsets[static_cast<size_t>(variant)];
 }
 
 void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
   const char* label = DebugVariantToString(variant);
   ImGui::PushID(label);
 
-  ImVec4 color = variantColors.count(variant) ? variantColors[variant]
-                                              : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+  ImVec4 color = variantColors[static_cast<size_t>(variant)];
 
   if (enabledFlag) {
     ColorScheme::PushSuccessColors();
@@ -566,18 +451,18 @@ void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
   float colorArray[4] = {color.x, color.y, color.z, color.w};
   if (ImGui::ColorEdit4(("Color##" + std::string(label)).c_str(), colorArray,
                         ImGuiColorEditFlags_NoInputs)) {
-    variantColors[variant] =
+    variantColors[static_cast<size_t>(variant)] =
         ImVec4(colorArray[0], colorArray[1], colorArray[2], colorArray[3]);
   }
 
   ImGui::SameLine();
   ImGui::PushItemWidth(60);
-  cv::Point offset =
-      variantOffsets.count(variant) ? variantOffsets[variant] : cv::Point(0, 0);
+  cv::Point offset = variantOffsets[static_cast<size_t>(variant)];
   int offsetArray[2] = {offset.x, offset.y};
   if (ImGui::DragInt2(("Offset##" + std::string(label)).c_str(), offsetArray, 1,
                       -1000, 1000)) {
-    variantOffsets[variant] = cv::Point(offsetArray[0], offsetArray[1]);
+    variantOffsets[static_cast<size_t>(variant)] =
+        cv::Point(offsetArray[0], offsetArray[1]);
   }
   ImGui::PopItemWidth();
 
@@ -606,8 +491,8 @@ void TrackingWidget::_RenderFrames() {
 
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   if (showBlob) {
-    odometry.GetBlobOdometry().GetDebugImage(GetDebugImage(DebugVariant::Blob),
-                                             GetDebugOffset(DebugVariant::Blob));
+    odometry.GetBlobOdometry().GetDebugImage(
+        GetDebugImage(DebugVariant::Blob), GetDebugOffset(DebugVariant::Blob));
   }
   if (showHeuristic) {
     odometry.GetHeuristicOdometry().GetDebugImage(
@@ -650,19 +535,19 @@ void TrackingWidget::_RenderFrames() {
   for (const auto& variant : variants) {
     DebugVariant v = variant.first;
     bool isVisible = variant.second;
+    size_t vi = static_cast<size_t>(v);
 
-    if (!isVisible || variantImages.find(v) == variantImages.end()) {
+    if (!isVisible || variantImages[vi].empty()) {
       continue;
     }
 
-    const cv::Mat& srcImage = variantImages[v];
-    if (srcImage.empty() || srcImage.cols != outputSize.width ||
+    const cv::Mat& srcImage = variantImages[vi];
+    if (srcImage.cols != outputSize.width ||
         srcImage.rows != outputSize.height) {
       continue;
     }
 
-    ImVec4 color = variantColors.count(v) ? variantColors[v]
-                                          : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+    ImVec4 color = variantColors[vi];
     cv::Scalar bgrColor(color.z * 255, color.y * 255,
                         color.x * 255);  // Convert RGB to BGR for OpenCV
     float alpha = color.w;               // Use the alpha value from ImVec4
@@ -899,16 +784,18 @@ std::string TrackingWidget::SaveGUISettings() {
   ss << "outputVideoFile=" << outputVideoFile << ";";
 
   ss << "variantColors=";
-  for (const auto& pair : variantColors) {
-    ss << DebugVariantToString(pair.first) << ":" << pair.second.x << ","
-       << pair.second.y << "," << pair.second.z << "," << pair.second.w << "|";
+  for (size_t i = 0; i < kDebugVariantCount; ++i) {
+    const ImVec4& c = variantColors[i];
+    ss << DebugVariantToString(static_cast<DebugVariant>(i)) << ":" << c.x
+       << "," << c.y << "," << c.z << "," << c.w << "|";
   }
   ss << ";";
 
   ss << "variantOffsets=";
-  for (const auto& pair : variantOffsets) {
-    ss << DebugVariantToString(pair.first) << ":" << pair.second.x << ","
-       << pair.second.y << "|";
+  for (size_t i = 0; i < kDebugVariantCount; ++i) {
+    const cv::Point& p = variantOffsets[i];
+    ss << DebugVariantToString(static_cast<DebugVariant>(i)) << ":" << p.x
+       << "," << p.y << "|";
   }
   ss << ";";
 
@@ -966,7 +853,6 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
     }
 
     else if (key == "variantColors") {
-      variantColors.clear();
       auto colorEntries = split(value, '|');
       for (const auto& entry : colorEntries) {
         if (entry.empty()) continue;
@@ -974,14 +860,15 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         if (colorData.size() != 2) continue;
         auto colors = split(colorData[1], ',');
         if (colors.size() != 4) continue;
-        variantColors[DebugVariantFromString(colorData[0])] = ImVec4(
-            std::stof(colors[0]), std::stof(colors[1]), std::stof(colors[2]),
-            std::stof(colors[3]));
+        size_t i = static_cast<size_t>(DebugVariantFromString(colorData[0]));
+        if (i < kDebugVariantCount) {
+          variantColors[i] = ImVec4(std::stof(colors[0]), std::stof(colors[1]),
+                                    std::stof(colors[2]), std::stof(colors[3]));
+        }
       }
     }
 
     else if (key == "variantOffsets") {
-      variantOffsets.clear();
       auto offsetEntries = split(value, '|');
       for (const auto& entry : offsetEntries) {
         if (entry.empty()) continue;
@@ -989,8 +876,11 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
         if (offsetData.size() != 2) continue;
         auto offsets = split(offsetData[1], ',');
         if (offsets.size() != 2) continue;
-        variantOffsets[DebugVariantFromString(offsetData[0])] =
-            cv::Point(std::stoi(offsets[0]), std::stoi(offsets[1]));
+        size_t i = static_cast<size_t>(DebugVariantFromString(offsetData[0]));
+        if (i < kDebugVariantCount) {
+          variantOffsets[i] =
+              cv::Point(std::stoi(offsets[0]), std::stoi(offsets[1]));
+        }
       }
     }
   }

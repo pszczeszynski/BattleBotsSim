@@ -35,7 +35,8 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
                                CVRotation& neuralrot, OdometryIMU& imu,
                                HumanPosition& human,
                                HumanPosition& human_heuristic,
-                               LKFlowTracker& lkflow
+                               LKFlowTracker& lkflow,
+                               ManualOverrideOdometry& manual_override
 #ifdef USE_OPENCV_TRACKER
                                ,
                                OpenCVTracker& opencv
@@ -48,7 +49,8 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
       _odometry_IMU(imu),
       _odometry_Human(human),
       _odometry_Human_Heuristic(human_heuristic),
-      _odometry_LKFlow(lkflow)
+      _odometry_LKFlow(lkflow),
+      _odometry_Override(manual_override)
 #ifdef USE_OPENCV_TRACKER
       ,
       _odometry_opencv(opencv)
@@ -99,6 +101,16 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
   PollStream(_odometry_LKFlow,
              StreamRef{inputs.them_lkflow, prevInputs.them_lkflow,
                        RawInputs::THEM_LKFLOW, true},
+             inputs.updatedMask);
+
+  // Poll manual override (us and them)
+  PollStream(_odometry_Override,
+             StreamRef{inputs.us_override, prevInputs.us_override,
+                       RawInputs::US_OVERRIDE, false},
+             inputs.updatedMask);
+  PollStream(_odometry_Override,
+             StreamRef{inputs.them_override, prevInputs.them_override,
+                       RawInputs::THEM_OVERRIDE, true},
              inputs.updatedMask);
 
   // Poll IMU tracker (us only)

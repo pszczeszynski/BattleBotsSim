@@ -34,7 +34,8 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
       _odometry_Human(&videoSource, "11120", false),
       _odometry_Human_Heuristic(&videoSource, "11121", true),
       _odometry_NeuralRot(&videoSource),
-      _odometry_LKFlow(&videoSource)
+      _odometry_LKFlow(&videoSource),
+      _odometry_Override()
 #ifdef USE_OPENCV_TRACKER
       ,
       _odometry_opencv(&videoSource)
@@ -42,13 +43,14 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
       ,
       _poller(_odometry_Blob, _odometry_Heuristic, _odometry_Neural,
               _odometry_NeuralRot, _odometry_IMU, _odometry_Human,
-              _odometry_Human_Heuristic, _odometry_LKFlow
+              _odometry_Human_Heuristic, _odometry_LKFlow, _odometry_Override
 #ifdef USE_OPENCV_TRACKER
               ,
               _odometry_opencv
 #endif
       ) {
   _InitAlgorithmTable();
+  Run(OdometryAlg::ManualOverride);
 }
 
 void RobotOdometry::_InitAlgorithmTable() {
@@ -60,6 +62,7 @@ void RobotOdometry::_InitAlgorithmTable() {
   _algorithms[OdometryAlg::NeuralRot] = &_odometry_NeuralRot;
   _algorithms[OdometryAlg::LKFlow] = &_odometry_LKFlow;
   _algorithms[OdometryAlg::Gyro] = nullptr;
+  _algorithms[OdometryAlg::ManualOverride] = &_odometry_Override;
 #ifdef USE_OPENCV_TRACKER
   _algorithms[OdometryAlg::OpenCV] = &_odometry_opencv;
 #else
@@ -125,49 +128,50 @@ void RobotOdometry::AutoMatchStart() {
 void RobotOdometry::MatchStart(bool partOfAuto) {
   double currTime = Clock::programClock.getElapsedTime();
 
-  // Set all the positions and angles
-  _dataRobot.pos = PositionData(TrackingWidget::robotMouseClickPoint,
-                                cv::Point2f(0, 0), currTime);
-  _dataRobot.angle =
-      AngleData(Angle(TrackingWidget::robotMouseClickAngle), 0, currTime);
+  // Set manual override source so fusion uses these as priority
+  _odometry_Override.SetPosition(
+      PositionData(TrackingWidget::robotMouseClickPoint, cv::Point2f(0, 0),
+                   currTime),
+      false);
+  _odometry_Override.SetAngle(
+      AngleData(Angle(TrackingWidget::robotMouseClickAngle), 0, currTime),
+      false);
+  _odometry_Override.SetPosition(
+      PositionData(TrackingWidget::opponentMouseClickPoint, cv::Point2f(0, 0),
+                   currTime),
+      true);
+  _odometry_Override.SetAngle(
+      AngleData(Angle(TrackingWidget::opponentMouseClickAngle), 0, currTime),
+      true);
 
-  _dataOpponent.pos = PositionData(TrackingWidget::opponentMouseClickPoint,
-                                   cv::Point2f(0, 0), currTime);
-  _dataOpponent.angle =
-      AngleData(Angle(TrackingWidget::opponentMouseClickAngle), 0, currTime);
+  // Back-annotate other algorithms so they stay in sync
+  PositionData robotPos(TrackingWidget::robotMouseClickPoint, cv::Point2f(0, 0),
+                        currTime);
+  AngleData robotAngle(Angle(TrackingWidget::robotMouseClickAngle), 0,
+                       currTime);
+  PositionData opponentPos(TrackingWidget::opponentMouseClickPoint,
+                           cv::Point2f(0, 0), currTime);
+  AngleData opponentAngle(Angle(TrackingWidget::opponentMouseClickAngle), 0,
+                          currTime);
 
-  if (_dataRobot.angle.has_value()) {
-    _odometry_Heuristic.SetAngle(_dataRobot.angle.value(), false);
-    _odometry_Blob.SetAngle(_dataRobot.angle.value(), false);
-    _odometry_LKFlow.SetAngle(_dataRobot.angle.value(), false);
-  }
-  if (_dataRobot.pos.has_value()) {
-    _odometry_Heuristic.SetVelocity(_dataRobot.pos.value().velocity, false);
-    _odometry_Blob.SetPosition(_dataRobot.pos.value(), false);
-    _odometry_LKFlow.SetPosition(_dataRobot.pos.value(), false);
-  }
-  if (_dataOpponent.angle.has_value()) {
-    _odometry_Heuristic.SetAngle(_dataOpponent.angle.value(), true);
-    _odometry_Blob.SetAngle(_dataOpponent.angle.value(), true);
-    _odometry_LKFlow.SetAngle(_dataOpponent.angle.value(), true);
-  }
+  _odometry_Heuristic.SetAngle(robotAngle, false);
+  _odometry_Blob.SetAngle(robotAngle, false);
+  _odometry_LKFlow.SetAngle(robotAngle, false);
+  _odometry_Heuristic.SetVelocity(robotPos.velocity, false);
+  _odometry_Blob.SetPosition(robotPos, false);
+  _odometry_LKFlow.SetPosition(robotPos, false);
 
-  if (_dataOpponent.pos.has_value()) {
-    _odometry_Heuristic.ForcePosition(_dataOpponent.pos.value(), true);
-    _odometry_Blob.ForcePosition(_dataOpponent.pos.value(), true);
-    _odometry_LKFlow.ForcePosition(_dataOpponent.pos.value(), true);
-  }
+  _odometry_Heuristic.SetAngle(opponentAngle, true);
+  _odometry_Blob.SetAngle(opponentAngle, true);
+  _odometry_LKFlow.SetAngle(opponentAngle, true);
+  _odometry_Heuristic.ForcePosition(opponentPos, true);
+  _odometry_Blob.ForcePosition(opponentPos, true);
+  _odometry_LKFlow.ForcePosition(opponentPos, true);
 
 #ifdef USE_OPENCV_TRACKER
-  if (_dataOpponent.pos.has_value()) {
-    _odometry_opencv.ForcePosition(_dataOpponent.pos.value(), true);
-  }
-  if (_dataOpponent.angle.has_value()) {
-    _odometry_opencv.SetAngle(_dataOpponent.angle.value(), true);
-  }
-  if (_dataOpponent.pos.has_value()) {
-    _odometry_opencv.SetVelocity(_dataOpponent.pos.value().velocity, true);
-  }
+  _odometry_opencv.ForcePosition(opponentPos, true);
+  _odometry_opencv.SetAngle(opponentAngle, true);
+  _odometry_opencv.SetVelocity(opponentPos.velocity, true);
 #endif
 
   fusionStateMachine = FUSION_NORMAL;
@@ -270,8 +274,12 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     }
   }
 
-  // Robot position
-  if (isFresh(inputs.us_heuristic.pos)) {
+  // Robot position (manual override has highest priority)
+
+  std::cout << "manual override pos: " << inputs.us_override.pos.value().position.x << ", " << inputs.us_override.pos.value().position.y << std::endl;
+  if (isFresh(inputs.us_override.pos)) {
+    output.robot.pos = inputs.us_override.pos;
+  } else if (isFresh(inputs.us_heuristic.pos)) {
     output.robot.pos = inputs.us_heuristic.pos;
     // If blob position isn't inside our rectangle then set position
     if (isFresh(inputs.us_blob.pos) &&
@@ -289,7 +297,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
 
   // Robot velocity
   if (output.robot.pos.has_value()) {
-    if (isFresh(inputs.us_heuristic.pos)) {
+    if (isFresh(inputs.us_override.pos)) {
+      output.robot.pos.value().velocity =
+          inputs.us_override.pos.value().velocity;
+    } else if (isFresh(inputs.us_heuristic.pos)) {
       output.robot.pos.value().velocity =
           inputs.us_heuristic.pos.value().velocity;
     } else if (isFresh(inputs.us_blob.pos)) {
@@ -297,8 +308,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     }
   }
 
-  // Robot angle
-  if (isFresh(inputs.us_imu.angle)) {
+  // Robot angle (manual override has highest priority)
+  if (isFresh(inputs.us_override.angle)) {
+    output.robot.angle = inputs.us_override.angle;
+  } else if (isFresh(inputs.us_imu.angle)) {
     output.robot.angle = inputs.us_imu.angle;
   } else if (isFresh(inputs.us_neuralrot.angle)) {
     output.robot.angle = inputs.us_neuralrot.angle;
@@ -309,8 +322,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     output.robot.angle = inputs.us_lkflow.angle;
   }
 
-  // Opponent position
-  if (isFresh(inputs.them_heuristic.pos)) {
+  // Opponent position (manual override has highest priority)
+  if (isFresh(inputs.them_override.pos)) {
+    output.opponent.pos = inputs.them_override.pos;
+  } else if (isFresh(inputs.them_heuristic.pos)) {
     output.opponent.pos = inputs.them_heuristic.pos;
   } else if (isFresh(inputs.them_blob.pos)) {
     output.opponent.pos = inputs.them_blob.pos;
@@ -320,7 +335,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
 
   // Opponent velocity
   if (output.opponent.pos.has_value()) {
-    if (isFresh(inputs.them_heuristic.pos)) {
+    if (isFresh(inputs.them_override.pos)) {
+      output.opponent.pos.value().velocity =
+          inputs.them_override.pos.value().velocity;
+    } else if (isFresh(inputs.them_heuristic.pos)) {
       output.opponent.pos.value().velocity =
           inputs.them_heuristic.pos.value().velocity;
     } else if (isFresh(inputs.them_blob.pos)) {
@@ -329,8 +347,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
     }
   }
 
-  // Opponent rotation:
-  if (isFresh(inputs.us_human.angle)) {
+  // Opponent rotation (manual override has highest priority)
+  if (isFresh(inputs.them_override.angle)) {
+    output.opponent.angle = inputs.them_override.angle;
+  } else if (isFresh(inputs.us_human.angle)) {
     output.opponent.angle = inputs.us_human.angle;
   } else if (isFresh(inputs.them_lkflow.angle)) {
     output.opponent.angle = inputs.them_lkflow.angle;
@@ -454,18 +474,13 @@ static double GetImuAngleVelocityRadPerSec() {
  * @return the new angle
  */
 void RobotOdometry::UpdateForceSetAngle(double newAngle, bool opponentRobot) {
-  // Go through each Odometry and update it
   double currTime = Clock::programClock.getElapsedTime();
   AngleData angleData(Angle(newAngle), 0, currTime);
+  _odometry_Override.SetAngle(angleData, opponentRobot);
   _odometry_Blob.SetAngle(angleData, opponentRobot);
   _odometry_Heuristic.SetAngle(angleData, opponentRobot);
   _odometry_IMU.SetAngle(angleData, opponentRobot);
   _odometry_LKFlow.SetAngle(angleData, opponentRobot);
-
-  // Update our own data
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData &odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
-  odoData.angle = angleData;
 }
 
 /**
@@ -479,25 +494,15 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
                                             cv::Point2f newVel,
                                             bool opponentRobot) {
   PositionData posData(newPos, newVel, Clock::programClock.getElapsedTime());
-  // Go through each Odometry and update it
   _odometry_Blob.SetPosition(posData, opponentRobot);
   _odometry_Blob.SetVelocity(newVel, opponentRobot);
-
   _odometry_Heuristic.SetPosition(posData, opponentRobot);
   _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
-
   _odometry_LKFlow.SetPosition(posData, opponentRobot);
   _odometry_LKFlow.SetVelocity(newVel, opponentRobot);
-
 #ifdef USE_OPENCV_TRACKER
   _odometry_opencv.SetPosition(posData, opponentRobot);
 #endif
-
-  // Update our own data
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData &odoData = (opponentRobot) ? _dataOpponent : _dataRobot;
-
-  odoData.pos = posData;
 }
 
 bool RobotOdometry::Run(OdometryAlg algorithm) {
@@ -539,6 +544,10 @@ CVRotation &RobotOdometry::GetNeuralRotOdometry() {
 }
 
 LKFlowTracker &RobotOdometry::GetLKFlowOdometry() { return _odometry_LKFlow; }
+
+ManualOverrideOdometry &RobotOdometry::GetManualOverrideOdometry() {
+  return _odometry_Override;
+}
 
 #ifdef USE_OPENCV_TRACKER
 OpenCVTracker &RobotOdometry::GetOpenCVOdometry() { return _odometry_opencv; }
