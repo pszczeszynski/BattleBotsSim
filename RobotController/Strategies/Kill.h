@@ -25,6 +25,6 @@ private:
 
     float orbTimeToPoint(cv::Point2f point, std::vector<cv::Point2f> &orbSimPath, bool forward);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    cv::Point2f extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward);
+    cv::Point2f extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward, float &collideTime);
 
 };

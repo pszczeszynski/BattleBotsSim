@@ -49,9 +49,10 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     // will be filled with final paths
     std::vector<cv::Point2f> orbSimPath = {};
     std::vector<cv::Point2f> oppSimPath = {};
+    float collideTime = 0;
 
     // extrapolate opp
-    cv::Point2f target = extrapOpp(oppSimPath, orbSimPath, forwardInput);
+    cv::Point2f target = extrapOpp(oppSimPath, orbSimPath, forwardInput, collideTime);
 
 
     // calculate drive inputs based on curvature controller (it's just atan2)
@@ -95,7 +96,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(3) << 0; //orbTime;
+    oss << std::fixed << std::setprecision(3) << collideTime;
     
     std::string collisionTime = "Time to Collision: " + oss.str() + "s";
     std::string forwardStatus = forwardInput ? "Forward" : "Backward"; 
@@ -123,7 +124,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
 
 // extraps the opp to a point at which orb will collide at the same time
-cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward) {
+cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward, float &collideTime) {
 
     float maxExtrap = 1.0f; // furthest we'll ever extrap the opp
     float increment = 0.02f; // increment of extrap time scanning
@@ -143,6 +144,9 @@ cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv
         oppSimPath.emplace_back(virtualOpp.position()); // add position to sim path
 
         float orbETA = orbTimeToPoint(virtualOpp.position(), orbSimPath, forward); // simulate orb's path to the point
+
+        collideTime = orbETA; // save
+
         if(orbETA < extrapTime) { break; } // break when we arrive at the same time
 
 
@@ -152,7 +156,7 @@ cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv
 
         std::vector<std::vector<float>> oppExtrap = virtualOpp.constVelExtrap(increment); // extrapolate opp another time step
 
-        float velLeft1Sec = 0.04f; // 0.01 what percent of velocity is left after each second
+        float velLeft1Sec = 0.1f; // 0.01 what percent of velocity is left after each second
         float velPercent = pow(velLeft1Sec, increment); // what percent of velocity is left after this timestep
 
         float turnLeft1Sec = 0.003f; // 0.003
