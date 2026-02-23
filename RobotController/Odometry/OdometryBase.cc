@@ -115,48 +115,6 @@ OdometryData OdometryBase::GetData(bool getOpponent) {
   return _data[slot];
 }
 
-void OdometryBase::SwitchRobots(void) {
-  // Switch who's who
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  std::swap(_data[(int)RobotSlot::Us], _data[(int)RobotSlot::Opponent]);
-}
-
-// Set postion recommends newPos to be the center of the robot. The algorithm is
-// free to adjust as required (e.g. find closest tracking rectangle and use its
-// center)
-void OdometryBase::SetPosition(const PositionData& newPos, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
-  OdometryData &odoData = _data[slot];
-
-  odoData.pos = newPos;
-}
-
-// Force position forces the center of robot to be newpos regardlesss of any
-// other considerations
-void OdometryBase::ForcePosition(const PositionData& newPos, bool opponentRobot) {
-  SetPosition(newPos, opponentRobot);
-}
-
-void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
-  OdometryData &odoData = _data[slot];
-  if (odoData.pos.has_value()) {
-    odoData.pos.value().velocity = newVel;
-  }
-}
-
-// Sets angle and zeroes out angular velocity
-void OdometryBase::SetAngle(AngleData angleData, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  int slot = opponentRobot ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
-  OdometryData &odoData = _data[slot];
-  odoData.angle = angleData;
-}
-
 // Centralized publish function
 void OdometryBase::Publish(OdometryData sample, bool isOpponent,
                            OdometryAlg alg) {

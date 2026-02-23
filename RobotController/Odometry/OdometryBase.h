@@ -30,11 +30,11 @@ public:
     virtual bool Stop(void);      // Stops the thread(s) if running. Returns true if succesful or if thread wasnt running.
     virtual bool IsRunning(void); // Returns true if the algorithm is running
 
-    virtual void SwitchRobots(void); // Switches who's who
-    virtual void SetPosition(const PositionData& newPos, bool opponentRobot);  // Sets position: Odomotry will try to find the closest BBOX to meet this
-    virtual void ForcePosition(const PositionData& newPos, bool opponentRobot); // Forces position to be overriden regardless of state 
-    virtual void SetVelocity(cv::Point2f newVel, bool opponentRobot);
-    virtual void SetAngle(AngleData angleData, bool opponentRobot);
+    virtual void SwitchRobots(void) {}
+    virtual void SetPosition(const PositionData& newPos, bool opponentRobot) {};  // Sets position: Odomotry will try to find the closest BBOX to meet this
+    virtual void ForcePosition(const PositionData& newPos, bool opponentRobot) {}; // Forces position to be overriden regardless of state 
+    virtual void SetVelocity(cv::Point2f newVel, bool opponentRobot) {};
+    virtual void SetAngle(AngleData angleData, bool opponentRobot) {};
 
     virtual void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)); // Returns an image that is used for debugging purposes. It can be empty if no debug image is available
 
