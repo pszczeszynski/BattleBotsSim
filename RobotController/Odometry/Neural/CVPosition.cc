@@ -8,8 +8,6 @@
 
 #include "../../CameraReceiver.h"
 #include "../../RobotConfig.h"
-#include "../../UIWidgets/ClockWidget.h"
-
 
 // Maximum time gap (seconds) before resetting velocity
 constexpr double MAX_VELOCITY_TIME_GAP = 0.5;
@@ -281,8 +279,6 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
 
     // Set position data with velocity and rect
     sample.pos = PositionData(data.center, velocity, bboxRect, posTime);
-
-    // Angle remains invalid (not set)
 
     // Publish the sample (base class increments id automatically)
     OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);

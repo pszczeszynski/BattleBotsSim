@@ -187,11 +187,10 @@ void RobotOdometry::Update() {
 
   // No new data and thus nothing to do
   if (!inputs.HasUpdates()) {
+    // Store for next iteration
+    _prevInputs = inputs;
     return;
   }
-
-  // Store for next iteration
-  _prevInputs = inputs;
 
   if (fusionStateMachine == FUSION_WAIT_FOR_BG) {
     // If heuristic is not active, leave this state
@@ -231,9 +230,12 @@ void RobotOdometry::Update() {
     ApplyBackAnnotation(fusionResult.backAnnotate, fusionResult.robot,
                         fusionResult.opponent);
   }
+
+  // Store for next iteration
+  _prevInputs = inputs;
 }
 
-FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
+FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
                                  const OdometryData &prevRobot,
                                  const OdometryData &prevOpponent) {
   FusionOutput output{};
@@ -241,6 +243,30 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
   // Initialize output with previous state (for extrapolation baseline)
   output.robot = prevRobot;
   output.opponent = prevOpponent;
+
+  // use lk flow's us position and them position to potentially disqualify blobs
+  // if blob changed too much
+  if (isFresh(inputs.them_lkflow.pos) && _prevInputs.them_lkflow.pos.has_value() &&
+      isFresh(inputs.them_blob.pos) && _prevInputs.them_blob.pos.has_value()) {
+
+    // look at the change in position 
+    cv::Point2f lk_flow_change = inputs.them_lkflow.pos.value().position - _prevInputs.them_lkflow.pos.value().position;
+    double delta_time_lk_flow = inputs.them_lkflow.pos.value().time - _prevInputs.them_lkflow.pos.value().time;
+    double lk_flow_change_magnitude = cv::norm(lk_flow_change) / delta_time_lk_flow;
+
+    // look for blob too
+    cv::Point2f blob_change = inputs.them_blob.pos.value().position - _prevInputs.them_blob.pos.value().position;
+    double delta_time_blob = inputs.them_blob.pos.value().time - _prevInputs.them_blob.pos.value().time;
+    double blob_change_magnitude = cv::norm(blob_change) / delta_time_blob;
+
+    // if the blob changed too much, disqualify it
+    if (blob_change_magnitude > lk_flow_change_magnitude * 1.5) {
+
+      std::cout << "disqualifying blob because it changed too much" << std::endl;
+      inputs.them_blob.pos.reset();
+      inputs.them_blob.angle.reset();
+    }
+  }
 
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
@@ -276,7 +302,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs &inputs, double now,
 
   // Robot position (manual override has highest priority)
 
-  std::cout << "manual override pos: " << inputs.us_override.pos.value().position.x << ", " << inputs.us_override.pos.value().position.y << std::endl;
   if (isFresh(inputs.us_override.pos)) {
     output.robot.pos = inputs.us_override.pos;
   } else if (isFresh(inputs.us_heuristic.pos)) {
