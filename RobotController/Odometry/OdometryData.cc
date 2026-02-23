@@ -65,11 +65,12 @@ std::optional<AngleData> OdometryData::_ExtrapolateAngle(
                              ? angle.value().extrapolated_time.value()
                              : angle.value().time);
 
+  AngleData newAngleData = angle.value();
   Angle newAngle =
       angle.value().angle + Angle(angle.value().velocity * deltaTime);
-  AngleData result(newAngle, angle.value().velocity, angle.value().time);
-  result.extrapolated_time = angleExtrapTime;
-  return result;
+  newAngleData.angle = newAngle;
+  newAngleData.extrapolated_time = angleExtrapTime;
+  return newAngleData;
 }
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
