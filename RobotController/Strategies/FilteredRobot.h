@@ -96,7 +96,6 @@ class FilteredRobot
   float fieldMin = 0.0f;
 
   float prevAngleError = 0.0f; // previous angle error for curvature controller
-  float prevTurnInput = 0.0f; // previous amount of turn from curvature controller
   float turnSpeedChangeFiltered = 0.0f; // filtered value for turn speed change rate
 
   // each are 3 big, XYT

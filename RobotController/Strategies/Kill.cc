@@ -83,7 +83,6 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
         DisplayUtils::emote(); // DO NOT DELETE
     }
 
-
     // display things we want
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppSimPath.back(), 10, colorOpp, 2); // draw dot on the extrap opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
@@ -127,7 +126,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv::Point2f> &orbSimPath, bool forward, float &collideTime) {
 
     float maxExtrap = 1.0f; // furthest we'll ever extrap the opp
-    float increment = 0.02f; // increment of extrap time scanning
+    float increment = 0.05f; // increment of extrap time scanning
     float extrapTime = 0.0f; // how much extrap we're currently checking
 
     int maxSteps = (int) maxExtrap / increment;
@@ -149,6 +148,10 @@ cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv
 
         if(orbETA < extrapTime) { break; } // break when we arrive at the same time
 
+
+        // display every orb sim path (except last)
+        cv::Scalar color = cv::Scalar{128, 128, 128};
+        DisplayUtils::displayPath(orbSimPath, color, color, 1);
 
 
 

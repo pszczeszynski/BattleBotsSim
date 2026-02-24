@@ -59,6 +59,9 @@ private:
     
     static AStarAttack* _instance;
 
+    float time1 = 0;
+    float time2 = 0;
+
 
 
 
