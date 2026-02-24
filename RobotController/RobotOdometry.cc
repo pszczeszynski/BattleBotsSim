@@ -330,6 +330,9 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
           inputs.us_heuristic.pos.value().velocity;
     } else if (isFresh(inputs.us_blob.pos)) {
       output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
+    } else if (isFresh(inputs.us_lkflow.pos)) {
+      output.robot.pos.value().velocity =
+          inputs.us_lkflow.pos.value().velocity;
     }
   }
 
@@ -369,6 +372,9 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     } else if (isFresh(inputs.them_blob.pos)) {
       output.opponent.pos.value().velocity =
           inputs.them_blob.pos.value().velocity;
+    } else if (isFresh(inputs.them_lkflow.pos)) {
+      output.opponent.pos.value().velocity =
+          inputs.them_lkflow.pos.value().velocity;
     }
   }
 
@@ -428,12 +434,15 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Heuristic.SetVelocity(robot.pos.value().velocity, false);
     _odometry_Blob.SetPosition(robot.pos.value(), false);
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
+    _odometry_LKFlow.SetPosition(robot.pos.value(), false);
+    _odometry_LKFlow.SetVelocity(robot.pos.value().velocity, false);
   }
 
   // Robot Angle
   if (robot.angle.has_value()) {
     _odometry_Heuristic.SetAngle(robot.angle.value(), false);
     _odometry_Blob.SetAngle(robot.angle.value(), false);
+    _odometry_LKFlow.SetAngle(robot.angle.value(), false);
   }
 
   // Opponent Position

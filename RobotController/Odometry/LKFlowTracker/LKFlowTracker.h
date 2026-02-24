@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <optional>
@@ -21,8 +22,18 @@ struct TrackPt {
   int age;
 };
 
+// Per-target state for LK flow (us or opponent). Shared logic operates on this.
+struct LKFlowTargetState {
+  cv::Point2f pos{0, 0};
+  Angle angle{Angle(0)};
+  std::vector<TrackPt> tracks;
+  std::optional<double> prevTime;
+  double lastRespawnTime = 0.0;
+  bool initialized = false;
+};
+
 // LKFlowTracker Odometry
-// Tracks objects using Lucas-Kanade optical flow
+// Tracks objects using Lucas-Kanade optical flow (both us and opponent)
 class LKFlowTracker : public OdometryBase {
  public:
   LKFlowTracker(ICameraReceiver* videoSource);
@@ -35,49 +46,50 @@ class LKFlowTracker : public OdometryBase {
                      cv::Point offset = cv::Point(0, 0)) override;
 
  private:
-  cv::Rect _GetROI() const;
+  cv::Rect _GetROI(cv::Point2f pos, cv::Size imageSize) const;
 
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
   void _StartCalled(void) override;
 
-  // Core tracking functions
-  bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime);
-  void _ComputeRotationsFromPairs(const std::vector<cv::Point2f>& nextPts,
-                                  const std::vector<uchar>& status,
-                                  double& angleDelta,
-                                  std::vector<std::pair<int, int>>& validPairs);
+  // Core tracking: operates on one target's state. Returns true if update ok.
+  bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime,
+                       LKFlowTargetState& state, bool isOpponent);
+
+  void _ComputeRotationsFromPairs(
+      const std::vector<TrackPt>& tracks,
+      const std::vector<cv::Point2f>& nextPts,
+      const std::vector<uchar>& status,
+      double& angleDelta,
+      std::vector<std::pair<int, int>>& validPairs);
   cv::Point2f _ComputeTranslationFromPoints(
+      const std::vector<TrackPt>& tracks,
       const std::vector<cv::Point2f>& prevPts,
       const std::vector<cv::Point2f>& nextPts,
       const std::vector<uchar>& status);
   void _UpdateAngleFromRotations(const std::vector<RotationResult>& rotations,
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
-                      std::vector<TrackPt>& tracks, int targetCount,
-                      double frameTime);
+                     std::vector<TrackPt>& tracks, int targetCount,
+                     double frameTime, double& lastRespawnTime);
   void _DrawDebugImage(cv::Size imageSize,
                        const std::vector<cv::Point2f>& nextPts,
                        const std::vector<uchar>& status,
-                       const std::vector<std::pair<int, int>>& validPairs);
+                       const std::vector<std::pair<int, int>>& validPairs,
+                       cv::Rect roi, const cv::Scalar& color);
   void _DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist);
   cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
-  void _InterpolatePosTowardCenter(const std::vector<TrackPt>& tracks);
+  void _InterpolatePosTowardCenter(const std::vector<TrackPt>& tracks,
+                                  cv::Point2f& pos);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
-  void _FilterPointsByROI(std::vector<TrackPt>& tracks);
+  void _FilterPointsByROI(std::vector<TrackPt>& tracks, cv::Rect roi);
   cv::Rect _ClipROIToBounds(cv::Rect roi, cv::Size bounds) const;
+
+  // [0] = us, [1] = opponent
+  std::array<LKFlowTargetState, 2> _targets;
+
   // Last known image size for ROI clipping
   cv::Size _imageSize;
   cv::Mat _prevGray;
-  std::vector<TrackPt> _tracks;
-  Angle _angle;
-  cv::Point2f _pos;
-
-  bool _initialized;
-  double _lastRespawnTime;  // Time of last respawn operation
-
-  // Previous data for velocity calculations (local primitives, not
-  // OdometryData)
-  std::optional<double> _prevTime;
 
   // Debug image
   std::mutex _mutexDebugImage;
