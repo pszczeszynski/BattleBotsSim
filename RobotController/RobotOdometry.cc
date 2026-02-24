@@ -24,6 +24,36 @@ template <typename T>
 bool isFresh(const std::optional<T> &opt) {
   return opt.has_value() && opt->GetAge() < _dataAgeThreshold;
 }
+
+// If blob position moved much faster than LK flow (same target), disqualify blob.
+void MaybeDisqualifyBlobByLKFlow(
+    const std::optional<PositionData>& curr_lk_pos,
+    const std::optional<PositionData>& prev_lk_pos,
+    const std::optional<PositionData>& curr_blob_pos,
+    const std::optional<PositionData>& prev_blob_pos,
+    std::optional<PositionData>& blob_pos_out,
+    std::optional<AngleData>& blob_angle_out,
+    double speedRatioThreshold = 1.5) {
+  if (!isFresh(curr_lk_pos) || !prev_lk_pos.has_value() ||
+      !isFresh(curr_blob_pos) || !prev_blob_pos.has_value()) {
+    return;
+  }
+  double delta_time_lk = curr_lk_pos->time - prev_lk_pos->time;
+  double delta_time_blob = curr_blob_pos->time - prev_blob_pos->time;
+  if (delta_time_lk <= 0 || delta_time_blob <= 0) return;
+
+  double lk_speed =
+      cv::norm(curr_lk_pos->position - prev_lk_pos->position) / delta_time_lk;
+  double blob_speed = cv::norm(curr_blob_pos->position -
+                              prev_blob_pos->position) /
+                      delta_time_blob;
+
+  if (blob_speed > lk_speed * speedRatioThreshold) {
+    std::cout << "disqualifying blob because it changed too much" << std::endl;
+    blob_pos_out.reset();
+    blob_angle_out.reset();
+  }
+}
 }  // namespace
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
@@ -244,29 +274,13 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   output.robot = prevRobot;
   output.opponent = prevOpponent;
 
-  // use lk flow's us position and them position to potentially disqualify blobs
-  // if blob changed too much
-  if (isFresh(inputs.them_lkflow.pos) && _prevInputs.them_lkflow.pos.has_value() &&
-      isFresh(inputs.them_blob.pos) && _prevInputs.them_blob.pos.has_value()) {
-
-    // look at the change in position 
-    cv::Point2f lk_flow_change = inputs.them_lkflow.pos.value().position - _prevInputs.them_lkflow.pos.value().position;
-    double delta_time_lk_flow = inputs.them_lkflow.pos.value().time - _prevInputs.them_lkflow.pos.value().time;
-    double lk_flow_change_magnitude = cv::norm(lk_flow_change) / delta_time_lk_flow;
-
-    // look for blob too
-    cv::Point2f blob_change = inputs.them_blob.pos.value().position - _prevInputs.them_blob.pos.value().position;
-    double delta_time_blob = inputs.them_blob.pos.value().time - _prevInputs.them_blob.pos.value().time;
-    double blob_change_magnitude = cv::norm(blob_change) / delta_time_blob;
-
-    // if the blob changed too much, disqualify it
-    if (blob_change_magnitude > lk_flow_change_magnitude * 1.5) {
-
-      std::cout << "disqualifying blob because it changed too much" << std::endl;
-      inputs.them_blob.pos.reset();
-      inputs.them_blob.angle.reset();
-    }
-  }
+  // If blob moved much faster than LK flow (same target), disqualify blob.
+  MaybeDisqualifyBlobByLKFlow(inputs.them_lkflow.pos, _prevInputs.them_lkflow.pos,
+                             inputs.them_blob.pos, _prevInputs.them_blob.pos,
+                             inputs.them_blob.pos, inputs.them_blob.angle);
+  MaybeDisqualifyBlobByLKFlow(inputs.us_lkflow.pos, _prevInputs.us_lkflow.pos,
+                             inputs.us_blob.pos, _prevInputs.us_blob.pos,
+                             inputs.us_blob.pos, inputs.us_blob.angle);
 
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
