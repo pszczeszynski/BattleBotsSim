@@ -2,8 +2,8 @@
 
 #include <cstdint>
 #include <cstdlib>
-#include <new>
 #include <iostream>
+#include <new>
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
@@ -104,11 +104,13 @@ void CVPosition::_InitSharedImage() {
     std::cerr << "CVPosition: Failed to create shared memory" << std::endl;
     return;
   }
-  // Placement-new the header so seq is a valid atomic; image follows immediately.
+  // Placement-new the header so seq is a valid atomic; image follows
+  // immediately.
   auto* header = new (_pSharedMemory) SharedImageHeader{};
   header->seq.store(0, std::memory_order_relaxed);  // init only; no reader yet
-  sharedImage = cv::Mat(height, width, type,
-                        static_cast<char*>(_pSharedMemory) + sizeof(SharedImageHeader));
+  sharedImage =
+      cv::Mat(height, width, type,
+              static_cast<char*>(_pSharedMemory) + sizeof(SharedImageHeader));
 }
 
 void CVPosition::_StartPython() {
@@ -176,8 +178,9 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     adjusted.convertTo(frame, CV_8U);
   }
 
-  // Seqlock write: seq odd => "writing"; then publish header + image; then seq even => "done".
-  // Release on seq stores ensures a reader that sees the same even seq before/after sees consistent header+image.
+  // Seqlock write: seq odd => "writing"; then publish header + image; then seq
+  // even => "done". Release on seq stores ensures a reader that sees the same
+  // even seq before/after sees consistent header+image.
   if (!sharedImage.empty() && _pSharedMemory != nullptr) {
     auto* header = static_cast<SharedImageHeader*>(_pSharedMemory);
     uint32_t prev = header->seq.load(std::memory_order_relaxed);
@@ -257,7 +260,8 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     cv::Rect bboxRect = BBoxToRectClamped(*bbox, frame.cols, frame.rows);
     OdometryData sample{};
 
-    std::cout << "received time milliseconds: " << data.time_millis << std::endl;
+    std::cout << "received time milliseconds: " << data.time_millis
+              << std::endl;
     sample.pos = PositionData{data.center, velocity, bboxRect,
                               static_cast<double>(data.time_millis / 1000.0)};
     OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
