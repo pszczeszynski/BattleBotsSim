@@ -7,11 +7,10 @@
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
+#include <opencv2/video/tracking.hpp>
 
 #include "../../CameraReceiver.h"
-#include "../../Clock.h"
 #include "../../RobotConfig.h"
-#include "../../UIWidgets/GraphWidget.h"
 
 namespace {
 
@@ -59,20 +58,6 @@ cv::Rect BBoxToRectClamped(const BBoxCxCyWh& b, int frameWidth,
 }
 
 }  // namespace
-
-// Debug graphs for publishing (valid streak, distance from last, frameGap,
-// valid)
-static GraphWidget s_validStreakGraph("CVPosition valid streak", 0, 20, "");
-static GraphWidget s_distanceFromLastGraph("CVPosition distance from last", 0,
-                                           200, "px");
-static GraphWidget s_frameGapGraph("CVPosition frame gap", 0, 100, "");
-static GraphWidget s_validGraph("CVPosition valid", 0, 1, "");
-static GraphWidget s_publishedPosXGraph("CVPosition published pos X", 0, 720,
-                                        "px");
-static GraphWidget s_publishedPosYGraph("CVPosition published pos Y", 0, 720,
-                                        "px");
-static GraphWidget s_timeMillisGraph("CVPosition time_millis", 0, 120, "s");
-static GraphWidget s_programClockGraph("CVPosition program clock", 0, 120, "s");
 
 std::optional<BBoxCxCyWh> ParseBBoxCxCyWh(float cx, float cy, float w,
                                           float h) {
@@ -231,7 +216,6 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
   bool shouldPublish = false;
   double distanceFromLast = 0.0;
   uint32_t frameGap = 0;
-  int validStreakForGraph = 0;
 
   {
     std::lock_guard<std::mutex> lock(_lastDataMutex);
@@ -259,19 +243,9 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
       _validStreakCounter = 0;
     }
 
-    validStreakForGraph = _validStreakCounter;
     _lastData = data;
     shouldPublish = data.valid && (_validStreakCounter >= MIN_VALID_STREAK);
   }
-
-  s_validStreakGraph.AddData(static_cast<float>(validStreakForGraph));
-  s_distanceFromLastGraph.AddData(static_cast<float>(distanceFromLast));
-  s_frameGapGraph.AddData(static_cast<float>(frameGap));
-  s_validGraph.AddData(data.valid ? 1.0f : 0.0f);
-  s_timeMillisGraph.AddData(static_cast<double>(data.time_millis / 1000.0));
-  s_programClockGraph.AddData(
-      static_cast<float>(Clock::programClock.getElapsedTime()));
-
 
   if (true) {
     auto bbox = BBoxFromData(data);
@@ -287,8 +261,6 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     sample.pos = PositionData{data.center, velocity, bboxRect,
                               static_cast<double>(data.time_millis / 1000.0)};
     OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
-    s_publishedPosXGraph.AddData(data.center.x);
-    s_publishedPosYGraph.AddData(data.center.y);
   } else {
     std::cout << "not publishing" << std::endl;
   }
