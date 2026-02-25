@@ -1,15 +1,24 @@
 from ultralytics import YOLO
 import numpy as np
 import mmap
-from typing import List, Optional
+import time
+from typing import List, Optional, Tuple
 import socket
 import json
 import cv2
 
 SHARED_FILE_NAME = 'cv_pos_img'
+# Layout matches C++ SharedImageHeader: [seq:4][frame_id:4][time_ms:4] then image.
+SHARED_HEADER_SIZE = 12
 SHAPE = (720, 720)
+IMAGE_BYTES = SHAPE[0] * SHAPE[1]
+SHARED_TOTAL_SIZE = SHARED_HEADER_SIZE + IMAGE_BYTES
 PORT = 11116
 SCALE_RATIO = 0.75
+
+# Seqlock retry: avoid spinning at 100% CPU when writer is mid-update.
+GET_MAT_MAX_RETRIES = 100
+GET_MAT_SLEEP_S = 0.0001  # 0.1 ms
 
 print("Initializing socket")
 # Create a UDP socket
@@ -24,6 +33,8 @@ def send_results_to_rc(bounding_box: list | str, conf: float, frame_id: int, tim
         'time_milliseconds': int(time_milliseconds)
     })
 
+    print("sending: " + message)
+
     try:
         # Send the message
         sock.sendto(message.encode(), ('localhost', PORT))
@@ -32,24 +43,36 @@ def send_results_to_rc(bounding_box: list | str, conf: float, frame_id: int, tim
     except Exception as e:
         print("Error sending to RC: " + str(e))
 
-def get_mat(existing_shm) -> Optional[np.ndarray]:
-    try:
-        existing_shm.seek(0)
-        # Calculate the expected size of the data
-        expected_size = SHAPE[0] * SHAPE[1]
-        # Read the data from shared memory
-        data = existing_shm.read(expected_size)
-        # Check the actual size of the data read
-        if len(data) != expected_size:
-            print(f"Data size mismatch: expected {expected_size}, got {len(data)}")
+def get_mat(existing_shm) -> Optional[Tuple[np.ndarray, int, int]]:
+    """Seqlock read: use memoryview slices only (no .tobytes() — that would copy). Return (view, frame_id, time_ms) or None.
+    Accept only when seq1 == seq2 and seq2 is even (writer finished). Early-out on odd seq1 to avoid parsing mid-write.
+    """
+    mv = memoryview(existing_shm)
+    for _ in range(GET_MAT_MAX_RETRIES):
+        try:
+            # Read seq first; pass memoryview slice directly to avoid .tobytes() copy.
+            seq1 = int.from_bytes(mv[0:4], 'little')
+            # Early-out: if seq is odd, writer is mid-update — skip header/image parse and retry (saves CPU + avoids torn read).
+            if (seq1 & 1) != 0:
+                time.sleep(GET_MAT_SLEEP_S)
+                continue
+            frame_id = int.from_bytes(mv[4:8], 'little')
+            time_milliseconds = int.from_bytes(mv[8:12], 'little')
+            # Image as zero-copy view into the mmap.
+            img = np.ndarray(
+                shape=SHAPE,
+                dtype=np.uint8,
+                buffer=existing_shm,
+                offset=SHARED_HEADER_SIZE,
+            )
+            seq2 = int.from_bytes(mv[0:4], 'little')
+            if seq1 == seq2 and (seq2 & 1) == 0:
+                return (img, frame_id, time_milliseconds)
+        except (ValueError, TypeError) as e:
+            print("Error accessing shared memory:", e)
             return None
-        # Create a NumPy array backed by the shared memory without copying
-        np_array = np.frombuffer(data, dtype=np.uint8).reshape(SHAPE)
-        print(f"Image shape after reading from shared memory: {np_array.shape}")
-        return np_array
-    except ValueError as e:
-        print("Error accessing shared memory: ", e)
-        return None
+        time.sleep(GET_MAT_SLEEP_S)
+    return None
 
 def run_inference_batch(model, imgs: List[np.ndarray]):
     # Preprocess images
@@ -79,28 +102,23 @@ def main():
 
     print("YOLO model initialized")
 
-    # Open the shared memory once
+    # Open the shared memory once (header + image)
     try:
-        existing_shm = mmap.mmap(-1, SHAPE[0] * SHAPE[1], tagname=SHARED_FILE_NAME, access=mmap.ACCESS_READ)
+        existing_shm = mmap.mmap(-1, SHARED_TOTAL_SIZE, tagname=SHARED_FILE_NAME, access=mmap.ACCESS_READ)
     except FileNotFoundError:
         print("Shared memory not found")
         return
 
     while True:
-        # Get the image
-        img = get_mat(existing_shm)
-
-        if img is None:
+        # Get a consistent snapshot (img, frame_id, time_milliseconds) or None
+        result = get_mat(existing_shm)
+        if result is None:
             continue
-
-        # Efficiently extract frame_id and time_milliseconds
-        frame_id = int.from_bytes(img[0, :4].tobytes(), byteorder='little')
-        time_milliseconds = int.from_bytes(img[0, 4:8].tobytes(), byteorder='little')
+        img, frame_id, time_milliseconds = result
 
         # Prepare images for batch inference
         imgs = [img, cv2.flip(img, 1)]
 
-        # imshow
         results = run_inference_batch(model, imgs)
 
         if results is None:
@@ -151,20 +169,23 @@ def main():
 
         # Send results if detection was made
         if result and bounding_box is not None:
-            bounding_box = bounding_box.tolist()
-            send_results_to_rc(bounding_box, max_conf, frame_id, time_milliseconds)
+            bounding_box_list = bounding_box.tolist()
+            send_results_to_rc(bounding_box_list, max_conf, frame_id, time_milliseconds)
         else:
             send_results_to_rc("invalid", -1, frame_id, time_milliseconds)
 
-        # Optionally, display the image (comment out to save time)
-        """
-        img_display = cv2.resize(img, (0, 0), fx=SCALE_RATIO, fy=SCALE_RATIO)
+        # Draw prediction and display
+        if len(img.shape) == 2:
+            display = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        else:
+            display = img.copy()
         if bounding_box is not None:
             x, y, w, h = bounding_box
-            cv2.rectangle(img_display, (int(x - w/2), int(y - h/2)), (int(x + w/2), int(y + h/2)), (0, 255, 0), 2)
-        cv2.imshow("image", img_display)
-        cv2.waitKey(1)
-        """
+            x, y, w, h = int(x), int(y), int(w), int(h)
+            cv2.rectangle(display, (x - w // 2, y - h // 2), (x + w // 2, y + h // 2), (0, 255, 0), 2)
+            cv2.circle(display, (x, y), 4, (0, 255, 0), -1)
+        # cv2.imshow("CVPosition", display)
+        # cv2.waitKey(1)
 
 if __name__ == '__main__':
     main()

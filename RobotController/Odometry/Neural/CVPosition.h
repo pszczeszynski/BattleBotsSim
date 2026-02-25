@@ -1,8 +1,10 @@
 #pragma once
 #include <windows.h>
 
+#include <cstdint>
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <opencv2/dnn.hpp>
 #include <opencv2/opencv.hpp>
 #include <thread>
@@ -10,22 +12,51 @@
 #include "../../ServerSocket.h"
 #include "../OdometryBase.h"
 
+// Shared-memory header for C++ writer / Python reader. Layout: [seq:4][frame_id:4][time_ms:4].
+// Seqlock invariant: seq even => snapshot is complete; seq odd => writer is updating.
+// Only seq is accessed atomically (release when publishing); fixes torn reads and backward timestamps.
+struct alignas(4) SharedImageHeader {
+  std::atomic<uint32_t> seq;
+  uint32_t frame_id;
+  uint32_t time_ms;
+};
+static_assert(sizeof(SharedImageHeader) == 12, "SharedImageHeader must be 12 bytes");
+static_assert(alignof(SharedImageHeader) >= 4, "SharedImageHeader must be 4-byte aligned");
 
 struct CVPositionData {
-  std::vector<int> boundingBox;
+  std::vector<int> boundingBox;  // (cx, cy, w, h) in pixels when valid
   cv::Point2f center;
   uint32_t frameID;
   uint32_t time_millis;
   bool valid;
 };
 
+// Bbox format from neural net: [center_x, center_y, width, height] in pixels.
+struct BBoxCxCyWh {
+  float cx, cy, w, h;
+};
+
+// Last valid sample used for velocity and gating (only from valid frames).
+struct LastValidSample {
+  cv::Point2f center;
+  double t;
+  uint32_t frameId;
+};
+
+// --- Unit-testable helpers (declared here for tests; defined in .cc) ---
+// Parse bbox from 4 floats; returns nullopt if w or h < 0.
+std::optional<BBoxCxCyWh> ParseBBoxCxCyWh(float cx, float cy, float w, float h);
+
+// Clamp rect (cx,cy,w,h) to frame [0,frameW) x [0,frameH); width/height >= 1.
+// Returns (x, y, width, height) for OpenCV rect (x,y = top-left).
+void ClampRectToFrame(float cx, float cy, float w, float h, int frameWidth,
+                      int frameHeight, int& outX, int& outY, int& outW,
+                      int& outH);
+
 class CVPosition : public OdometryBase {
  public:
   CVPosition(ICameraReceiver* videoSource);
   ~CVPosition();
-
-  std::vector<int> GetBoundingBox(int* outFrameID = nullptr);
-  cv::Point2f GetCenter(int* outFrameID = nullptr);
 
   void SwitchRobots(void) override {};  // Dont do anything for SwitchRobots
 
@@ -39,15 +70,9 @@ class CVPosition : public OdometryBase {
   // Latest data from Python (protected by _lastDataMutex)
   CVPositionData _lastData;
   std::mutex _lastDataMutex;
-
-  // State for velocity computation and gating
-  cv::Point2f _lastValidCenter;
-  double _lastValidTime = 0.0;
-  uint32_t _lastValidFrameID = 0;
+  std::optional<LastValidSample> _lastValid;
   int _validStreakCounter = 0;  // Consecutive valid frames
   int _max_distance_thresh = 100;
-  bool _hasPrevValidState =
-      false;  // Whether we have previous valid state for velocity
 
   CVPositionData _GetDataFromPython(bool& outPythonResponded);
 
@@ -66,11 +91,10 @@ class CVPosition : public OdometryBase {
 
   ServerSocket _pythonSocket;
 
-  // Helper to compute center from bounding box
-  // Assumes bbox format is [x1, y1, x2, y2] and computes midpoint
-  cv::Point2f _ComputeCenterFromBBox(const std::vector<int>& bbox);
+  uint32_t _inputFrameId = 0;
 
-  // Helper to compute velocity from successive positions
+  // Compute velocity from previous valid state only; (0,0) if deltaTime <= 0
+  // or > MAX_VELOCITY_TIME_GAP.
   cv::Point2f _ComputeVelocity(cv::Point2f currentCenter, double currentTime,
-                               cv::Point2f lastCenter, double lastTime);
+                               const LastValidSample& last) const;
 };

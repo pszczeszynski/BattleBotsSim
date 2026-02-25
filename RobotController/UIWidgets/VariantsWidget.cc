@@ -5,7 +5,6 @@
 #include "../RobotConfig.h"
 #include "../RobotController.h"
 #include "ColorScheme.h"
-#include "ImageWidget.h"
 #include "UIUtilities.h"
 
 VariantsWidget::VariantsWidget() {}
