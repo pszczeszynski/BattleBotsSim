@@ -19,6 +19,7 @@ SCALE_RATIO = 0.75
 # Seqlock retry: avoid spinning at 100% CPU when writer is mid-update.
 GET_MAT_MAX_RETRIES = 100
 GET_MAT_SLEEP_S = 0.0001  # 0.1 ms
+DUPLICATE_FRAME_SLEEP_S = 0.001  # 1 ms when same frame id seen again
 
 print("Initializing socket")
 # Create a UDP socket
@@ -74,21 +75,22 @@ def get_mat(existing_shm) -> Optional[Tuple[np.ndarray, int, int]]:
         time.sleep(GET_MAT_SLEEP_S)
     return None
 
+# Reused list for batch inference to avoid per-frame list allocation.
+_processed_imgs: List[np.ndarray] = []
+
+
 def run_inference_batch(model, imgs: List[np.ndarray]):
-    # Preprocess images
-    processed_imgs = []
+    # Preprocess images into reused list
+    _processed_imgs.clear()
+    new_width = int(SHAPE[1] * SCALE_RATIO)
+    new_height = int(SHAPE[0] * SCALE_RATIO)
     for img in imgs:
-        # Resize the image
-        new_width = int(SHAPE[1] * SCALE_RATIO)
-        new_height = int(SHAPE[0] * SCALE_RATIO)
         img_resized = cv2.resize(img, (new_width, new_height))
-        # If grayscale, convert to RGB by stacking
         if len(img_resized.shape) == 2:
-            img_resized = np.stack((img_resized, img_resized, img_resized), axis=-1)
-        processed_imgs.append(img_resized)
-    # Pass the list of images directly
+            img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2BGR)
+        _processed_imgs.append(img_resized)
     try:
-        results = model.predict(processed_imgs)
+        results = model.predict(_processed_imgs)
     except Exception as e:
         print("Error in model.predict: ", e)
         return None
@@ -109,12 +111,17 @@ def main():
         print("Shared memory not found")
         return
 
+    last_frame_id = None
     while True:
         # Get a consistent snapshot (img, frame_id, time_milliseconds) or None
         result = get_mat(existing_shm)
         if result is None:
             continue
         img, frame_id, time_milliseconds = result
+        if frame_id == last_frame_id:
+            time.sleep(DUPLICATE_FRAME_SLEEP_S)
+            continue
+        last_frame_id = frame_id
 
         # Prepare images for batch inference
         imgs = [img, cv2.flip(img, 1)]
