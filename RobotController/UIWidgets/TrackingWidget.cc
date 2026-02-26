@@ -1,5 +1,7 @@
 #include "TrackingWidget.h"
 
+#include <algorithm>
+
 #include "../Clock.h"
 #include "../Input/InputState.h"
 #include "../Odometry/OdometryData.h"
@@ -18,21 +20,31 @@ double TrackingWidget::opponentMouseClickAngle = 0;
 #define MASK_PATH "./backgrounds/fieldMask.jpg"
 
 TrackingWidget::TrackingWidget()
-    :  // initialize the mask to all white
+    :  // initialize the mask to all visible (0 = visible, 255 = masked)
       _fieldMask{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}},
       ImageWidget("Tracking", _trackingMat, false) {
   _instance = this;
 
   std::filesystem::path dirPath = MASK_PATH;
 
-  // if there is a mask file saved
   if (std::filesystem::exists(dirPath)) {
-    // read the last mask
-    _fieldMask = cv::imread(MASK_PATH);
-    if (_fieldMask.channels() == 3) {
-      cv::cvtColor(_fieldMask, _fieldMask, cv::COLOR_BGR2GRAY);
-    } else {
-      _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
+    cv::Mat loaded = cv::imread(MASK_PATH);
+    if (!loaded.empty()) {
+      if (loaded.channels() == 1) {
+        _fieldMask = loaded.clone();
+      } else if (loaded.channels() == 3 || loaded.channels() == 4) {
+        cv::cvtColor(loaded, _fieldMask, loaded.channels() == 3
+                                              ? cv::COLOR_BGR2GRAY
+                                              : cv::COLOR_BGRA2GRAY);
+      } else {
+        _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
+      }
+      if (_fieldMask.type() != CV_8UC1 || _fieldMask.cols != WIDTH ||
+          _fieldMask.rows != HEIGHT) {
+        cv::Mat resized;
+        cv::resize(_fieldMask, resized, cv::Size(WIDTH, HEIGHT));
+        _fieldMask = resized;
+      }
     }
   }
 
@@ -168,26 +180,29 @@ void TrackingWidget::_MaskOutRegions() {
 
     // check if the left mouse button is released
     if (!InputState::GetInstance().IsMouseDown(0)) {
-      // create rect with the top left and bottom right point
-      cv::Rect rect = cv::Rect{topLeft, bottomRight};
+      // Normalize so width/height are positive regardless of drag direction
+      int x1 = static_cast<int>((std::min)(topLeft.x, bottomRight.x));
+      int y1 = static_cast<int>((std::min)(topLeft.y, bottomRight.y));
+      int x2 = static_cast<int>((std::max)(topLeft.x, bottomRight.x));
+      int y2 = static_cast<int>((std::max)(topLeft.y, bottomRight.y));
+      cv::Rect rect(x1, y1, x2 - x1, y2 - y1);
+      cv::Rect maskBounds(0, 0, _fieldMask.cols, _fieldMask.rows);
+      cv::Rect clipped(rect & maskBounds);
 
-      // draw the rect
-      cv::rectangle(_fieldMask, cv::Rect{topLeft, bottomRight}, cv::Scalar(255),
-                    -1);
-      // save the mask
-      cv::imwrite(MASK_PATH, _fieldMask);
+      if (clipped.width > 0 && clipped.height > 0) {
+        cv::rectangle(_fieldMask, clipped, cv::Scalar(255), -1);
+        cv::imwrite(MASK_PATH, _fieldMask);
+      }
 
-      // go back to waiting for click
       state = MaskState::WAITING_FOR_CLICK;
     }
   }
 }
 
 /**
- * Clears the field mask
+ * Clears the field mask to all visible (0 = visible, 255 = masked).
  */
 void TrackingWidget::ClearMask() {
-  // set the mask to all white
   _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
   cv::imwrite(MASK_PATH, _fieldMask);
 }
@@ -356,12 +371,10 @@ void TrackingWidget::Update() {
   SaveToVideo();
 }
 
-// New function to store an image with a given label
-// The image should be a clone of the original image to avoid issues with
-// references
+// Store a clone of the image to avoid aliasing and lifetime issues.
 void TrackingWidget::UpdateDebugImage(DebugVariant variant,
                                       const cv::Mat& image) {
-  variantImages[static_cast<size_t>(variant)] = image;
+  variantImages[static_cast<size_t>(variant)] = image.empty() ? image : image.clone();
 }
 
 cv::Mat& TrackingWidget::GetDebugImage(DebugVariant variant) {
@@ -479,8 +492,16 @@ void TrackingWidget::_RenderFrames() {
   // Initialize output image as a black color image (CV_8UC3)
   _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);
 
-  // Pre-allocate working matrices to avoid repeated allocations
-  cv::Mat colorized, mask, temp3channel;
+  // Reusable buffers to avoid per-frame allocations
+  cv::Mat colorized, mask, temp3channel, grayTemp, blended, maskedColorized,
+      inverseMask;
+  colorized.create(outputSize, CV_8UC3);
+  mask.create(outputSize, CV_8UC1);
+  temp3channel.create(outputSize, CV_8UC3);
+  grayTemp.create(outputSize, CV_8UC1);
+  blended.create(outputSize, CV_8UC3);
+  maskedColorized.create(outputSize, CV_8UC3);
+  inverseMask.create(outputSize, CV_8UC1);
 
   for (const auto& variant : variants) {
     DebugVariant v = variant.first;
@@ -502,42 +523,32 @@ void TrackingWidget::_RenderFrames() {
                         color.x * 255);  // Convert RGB to BGR for OpenCV
     float alpha = color.w;               // Use the alpha value from ImVec4
 
-    // Create a colorized version of the source image using vectorized
-    // operations
     if (srcImage.type() == CV_8UC1) {  // Grayscale or binary mask
-      // Convert grayscale to 3-channel
       cv::cvtColor(srcImage, temp3channel, cv::COLOR_GRAY2BGR);
 
-      // Create colored version by multiplying each channel
       std::vector<cv::Mat> channels(3);
       cv::split(temp3channel, channels);
 
-      // Apply color scaling to each channel using vectorized operations
-      channels[0] *= (bgrColor[0] / 255.0);  // Blue
-      channels[1] *= (bgrColor[1] / 255.0);  // Green
-      channels[2] *= (bgrColor[2] / 255.0);  // Red
+      channels[0] *= (bgrColor[0] / 255.0);
+      channels[1] *= (bgrColor[1] / 255.0);
+      channels[2] *= (bgrColor[2] / 255.0);
 
       cv::merge(channels, colorized);
 
-      // Create mask for non-zero pixels
       cv::threshold(srcImage, mask, 0, 255, cv::THRESH_BINARY);
 
     } else if (srcImage.type() == CV_8UC3) {  // Already a color image
-      // Apply color tint using vectorized multiplication
       srcImage.copyTo(colorized);
 
       std::vector<cv::Mat> channels(3);
       cv::split(colorized, channels);
 
-      // Apply color scaling to each channel
-      channels[0] *= (bgrColor[0] / 255.0);  // Blue
-      channels[1] *= (bgrColor[1] / 255.0);  // Green
-      channels[2] *= (bgrColor[2] / 255.0);  // Red
+      channels[0] *= (bgrColor[0] / 255.0);
+      channels[1] *= (bgrColor[1] / 255.0);
+      channels[2] *= (bgrColor[2] / 255.0);
 
       cv::merge(channels, colorized);
 
-      // Create mask for non-zero pixels (any channel > 0)
-      cv::Mat grayTemp;
       cv::cvtColor(srcImage, grayTemp, cv::COLOR_BGR2GRAY);
       cv::threshold(grayTemp, mask, 0, 255, cv::THRESH_BINARY);
 
@@ -545,30 +556,17 @@ void TrackingWidget::_RenderFrames() {
       continue;  // Unsupported image type
     }
 
-    // Blend using OpenCV's optimized functions
     if (alpha >= 0.99f) {
-      // Full opacity - just copy over the mask
       colorized.copyTo(_trackingMat, mask);
     } else {
-      // Partial opacity - use addWeighted for blending
-      cv::Mat maskedColorized =
-          cv::Mat::zeros(colorized.size(), colorized.type());
+      maskedColorized.setTo(cv::Scalar(0, 0, 0));
       colorized.copyTo(maskedColorized, mask);
 
-      // Create inverse mask for existing content
-      cv::Mat inverseMask;
       cv::bitwise_not(mask, inverseMask);
 
-      cv::Mat existing =
-          cv::Mat::zeros(_trackingMat.size(), _trackingMat.type());
-      _trackingMat.copyTo(existing, inverseMask);
-
-      // Blend the regions
-      cv::Mat blended;
       cv::addWeighted(_trackingMat, 1.0 - alpha, maskedColorized, alpha, 0,
                       blended);
 
-      // Copy back only the masked region
       blended.copyTo(_trackingMat, mask);
     }
   }
