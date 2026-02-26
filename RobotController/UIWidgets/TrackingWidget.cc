@@ -330,9 +330,10 @@ template <typename T>
 void TrackingWidget::_DrawAlgIfActive(T& alg, bool show, cv::Scalar color,
                                     bool drawAngles) {
   if (!alg.IsRunning() || !show) return;
-  OdometryData data = alg.GetData(false);
-  _DrawPositions(data, data, _trackingMat, color);
-  if (drawAngles) _DrawAngles(data, data, _trackingMat, color);
+  OdometryData robotData = alg.GetData(false);
+  OdometryData opponentData = alg.GetData(true);
+  _DrawPositions(robotData, opponentData, _trackingMat, color);
+  if (drawAngles) _DrawAngles(robotData, opponentData, _trackingMat, color);
 }
 
 void TrackingWidget::Update() {
