@@ -70,7 +70,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
     // update filtered positions/velocities and paths
     orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
+    oppFiltered.updateFilters(deltaTime, oppData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
     
 
 

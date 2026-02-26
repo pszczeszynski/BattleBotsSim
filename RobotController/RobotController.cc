@@ -453,7 +453,7 @@ DriverStationMessage RobotController::RobotLogic() {
     _killing = true;
   } else {
     double rightStickY = _guiOrbit ? 1.0 : gamepad.GetRightStickY();
-    DriverStationMessage orbit;// = aStarMode.Execute(gamepad, rightStickY);
+    DriverStationMessage orbit = aStarMode.Execute(gamepad, rightStickY);
     // if driver wants to evade (left bumper)
     if (_orbiting) {
       // orbit around them
