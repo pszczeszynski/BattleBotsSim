@@ -1,50 +1,96 @@
 #pragma once
-#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include "../OdometryBase.h"
-#include "RobotClassifier.h"
+#include <opencv2/opencv.hpp>
+#include <optional>
+
 #include "../../CameraReceiver.h"
-#include "../../VisionClassification.h"
+#include "../OdometryBase.h"
 #include "MotionBlob.h"
+#include "RobotClassifier.h"
+
+// Result of blob classification - which blobs are robot vs opponent
+struct VisionClassification {
+  std::optional<MotionBlob> robot;
+  std::optional<MotionBlob> opponent;
+};
 
 // BlobDetection Odometry
 // Tracks objects based on the blob movement
-class BlobDetection : public OdometryBase
-{
-public:
-    BlobDetection(ICameraReceiver *videoSource);
+//
+// Publish-only contract: BlobDetection does NOT store or mutate OdometryData as
+// internal state. OdometryData is only constructed at publish time (right
+// before calling Publish()). The id field increments only when a publish event
+// occurs.
+class BlobDetection : public OdometryBase {
+ public:
+  BlobDetection(ICameraReceiver *videoSource);
 
-    void SwitchRobots(void) override;
-    void SetPosition(cv::Point2f newPos, bool opponentRobot) override;
-    void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
-    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid) override;
-    void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0)) override; // Returns an image that is used for debugging purposes.
+  void SwitchRobots(void) override;
+  void SetPosition(const PositionData& newPos, bool opponentRobot) override;
+  void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
+  void SetAngle(AngleData angleData, bool opponentRobot) override;
+  void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0))
+      override;  // Returns an image that is used for debugging purposes.
 
-private:
-    void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override; // Run every time a new frame is available
+ private:
+  // Per-stream tracking state (one for us, one for opponent)
+  // All smoothing/invalid counting/angle-tangent state lives here
+  struct BlobTrackState {
+    // Position and velocity state
+    std::optional<cv::Point2f> last_position;
+    std::optional<cv::Rect> last_rect;
+    cv::Point2f last_velocity = cv::Point2f(0, 0);
+    double last_position_time = 0;
 
-    VisionClassification DoBlobDetection(cv::Mat &currFrame, cv::Mat &prevFrame, std::unique_lock<std::mutex> &locker, double frameTime); // The core blob detection algorithm
-    void UpdateData(VisionClassification robotData, double timestamp);            // Updates the core data so others can poll it
+    // Blob area tracking
+    double last_blob_area = 0;
 
-    bool _IsValidBlob(MotionBlob &blobNew, OdometryData &prevData);
-    // bool _IsValidBlob(MotionBlob &blobNew, OdometryData &currData, OdometryData &prevData); // Checks if blob is valid
-    void _GetSmoothedVisualVelocity(OdometryData &currData, OdometryData &prevData);        // Averages velocity since its comming in jittery
-    void _SetData(MotionBlob *blob, OdometryData &currData, OdometryData &prevData, OdometryData &prevAngleData, double timestamp);
-    void CalcAnglePathTangent(OdometryData &currData, OdometryData &prevAngleData, double timestamp);
+    // Velocity smoothing state
+    double last_vel_time = 0;
 
-    RobotClassifier _robotClassifier; // Takes the blobs and figures out whos who
-    cv::Mat _previousImage;           // The previous image to do delta on
-    Clock _prevImageTimer;            // Keeps track of when we updated our previous image
-    double prevFrameTime = 0;         // The previous time for velocity calcs
+    // Angle-path-tangent state
+    std::optional<cv::Point2f> prev_angle_ref_pos;
+    double prev_angle_ref_time = 0;
+    std::optional<Angle> prev_angle_ref_angle;
+    double prev_angle_ref_angular_velocity = 0;
+    cv::Point2f apt_velocity = cv::Point2f(0, 0);
+    double apt_velocity_time = 0;
+    bool prev_vel_for_apt_set = false;
+  };
 
-    cv::Mat _lastDrawingImage;      // Copy of the last image for other processes to pull
-    OdometryData _prevDataRobot;    // Contains the previous data, useful for velocity calculations, etc..
-    OdometryData _prevDataOpponent; // Contains the previous data, useful for velocity calculations, etc..
-    OdometryData _prevAngleDataRobot; // Contains the angle data the last time we did the path tangent calculation
-    OdometryData _prevAngleDataOpponent; // Contains the angle data the last time we did the path tangent calculation
+  // Run every time a new frame is available
+  void _ProcessNewFrame(const cv::Mat currFrame, double frameTime) override;
 
-    OdometryData _tempData;
+  VisionClassification _DoBlobDetection(const cv::Mat &currFrame,
+                                       const cv::Mat &prevFrame,
+                                       double frameTime);
 
-    std::mutex _mutexDebugImage;
-    cv::Mat _debugImage;
+  // Process a single stream (us or opponent)
+  void _ProcessStream(const MotionBlob& blob, BlobTrackState &state, bool isOpponent,
+                      double timestamp);
+
+  // Calculate smoothed velocity and update state
+  // Uses prevPos (from state before update) and newPos to calculate velocity
+  void _UpdateSmoothedVelocity(BlobTrackState &state, cv::Point2f newPos,
+                               double timestamp,
+                               const std::optional<cv::Point2f> &prevPos);
+
+  // Calculate angle-path-tangent and update state
+  void _UpdateAnglePathTangent(BlobTrackState &state, cv::Point2f newPos,
+                               double timestamp);
+
+  // Construct and publish OdometryData from current state
+  void _PublishFromState(BlobTrackState &state, bool isOpponent,
+                         double timestamp);
+
+  RobotClassifier _robotClassifier;  // Takes the blobs and figures out whos who
+  cv::Mat _previousImage;            // The previous image to do delta on
+  double _prevFrameTime = 0;  // The previous time for velocity calcs and when
+                              // we updated our previous image
+  std::mutex _mutexDebugImage;
+  cv::Mat _debugImage;
+
+  // Per-stream tracking state
+  BlobTrackState _usState;
+  BlobTrackState _themState;
 };

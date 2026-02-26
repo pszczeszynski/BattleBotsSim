@@ -2,17 +2,16 @@
 
 #include <opencv2/core.hpp>
 
-// clock widget
-#include "../Odometry/Heuristic1/RobotTracker.h"
-#include "../UIWidgets/ClockWidget.h"
-
-// ***********************************************
-// ************ Odometry Base ********************
-// ***********************************************
+#include "../Globals.h"
+#include "OdometryData.h"
 
 OdometryBase::OdometryBase(ICameraReceiver *videoSource)
     : _videoSource(videoSource) {
+  _data[0] = OdometryData{};
+  _data[1] = OdometryData{};
 };
+
+OdometryBase::OdometryBase(void) {};
 
 bool OdometryBase::IsRunning(void) { return _running.load(); }
 
@@ -100,13 +99,10 @@ bool OdometryBase::Stop(void) {
 }
 
 // Check if new data is available
-bool OdometryBase::NewDataValid(int oldId, bool getOpponent) {
+bool OdometryBase::HasNewerDataById(int oldId, bool getOpponent) {
   // Mutex not required since we're just comparing an int
-  if (getOpponent) {
-    return _currDataOpponent.id > oldId;
-  }
-
-  return _currDataRobot.id > oldId;
+  int slot = getOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  return _data[slot].id > oldId;
 }
 
 //  Retrieve the actual data
@@ -115,57 +111,29 @@ OdometryData OdometryBase::GetData(bool getOpponent) {
   std::unique_lock<std::mutex> locker(_updateMutex);
 
   // Return it (via copy operator)
-  return (getOpponent) ? _currDataOpponent : _currDataRobot;
+  int slot = getOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  return _data[slot];
 }
 
-void OdometryBase::SwitchRobots(void) {
-  // Switch who's who
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData temp_Robot = _currDataRobot;
-  _currDataRobot = _currDataOpponent;
-  _currDataOpponent = temp_Robot;
+// Centralized publish function
+void OdometryBase::Publish(OdometryData sample, bool isOpponent,
+                           OdometryAlg alg) {
+  if (sample.pos.has_value()) sample.pos.value().algorithm = alg;
+  if (sample.angle.has_value()) sample.angle.value().algorithm = alg;
+  std::lock_guard<std::mutex> lk(_updateMutex);
+  int slot = isOpponent ? (int)RobotSlot::Opponent : (int)RobotSlot::Us;
+  auto &out = _data[slot];
+  int oldId = out.id;
+  out = std::move(sample);
+  out.id = oldId + 1;
 }
 
-// Set postion recommends newPos to be the center of the robot. The algorithm is
-// free to adjust as required (e.g. find closest tracking rectangle and use its
-// center)
-void OdometryBase::SetPosition(cv::Point2f newPos, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-
-  odoData.robotPosition = newPos;
-  odoData.robotPosValid = true;
-}
-
-// Force position forces the center of robot to be newpos regardlesss of any
-// other considerations
-void OdometryBase::ForcePosition(cv::Point2f newPos, bool opponentRobot) {
-  SetPosition(newPos, opponentRobot);
-}
-
-void OdometryBase::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.robotVelocity = newVel;
-}
-
-// Sets angle and zeroes out angular velocity
-void OdometryBase::SetAngle(Angle newAngle, bool opponentRobot,
-                            double angleFrameTime, double newAngleVelocity,
-                            bool valid) {
-  std::unique_lock<std::mutex> locker(_updateMutex);
-
-  OdometryData &odoData = (opponentRobot) ? _currDataOpponent : _currDataRobot;
-  odoData.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
-}
-
-// Returns an image use for debugging. Empty by default
-// The image should be greyscale and of type CV_8UC1
+// Returns an image use for debugging. Empty by default.
+// Target can be CV_8UC3 (color) or CV_8UC1; drawing uses BGR when target is
+// color.
 void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
-  // This should not happen, but in case it does, we will create an empty image
   if (target.empty()) {
-    target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0));
+    target = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
   }
 
   target =
@@ -175,14 +143,16 @@ void OdometryBase::GetDebugImage(cv::Mat &target, cv::Point offset) {
   const int leftX = 10 + offset.x;  // Left column for Robot Data
 
   // Draw robot data (top-left)
-  int yLeft = 20 + offset.y;  // Start at top
-  printText("Robot Data:", target, yLeft, leftX);
-  _currDataRobot.GetDebugImage(target, cv::Point(leftX + 10, yLeft + 14));
+  int yLeft = 20 + offset.y;
+  cv::putText(target, "Robot Data:", cv::Point(leftX, yLeft),
+              cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+  _data[(int)RobotSlot::Us].GetDebugImage(target,
+                                          cv::Point(leftX + 10, yLeft + 14));
 
-  yLeft = 20 + offset.y;  // Reset to top
-
+  yLeft = 20 + offset.y;
   // Draw opponent data next to it
-  printText("Opponent Data:", target, yLeft, leftX + 190);
-  _currDataOpponent.GetDebugImage(target,
-                                  cv::Point(leftX + 10 + 190, yLeft + 14));
+  cv::putText(target, "Opponent Data:", cv::Point(leftX + 190, yLeft),
+              cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+  _data[(int)RobotSlot::Opponent].GetDebugImage(
+      target, cv::Point(leftX + 10 + 190, yLeft + 14));
 }

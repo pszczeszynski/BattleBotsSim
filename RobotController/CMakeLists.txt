@@ -11,6 +11,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set policy for find_package to use <PackageName>_ROOT variables
 cmake_policy(SET CMP0074 NEW)
 
+# Force OpenCV directory
+# set(OpenCV_DIR "C:/opencv/archive/install_no_cuda/x64/vc16/lib")
+# Alternative: set(OpenCV_ROOT "C:/opencv/archive/opencv-4.7.0/build")
+
 
 # add define for SIMULATION if SIMULATION is an arg
 option(SIMULATION "Build for simulation" OFF)
@@ -57,7 +61,6 @@ set(LIBS hid setupapi)
 set(SOURCES 
     RobotController.cc
     PlaybackController.cc
-    TrackingEditorState.cc
     DriverStationLog.cc
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
@@ -91,6 +94,7 @@ set(SOURCES
     Odometry/Heuristic1/HeuristicOdometry.cc
     Odometry/IMU/OdometryIMU.cc
     Odometry/LKFlowTracker/LKFlowTracker.cc
+    Odometry/ManualOverride/ManualOverrideOdometry.cc
     SelfRighter.cc
     ServerSocket.cc
     ThreadPool.cc
@@ -106,6 +110,7 @@ set(SOURCES
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     UIWidgets/CameraWidget.cc
+    UIWidgets/DebugVariant.cc
     UIWidgets/ColorScheme.cc
     UIWidgets/AStarAttackWidget.cc
     CVRotation.cc
@@ -118,7 +123,6 @@ set(SOURCES
     hid/hid.cc
     Input/InputState.cc
     PurePursuit.cc
-    Strategies/Extrapolate.cc
     SafeDrawing.cc
     Strategies/DisplayUtils.cc
     Strategies/FollowPoint.cc

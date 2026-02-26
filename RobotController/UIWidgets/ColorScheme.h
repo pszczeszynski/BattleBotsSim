@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imgui.h"
+#include "DebugVariant.h"
 #include <string>
 
 namespace ColorScheme
@@ -57,7 +58,7 @@ namespace ColorScheme
     
     // Get semantic colors for different states
     ImVec4 GetStatusColor(const std::string& status);
-    ImVec4 GetVariantColor(const std::string& variant);
+    ImVec4 GetVariantColor(DebugVariant variant);
     
     // Get interpolated color based on value (0.0 = red, 1.0 = green)
     ImVec4 GetInterpolatedColor(float value);

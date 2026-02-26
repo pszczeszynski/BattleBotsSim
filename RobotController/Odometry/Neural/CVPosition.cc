@@ -1,297 +1,359 @@
 #include "CVPosition.h"
-#include <opencv2/dnn.hpp>
-#include <opencv2/core.hpp>
+
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
-#include "../../UIWidgets/ClockWidget.h"
-#include "../../CameraReceiver.h"
+#include <new>
 #include <nlohmann/json.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
+#include <opencv2/video/tracking.hpp>
+
+#include "../../CameraReceiver.h"
 #include "../../RobotConfig.h"
-#include <cstdlib> // For std::system
 
-#define VELOCITY_RESET_FRAMES 100
+namespace {
 
-// Function to create shared memory and return a pointer to it
-void *createSharedMemory(std::string name, int size)
-{
-    std::wstring sharedFileNameW(name.begin(), name.end());
-    LPCSTR sharedFileNameLPCWSTR = name.c_str();
+constexpr double MAX_VELOCITY_TIME_GAP = 0.5;
+constexpr int MIN_VALID_STREAK = 3;
 
-    HANDLE hMapFile = CreateFileMappingA(
-        INVALID_HANDLE_VALUE,   // Use paging file - shared memory
-        NULL,                   // Default security attributes
-        PAGE_READWRITE,         // Read/write access
-        0,                      // Maximum object size (high-order DWORD)
-        size,                   // Maximum object size (low-order DWORD)
-        sharedFileNameLPCWSTR); // Name of the mapping object
-
-    if (hMapFile == NULL)
-    {
-        std::cerr << "Could not create file mapping object: " << GetLastError() << std::endl;
-        return nullptr;
-    }
-
-    void *pBuf = MapViewOfFile(hMapFile,            // Handle to mapping object
-                               FILE_MAP_ALL_ACCESS, // Read/write permission
-                               0,
-                               0,
-                               size);
-
-    if (pBuf == nullptr)
-    {
-        std::cerr << "Could not map view of file: " << GetLastError() << std::endl;
-        CloseHandle(hMapFile); // Handle cleanup
-        return nullptr;
-    }
-
-    return pBuf;
+std::optional<BBoxCxCyWh> BBoxFromData(const CVPositionData& d) {
+  if (d.boundingBox.size() != 4) return std::nullopt;
+  float cx = static_cast<float>(d.boundingBox[0]);
+  float cy = static_cast<float>(d.boundingBox[1]);
+  float w = static_cast<float>(d.boundingBox[2]);
+  float h = static_cast<float>(d.boundingBox[3]);
+  if (w < 0 || h < 0) return std::nullopt;
+  return BBoxCxCyWh{cx, cy, w, h};
 }
 
-void CVPosition::_InitSharedImage()
-{
-    int type = CV_8UC1; // Example type: 8-bit unsigned int with 3 channels
-    int elementSize = CV_ELEM_SIZE(type); // Size of element depending on the cv::Mat type
-    int imgSize = width * height * elementSize;
-
-    // Create shared memory
-    void* sharedData = createSharedMemory(memName, imgSize);
-
-    // Initialize cv::Mat with the shared memory data
-    sharedImage = cv::Mat(height, width, type, sharedData);
+cv::Point2f CenterFromBBox(const BBoxCxCyWh& b) {
+  return cv::Point2f(b.cx, b.cy);
 }
 
-void CVPosition::_StartPython()
-{
+void ClampRectToFrameImpl(float cx, float cy, float w, float h, int frameWidth,
+                          int frameHeight, int& outX, int& outY, int& outW,
+                          int& outH) {
+  float hw = w * 0.5f, hh = h * 0.5f;
+  int x1 = static_cast<int>(cx - hw);
+  int y1 = static_cast<int>(cy - hh);
+  int x2 = static_cast<int>(cx + hw);
+  int y2 = static_cast<int>(cy + hh);
+  x1 = std::max(0, std::min(x1, frameWidth - 1));
+  y1 = std::max(0, std::min(y1, frameHeight - 1));
+  x2 = std::max(0, std::min(x2, frameWidth));
+  y2 = std::max(0, std::min(y2, frameHeight));
+  outW = std::max(1, x2 - x1);
+  outH = std::max(1, y2 - y1);
+  outX = x1;
+  outY = y1;
+}
+
+cv::Rect BBoxToRectClamped(const BBoxCxCyWh& b, int frameWidth,
+                           int frameHeight) {
+  int x, y, w, h;
+  ClampRectToFrameImpl(b.cx, b.cy, b.w, b.h, frameWidth, frameHeight, x, y, w,
+                       h);
+  return cv::Rect(x, y, w, h);
+}
+
+}  // namespace
+
+std::optional<BBoxCxCyWh> ParseBBoxCxCyWh(float cx, float cy, float w,
+                                          float h) {
+  if (w < 0 || h < 0) return std::nullopt;
+  return BBoxCxCyWh{cx, cy, w, h};
+}
+
+void ClampRectToFrame(float cx, float cy, float w, float h, int frameWidth,
+                      int frameHeight, int& outX, int& outY, int& outW,
+                      int& outH) {
+  ClampRectToFrameImpl(cx, cy, w, h, frameWidth, frameHeight, outX, outY, outW,
+                       outH);
+}
+
+static bool CreateSharedMemory(const std::string& name, int size,
+                               HANDLE& outHandle, void*& outPointer) {
+  LPCSTR sharedFileNameLPCSTR = name.c_str();
+  HANDLE hMapFile =
+      CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, size,
+                         sharedFileNameLPCSTR);
+  if (hMapFile == NULL) {
+    std::cerr << "CVPosition: CreateFileMapping failed: " << GetLastError()
+              << std::endl;
+    return false;
+  }
+  void* pBuf = MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, size);
+  if (pBuf == nullptr) {
+    std::cerr << "CVPosition: MapViewOfFile failed: " << GetLastError()
+              << std::endl;
+    CloseHandle(hMapFile);
+    return false;
+  }
+  outHandle = hMapFile;
+  outPointer = pBuf;
+  return true;
+}
+
+void CVPosition::_InitSharedImage() {
+  const int type = CV_8UC1;
+  const int elementSize = CV_ELEM_SIZE(type);
+  const int imgSize = width * height * elementSize;
+  const int totalSize = static_cast<int>(sizeof(SharedImageHeader)) + imgSize;
+  if (!CreateSharedMemory(memName, totalSize, _hMapFile, _pSharedMemory)) {
+    std::cerr << "CVPosition: Failed to create shared memory" << std::endl;
     return;
-    // return;
-    const std::string venv_path = "venv";            // Path to the venv directory
-    const std::string script_path = "CVPosition.py"; // Path to the Python script
-    // Create command string for Windows
-    std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path + "\\Scripts\\activate && python " + script_path + " > NUL 2>&1\"";
-
-    _pythonThread = std::thread([command]() {
-        // Run the command
-        int result = std::system(command.c_str());
-        if (result != 0)
-        {
-            std::cerr << "Failed to run CVPosition.py" << std::endl;
-        }
-    });
+  }
+  // Placement-new the header so seq is a valid atomic; image follows
+  // immediately.
+  auto* header = new (_pSharedMemory) SharedImageHeader{};
+  header->seq.store(0, std::memory_order_relaxed);  // init only; no reader yet
+  sharedImage =
+      cv::Mat(height, width, type,
+              static_cast<char*>(_pSharedMemory) + sizeof(SharedImageHeader));
 }
 
-CVPosition::CVPosition(ICameraReceiver *videoSource) : _pythonSocket("11116"), _lastData(CVPositionData()), OdometryBase(videoSource)
-{
-    _InitSharedImage();
-
-    _StartPython();
+void CVPosition::_StartPython() {
+  return;  // Disabled for now
+  const std::string venv_path = "venv";
+  const std::string script_path = "CVPosition.py";
+  std::string command = "cmd.exe /C \"cd MachineLearning && " + venv_path +
+                        "\\Scripts\\activate && python " + script_path +
+                        " > NUL 2>&1\"";
+  _pythonThreadRunning = true;
+  _pythonThread = std::thread([command, this]() {
+    int result = std::system(command.c_str());
+    if (result != 0)
+      std::cerr << "CVPosition: Failed to run CVPosition.py" << std::endl;
+    _pythonThreadRunning = false;
+  });
 }
 
-CVPosition::~CVPosition()
-{
+CVPosition::CVPosition(ICameraReceiver* videoSource)
+    : _pythonSocket("11116"),
+      _lastData(CVPositionData()),
+      OdometryBase(videoSource),
+      _hMapFile(nullptr),
+      _pSharedMemory(nullptr) {
+  _InitSharedImage();
+  _StartPython();
 }
 
-// Start the thread
-// Returns false if already running
-void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime)
-{
-    // write the id to the frame
-    for (int i = 0; i < 4; i++)
-    {
-        frame.at<uchar>(0, i) = (frameID >> (8 * i)) & 0xFF;
-    }
+CVPosition::~CVPosition() {
+  if (_pythonThread.joinable()) _pythonThread.join();
+  if (_pSharedMemory != nullptr) {
+    UnmapViewOfFile(_pSharedMemory);
+    _pSharedMemory = nullptr;
+  }
+  if (_hMapFile != nullptr) {
+    CloseHandle(_hMapFile);
+    _hMapFile = nullptr;
+  }
+}
 
-    // the next pixels are the time in milliseconds
-    uint32_t timeMillis = (uint32_t) (frameTime * 1000.0);
+cv::Point2f CVPosition::_ComputeVelocity(cv::Point2f currentCenter,
+                                         double currentTime,
+                                         const LastValidSample& last) const {
+  double dt = currentTime - last.t;
+  if (dt <= 0 || dt > MAX_VELOCITY_TIME_GAP) return cv::Point2f(0, 0);
+  cv::Point2f delta = currentCenter - last.center;
+  return cv::Point2f(static_cast<float>(delta.x / dt),
+                     static_cast<float>(delta.y / dt));
+}
 
-    // add the time to the frame
-    for (int i = 0; i < 4; i++)
-    {
-        frame.at<uchar>(0, i + 4) = (timeMillis >> (8 * i)) & 0xFF;
-    }
+void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
+  if (frame.type() != CV_8UC1 || frame.rows < 1 || frame.cols < 8) {
+    std::cerr << "invalid frame type or size" << std::endl;
+    return;
+  }
+  const uint32_t id = _inputFrameId++;
+  // Clamp negative frameTime to avoid uint32_t wrap when casting.
+  const double tMs = frameTime >= 0 ? frameTime * 1000.0 : 0.0;
+  const uint32_t timeMillis = static_cast<uint32_t>(tMs);
 
-    if (NEURAL_BRIGHTNESS_ADJUST != 0)
-    {
-        // brightness adjust +1
-        cv::Mat adjusted;
+  if (NEURAL_BRIGHTNESS_ADJUST != 0) {
+    cv::Mat adjusted;
+    frame.convertTo(adjusted, CV_16U, 1 + NEURAL_BRIGHTNESS_ADJUST / 10.0, 0);
+    cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC);
+    adjusted.convertTo(frame, CV_8U);
+  }
 
-        // Now adjust the new imagexz
-        frame.convertTo(adjusted,  CV_16U, 1 + NEURAL_BRIGHTNESS_ADJUST / 10.0, 0); // Multiply by factor, no offset
+  // Seqlock write: seq odd => "writing"; then publish header + image; then seq
+  // even => "done". Release on seq stores ensures a reader that sees the same
+  // even seq before/after sees consistent header+image.
+  if (!sharedImage.empty() && _pSharedMemory != nullptr) {
+    auto* header = static_cast<SharedImageHeader*>(_pSharedMemory);
+    uint32_t prev = header->seq.load(std::memory_order_relaxed);
+    uint32_t odd = (prev + 1) | 1u;
+    header->seq.store(odd, std::memory_order_release);
 
-        // Ensure pixel values are within [0, 255]
-        cv::threshold(adjusted, adjusted, 255, 255, cv::THRESH_TRUNC); // Cap at 255
-
-        // Set it back to 8 bit
-        adjusted.convertTo(frame, CV_8U);
-
-
-        // cv::imshow("adjusted", frame);
-        // cv::waitKey(1);
-
-    }
-
-    // copy to shared memory
+    header->frame_id = id;
+    header->time_ms = timeMillis;
     frame.copyTo(sharedImage);
 
-    bool pythonResponded = true;
-    CVPositionData data = _GetDataFromPython(pythonResponded);
+    header->seq.store(odd + 1, std::memory_order_release);
+  }
 
-    if (!pythonResponded) {
-        return;
+  bool pythonResponded = false;
+  CVPositionData data = _GetDataFromPython(pythonResponded);
+
+  if (!pythonResponded) {
+    return;
+  }
+
+  auto bboxOpt = BBoxFromData(data);
+  if (!bboxOpt) {
+    data.valid = false;
+  } else {
+    data.center = CenterFromBBox(*bboxOpt);
+    if (data.center.x < 0 || data.center.y < 0 || data.center.x >= frame.cols ||
+        data.center.y >= frame.rows || std::isnan(data.center.x) ||
+        std::isnan(data.center.y) || std::isinf(data.center.x) ||
+        std::isinf(data.center.y)) {
+      data.valid = false;
+      std::cerr << "center out of frame or non-finite" << std::endl;
     }
+  }
 
-    // // make sure the data is newer than the last data
-    // if (data.center.x <= 0 ||
-    //     data.center.y <= 0 || data.center.x >= frame.cols ||
-    //     data.center.y >= frame.rows || std::isnan(data.center.x) ||
-    //     std::isnan(data.center.y) || std::isinf(data.center.x) ||
-    //     std::isinf(data.center.y)) {
-    //   data.valid = false;
-    //   std::cout << "invalid 0" << std::endl;
-    // }
+  cv::Point2f velocity(0, 0);
+  bool shouldPublish = false;
+  double distanceFromLast = 0.0;
+  uint32_t frameGap = 0;
 
-    cv::Point2f velocity = cv::Point2f(0, 0);
+  {
+    std::lock_guard<std::mutex> lock(_lastDataMutex);
 
     if (data.valid) {
-        // If lastData isn't invalid, set to current position (0 velocity)
-        if (_lastData.center.x <= 0 || _lastData.center.y <= 0 || _lastData.center.x >= frame.cols ||
-            _lastData.center.y >= frame.rows) {
-            _lastData.center = data.center;
-        }
+      double currentTime = data.time_millis / 1000.0;
 
-        _lastDataMutex.lock();
-        // if we ever skip too much distance, reset to invalid
-        if (cv::norm(data.center - _lastData.center) > _max_distance_thresh ||
-            data.frameID > _lastData.frameID + VELOCITY_RESET_FRAMES) {
-          data.valid = false;
-          std::cout << "invalid 1" << std::endl;
+      if (_lastValid) {
+        distanceFromLast = cv::norm(data.center - _lastValid->center);
+        frameGap = data.frameID - _lastValid->frameId;
+        velocity = _ComputeVelocity(data.center, currentTime, *_lastValid);
+      }
 
-          std::cout << "distance: " << cv::norm(data.center - _lastData.center) << std::endl;
-          std::cout << "frameID: " << data.frameID << " lastFrameID: " << _lastData.frameID << std::endl;
-        }
-        // copy over the data
-        _lastData = data;
-        _lastVelocity = velocity;
-        _lastDataMutex.unlock();
-    }
-    // if the data is valid, increment the valid frames counter
-    if (data.valid) {
-        _valid_frames_counter++;
+      if (distanceFromLast < _max_distance_thresh && frameGap < 100) {
+        _validStreakCounter++;
+        _lastValid = LastValidSample{data.center, currentTime, data.frameID};
+      } else {
+        std::cerr << "disqualified: distance or frame gap too large"
+                  << std::endl;
+        data.valid = false;
+        _validStreakCounter = 0;
+        _lastValid = std::nullopt;
+      }
+    } else {
+      _validStreakCounter = 0;
     }
 
-    data.valid = data.valid && _valid_frames_counter >= 3;
+    _lastData = data;
+    shouldPublish = data.valid && (_validStreakCounter >= MIN_VALID_STREAK);
+  }
 
-    _UpdateData(data, velocity);
+  if (true) {
+    auto bbox = BBoxFromData(data);
+    if (!bbox) {
+      std::cerr << "CVPosition: publish path with no bbox (should not happen)"
+                << std::endl;
+      return;
+    }
+    cv::Rect bboxRect = BBoxToRectClamped(*bbox, frame.cols, frame.rows);
+    OdometryData sample{};
 
+    std::cout << "received time milliseconds: " << data.time_millis
+              << std::endl;
+    sample.pos = PositionData{data.center, velocity, bboxRect,
+                              static_cast<double>(data.time_millis / 1000.0)};
+    OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
+  } else {
+    std::cout << "not publishing" << std::endl;
+  }
 }
 
-void CVPosition::_UpdateData(CVPositionData data, cv::Point2f velocity)
-{
-    // Get unique access
-    std::unique_lock<std::mutex> locker(_updateMutex);
+CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded) {
+  std::string data = _pythonSocket.receive();
 
-    // Clear curr data
-    _currDataRobot.Clear();
-    _currDataRobot.robotPosValid = data.valid;
-    _currDataRobot.id = data.frameID;             // Set id based on the frame
-    _currDataRobot.frameID = frameID; 
-    _currDataRobot.time = data.time_millis / 1000.0;    // Set to new time
-    _currDataRobot.robotPosition = data.center; // Set new position
-    _currDataRobot.robotVelocity = velocity;
-    _currDataRobot.InvalidateAngle(); // always invalid angle since just position
-
-    _currDataOpponent.Clear();
-    _currDataOpponent.robotPosValid = false;
-    _currDataOpponent.InvalidateAngle();
-}
-
-/**
- * there is a 5th field, which is the id
-*/
-std::vector<int> CVPosition::GetBoundingBox(int* outFrameID)
-{
-    _lastDataMutex.lock();
-    CVPositionData actualData = _lastData;
-    _lastDataMutex.unlock();
-
-    // copy the actual id to the outFrameID
-    if (outFrameID != nullptr)
-    {
-        *outFrameID = actualData.frameID;
-    }
-
-    return actualData.boundingBox;
-}
-
-cv::Point2f CVPosition::GetCenter(int* outFrameID)
-{
-    _lastDataMutex.lock();
-    CVPositionData actualData = _lastData;
-    _lastDataMutex.unlock();
-
-    // copy the actual id to the outFrameID
-    if (outFrameID != nullptr)
-    {
-        *outFrameID = actualData.frameID;
-    }
-
-    return actualData.center;
-}
-
-CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded)
-{
-    // receive from socket
-    std::string data = _pythonSocket.receive();
-
-    if (data == "")
-    {
-        CVPositionData ret = _lastData;
-        ret.valid = false;
-        std::cout << "invalid -2" << std::endl;
-        outPythonResponded = false;
-        return ret;
-    }
-    outPythonResponded = true;
-
-    // parse using json
-    nlohmann::json j = nlohmann::json::parse(data);
-    
-    // get "bounding_box"
-    nlohmann::json boundingBox = j["bounding_box"];
-
-    // check if it's a string and equal to "invalid"
-    if (boundingBox.is_string())
-    {
-        CVPositionData ret = _lastData;
-        ret.valid = false;
-        std::cout << "invalid -3" << std::endl;
-        return ret;
-    }
-
-    // it's an array of floats, so we can just cast it to a vector
-    std::vector<float> boundingBoxVec = boundingBox.get<std::vector<float>>();
-
-    // convert to ints
-    std::vector<int> intBoundingBox = {};
-    for (int i = 0; i < boundingBoxVec.size(); i++)
-    {
-        intBoundingBox.push_back((int)boundingBoxVec[i]);
-    }
-
-    // get the "conf" it's a float
-    float conf = j["conf"].get<float>();
-
-    // get the "frame_id" it's an int
-    uint32_t id = j["frame_id"].get<uint32_t>();
-
-    // parse the time in milliseconds
-    uint32_t time_milliseconds = j["time_milliseconds"].get<uint32_t>();
-
+  auto invalidFromLast = [this]() -> CVPositionData {
     CVPositionData ret;
-    ret.boundingBox = intBoundingBox;
-    ret.frameID = id;
-    ret.time_millis = time_milliseconds;
-    ret.center = cv::Point2f(intBoundingBox[0], intBoundingBox[1]);
-    ret.valid = conf >= NN_MIN_CONFIDENCE;
-    std::cout << "conf valid: " << ret.valid << std::endl;
-
+    {
+      std::lock_guard<std::mutex> lock(_lastDataMutex);
+      ret = _lastData;
+    }
+    ret.valid = false;
     return ret;
+  };
+
+  if (data.empty()) {
+    outPythonResponded = false;
+    return invalidFromLast();
+  }
+  outPythonResponded = true;
+
+  nlohmann::json j;
+  try {
+    j = nlohmann::json::parse(data);
+  } catch (const std::exception& e) {
+    std::cerr << "CVPosition: JSON parse error: " << e.what() << std::endl;
+    return invalidFromLast();
+  }
+
+  if (!j.contains("bounding_box")) {
+    std::cerr << "CVPosition: JSON missing bounding_box" << std::endl;
+    return invalidFromLast();
+  }
+  const auto& boundingBox = j["bounding_box"];
+  if (boundingBox.is_string()) {
+    // "invalid" from Python: last data with valid=false, optional frame/time
+    CVPositionData ret = invalidFromLast();
+    ret.boundingBox = {};
+    ret.frameID = 0;
+    ret.time_millis = 0;
+    if (j.contains("frame_id") && j["frame_id"].is_number_unsigned()) {
+      ret.frameID = j["frame_id"].get<uint32_t>();
+    }
+    if (j.contains("time_milliseconds") &&
+        j["time_milliseconds"].is_number_unsigned()) {
+      ret.time_millis = j["time_milliseconds"].get<uint32_t>();
+    }
+    return ret;
+  }
+  if (!boundingBox.is_array() || boundingBox.size() != 4) {
+    std::cerr << "CVPosition: bounding_box must be array of 4 numbers"
+              << std::endl;
+    return invalidFromLast();
+  }
+  for (size_t i = 0; i < 4; i++) {
+    if (!boundingBox[i].is_number()) {
+      std::cerr << "CVPosition: bounding_box[" << i << "] not a number"
+                << std::endl;
+      return invalidFromLast();
+    }
+  }
+
+  if (!j.contains("conf") || !j["conf"].is_number()) {
+    std::cerr << "CVPosition: JSON missing or invalid conf" << std::endl;
+    return invalidFromLast();
+  }
+  if (!j.contains("frame_id") || !j["frame_id"].is_number_unsigned()) {
+    std::cerr << "CVPosition: JSON missing or invalid frame_id" << std::endl;
+    return invalidFromLast();
+  }
+  if (!j.contains("time_milliseconds") ||
+      !j["time_milliseconds"].is_number_unsigned()) {
+    std::cerr << "CVPosition: JSON missing or invalid time_milliseconds"
+              << std::endl;
+    return invalidFromLast();
+  }
+
+  float cx = boundingBox[0].get<float>();
+  float cy = boundingBox[1].get<float>();
+  float w = boundingBox[2].get<float>();
+  float h = boundingBox[3].get<float>();
+  CVPositionData ret;
+  ret.boundingBox = {static_cast<int>(cx), static_cast<int>(cy),
+                     static_cast<int>(w), static_cast<int>(h)};
+  ret.frameID = j["frame_id"].get<uint32_t>();
+  ret.time_millis = j["time_milliseconds"].get<uint32_t>();
+  ret.valid = (j["conf"].get<float>() >= NN_MIN_CONFIDENCE);
+  return ret;
 }

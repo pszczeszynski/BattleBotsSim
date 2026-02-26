@@ -3,7 +3,6 @@
 #include "../RobotOdometry.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
-#include "Extrapolate.h"
 #include "../SafeDrawing.h"
 #include <algorithm>
 #include <opencv2/core.hpp>
@@ -70,8 +69,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.robotPosition, orbData.GetAngle()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
+    orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
     
 
 

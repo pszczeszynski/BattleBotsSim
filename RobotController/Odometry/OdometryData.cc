@@ -2,70 +2,97 @@
 
 #include <opencv2/core.hpp>
 
-// clock widget
 #include "../Globals.h"
 #include "../Odometry/Heuristic1/RobotTracker.h"
-#include "../UIWidgets/ClockWidget.h"
 
-// ctor for odometry data
-OdometryData::OdometryData(int id)
-    : id(id), robotPosition(-1.0f, -1.0f), robotVelocity(0, 0) {}
+static const char* OdometryAlgToString(OdometryAlg a) {
+  switch (a) {
+    case OdometryAlg::Blob:
+      return "Blob";
+    case OdometryAlg::Heuristic:
+      return "Heuristic";
+    case OdometryAlg::IMU:
+      return "IMU";
+    case OdometryAlg::Neural:
+      return "Neural";
+    case OdometryAlg::Human:
+      return "Human";
+    case OdometryAlg::NeuralRot:
+      return "NeuralRot";
+    case OdometryAlg::OpenCV:
+      return "OpenCV";
+    case OdometryAlg::LKFlow:
+      return "LKFlow";
+    case OdometryAlg::Gyro:
+      return "Gyro";
+    case OdometryAlg::ManualOverride:
+      return "ManualOverride";
+    case OdometryAlg::UnknownAlg:
+    default:
+      return "Unknown";
+  }
+}
 
 // Clear all position data
 void OdometryData::Clear() {
-  // Our Position
-  robotPosValid = false;
-  robotPosition = cv::Point2f(-1.0f, -1.0f);
-  robotVelocity = cv::Point2f(0, 0);  // pixels/second
-
-  rect = cv::Rect2i(0, 0, 0, 0);
-
-  // Our Rotation
-  _angleValid = false;
-  _angle = Angle(0);
-  _angleVelocity = 0;  // Clockwise, rads/s
-
-  // Clear user data
+  pos.reset();
+  angle.reset();
   userDataDouble.clear();
 }
 
-OdometryData OdometryData::_ExtrapolateTo(double newtime) const {
-  // return *this;
-  OdometryData result = *this;  // Create a copy of current data
-
-  // Extrapolate only if data is marked as valid
-  if (robotPosValid) {
-    result.robotPosition += robotVelocity * (newtime - time);
-    result.time = newtime;
+std::optional<PositionData> OdometryData::_ExtrapolatePosition(
+    double posExtrapTime) const {
+  if (!pos.has_value()) {
+    return std::nullopt;
   }
+  double deltaTime =
+      posExtrapTime - (pos.value().extrapolated_time.has_value()
+                           ? pos.value().extrapolated_time.value()
+                           : pos.value().time);
+  PositionData newPos = pos.value();
+  newPos.position += newPos.velocity * deltaTime;
+  newPos.extrapolated_time = posExtrapTime;
+  return newPos;
+}
 
-  if (_angleValid) {
-    Angle newAngle =
-        GetAngle() + Angle(_angleVelocity * (newtime - _angleFrameTime));
-    result._angleFrameTime = newtime;
-    result.SetAngle(newAngle, _angleVelocity, newtime, true);
+std::optional<AngleData> OdometryData::_ExtrapolateAngle(
+    double angleExtrapTime) const {
+  if (!angle.has_value()) {
+    return std::nullopt;
   }
+  double deltaTime =
+      angleExtrapTime - (angle.value().extrapolated_time.has_value()
+                             ? angle.value().extrapolated_time.value()
+                             : angle.value().time);
 
-  return result;
+  AngleData newAngleData = angle.value();
+  Angle newAngle =
+      angle.value().angle + Angle(angle.value().velocity * deltaTime);
+  newAngleData.angle = newAngle;
+  newAngleData.extrapolated_time = angleExtrapTime;
+  return newAngleData;
 }
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
                                                 double maxRelativeTime) const {
-  return _ExtrapolateTo((std::min)(targetTime, time + maxRelativeTime));
-}
-
-/**
- * Returns the age of this data in seconds
- */
-double OdometryData::GetAge() const {
-  return ClockWidget::programClock.getElapsedTime() - time;
+  OdometryData result = *this;
+  if (pos.has_value()) {
+    double posExtrapTime =
+        std::min(targetTime, pos.value().time + maxRelativeTime);
+    result.pos = _ExtrapolatePosition(posExtrapTime).value();
+  }
+  if (angle.has_value()) {
+    double angleExtrapTime =
+        std::min(targetTime, angle.value().time + maxRelativeTime);
+    result.angle = _ExtrapolateAngle(angleExtrapTime).value();
+  }
+  return result;
 }
 
 // Adds to the passed image odometry data for debugging purposes.
 void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
-  // This should not happen, but in case it does, we will create an empty image
   if (target.empty()) {
-    target = cv::Mat(HEIGHT, WIDTH, CV_8UC1, cv::Scalar(0));
+    target = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
   }
 
   std::stringstream ss;
@@ -75,74 +102,70 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   // ID
   ss << " ID: " << (id == 0 ? "Not set" : std::to_string(id));
   ss << "\n";
-  ss << " Frame ID: " << (frameID == -1 ? "Not set" : std::to_string(frameID));
-  ss << "\n";
-  ss << " Time: " << (time == 0 ? "Not set" : std::to_string(time) + " s");
-  ss << "\n";
-  ss << " Time Angle: "
-     << (_angleFrameTime == -1 ? "Not set"
-                               : std::to_string(_angleFrameTime) + " s");
-  ss << "\n ";
-  if (!robotPosValid) {
+
+  // Position
+  if (!pos.has_value()) {
     ss << "Invalid ";
   } else {
     ss << "Valid ";
   }
   ss << "Pos: ";
-  ss << "(" << robotPosition.x << ", " << robotPosition.y << ")";
-  ss << "\n";
+  if (pos.has_value()) {
+    ss << "(" << pos.value().position.x << ", " << pos.value().position.y
+       << ")";
+  } else {
+    ss << "no value";
+  }
+  ss << " [" << (pos.has_value() ? OdometryAlgToString(pos.value().algorithm)
+                                 : "not set")
+     << "]\n";
 
   // Velocity
-  if (!robotPosValid) {
+  if (!pos.has_value()) {
     ss << "Invalid ";
   } else {
     ss << "Valid ";
   }
 
-  double magnitude = cv::norm(robotVelocity);  // Euclidean norm
-  double angle = std::atan2(robotVelocity.y, robotVelocity.x) * 180.0 /
-                 CV_PI;  // Convert to degrees
-  ss << " Vel: " << magnitude << " px/s, " << angle << " deg";
+  if (pos.has_value()) {
+    double magnitude = cv::norm(pos.value().velocity);  // Euclidean norm
+    double velAngle =
+        std::atan2(pos.value().velocity.y, pos.value().velocity.x) * 180.0 /
+        CV_PI;  // Convert to degrees
+    ss << " Vel: " << magnitude << " px/s, " << velAngle << " deg";
+  } else {
+    ss << " Vel: no value";
+  }
 
   ss << "\n";
 
   // Angle and Angle Velocity
-  if (!_angleValid) {
+  if (!angle.has_value()) {
     ss << "Invalid ";
   } else {
     ss << "Valid ";
   }
   ss << " Angle: ";
-  ss << _angle.degrees() << " deg";
-
-  ss << "\n";
-  if (!_angleValid) {
+  if (angle.has_value()) {
+    ss << angle.value().angle.degrees() << " deg";
+  } else {
+    ss << "no value";
+  }
+  ss << " [" << (angle.has_value()
+                     ? OdometryAlgToString(angle.value().algorithm)
+                     : "Unknown")
+     << "]\n";
+  if (!angle.has_value()) {
     ss << "Invalid ";
   } else {
     ss << "Valid ";
   }
   ss << " AVel: ";
-  ss << _angleVelocity << " deg/s";
+  if (angle.has_value()) {
+    ss << angle.value().velocity << " rad/s";
+  } else {
+    ss << "no value";
+  }
 
   printText(ss.str(), target, offset.y, offset.x);
 };
-
-void OdometryData::SetAngle(Angle newAngle, double newAngleVelocity,
-                            double angleFrameTime, bool valid) {
-  _angle = newAngle;
-  _angleFrameTime = angleFrameTime;
-  _angleVelocity = newAngleVelocity;
-  _angleValid = valid;
-}
-
-Angle OdometryData::GetAngle() const { return _angle; }
-
-double OdometryData::GetAngleFrameTime() const { return _angleFrameTime; }
-
-double OdometryData::GetAngleVelocity() const { return _angleVelocity; }
-
-bool OdometryData::IsAngleValid() const { return _angleValid; }
-
-void OdometryData::InvalidatePosition() { robotPosValid = false; }
-
-void OdometryData::InvalidateAngle() { _angleValid = false; }

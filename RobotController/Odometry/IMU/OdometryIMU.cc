@@ -1,119 +1,142 @@
 #include "OdometryIMU.h"
-#include "../../UIWidgets/ImageWidget.h"
+
+#include "../../CVRotation.h"
 #include "../../RobotConfig.h"
 #include "../../RobotController.h"
 #include "../../RobotOdometry.h"
-#include "../../CVRotation.h"
 
-OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0)
-{
-}
+OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0) {}
 
 // Start the thread
 // Returns false if already running
-bool OdometryIMU::Run()
-{
-    if (_running)
-    {
-        // Already running, you need to stop existing thread first
-        return false;
+bool OdometryIMU::Run() {
+  bool expected = false;
+  if (!_running.compare_exchange_strong(expected, true)) {
+    std::cerr
+        << "WARNING: Attempt to run OdometryIMU after it is already running.\n";
+    return false;
+  }
+
+  processingThread = std::thread([&]() {
+    long frameID = -1;
+
+    while (_running.load() && !_stopWhenAble.load()) {
+      // Get the new IMU data
+      double frameTime = -1.0f;
+
+      IMUData newMessage;
+      // Blocking read until new frame available
+      long frameIDnew = RobotController::GetInstance().GetIMUFrame(
+          newMessage, frameID, &frameTime);
+
+      // If a new frame was obtained do this
+      if (frameIDnew >= 0) {
+        frameID = frameIDnew;
+
+        // Update the data
+        _UpdateData(newMessage, frameTime);
+      }
     }
 
-    // Start the new thread
-    processingThread = std::thread([&]()
-                                   {
-        // Mark we are running
-        _running = true;
+    // Exiting thread
+    _running = false;
+    _stopWhenAble = false;
+  });
 
-        long frameID = -1;
-
-        while (_running && !_stopWhenAble)
-        {
-            // Get the new IMU data
-            double frameTime = -1.0f;
-
-            IMUData newMessage;
-            // Blocking read until new frame available
-            long frameIDnew = RobotController::GetInstance().GetIMUFrame(
-                newMessage, frameID, &frameTime);
-
-            // If a new frame was obtained do this
-            if (frameIDnew >= 0)
-            {
-                frameID = frameIDnew;
-
-                // Update the data
-                _UpdateData(newMessage, frameTime);
-            }
-        }
-
-        // Exiting thread
-        _running = false;
-        _stopWhenAble = false; });
-
-    return true;
+  return true;
 }
 
 /**
  * Gets the angle to add to the current angle to get the internal imu angle
-*/
-float OdometryIMU::GetOffset()
-{
-    std::unique_lock<std::mutex> locker(_updateMutex);
-    return _lastGlobalOffset;
+ */
+float OdometryIMU::GetOffset() {
+  std::unique_lock<std::mutex> locker(_updateMutex);
+  return _lastGlobalOffset;
 }
 
-void OdometryIMU::_UpdateData(IMUData &imuData, double timestamp)
-{
-    RobotOdometry& odometry = RobotController::GetInstance().odometry;
-    OdometryData globalOdometryData = odometry.Robot(timestamp);
-    CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
+void OdometryIMU::_UpdateData(IMUData& imuData, double timestamp) {
+  RobotOdometry& odometry = RobotController::GetInstance().odometry;
+  OdometryData globalOdometryData = odometry.Robot(timestamp);
+  CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
 
-    OdometryData cvRotData = cvRotation.GetData(false);
-    cvRotData.ExtrapolateBoundedTo(timestamp);
-    double neuralRotConfidence = cvRotation.GetLastConfidence();
+  OdometryData cvRotData = cvRotation.GetData(false);
+  cvRotData.ExtrapolateBoundedTo(timestamp);
+  double neuralRotConfidence = cvRotation.GetLastConfidence();
 
-    // Get unique access
+  // Grab all needed state in one lock
+  double lastImuAngleLocal;
+  Angle lastAngleLocal;
+  int lastRadioChannelLocal;
+  bool needImuResyncLocal;
+  {
     std::unique_lock<std::mutex> locker(_updateMutex);
-    double deltaTime = timestamp - _currDataRobot.time;
+    lastImuAngleLocal = _lastImuAngle;
+    lastAngleLocal = _lastAngle;
+    lastRadioChannelLocal = _lastRadioChannel;
+    needImuResyncLocal = _needImuResync;
+  }
 
-    _currDataRobot = OdometryData(_currDataRobot.id + 1);
-    // reset the last imu angle if we changed radio channels
-    if (RADIO_CHANNEL != _lastRadioChannel)
-    {
-        _lastImuAngle = imuData.rotation;
-    }
+  // If we don't have a global angle, we can't compute offset reliably.
+  // Publish-only model: do not publish dummy/invalid samples.
+  if (!globalOdometryData.angle.has_value()) {
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    _lastRadioChannel = RADIO_CHANNEL;
+    _lastImuAngle = imuData.rotation;  // keep continuity
+    // keep _lastAngle as-is
+    _lastGlobalOffset = 0;
+    _needImuResync = false;  // clear resync flag since we reset IMU angle
+    return;
+  }
 
-    _lastGlobalOffset = angle_wrap(imuData.rotation - globalOdometryData.GetAngle());
+  // Reset continuity if radio channel changed or resync needed
+  bool radioChannelChanged = (RADIO_CHANNEL != lastRadioChannelLocal);
+  if (radioChannelChanged || needImuResyncLocal) {
+    lastImuAngleLocal = imuData.rotation;
+  }
 
-    // increment the robot angle (corrects for any fixed dc offset)
-    Angle newAngle = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
+  // Compute offset (raw imu - global robot) using the last published/global
+  // angle.
+  double newOffset =
+      angle_wrap(imuData.rotation - globalOdometryData.angle.value().angle);
 
-    // fuse towards the neural rotation if confidence is high
-    if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH)
-    {
-        double interpolateAmount = (std::min)(1.0, deltaTime * ANGLE_FUSE_SPEED);
-        newAngle = InterpolateAngles(newAngle, cvRotData.GetAngle(), interpolateAmount);
-    }
+  // Integrate IMU delta onto last fused angle (stateful)
+  Angle integrated =
+      lastAngleLocal + Angle(imuData.rotation - lastImuAngleLocal);
 
-    // set the new angle + velocity
-    _currDataRobot.SetAngle(newAngle, imuData.rotationVelocity, timestamp, true);
-    _currDataRobot.time = timestamp;
+  // Fuse towards neural rotation if confident + available
+  if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH &&
+      cvRotData.angle.has_value()) {
+    AngleData neuralAngle = cvRotData.angle.value();
+    double deltaTime = timestamp - neuralAngle.time;
+    double interpolateAmount = (std::min)(1.0, deltaTime * ANGLE_FUSE_SPEED);
+    integrated =
+        InterpolateAngles(integrated, neuralAngle.angle, interpolateAmount);
+  }
 
+  // Build publish sample (angle only)
+  OdometryData sample{};
+  sample.angle = AngleData(integrated, imuData.rotationVelocity, timestamp);
+
+  // Publish (this increments id internally)
+  OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::IMU);
+
+  // Commit all state changes in one lock
+  {
+    std::unique_lock<std::mutex> locker(_updateMutex);
+    _lastGlobalOffset = newOffset;
     _lastImuAngle = imuData.rotation;
     _lastRadioChannel = RADIO_CHANNEL;
-    _lastAngle = _currDataRobot.GetAngle();
+    _lastAngle = integrated;
+    _needImuResync = false;  // clear resync flag after handling
+  }
 }
 
-void OdometryIMU::SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime, double newAngleVelocity, bool valid)
-{
-    // Only do this for our robot
-    if (opponentRobot)
-    {
-        return;
-    }
+void OdometryIMU::SetAngle(AngleData angleData, bool opponentRobot) {
+  if (opponentRobot) return;
 
+  {
     std::unique_lock<std::mutex> locker(_updateMutex);
-    _lastAngle = newAngle;
-    _currDataRobot.SetAngle(newAngle, newAngleVelocity, angleFrameTime, valid);
+    _lastAngle = angleData.angle;
+    _needImuResync = true;  // invalidate continuity so next packet resyncs IMU
+  }
 }

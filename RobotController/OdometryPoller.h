@@ -8,15 +8,12 @@
 #include "Odometry/Human/HumanPosition.h"
 #include "Odometry/IMU/OdometryIMU.h"
 #include "Odometry/LKFlowTracker/LKFlowTracker.h"
+#include "Odometry/ManualOverride/ManualOverrideOdometry.h"
 #include "Odometry/Neural/CVPosition.h"
-#include "Odometry/OdometryBase.h"
-
 
 #ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
 #endif
-
-class TrackingWidget;
 
 /**
  * @brief Structure holding raw odometry data from all algorithms for one update
@@ -34,12 +31,15 @@ struct RawInputs {
   OdometryData us_neuralrot;
   OdometryData us_imu;
   OdometryData us_human;
+  OdometryData us_lkflow;
+  OdometryData us_override;
 
   // Opponent (them) data
   OdometryData them_blob;
   OdometryData them_heuristic;
   OdometryData them_human;
   OdometryData them_lkflow;
+  OdometryData them_override;
 
 #ifdef USE_OPENCV_TRACKER
   OdometryData us_opencv;
@@ -58,24 +58,21 @@ struct RawInputs {
     US_IMU = 1 << 6,
     US_HUMAN = 1 << 7,
     THEM_HUMAN = 1 << 8,
-    THEM_LKFLOW = 1 << 9,
+    US_LKFLOW = 1 << 9,
+    THEM_LKFLOW = 1 << 10,
+    US_OVERRIDE = 1 << 11,
+    THEM_OVERRIDE = 1 << 12,
 #ifdef USE_OPENCV_TRACKER
-    US_OPENCV = 1 << 10,
-    THEM_OPENCV = 1 << 11,
+    US_OPENCV = 1 << 13,
+    THEM_OPENCV = 1 << 14,
 #endif
   };
 
   uint32_t updatedMask = 0;  // In-class init to prevent uninitialized bugs
-  uint32_t runningMask = 0;  // Which algorithms are currently running
-
-  // Flags for human interface
-  bool us_human_is_new = false;
-  bool them_human_is_new = false;
 
   RawInputs() = default;  // Now uses in-class initializers
 
   bool HasUpdates() const { return updatedMask != NONE; }
-  bool IsRunning(uint32_t mask) const { return (runningMask & mask) != 0; }
 };
 
 /**
@@ -92,7 +89,7 @@ class OdometryPoller {
   OdometryPoller(BlobDetection& blob, HeuristicOdometry& heuristic,
                  CVPosition& neural, CVRotation& neuralrot, OdometryIMU& imu,
                  HumanPosition& human, HumanPosition& human_heuristic,
-                 LKFlowTracker& lkflow
+                 LKFlowTracker& lkflow, ManualOverrideOdometry& manual_override
 #ifdef USE_OPENCV_TRACKER
                  ,
                  OpenCVTracker& opencv
@@ -102,12 +99,11 @@ class OdometryPoller {
   /**
    * @brief Poll all odometry algorithms for new data
    *
-   * @param trackingInfo UI widget for debug visualization (can be nullptr)
    * @param prevInputs Previous cycle's inputs (used for tracking human
    * interface updates)
    * @return RawInputs containing all available odometry data and update flags
    */
-  RawInputs Poll(TrackingWidget* trackingInfo, const RawInputs& prevInputs);
+  RawInputs Poll(const RawInputs& prevInputs);
 
  private:
   // References to all odometry algorithm instances
@@ -119,6 +115,7 @@ class OdometryPoller {
   HumanPosition& _odometry_Human;
   HumanPosition& _odometry_Human_Heuristic;
   LKFlowTracker& _odometry_LKFlow;
+  ManualOverrideOdometry& _odometry_Override;
 
 #ifdef USE_OPENCV_TRACKER
   OpenCVTracker& _odometry_opencv;

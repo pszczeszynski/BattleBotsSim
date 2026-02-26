@@ -48,16 +48,19 @@ namespace ColorScheme
         return (it != statusColors.end()) ? it->second : TEXT_PRIMARY;
     }
     
-    ImVec4 GetVariantColor(const std::string& variant)
+    ImVec4 GetVariantColor(DebugVariant variant)
     {
-        static const std::map<std::string, ImVec4> variantColors = {
-            {"Camera", PRIMARY_BLUE},
-            {"Blob", PRIMARY_GREEN},
-            {"Heuristic", PRIMARY_ORANGE}
-        };
-        
-        auto it = variantColors.find(variant);
-        return (it != variantColors.end()) ? it->second : PRIMARY_BLUE;
+        switch (variant) {
+            case DebugVariant::Camera:   return PRIMARY_BLUE;
+            case DebugVariant::Blob:      return PRIMARY_GREEN;
+            case DebugVariant::Heuristic: return PRIMARY_ORANGE;
+            case DebugVariant::Neural:   return ImVec4(0.0f, 0.5f, 0.5f, 1.0f);   // Cyan
+            case DebugVariant::Fusion:   return ImVec4(0.8f, 0.8f, 0.0f, 1.0f);   // Yellow
+            case DebugVariant::NeuralRot: return ImVec4(0.5f, 0.5f, 0.5f, 1.0f);  // Grey
+            case DebugVariant::Opencv:   return ImVec4(0.2f, 0.2f, 0.2f, 1.0f);   // Grey
+            case DebugVariant::LKFlow:   return PRIMARY_PURPLE;
+        }
+        return PRIMARY_BLUE;
     }
 
     ImVec4 GetInterpolatedColor(float value)

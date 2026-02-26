@@ -1,84 +1,33 @@
 #include "OdometryPoller.h"
 
-#include "UIWidgets/TrackingWidget.h"
-
 namespace {
-// Helper to poll a dual-tracker (tracks both us and them)
-template <typename T>
-bool PollDualTracker(T& tracker, const char* debugName, OdometryData& outUs,
-                     OdometryData& outThem, const OdometryData& prevUs,
-                     const OdometryData& prevThem, uint32_t usFlag,
-                     uint32_t themFlag, uint32_t& outUpdatedMask,
-                     uint32_t& outRunningMask, TrackingWidget* trackingInfo) {
-  // Default: hold previous data (avoids duplicate assignments in branches)
-  outUs = prevUs;
-  outThem = prevThem;
+// Reference to a single data stream (us or them) for polling
+struct StreamRef {
+  OdometryData& latest;
+  const OdometryData& prev;
+  uint32_t flag;
+  bool isOpponent;
+};
 
-  if (!tracker.IsRunning()) {
+bool PollStream(OdometryBase& odometry, const StreamRef& stream,
+                uint32_t& updatedMask) {
+  // Default: hold previous data
+  stream.latest = stream.prev;
+
+  if (!odometry.IsRunning()) {
     return false;  // Not running, data stays as prev
   }
 
-  // Mark streams as running
-  outRunningMask |= (usFlag | themFlag);
-
-  bool newdata = false;
-
-  // Check robot (us) data - override if new
-  if (tracker.NewDataValid(prevUs.id, false)) {
-    outUs = tracker.GetData(false);
-    outUpdatedMask |= usFlag;
-    newdata = true;
+  // Only check for new data if flag is set
+  if (odometry.HasNewerDataById(stream.prev.id, stream.isOpponent)) {
+    stream.latest = odometry.GetData(stream.isOpponent);
+    updatedMask |= stream.flag;
+    return true;
   }
 
-  // Check opponent (them) data - override if new
-  if (tracker.NewDataValid(prevThem.id, true)) {
-    outThem = tracker.GetData(true);
-    outUpdatedMask |= themFlag;
-    newdata = true;
-  }
-
-  // Get debug image if new data arrived
-  if (newdata && trackingInfo) {
-    tracker.GetDebugImage(trackingInfo->GetDebugImage(debugName),
-                          trackingInfo->GetDebugOffset(debugName));
-  }
-
-  return newdata;
+  return false;
 }
 
-// Helper to poll a single-tracker (tracks only us or only them)
-template <typename T>
-bool PollSingleTracker(T& tracker, const char* debugName, OdometryData& outData,
-                       const OdometryData& prevData, bool isOpponent,
-                       uint32_t flag, uint32_t& outUpdatedMask,
-                       uint32_t& outRunningMask, TrackingWidget* trackingInfo) {
-  // Default: hold previous data (avoids duplicate assignment in branches)
-  outData = prevData;
-
-  if (!tracker.IsRunning()) {
-    return false;  // Not running, data stays as prev
-  }
-
-  // Mark stream as running
-  outRunningMask |= flag;
-
-  bool newdata = false;
-
-  // Check for new data - override if available
-  if (tracker.NewDataValid(prevData.id, isOpponent)) {
-    outData = tracker.GetData(isOpponent);
-    outUpdatedMask |= flag;
-    newdata = true;
-  }
-
-  // Get debug image if new data arrived
-  if (newdata && trackingInfo) {
-    tracker.GetDebugImage(trackingInfo->GetDebugImage(debugName),
-                          trackingInfo->GetDebugOffset(debugName));
-  }
-
-  return newdata;
-}
 }  // namespace
 
 OdometryPoller::OdometryPoller(BlobDetection& blob,
@@ -86,7 +35,8 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
                                CVRotation& neuralrot, OdometryIMU& imu,
                                HumanPosition& human,
                                HumanPosition& human_heuristic,
-                               LKFlowTracker& lkflow
+                               LKFlowTracker& lkflow,
+                               ManualOverrideOdometry& manual_override
 #ifdef USE_OPENCV_TRACKER
                                ,
                                OpenCVTracker& opencv
@@ -99,7 +49,8 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
       _odometry_IMU(imu),
       _odometry_Human(human),
       _odometry_Human_Heuristic(human_heuristic),
-      _odometry_LKFlow(lkflow)
+      _odometry_LKFlow(lkflow),
+      _odometry_Override(manual_override)
 #ifdef USE_OPENCV_TRACKER
       ,
       _odometry_opencv(opencv)
@@ -107,86 +58,93 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
 {
 }
 
-RawInputs OdometryPoller::Poll(TrackingWidget* trackingInfo,
-                               const RawInputs& prevInputs) {
-  // Explicitly zero-initialize to prevent "ghost fusion" bugs
+RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
+  // Explicitly zero-initialize
   RawInputs inputs{};
 
-  // Poll dual-trackers (both us and them)
-  PollDualTracker(_odometry_Blob, "Blob", inputs.us_blob, inputs.them_blob,
-                  prevInputs.us_blob, prevInputs.them_blob, RawInputs::US_BLOB,
-                  RawInputs::THEM_BLOB, inputs.updatedMask, inputs.runningMask,
-                  trackingInfo);
+  // Poll Blob tracker (us and them)
+  PollStream(
+      _odometry_Blob,
+      StreamRef{inputs.us_blob, prevInputs.us_blob, RawInputs::US_BLOB, false},
+      inputs.updatedMask);
+  PollStream(_odometry_Blob,
+             StreamRef{inputs.them_blob, prevInputs.them_blob,
+                       RawInputs::THEM_BLOB, true},
+             inputs.updatedMask);
 
-  PollDualTracker(_odometry_Heuristic, "Heuristic", inputs.us_heuristic,
-                  inputs.them_heuristic, prevInputs.us_heuristic,
-                  prevInputs.them_heuristic, RawInputs::US_HEURISTIC,
-                  RawInputs::THEM_HEURISTIC, inputs.updatedMask,
-                  inputs.runningMask, trackingInfo);
+  // Poll Heuristic tracker (us and them)
+  PollStream(_odometry_Heuristic,
+             StreamRef{inputs.us_heuristic, prevInputs.us_heuristic,
+                       RawInputs::US_HEURISTIC, false},
+             inputs.updatedMask);
+  PollStream(_odometry_Heuristic,
+             StreamRef{inputs.them_heuristic, prevInputs.them_heuristic,
+                       RawInputs::THEM_HEURISTIC, true},
+             inputs.updatedMask);
 
 #ifdef USE_OPENCV_TRACKER
-  PollDualTracker(_odometry_opencv, "Opencv", inputs.us_opencv,
-                  inputs.them_opencv, prevInputs.us_opencv,
-                  prevInputs.them_opencv, RawInputs::US_OPENCV,
-                  RawInputs::THEM_OPENCV, inputs.updatedMask,
-                  inputs.runningMask, trackingInfo);
+  // Poll OpenCV tracker (us and them)
+  PollStream(_odometry_opencv,
+             StreamRef{inputs.us_opencv, prevInputs.us_opencv,
+                       RawInputs::US_OPENCV, false},
+             inputs.updatedMask);
+  PollStream(_odometry_opencv,
+             StreamRef{inputs.them_opencv, prevInputs.them_opencv,
+                       RawInputs::THEM_OPENCV, true},
+             inputs.updatedMask);
 #endif
+  // Poll LKFlow tracker (us and them)
+  PollStream(_odometry_LKFlow,
+             StreamRef{inputs.us_lkflow, prevInputs.us_lkflow,
+                       RawInputs::US_LKFLOW, false},
+             inputs.updatedMask);
+  PollStream(_odometry_LKFlow,
+             StreamRef{inputs.them_lkflow, prevInputs.them_lkflow,
+                       RawInputs::THEM_LKFLOW, true},
+             inputs.updatedMask);
 
-  // Poll single-trackers (us only)
-  PollSingleTracker(_odometry_IMU, "IMU", inputs.us_imu, prevInputs.us_imu,
-                    false, RawInputs::US_IMU, inputs.updatedMask,
-                    inputs.runningMask, trackingInfo);
+  // Poll manual override (us and them)
+  PollStream(_odometry_Override,
+             StreamRef{inputs.us_override, prevInputs.us_override,
+                       RawInputs::US_OVERRIDE, false},
+             inputs.updatedMask);
+  PollStream(_odometry_Override,
+             StreamRef{inputs.them_override, prevInputs.them_override,
+                       RawInputs::THEM_OVERRIDE, true},
+             inputs.updatedMask);
 
-  PollSingleTracker(_odometry_NeuralRot, "NeuralRot", inputs.us_neuralrot,
-                    prevInputs.us_neuralrot, false, RawInputs::US_NEURALROT,
-                    inputs.updatedMask, inputs.runningMask, trackingInfo);
+  // Poll IMU tracker (us only)
+  PollStream(
+      _odometry_IMU,
+      StreamRef{inputs.us_imu, prevInputs.us_imu, RawInputs::US_IMU, false},
+      inputs.updatedMask);
 
-  // Poll single-tracker (them only)
-  PollSingleTracker(_odometry_LKFlow, "LKFlow", inputs.them_lkflow,
-                    prevInputs.them_lkflow, true, RawInputs::THEM_LKFLOW,
-                    inputs.updatedMask, inputs.runningMask, trackingInfo);
+  // Poll NeuralRot tracker (us only)
+  PollStream(_odometry_NeuralRot,
+             StreamRef{inputs.us_neuralrot, prevInputs.us_neuralrot,
+                       RawInputs::US_NEURALROT, false},
+             inputs.updatedMask);
 
   // Poll Neural Position (special case: always returns data when running)
+  inputs.us_neural = prevInputs.us_neural;
   if (_odometry_Neural.IsRunning()) {
-    inputs.runningMask |= RawInputs::US_NEURAL;
     inputs.us_neural = _odometry_Neural.GetData(false);
     inputs.updatedMask |= RawInputs::US_NEURAL;
-
-    if (trackingInfo) {
-      _odometry_Neural.GetDebugImage(trackingInfo->GetDebugImage("Neural"),
-                                     trackingInfo->GetDebugOffset("Neural"));
-    }
-  } else {
-    inputs.us_neural = prevInputs.us_neural;
   }
 
   // Poll Human Interface (special case: tracks is_new flags)
-  if (_odometry_Human.IsRunning()) {
-    inputs.runningMask |= (RawInputs::US_HUMAN | RawInputs::THEM_HUMAN);
-
-    if (_odometry_Human.NewDataValid(prevInputs.us_human.id, false)) {
-      inputs.us_human = _odometry_Human.GetData(false);
-      inputs.us_human_is_new = true;
-      inputs.updatedMask |= RawInputs::US_HUMAN;
-    } else {
-      inputs.us_human = prevInputs.us_human;
-      inputs.us_human_is_new = false;
-    }
-
-    if (_odometry_Human.NewDataValid(prevInputs.them_human.id, true)) {
-      inputs.them_human = _odometry_Human.GetData(true);
-      inputs.them_human_is_new = true;
-      inputs.updatedMask |= RawInputs::THEM_HUMAN;
-    } else {
-      inputs.them_human = prevInputs.them_human;
-      inputs.them_human_is_new = false;
-    }
-  } else {
-    inputs.us_human = prevInputs.us_human;
-    inputs.them_human = prevInputs.them_human;
-    inputs.us_human_is_new = false;
-    inputs.them_human_is_new = false;
-  }
+  inputs.us_human = prevInputs.us_human;
+  inputs.them_human = prevInputs.them_human;
+  bool us_human_updated =
+      PollStream(_odometry_Human,
+                 StreamRef{inputs.us_human, prevInputs.us_human,
+                           RawInputs::US_HUMAN, false},
+                 inputs.updatedMask);
+  bool them_human_updated =
+      PollStream(_odometry_Human,
+                 StreamRef{inputs.them_human, prevInputs.them_human,
+                           RawInputs::THEM_HUMAN, true},
+                 inputs.updatedMask);
 
   return inputs;
 }
