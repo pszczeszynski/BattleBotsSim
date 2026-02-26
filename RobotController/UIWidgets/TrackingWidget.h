@@ -69,11 +69,12 @@ class TrackingWidget : public ImageWidget {
 
   void _DrawShowButton(DebugVariant variant, bool& enabledFlag);
   void _DrawAngles(OdometryData& robot, OdometryData& opponent,
-                   cv::Mat& currMatt, cv::Scalar& arrowColor,
-                   bool forceShow = false);
+                   cv::Mat& currMatt, cv::Scalar arrowColor);
   void _DrawPositions(OdometryData& robot, OdometryData& opponent,
-                      cv::Mat& currMatt, cv::Scalar& arrowColor,
-                      bool forceShow = false);
+                      cv::Mat& currMatt, cv::Scalar arrowColor);
+  template <typename T>
+  void _DrawAlgIfActive(T& alg, bool show, cv::Scalar color, bool drawAngles);
+  void _HandleMouseOverInput();
 
   // Dump to video functions
   char outputVideoFileBuffer[256] = "";  // Buffer for ImGui text input

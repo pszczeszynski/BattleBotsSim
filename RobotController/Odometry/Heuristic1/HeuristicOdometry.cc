@@ -24,7 +24,6 @@
 #include "../../RobotController.h"
 #include "../../SafeDrawing.h"
 #include "../../ThreadPool.h"
-#include "../../UIWidgets/ImageWidget.h"
 #include "HeuristicOdometry.h"
 
 

@@ -232,7 +232,6 @@ void TrackingWidget::_DrawAlgorithmData() {
   cv::Scalar blobColor = toScalar(DebugVariant::Blob);
   cv::Scalar neuralColor = toScalar(DebugVariant::Neural);
   cv::Scalar heuristicColor = toScalar(DebugVariant::Heuristic);
-  cv::Scalar opencvColor = toScalar(DebugVariant::Opencv);
   cv::Scalar fusionColor = toScalar(DebugVariant::Fusion);
   cv::Scalar lkFlowColor = toScalar(DebugVariant::LKFlow);
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
@@ -240,150 +239,100 @@ void TrackingWidget::_DrawAlgorithmData() {
   HeuristicOdometry& _odometry_Heuristic = odometry.GetHeuristicOdometry();
   CVPosition& _odometry_Neural = odometry.GetNeuralOdometry();
   LKFlowTracker& _odometry_LKFlow = odometry.GetLKFlowOdometry();
-#ifdef USE_OPENCV_TRACKER
-  OpenCVTracker& _odometry_opencv = odometry.GetOpenCVOdometry();
-#endif
 
-  // go through every odometry algorithm and draw the tracking results
-#ifdef USE_OPENCV_TRACKER
-  if (_odometry_opencv.IsRunning() && showOpencv) {
-    _DrawPositions(_odometry_opencv.GetData(false),
-                   _odometry_opencv.GetData(true), _trackingMat, opencvColor);
-    _DrawAngles(_odometry_opencv.GetData(false), _odometry_opencv.GetData(true),
-                _trackingMat, opencvColor);
-  }
-#endif
-
-  if (_odometry_Blob.IsRunning() && showBlob) {
-    OdometryData blobData = _odometry_Blob.GetData(false);
-    _DrawPositions(blobData, blobData, _trackingMat, blobColor);
-    _DrawAngles(blobData, blobData, _trackingMat, blobColor);
-  }
-
-  if (_odometry_Heuristic.IsRunning() && showHeuristic) {
-    OdometryData heuristicData = _odometry_Heuristic.GetData(false);
-    _DrawPositions(heuristicData, heuristicData, _trackingMat, heuristicColor);
-    _DrawAngles(heuristicData, heuristicData, _trackingMat, heuristicColor);
-  }
-
-  if (_odometry_Neural.IsRunning() && showNeural) {
-    OdometryData neuralData = _odometry_Neural.GetData(false);
-    _DrawPositions(neuralData, neuralData, _trackingMat, neuralColor);
-  }
-
-  if (_odometry_LKFlow.IsRunning() && showLKFlow) {
-    // LKFlow only tracks opponent, so robot data will be invalid
-    OdometryData lkFlowData = _odometry_LKFlow.GetData(false);
-    _DrawPositions(lkFlowData, lkFlowData, _trackingMat, lkFlowColor);
-    _DrawAngles(lkFlowData, lkFlowData, _trackingMat, lkFlowColor);
-  }
-
-  // check if mouse is over the image
-  ManualOverrideOdometry& overrideOdo = odometry.GetManualOverrideOdometry();
-  if (IsMouseOver()) {
-    // if pressing not pressing shift
-    if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
-      if (InputState::GetInstance().IsMouseDown(0)) {
-        robotMouseClickPoint = GetMousePos();
-        overrideOdo.SetPosition(
-            PositionData(robotMouseClickPoint, cv::Point2f(0, 0),
-                         Clock::programClock.getElapsedTime()),
-            false);
-      }
-
-      if (InputState::GetInstance().IsMouseDown(1)) {
-        opponentMouseClickPoint = GetMousePos();
-        overrideOdo.SetPosition(
-            PositionData(opponentMouseClickPoint, cv::Point2f(0, 0),
-                         Clock::programClock.getElapsedTime()),
-            true);
-      }
-    }
-    // else pressing shift
-    else {
-      // if the user presses the left mouse button with shift
-      if (InputState::GetInstance().IsMouseDown(0)) {
-        // set the robot angle
-        cv::Point2f robotPos = odometry.Robot().GetPositionOrZero();
-        cv::Point2f currMousePos = GetMousePos();
-        double newAngle =
-            atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
-        overrideOdo.SetAngle(
-            AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
-            false);
-        robotMouseClickAngle = newAngle;
-      } else if (InputState::GetInstance().IsMouseDown(1)) {
-        // set the opponent angle
-        cv::Point2f opponentPos = odometry.Opponent().GetPositionOrZero();
-        cv::Point2f currMousePos = GetMousePos();
-        double newAngle = atan2(currMousePos.y - opponentPos.y,
-                                currMousePos.x - opponentPos.x);
-        overrideOdo.SetAngle(
-            AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
-            true);
-        opponentMouseClickAngle = newAngle;
-      }
-    }
-  }
-
+  _DrawAlgIfActive(_odometry_Blob, showBlob, blobColor, true);
+  _DrawAlgIfActive(_odometry_Heuristic, showHeuristic, heuristicColor, true);
+  _DrawAlgIfActive(_odometry_Neural, showNeural, neuralColor, false);
+  _DrawAlgIfActive(_odometry_LKFlow, showLKFlow, lkFlowColor, true);
   if (showFusion) {
     OdometryData robotData = odometry.Robot();
     OdometryData opponentData = odometry.Opponent();
     _DrawPositions(robotData, opponentData, _trackingMat, fusionColor);
     _DrawAngles(robotData, opponentData, _trackingMat, fusionColor);
   }
+
+  _HandleMouseOverInput();
+}
+
+void TrackingWidget::_HandleMouseOverInput() {
+  if (!IsMouseOver()) return;
+  RobotOdometry& odometry = RobotController::GetInstance().odometry;
+  ManualOverrideOdometry& overrideOdo = odometry.GetManualOverrideOdometry();
+  if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
+    if (InputState::GetInstance().IsMouseDown(0)) {
+      robotMouseClickPoint = GetMousePos();
+      overrideOdo.SetPosition(
+          PositionData(robotMouseClickPoint, cv::Point2f(0, 0),
+                       Clock::programClock.getElapsedTime()),
+          false);
+    }
+    if (InputState::GetInstance().IsMouseDown(1)) {
+      opponentMouseClickPoint = GetMousePos();
+      overrideOdo.SetPosition(
+          PositionData(opponentMouseClickPoint, cv::Point2f(0, 0),
+                       Clock::programClock.getElapsedTime()),
+          true);
+    }
+  } else {
+    if (InputState::GetInstance().IsMouseDown(0)) {
+      cv::Point2f robotPos = odometry.Robot().GetPositionOrZero();
+      cv::Point2f currMousePos = GetMousePos();
+      double newAngle =
+          atan2(currMousePos.y - robotPos.y, currMousePos.x - robotPos.x);
+      overrideOdo.SetAngle(
+          AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
+          false);
+      robotMouseClickAngle = newAngle;
+    } else if (InputState::GetInstance().IsMouseDown(1)) {
+      cv::Point2f opponentPos = odometry.Opponent().GetPositionOrZero();
+      cv::Point2f currMousePos = GetMousePos();
+      double newAngle =
+          atan2(currMousePos.y - opponentPos.y, currMousePos.x - opponentPos.x);
+      overrideOdo.SetAngle(
+          AngleData(Angle(newAngle), 0, Clock::programClock.getElapsedTime()),
+          true);
+      opponentMouseClickAngle = newAngle;
+    }
+  }
 }
 
 void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent,
-                                 cv::Mat& currMatt, cv::Scalar& arrowColor,
-                                 bool forceShow) {
-  int linethickness = 1;
-
-  if (robot.angle.has_value() || forceShow) {
-    linethickness = 3;
+                                 cv::Mat& currMatt, cv::Scalar arrowColor) {
+  constexpr int lineThickness = 3;
+  constexpr double arrowLength = 50.0;
+  for (OdometryData* data : {&robot, &opponent}) {
+    if (!data->angle.has_value()) continue;
+    double angle = data->angle.value().angle;
+    cv::Point2f pos = data->GetPositionOrZero();
+    cv::Point2f arrowEnd =
+        pos + cv::Point2f(arrowLength * cos(angle), arrowLength * sin(angle));
+    safe_arrow(currMatt, pos, arrowEnd, arrowColor, lineThickness);
   }
-
-  // draw robot angle with arrow
-  cv::Point2f robotPos = robot.GetPositionOrZero();
-  double robotAngle = robot.GetAngleOrZero();
-  cv::Point2f arrowEnd =
-      robotPos + cv::Point2f(50 * cos(robotAngle), 50 * sin(robotAngle));
-  safe_arrow(currMatt, robotPos, arrowEnd, arrowColor, linethickness);
-
-  linethickness = 1;
-  if (opponent.angle.has_value() || forceShow) {
-    linethickness = 3;
-  }
-
-  // draw opponent angle with arrow
-  cv::Point2f opponentPos = opponent.GetPositionOrZero();
-  double opponentAngle = opponent.GetAngleOrZero();
-  arrowEnd = opponentPos +
-             cv::Point2f(50 * cos(opponentAngle), 50 * sin(opponentAngle));
-  safe_arrow(currMatt, opponentPos, arrowEnd, arrowColor, linethickness);
 }
 
 void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent,
-                                    cv::Mat& currMatt, cv::Scalar& arrowColor,
-                                    bool forceShow) {
-  int size = 5;
-
-  if (robot.pos.has_value() || forceShow) {
-    size = 20;
+                                    cv::Mat& currMatt, cv::Scalar arrowColor) {
+  constexpr int sizeWithData = 20;
+  if (robot.pos.has_value()) {
+    OdometryData robot_ext =
+        robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    DrawX(currMatt, robot_ext.pos.value().position, arrowColor, sizeWithData);
   }
-
-  OdometryData robot_ext =
-      robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
-  DrawX(currMatt, robot_ext.GetPositionOrZero(), arrowColor, size);
-
-  size = 5;
-  if (opponent.pos.has_value() || forceShow) {
-    size = 20;
+  if (opponent.pos.has_value()) {
+    OdometryData opponent_ext =
+        opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    safe_circle(currMatt, opponent_ext.pos.value().position, sizeWithData,
+                arrowColor, 2);
   }
+}
 
-  OdometryData opponent_ext =
-      opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
-  safe_circle(currMatt, opponent_ext.GetPositionOrZero(), size, arrowColor, 2);
+template <typename T>
+void TrackingWidget::_DrawAlgIfActive(T& alg, bool show, cv::Scalar color,
+                                    bool drawAngles) {
+  if (!alg.IsRunning() || !show) return;
+  OdometryData data = alg.GetData(false);
+  _DrawPositions(data, data, _trackingMat, color);
+  if (drawAngles) _DrawAngles(data, data, _trackingMat, color);
 }
 
 void TrackingWidget::Update() {

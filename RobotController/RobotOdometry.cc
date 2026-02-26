@@ -25,14 +25,15 @@ bool isFresh(const std::optional<T> &opt) {
   return opt.has_value() && opt->GetAge() < _dataAgeThreshold;
 }
 
-// If blob position moved much faster than LK flow (same target), disqualify blob.
+// If blob position moved much faster than LK flow (same target), disqualify
+// blob.
 void MaybeDisqualifyBlobByLKFlow(
-    const std::optional<PositionData>& curr_lk_pos,
-    const std::optional<PositionData>& prev_lk_pos,
-    const std::optional<PositionData>& curr_blob_pos,
-    const std::optional<PositionData>& prev_blob_pos,
-    std::optional<PositionData>& blob_pos_out,
-    std::optional<AngleData>& blob_angle_out,
+    const std::optional<PositionData> &curr_lk_pos,
+    const std::optional<PositionData> &prev_lk_pos,
+    const std::optional<PositionData> &curr_blob_pos,
+    const std::optional<PositionData> &prev_blob_pos,
+    std::optional<PositionData> &blob_pos_out,
+    std::optional<AngleData> &blob_angle_out,
     double speedRatioThreshold = 1.5) {
   if (!isFresh(curr_lk_pos) || !prev_lk_pos.has_value() ||
       !isFresh(curr_blob_pos) || !prev_blob_pos.has_value()) {
@@ -44,9 +45,9 @@ void MaybeDisqualifyBlobByLKFlow(
 
   double lk_speed =
       cv::norm(curr_lk_pos->position - prev_lk_pos->position) / delta_time_lk;
-  double blob_speed = cv::norm(curr_blob_pos->position -
-                              prev_blob_pos->position) /
-                      delta_time_blob;
+  double blob_speed =
+      cv::norm(curr_blob_pos->position - prev_blob_pos->position) /
+      delta_time_blob;
 
   if (blob_speed > lk_speed * speedRatioThreshold) {
     std::cout << "disqualifying blob because it changed too much" << std::endl;
@@ -275,12 +276,12 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   output.opponent = prevOpponent;
 
   // If blob moved much faster than LK flow (same target), disqualify blob.
-  MaybeDisqualifyBlobByLKFlow(inputs.them_lkflow.pos, _prevInputs.them_lkflow.pos,
-                             inputs.them_blob.pos, _prevInputs.them_blob.pos,
-                             inputs.them_blob.pos, inputs.them_blob.angle);
+  MaybeDisqualifyBlobByLKFlow(
+      inputs.them_lkflow.pos, _prevInputs.them_lkflow.pos, inputs.them_blob.pos,
+      _prevInputs.them_blob.pos, inputs.them_blob.pos, inputs.them_blob.angle);
   MaybeDisqualifyBlobByLKFlow(inputs.us_lkflow.pos, _prevInputs.us_lkflow.pos,
-                             inputs.us_blob.pos, _prevInputs.us_blob.pos,
-                             inputs.us_blob.pos, inputs.us_blob.angle);
+                              inputs.us_blob.pos, _prevInputs.us_blob.pos,
+                              inputs.us_blob.pos, inputs.us_blob.angle);
 
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
@@ -299,6 +300,19 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
       inputs.them_blob.pos.reset();
       inputs.them_blob.angle.reset();
     }
+
+    if (isFresh(inputs.us_blob.pos) &&
+        !inputs.us_blob.IsPointInside(inputs.us_neural.pos.value().position)) {
+      inputs.us_blob.pos.reset();
+      inputs.us_blob.angle.reset();
+    }
+
+    if (isFresh(inputs.us_lkflow.pos) &&
+        !inputs.us_lkflow.IsPointInside(inputs.us_neural.pos.value().position)) {
+      inputs.us_lkflow.pos.reset();
+      inputs.us_lkflow.angle.reset();
+    }
+
 
     // Neural agrees with blob, but heuristic doesn't agree
     if (isFresh(inputs.us_blob.pos) &&
@@ -326,12 +340,12 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
             inputs.us_blob.pos.value().position)) {
       inputs.us_blob.pos.reset();
     }
-  } else if (isFresh(inputs.us_neural.pos)) {
-    output.robot.pos = inputs.us_neural.pos;
   } else if (isFresh(inputs.us_blob.pos)) {
     output.robot.pos = inputs.us_blob.pos;
   } else if (isFresh(inputs.us_lkflow.pos)) {
     output.robot.pos = inputs.us_lkflow.pos;
+  } else if (isFresh(inputs.us_neural.pos)) {
+    output.robot.pos = inputs.us_neural.pos;
   }
 
   // Robot velocity
@@ -345,8 +359,7 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     } else if (isFresh(inputs.us_blob.pos)) {
       output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
     } else if (isFresh(inputs.us_lkflow.pos)) {
-      output.robot.pos.value().velocity =
-          inputs.us_lkflow.pos.value().velocity;
+      output.robot.pos.value().velocity = inputs.us_lkflow.pos.value().velocity;
     }
   }
 

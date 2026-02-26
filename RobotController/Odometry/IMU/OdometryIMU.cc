@@ -114,8 +114,7 @@ void OdometryIMU::_UpdateData(IMUData& imuData, double timestamp) {
   }
 
   // Build publish sample (angle only)
-  OdometryData sample;
-  sample.Clear();
+  OdometryData sample{};
   sample.angle = AngleData(integrated, imuData.rotationVelocity, timestamp);
 
   // Publish (this increments id internally)
