@@ -20,7 +20,8 @@ class VisionPreprocessor
 {
 public:
     VisionPreprocessor();
-    void Preprocess(cv::Mat &frame, cv::Mat &dst);
+    /** Optional fieldMask: where non-zero, output pixels are set to 0. Applied after warp/fisheye. */
+    void Preprocess(cv::Mat &frame, cv::Mat &dst, const cv::Mat* fieldMask = nullptr);
     cv::Point2f TransformPoint(const cv::Point2f &pt);
     float fisheyeScale = 0;
 

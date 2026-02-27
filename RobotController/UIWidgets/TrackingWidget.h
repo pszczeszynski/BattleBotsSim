@@ -7,7 +7,9 @@
 #include "../Globals.h"
 #include "../RobotOdometry.h"
 #include "DebugVariant.h"
+#include "FrameCompositor.h"
 #include "ImageWidget.h"
+#include "TrackingFieldMaskEditor.h"
 #include "imgui.h"
 
 /**
@@ -49,7 +51,9 @@ class TrackingWidget : public ImageWidget {
   static TrackingWidget* _instance;
 
   cv::Mat _fieldMask;
+  TrackingFieldMaskEditor _maskEditor;
   cv::Mat _trackingMat{WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
+  FrameCompositor _frameCompositor;
 
   bool showCamera = true;
   bool showBlob = false;
@@ -69,9 +73,14 @@ class TrackingWidget : public ImageWidget {
 
   void _DrawShowButton(DebugVariant variant, bool& enabledFlag);
   void _DrawAngles(OdometryData& robot, OdometryData& opponent,
-                   cv::Mat& currMatt, cv::Scalar arrowColor);
+                   cv::Mat& currMatt, cv::Scalar robotColor,
+                   cv::Scalar opponentColor);
   void _DrawPositions(OdometryData& robot, OdometryData& opponent,
-                      cv::Mat& currMatt, cv::Scalar arrowColor);
+                      cv::Mat& currMatt, cv::Scalar robotColor,
+                      cv::Scalar opponentColor);
+  void _DrawAlgorithmLabels(OdometryData& robot, OdometryData& opponent,
+                            cv::Mat& currMatt, cv::Scalar robotColor,
+                            cv::Scalar opponentColor);
   template <typename T>
   void _DrawAlgIfActive(T& alg, bool show, cv::Scalar color, bool drawAngles);
   void _HandleMouseOverInput();

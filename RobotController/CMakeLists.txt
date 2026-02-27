@@ -65,6 +65,8 @@ set(SOURCES
     UIWidgets/RobotControllerGUI.cc
     UIWidgets/ConfigWidget.cc
     UIWidgets/FieldWidget.cc
+    UIWidgets/FrameCompositor.cc
+    UIWidgets/TrackingFieldMaskEditor.cc
     UIWidgets/TrackingWidget.cc
     UIWidgets/RobotTelemetryWidget.cc
     libs/IMGUI/imgui.cpp

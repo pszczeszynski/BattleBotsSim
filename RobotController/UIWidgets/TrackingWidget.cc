@@ -10,6 +10,7 @@
 #include "../SafeDrawing.h"
 #include "CameraWidget.h"
 #include "ColorScheme.h"
+#include "TrackingFieldMaskEditor.h"
 
 TrackingWidget* TrackingWidget::_instance = nullptr;
 cv::Point2f TrackingWidget::robotMouseClickPoint = cv::Point2f(0, 0);
@@ -17,36 +18,15 @@ cv::Point2f TrackingWidget::opponentMouseClickPoint = cv::Point2f(0, 0);
 double TrackingWidget::robotMouseClickAngle = 0;
 double TrackingWidget::opponentMouseClickAngle = 0;
 
-#define MASK_PATH "./backgrounds/fieldMask.jpg"
+static constexpr const char* kFieldMaskPath = "./backgrounds/fieldMask.jpg";
 
 TrackingWidget::TrackingWidget()
-    :  // initialize the mask to all visible (0 = visible, 255 = masked)
-      _fieldMask{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}},
+    : _fieldMask{},
+      _maskEditor(std::filesystem::path(kFieldMaskPath)),
       ImageWidget("Tracking", _trackingMat, false) {
   _instance = this;
 
-  std::filesystem::path dirPath = MASK_PATH;
-
-  if (std::filesystem::exists(dirPath)) {
-    cv::Mat loaded = cv::imread(MASK_PATH);
-    if (!loaded.empty()) {
-      if (loaded.channels() == 1) {
-        _fieldMask = loaded.clone();
-      } else if (loaded.channels() == 3 || loaded.channels() == 4) {
-        cv::cvtColor(loaded, _fieldMask, loaded.channels() == 3
-                                              ? cv::COLOR_BGR2GRAY
-                                              : cv::COLOR_BGRA2GRAY);
-      } else {
-        _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
-      }
-      if (_fieldMask.type() != CV_8UC1 || _fieldMask.cols != WIDTH ||
-          _fieldMask.rows != HEIGHT) {
-        cv::Mat resized;
-        cv::resize(_fieldMask, resized, cv::Size(WIDTH, HEIGHT));
-        _fieldMask = resized;
-      }
-    }
-  }
+  _maskEditor.LoadOrInit(_fieldMask, cv::Size(WIDTH, HEIGHT));
 
   // Initialize default colors for each variant using our color scheme
   for (size_t i = 0; i < kDebugVariantCount; ++i) {
@@ -143,68 +123,39 @@ void TrackingWidget::_AdjustFieldCrop() {
 
 TrackingWidget* TrackingWidget::GetInstance() { return _instance; }
 
-enum class MaskState { LOCKED = 0, WAITING_FOR_CLICK, DRAGGING };
-
-/**
- * Allows the user to mask out regions of the image by drawing rectangles.
- * Future camera sources will have these regions blacked out.
- */
 void TrackingWidget::_MaskOutRegions() {
-  static MaskState state{MaskState::LOCKED};
-  static cv::Point2f topLeft{0, 0};
-  static cv::Point2f bottomRight{0, 0};
+  _maskEditor.Update(
+      CameraWidget::DrawMask, IsMouseOver(), InputState::GetInstance(),
+      [this] { return GetMousePos(); }, _fieldMask);
+  _maskEditor.SaveIfDirty(_fieldMask);
 
-  // if user clicks checkbox to draw the mask, go to the waiting for click state
-  if (CameraWidget::DrawMask) {
-    if (state == MaskState::LOCKED) {
-      state = MaskState::WAITING_FOR_CLICK;
-    }
-  }
-  // otherwise go to locked
-  else {
-    state = MaskState::LOCKED;
-  }
-
-  // if waiting for a click
-  if (state == MaskState::WAITING_FOR_CLICK) {
-    // check if the left mouse button is down
-    if (InputState::GetInstance().IsMouseDown(0) && IsMouseOver()) {
-      state = MaskState::DRAGGING;
-      topLeft = GetMousePos();
-    }
-  }
-
-  // if dragging the rectangle
-  if (state == MaskState::DRAGGING) {
-    bottomRight = GetMousePos();
-
-    // check if the left mouse button is released
-    if (!InputState::GetInstance().IsMouseDown(0)) {
-      // Normalize so width/height are positive regardless of drag direction
-      int x1 = static_cast<int>((std::min)(topLeft.x, bottomRight.x));
-      int y1 = static_cast<int>((std::min)(topLeft.y, bottomRight.y));
-      int x2 = static_cast<int>((std::max)(topLeft.x, bottomRight.x));
-      int y2 = static_cast<int>((std::max)(topLeft.y, bottomRight.y));
-      cv::Rect rect(x1, y1, x2 - x1, y2 - y1);
-      cv::Rect maskBounds(0, 0, _fieldMask.cols, _fieldMask.rows);
-      cv::Rect clipped(rect & maskBounds);
-
-      if (clipped.width > 0 && clipped.height > 0) {
-        cv::rectangle(_fieldMask, clipped, cv::Scalar(255), -1);
-        cv::imwrite(MASK_PATH, _fieldMask);
+  // Visual feedback when Draw Mask is on: show mask overlay and drag rectangle
+  if (CameraWidget::DrawMask && !_trackingMat.empty() &&
+      _fieldMask.rows == _trackingMat.rows &&
+      _fieldMask.cols == _trackingMat.cols) {
+    if (_trackingMat.channels() == 3) {
+      for (int y = 0; y < _fieldMask.rows; ++y) {
+        const uint8_t* m = _fieldMask.ptr<uint8_t>(y);
+        cv::Vec3b* p = _trackingMat.ptr<cv::Vec3b>(y);
+        for (int x = 0; x < _fieldMask.cols; ++x) {
+          if (m[x] == 255) {
+            p[x] = cv::Vec3b(0, 0, 80);  // dark red tint where masked
+          }
+        }
       }
-
-      state = MaskState::WAITING_FOR_CLICK;
+    }
+    if (_maskEditor.IsDragging()) {
+      cv::Point2f tl, br;
+      _maskEditor.GetDragRect(tl, br);
+      cv::rectangle(_trackingMat, cv::Point(tl.x, tl.y), cv::Point(br.x, br.y),
+                    cv::Scalar(0, 255, 0), 2);
     }
   }
 }
 
-/**
- * Clears the field mask to all visible (0 = visible, 255 = masked).
- */
 void TrackingWidget::ClearMask() {
-  _fieldMask = cv::Mat{WIDTH, HEIGHT, CV_8UC1, cv::Scalar{0}};
-  cv::imwrite(MASK_PATH, _fieldMask);
+  _maskEditor.Clear(_fieldMask, cv::Size(WIDTH, HEIGHT));
+  _maskEditor.SaveIfDirty(_fieldMask);
 }
 
 cv::Mat& TrackingWidget::GetMask() { return _fieldMask; }
@@ -249,6 +200,36 @@ void TrackingWidget::_DrawAlgorithmData() {
   cv::Scalar heuristicColor = toScalar(DebugVariant::Heuristic);
   cv::Scalar fusionColor = toScalar(DebugVariant::Fusion);
   cv::Scalar lkFlowColor = toScalar(DebugVariant::LKFlow);
+
+  // Map OdometryAlg to display color (uses variant color when available)
+  auto colorForAlgorithm = [this, &toScalar](OdometryAlg alg) -> cv::Scalar {
+    DebugVariant v = DebugVariant::Fusion;
+    switch (alg) {
+      case OdometryAlg::Blob:
+        v = DebugVariant::Blob;
+        break;
+      case OdometryAlg::Heuristic:
+        v = DebugVariant::Heuristic;
+        break;
+      case OdometryAlg::Neural:
+        v = DebugVariant::Neural;
+        break;
+      case OdometryAlg::NeuralRot:
+        v = DebugVariant::NeuralRot;
+        break;
+      case OdometryAlg::OpenCV:
+        v = DebugVariant::Opencv;
+        break;
+      case OdometryAlg::LKFlow:
+        v = DebugVariant::LKFlow;
+        break;
+      default:
+        v = DebugVariant::Fusion;
+        break;
+    }
+    return toScalar(v);
+  };
+
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   BlobDetection& _odometry_Blob = odometry.GetBlobOdometry();
   HeuristicOdometry& _odometry_Heuristic = odometry.GetHeuristicOdometry();
@@ -262,8 +243,27 @@ void TrackingWidget::_DrawAlgorithmData() {
   if (showFusion) {
     OdometryData robotData = odometry.Robot();
     OdometryData opponentData = odometry.Opponent();
-    _DrawPositions(robotData, opponentData, _trackingMat, fusionColor);
-    _DrawAngles(robotData, opponentData, _trackingMat, fusionColor);
+    cv::Scalar robotPosColor = robotData.pos.has_value()
+                                   ? colorForAlgorithm(robotData.pos->algorithm)
+                                   : fusionColor;
+    cv::Scalar opponentPosColor =
+        opponentData.pos.has_value()
+            ? colorForAlgorithm(opponentData.pos->algorithm)
+            : fusionColor;
+    cv::Scalar robotAngleColor =
+        robotData.angle.has_value()
+            ? colorForAlgorithm(robotData.angle->algorithm)
+            : fusionColor;
+    cv::Scalar opponentAngleColor =
+        opponentData.angle.has_value()
+            ? colorForAlgorithm(opponentData.angle->algorithm)
+            : fusionColor;
+    _DrawPositions(robotData, opponentData, _trackingMat, robotPosColor,
+                   opponentPosColor);
+    _DrawAngles(robotData, opponentData, _trackingMat, robotAngleColor,
+                opponentAngleColor);
+    _DrawAlgorithmLabels(robotData, opponentData, _trackingMat, robotPosColor,
+                         opponentPosColor);
   }
 
   _HandleMouseOverInput();
@@ -312,43 +312,91 @@ void TrackingWidget::_HandleMouseOverInput() {
 }
 
 void TrackingWidget::_DrawAngles(OdometryData& robot, OdometryData& opponent,
-                                 cv::Mat& currMatt, cv::Scalar arrowColor) {
+                                 cv::Mat& currMatt, cv::Scalar robotColor,
+                                 cv::Scalar opponentColor) {
   constexpr int lineThickness = 3;
   constexpr double arrowLength = 50.0;
-  for (OdometryData* data : {&robot, &opponent}) {
-    if (!data->angle.has_value()) continue;
-    double angle = data->angle.value().angle;
-    cv::Point2f pos = data->GetPositionOrZero();
+  if (robot.angle.has_value()) {
+    double angle = robot.angle.value().angle;
+    cv::Point2f pos = robot.GetPositionOrZero();
     cv::Point2f arrowEnd =
         pos + cv::Point2f(arrowLength * cos(angle), arrowLength * sin(angle));
-    safe_arrow(currMatt, pos, arrowEnd, arrowColor, lineThickness);
+    safe_arrow(currMatt, pos, arrowEnd, robotColor, lineThickness);
+  }
+  if (opponent.angle.has_value()) {
+    double angle = opponent.angle.value().angle;
+    cv::Point2f pos = opponent.GetPositionOrZero();
+    cv::Point2f arrowEnd =
+        pos + cv::Point2f(arrowLength * cos(angle), arrowLength * sin(angle));
+    safe_arrow(currMatt, pos, arrowEnd, opponentColor, lineThickness);
   }
 }
 
 void TrackingWidget::_DrawPositions(OdometryData& robot, OdometryData& opponent,
-                                    cv::Mat& currMatt, cv::Scalar arrowColor) {
+                                    cv::Mat& currMatt, cv::Scalar robotColor,
+                                    cv::Scalar opponentColor) {
   constexpr int sizeWithData = 20;
   if (robot.pos.has_value()) {
     OdometryData robot_ext =
         robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
-    DrawX(currMatt, robot_ext.pos.value().position, arrowColor, sizeWithData);
+    DrawX(currMatt, robot_ext.pos.value().position, robotColor, sizeWithData);
   }
   if (opponent.pos.has_value()) {
     OdometryData opponent_ext =
         opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
     safe_circle(currMatt, opponent_ext.pos.value().position, sizeWithData,
-                arrowColor, 2);
+                opponentColor, 2);
+  }
+}
+
+void TrackingWidget::_DrawAlgorithmLabels(OdometryData& robot,
+                                          OdometryData& opponent,
+                                          cv::Mat& currMatt,
+                                          cv::Scalar robotColor,
+                                          cv::Scalar opponentColor) {
+  constexpr int kLabelOffsetAbove = 28;
+  constexpr double kFontScale = 0.6;
+  constexpr int kFontThickness = 2;
+  const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+
+  auto drawLabelAbove = [&](cv::Point2f position, const char* label,
+                            cv::Scalar color) {
+    if (label == nullptr || label[0] == '\0') return;
+    cv::Size textSize =
+        cv::getTextSize(label, fontFace, kFontScale, kFontThickness, nullptr);
+    // putText uses bottom-left origin; place baseline above the position
+    int x = static_cast<int>(position.x) - textSize.width / 2;
+    int y = static_cast<int>(position.y) - kLabelOffsetAbove;
+    if (y - textSize.height < 0) y = textSize.height;
+    if (x < 0) x = 0;
+    if (x + textSize.width > currMatt.cols) x = currMatt.cols - textSize.width;
+    cv::putText(currMatt, label, cv::Point(x, y), fontFace, kFontScale, color,
+                kFontThickness, cv::LINE_AA);
+  };
+
+  if (robot.pos.has_value()) {
+    OdometryData robot_ext =
+        robot.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    const char* label = OdometryAlgToString(robot.pos->algorithm);
+    drawLabelAbove(robot_ext.pos.value().position, label, robotColor);
+  }
+  if (opponent.pos.has_value()) {
+    OdometryData opponent_ext =
+        opponent.ExtrapolateBoundedTo(Clock::programClock.getElapsedTime());
+    const char* label = OdometryAlgToString(opponent.pos->algorithm);
+    drawLabelAbove(opponent_ext.pos.value().position, label, opponentColor);
   }
 }
 
 template <typename T>
 void TrackingWidget::_DrawAlgIfActive(T& alg, bool show, cv::Scalar color,
-                                    bool drawAngles) {
+                                      bool drawAngles) {
   if (!alg.IsRunning() || !show) return;
   OdometryData robotData = alg.GetData(false);
   OdometryData opponentData = alg.GetData(true);
-  _DrawPositions(robotData, opponentData, _trackingMat, color);
-  if (drawAngles) _DrawAngles(robotData, opponentData, _trackingMat, color);
+  _DrawPositions(robotData, opponentData, _trackingMat, color, color);
+  if (drawAngles)
+    _DrawAngles(robotData, opponentData, _trackingMat, color, color);
 }
 
 void TrackingWidget::Update() {
@@ -374,7 +422,8 @@ void TrackingWidget::Update() {
 // Store a clone of the image to avoid aliasing and lifetime issues.
 void TrackingWidget::UpdateDebugImage(DebugVariant variant,
                                       const cv::Mat& image) {
-  variantImages[static_cast<size_t>(variant)] = image.empty() ? image : image.clone();
+  variantImages[static_cast<size_t>(variant)] =
+      image.empty() ? image : image.clone();
 }
 
 cv::Mat& TrackingWidget::GetDebugImage(DebugVariant variant) {
@@ -433,10 +482,8 @@ void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
 }
 
 void TrackingWidget::_RenderFrames() {
-  // Initialize the output image as empty
   _trackingMat = cv::Mat();
 
-  // List of variants and their visibility flags
   std::vector<std::pair<DebugVariant, bool>> variants = {
       {DebugVariant::Camera, showCamera},
       {DebugVariant::Blob, showBlob},
@@ -451,6 +498,9 @@ void TrackingWidget::_RenderFrames() {
   };
 
   cv::Size outputSize = GetDebugImage(DebugVariant::Camera).size();
+  if (outputSize.width <= 0 || outputSize.height <= 0) {
+    return;
+  }
 
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   if (showBlob) {
@@ -489,87 +539,15 @@ void TrackingWidget::_RenderFrames() {
   }
 #endif
 
-  // Initialize output image as a black color image (CV_8UC3)
-  _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);
-
-  // Reusable buffers to avoid per-frame allocations
-  cv::Mat colorized, mask, temp3channel, grayTemp, blended, maskedColorized,
-      inverseMask;
-  colorized.create(outputSize, CV_8UC3);
-  mask.create(outputSize, CV_8UC1);
-  temp3channel.create(outputSize, CV_8UC3);
-  grayTemp.create(outputSize, CV_8UC1);
-  blended.create(outputSize, CV_8UC3);
-  maskedColorized.create(outputSize, CV_8UC3);
-  inverseMask.create(outputSize, CV_8UC1);
-
-  for (const auto& variant : variants) {
-    DebugVariant v = variant.first;
-    bool isVisible = variant.second;
-    size_t vi = static_cast<size_t>(v);
-
-    if (!isVisible || variantImages[vi].empty()) {
-      continue;
-    }
-
-    const cv::Mat& srcImage = variantImages[vi];
-    if (srcImage.cols != outputSize.width ||
-        srcImage.rows != outputSize.height) {
-      continue;
-    }
-
-    ImVec4 color = variantColors[vi];
-    cv::Scalar bgrColor(color.z * 255, color.y * 255,
-                        color.x * 255);  // Convert RGB to BGR for OpenCV
-    float alpha = color.w;               // Use the alpha value from ImVec4
-
-    if (srcImage.type() == CV_8UC1) {  // Grayscale or binary mask
-      cv::cvtColor(srcImage, temp3channel, cv::COLOR_GRAY2BGR);
-
-      std::vector<cv::Mat> channels(3);
-      cv::split(temp3channel, channels);
-
-      channels[0] *= (bgrColor[0] / 255.0);
-      channels[1] *= (bgrColor[1] / 255.0);
-      channels[2] *= (bgrColor[2] / 255.0);
-
-      cv::merge(channels, colorized);
-
-      cv::threshold(srcImage, mask, 0, 255, cv::THRESH_BINARY);
-
-    } else if (srcImage.type() == CV_8UC3) {  // Already a color image
-      srcImage.copyTo(colorized);
-
-      std::vector<cv::Mat> channels(3);
-      cv::split(colorized, channels);
-
-      channels[0] *= (bgrColor[0] / 255.0);
-      channels[1] *= (bgrColor[1] / 255.0);
-      channels[2] *= (bgrColor[2] / 255.0);
-
-      cv::merge(channels, colorized);
-
-      cv::cvtColor(srcImage, grayTemp, cv::COLOR_BGR2GRAY);
-      cv::threshold(grayTemp, mask, 0, 255, cv::THRESH_BINARY);
-
-    } else {
-      continue;  // Unsupported image type
-    }
-
-    if (alpha >= 0.99f) {
-      colorized.copyTo(_trackingMat, mask);
-    } else {
-      maskedColorized.setTo(cv::Scalar(0, 0, 0));
-      colorized.copyTo(maskedColorized, mask);
-
-      cv::bitwise_not(mask, inverseMask);
-
-      cv::addWeighted(_trackingMat, 1.0 - alpha, maskedColorized, alpha, 0,
-                      blended);
-
-      blended.copyTo(_trackingMat, mask);
-    }
+  std::vector<VariantLayer> layers;
+  layers.reserve(variants.size());
+  for (const auto& vp : variants) {
+    size_t vi = static_cast<size_t>(vp.first);
+    layers.push_back(
+        {vp.first, &variantImages[vi], vp.second, variantColors[vi]});
   }
+
+  _frameCompositor.Compose(layers, outputSize, _trackingMat);
 }
 
 void TrackingWidget::AutoMatchStart(bool left) {

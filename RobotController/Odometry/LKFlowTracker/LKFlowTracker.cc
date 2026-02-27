@@ -554,6 +554,9 @@ void LKFlowTracker::SwitchRobots() {
 
 void LKFlowTracker::SetPosition(const PositionData& newPos,
                                 bool opponentRobot) {
+  if (newPos.algorithm == OdometryAlg::LKFlow) {
+    return;
+  }
   LKFlowTargetState& state = _targets[opponentRobot ? 1 : 0];
   cv::Point2f newPosPt = newPos.position;
   constexpr float kHardSkipThresholdPx = 10;

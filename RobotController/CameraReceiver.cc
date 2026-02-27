@@ -433,16 +433,12 @@ bool CameraReceiver::_CaptureFrame() {
   //     bayerImage.setTo(cv::Scalar(255, 255, 255));
   // }
 
-  // Apply processing to it
+  // Apply processing to it (including field mask if available)
   cv::Mat finalImage;
-  birdsEyePreprocessor.Preprocess(bayerImage, finalImage);
-
   TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
-  if (trackingWidget != nullptr) {
-    // apply mask
-    cv::Mat& mask = trackingWidget->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
-  }
+  const cv::Mat* fieldMask =
+      (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
+  birdsEyePreprocessor.Preprocess(bayerImage, finalImage, fieldMask);
 
   // lock the mutex
   std::unique_lock<std::mutex> locker(_frameMutex);
@@ -550,16 +546,12 @@ bool CameraReceiverSim::_CaptureFrame() {
   // Flip the image vertically
   cv::flip(captured, captured, 0);
 
-  // Apply processing to it
+  // Apply processing to it (including field mask if available)
   cv::Mat finalImage;
-  birdsEyePreprocessor.Preprocess(captured, finalImage);
-
   TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
-  if (trackingWidget != nullptr) {
-    // apply mask
-    cv::Mat& mask = trackingWidget->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
-  }
+  const cv::Mat* fieldMask =
+      (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
+  birdsEyePreprocessor.Preprocess(captured, finalImage, fieldMask);
 
   // lock the mutex
   std::unique_lock<std::mutex> locker(_frameMutex);
@@ -773,7 +765,9 @@ bool CameraReceiverVideo::_CaptureFrame() {
 
   if (!isImageCorrectSize || PLAYBACK_PREPROCESS) {
     PLAYBACK_PREPROCESS = true;
-    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
+    TrackingWidget* tw = TrackingWidget::GetInstance();
+    const cv::Mat* fieldMask = (tw != nullptr) ? &tw->GetMask() : nullptr;
+    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage, fieldMask);
   }
 
   // std::cout << "size: " << finalImage.size() << std::endl;
@@ -782,10 +776,6 @@ bool CameraReceiverVideo::_CaptureFrame() {
   if (_rawFrame.channels() == 3) {
     cv::cvtColor(finalImage, finalImage, cv::COLOR_BGR2GRAY);
   }
-
-  // apply mask
-  // cv::Mat& mask = TrackingWidget::GetInstance()->GetMask();
-  // finalImage.setTo(cv::Scalar(0, 0, 0), mask);
 
   std::unique_lock<std::mutex> locker(_frameMutex);
 
@@ -909,16 +899,12 @@ bool CameraReceiverUSB::_CaptureFrame() {
     cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
   }
 
-  // Apply processing to it
+  // Apply processing to it (including field mask if available)
   cv::Mat finalImage;
-  birdsEyePreprocessor.Preprocess(_rawFrame, finalImage);
-
-  // apply mask
   TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
-  if (trackingWidget != nullptr) {
-    cv::Mat& mask = trackingWidget->GetMask();
-    finalImage.setTo(cv::Scalar(0, 0, 0), mask);
-  }
+  const cv::Mat* fieldMask =
+      (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
+  birdsEyePreprocessor.Preprocess(_rawFrame, finalImage, fieldMask);
 
   std::unique_lock<std::mutex> locker(_frameMutex);
 

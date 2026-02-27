@@ -5,7 +5,7 @@
 #include "../Globals.h"
 #include "../Odometry/Heuristic1/RobotTracker.h"
 
-static const char* OdometryAlgToString(OdometryAlg a) {
+const char* OdometryAlgToString(OdometryAlg a) {
   switch (a) {
     case OdometryAlg::Blob:
       return "Blob";

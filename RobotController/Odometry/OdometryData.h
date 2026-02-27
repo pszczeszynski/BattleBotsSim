@@ -25,6 +25,8 @@ enum OdometryAlg : size_t {
   kOdometryAlgCount
 };
 
+const char* OdometryAlgToString(OdometryAlg a);
+
 struct AngleData {
   Angle angle;
   double velocity = 0;

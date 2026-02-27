@@ -81,7 +81,8 @@ void VisionPreprocessor::ComputeTransformationMatrix() {
   _transformationMatrix = cv::getPerspectiveTransform(srcPoints, _dstPoints);
 }
 
-void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst) {
+void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst,
+                                    const cv::Mat* fieldMask) {
 #ifndef MACHINE_LEARNING
   preprocessClock.markStart();
 #endif
@@ -134,6 +135,16 @@ void VisionPreprocessor::Preprocess(cv::Mat& frame, cv::Mat& dst) {
 
   preprocessClock.markEnd();
 #endif
+
+  // Apply field mask (0 = visible, 255 = masked out)
+  if (fieldMask != nullptr && !fieldMask->empty() &&
+      fieldMask->rows == dst.rows && fieldMask->cols == dst.cols) {
+    if (dst.channels() == 3) {
+      dst.setTo(cv::Scalar(0, 0, 0), *fieldMask);
+    } else {
+      dst.setTo(cv::Scalar(0), *fieldMask);
+    }
+  }
 }
 
 #ifndef MACHINE_LEARNING
