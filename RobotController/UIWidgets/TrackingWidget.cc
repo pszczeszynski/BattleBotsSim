@@ -1,6 +1,7 @@
 #include "TrackingWidget.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include "../Clock.h"
 #include "../Input/InputState.h"
@@ -44,7 +45,8 @@ void TrackingWidget::_GrabFrame() {
   // 1. populate the tracking mat (for display purposes)
   static ICameraReceiver* camera = ICameraReceiver::GetInstance();
   if (camera != nullptr && camera->NewFrameReady(last_id)) {
-    last_id = camera->GetFrame(GetDebugImage(DebugVariant::Camera), last_id);
+    last_id = camera->GetFrame(
+        variantImages[static_cast<size_t>(DebugVariant::Camera)], last_id);
   }
 }
 
@@ -331,18 +333,6 @@ void TrackingWidget::UpdateDebugImage(DebugVariant variant,
       image.empty() ? image : image.clone();
 }
 
-cv::Mat& TrackingWidget::GetDebugImage(DebugVariant variant) {
-  size_t i = static_cast<size_t>(variant);
-  if (variantImages[i].empty()) {
-    variantImages[i] = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0));
-  }
-  return variantImages[i];
-}
-
-cv::Point TrackingWidget::GetDebugOffset(DebugVariant variant) {
-  return variantOffsets[static_cast<size_t>(variant)];
-}
-
 void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
   const char* label = DebugVariantToString(variant);
   ImGui::PushID(label);
@@ -389,6 +379,15 @@ void TrackingWidget::_DrawShowButton(DebugVariant variant, bool& enabledFlag) {
 void TrackingWidget::_RenderFrames() {
   _trackingMat = cv::Mat();
 
+  const cv::Mat& cameraImg =
+      variantImages[static_cast<size_t>(DebugVariant::Camera)];
+  if (cameraImg.empty()) {
+    return;
+  }
+
+  cv::Size outputSize = cameraImg.size();
+  _trackingMat = cv::Mat::zeros(outputSize, CV_8UC3);
+
   std::vector<std::pair<DebugVariant, bool>> variants = {
       {DebugVariant::Camera, showCamera},
       {DebugVariant::Blob, showBlob},
@@ -402,54 +401,72 @@ void TrackingWidget::_RenderFrames() {
       {DebugVariant::LKFlow, showLKFlow},
   };
 
-  cv::Size outputSize = GetDebugImage(DebugVariant::Camera).size();
-  if (outputSize.width <= 0 || outputSize.height <= 0) {
-    return;
-  }
-
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
   if (showBlob) {
     odometry.GetBlobOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::Blob), GetDebugOffset(DebugVariant::Blob));
+        variantImages[static_cast<size_t>(DebugVariant::Blob)],
+        variantOffsets[static_cast<size_t>(DebugVariant::Blob)]);
   }
   if (showHeuristic) {
     odometry.GetHeuristicOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::Heuristic),
-        GetDebugOffset(DebugVariant::Heuristic));
+        variantImages[static_cast<size_t>(DebugVariant::Heuristic)],
+        variantOffsets[static_cast<size_t>(DebugVariant::Heuristic)]);
   }
   if (showNeural) {
     odometry.GetNeuralOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::Neural),
-        GetDebugOffset(DebugVariant::Neural));
+        variantImages[static_cast<size_t>(DebugVariant::Neural)],
+        variantOffsets[static_cast<size_t>(DebugVariant::Neural)]);
   }
   if (showFusion) {
-    odometry.GetDebugImage(GetDebugImage(DebugVariant::Fusion),
-                           GetDebugOffset(DebugVariant::Fusion));
+    odometry.GetDebugImage(
+        variantImages[static_cast<size_t>(DebugVariant::Fusion)],
+        variantOffsets[static_cast<size_t>(DebugVariant::Fusion)]);
   }
   if (showNeuralRot) {
     odometry.GetNeuralRotOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::NeuralRot),
-        GetDebugOffset(DebugVariant::NeuralRot));
+        variantImages[static_cast<size_t>(DebugVariant::NeuralRot)],
+        variantOffsets[static_cast<size_t>(DebugVariant::NeuralRot)]);
   }
   if (showLKFlow) {
     odometry.GetLKFlowOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::LKFlow),
-        GetDebugOffset(DebugVariant::LKFlow));
+        variantImages[static_cast<size_t>(DebugVariant::LKFlow)],
+        variantOffsets[static_cast<size_t>(DebugVariant::LKFlow)]);
   }
 #ifdef USE_OPENCV_TRACKER
   if (showOpencv) {
     odometry.GetOpenCVOdometry().GetDebugImage(
-        GetDebugImage(DebugVariant::Opencv),
-        GetDebugOffset(DebugVariant::Opencv));
+        variantImages[static_cast<size_t>(DebugVariant::Opencv)],
+        variantOffsets[static_cast<size_t>(DebugVariant::Opencv)]);
   }
 #endif
 
   std::vector<VariantLayer> layers;
   layers.reserve(variants.size());
   for (const auto& vp : variants) {
+    if (!vp.second) continue;
+
     size_t vi = static_cast<size_t>(vp.first);
-    layers.push_back(
-        {vp.first, &variantImages[vi], vp.second, variantColors[vi]});
+    const cv::Mat* img = &variantImages[vi];
+
+    if (img->empty()) {
+      std::cerr << "TrackingWidget: skipping " << DebugVariantToString(vp.first)
+                << " (empty)" << std::endl;
+      continue;
+    }
+    if (img->size() != outputSize) {
+      std::cerr << "TrackingWidget: skipping " << DebugVariantToString(vp.first)
+                << " (size mismatch " << img->cols << "x" << img->rows
+                << " != " << outputSize.width << "x" << outputSize.height << ")"
+                << std::endl;
+      continue;
+    }
+    if (img->type() != CV_8UC1 && img->type() != CV_8UC3) {
+      std::cerr << "TrackingWidget: skipping " << DebugVariantToString(vp.first)
+                << " (unsupported type " << img->type() << ")" << std::endl;
+      continue;
+    }
+
+    layers.push_back({vp.first, img, true, variantColors[vi]});
   }
 
   _frameCompositor.Compose(layers, outputSize, _trackingMat);

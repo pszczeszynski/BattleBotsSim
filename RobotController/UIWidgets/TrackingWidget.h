@@ -34,8 +34,6 @@ class TrackingWidget : public ImageWidget {
   static double opponentMouseClickAngle;
 
   void UpdateDebugImage(DebugVariant variant, const cv::Mat& image);
-  cv::Mat& GetDebugImage(DebugVariant variant);
-  cv::Point GetDebugOffset(DebugVariant variant);
   std::string SaveGUISettings();
   void RestoreGUISettings(const std::string& settings);
 
