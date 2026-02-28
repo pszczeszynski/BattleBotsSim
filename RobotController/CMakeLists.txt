@@ -69,6 +69,7 @@ set(SOURCES
     UIWidgets/TrackingFieldCropEditor.cc
     UIWidgets/TrackingFieldMaskEditor.cc
     UIWidgets/TrackingWidget.cc
+    UIWidgets/TrackingWidgetSettings.cc
     UIWidgets/RobotTelemetryWidget.cc
     libs/IMGUI/imgui.cpp
     libs/IMGUI/imgui_draw.cpp

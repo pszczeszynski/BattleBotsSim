@@ -11,6 +11,7 @@
 #include "ImageWidget.h"
 #include "TrackingFieldCropEditor.h"
 #include "TrackingFieldMaskEditor.h"
+#include "TrackingWidgetSettings.h"
 #include "imgui.h"
 
 /**
@@ -41,6 +42,9 @@ class TrackingWidget : public ImageWidget {
   std::string outputVideoFile = "Recordings/Tracking_dataDump.mp4";
 
  private:
+  TrackingWidgetSettings _GetSettings() const;
+  void _ApplySettings(const TrackingWidgetSettings& s);
+
   void _GrabFrame();
   void _DrawAlgorithmData();
   void _MaskOutRegions();
