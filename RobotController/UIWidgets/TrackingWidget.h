@@ -9,6 +9,7 @@
 #include "DebugVariant.h"
 #include "FrameCompositor.h"
 #include "ImageWidget.h"
+#include "TrackingFieldCropEditor.h"
 #include "TrackingFieldMaskEditor.h"
 #include "imgui.h"
 
@@ -44,13 +45,13 @@ class TrackingWidget : public ImageWidget {
  private:
   void _GrabFrame();
   void _DrawAlgorithmData();
-  void _AdjustFieldCrop();
   void _MaskOutRegions();
   void _RenderFrames();
 
   static TrackingWidget* _instance;
 
   cv::Mat _fieldMask;
+  TrackingFieldCropEditor _cropEditor;
   TrackingFieldMaskEditor _maskEditor;
   cv::Mat _trackingMat{WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)};
   FrameCompositor _frameCompositor;

@@ -66,6 +66,7 @@ set(SOURCES
     UIWidgets/ConfigWidget.cc
     UIWidgets/FieldWidget.cc
     UIWidgets/FrameCompositor.cc
+    UIWidgets/TrackingFieldCropEditor.cc
     UIWidgets/TrackingFieldMaskEditor.cc
     UIWidgets/TrackingWidget.cc
     UIWidgets/RobotTelemetryWidget.cc

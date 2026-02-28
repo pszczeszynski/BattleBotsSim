@@ -48,79 +48,6 @@ void TrackingWidget::_GrabFrame() {
   }
 }
 
-void TrackingWidget::_AdjustFieldCrop() {
-  bool enableCrop = !CameraWidget::LockCamera;
-
-  static int cornerToAdjust = -1;
-  static cv::Point2f mousePosLast = cv::Point2f(0, 0);
-  static cv::Point2f cornerHandles[4] = {
-      cv::Point2f(0, 0), cv::Point2f(WIDTH, 0), cv::Point2f(WIDTH, HEIGHT),
-      cv::Point2f(0, HEIGHT)};
-
-  const double CORNER_DIST_THRESH = 20.0;
-
-  // get the curr mouse position
-  cv::Point2f currMousePos = GetMousePos();
-
-  cv::Mat& drawingImage = _trackingMat;
-
-  // draw the corners
-  if (enableCrop && !drawingImage.empty()) {
-    for (int i = 0; i < 4; i++) {
-      if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH) {
-        safe_circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH * 1.5,
-                    cv::Scalar(255, 100, 255), 2);
-      } else {
-        safe_circle(drawingImage, cornerHandles[i], CORNER_DIST_THRESH,
-                    cv::Scalar(255, 0, 255), 2);
-      }
-    }
-  }
-
-  // if the user isn't pressing shift and is over the image
-  if (!InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
-    // corner adjustment
-
-    // If the user left clicks near one of the corners
-    if (enableCrop && InputState::GetInstance().IsMouseDown(0)) {
-      if (cornerToAdjust == -1) {
-        // Check each corner
-        for (int i = 0; i < 4; i++) {
-          // if the user is near a corner
-          if (cv::norm(cornerHandles[i] - currMousePos) < CORNER_DIST_THRESH) {
-            // set the corner to adjust
-            cornerToAdjust = i;
-            break;
-          }
-        }
-      }
-    } else {
-      // otherwise set the corner to adjust to -1
-      cornerToAdjust = -1;
-    }
-
-    // adjust the corner
-    cv::Point2f adjustment = mousePosLast - currMousePos;
-
-    if (cornerToAdjust == 0) {
-      preprocess_tl_x += adjustment.x;
-      preprocess_tl_y += adjustment.y;
-    } else if (cornerToAdjust == 1) {
-      preprocess_tr_x += adjustment.x;
-      preprocess_tr_y += adjustment.y;
-    } else if (cornerToAdjust == 2) {
-      preprocess_br_x += adjustment.x;
-      preprocess_br_y += adjustment.y;
-    } else if (cornerToAdjust == 3) {
-      preprocess_bl_x += adjustment.x;
-      preprocess_bl_y += adjustment.y;
-    }
-  }
-
-  // save the last mouse position
-  mousePosLast = currMousePos;
-}
-
 TrackingWidget* TrackingWidget::GetInstance() { return _instance; }
 
 void TrackingWidget::_MaskOutRegions() {
@@ -384,7 +311,7 @@ void TrackingWidget::Update() {
   // Render all the frames together
   _RenderFrames();
 
-  _AdjustFieldCrop();
+  _cropEditor.Update(GetMousePos(), IsMouseOver(), _trackingMat);
   // Allow the user to mask out areas of the image.
   // They will be set to black when you get a frame from a camera
   _MaskOutRegions();
