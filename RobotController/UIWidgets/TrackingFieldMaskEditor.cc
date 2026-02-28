@@ -89,12 +89,21 @@ void TrackingFieldMaskEditor::SaveIfDirty(const cv::Mat& mask) {
   }
 }
 
-bool TrackingFieldMaskEditor::IsDragging() const {
-  return _state == MaskState::DRAGGING;
-}
+void TrackingFieldMaskEditor::RenderOverlay(bool drawMaskMode, cv::Mat& frameBgr,
+                                            const cv::Mat& mask) const {
+  if (frameBgr.empty() || frameBgr.type() != CV_8UC3) return;
+  if (mask.size() != frameBgr.size() || mask.type() != CV_8UC1) return;
+  if (!drawMaskMode) return;
 
-void TrackingFieldMaskEditor::GetDragRect(cv::Point2f& topLeft,
-                                         cv::Point2f& bottomRight) const {
-  topLeft = _topLeft;
-  bottomRight = _bottomRight;
+  cv::Mat masked;
+  cv::compare(mask, 255, masked, cv::CMP_EQ);
+  frameBgr.setTo(cv::Scalar(0, 0, 80), masked);
+
+  if (_state == MaskState::DRAGGING) {
+    cv::rectangle(frameBgr, cv::Point(static_cast<int>(_topLeft.x),
+                                     static_cast<int>(_topLeft.y)),
+                  cv::Point(static_cast<int>(_bottomRight.x),
+                            static_cast<int>(_bottomRight.y)),
+                  cv::Scalar(0, 255, 0), 2);
+  }
 }

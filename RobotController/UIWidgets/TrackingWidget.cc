@@ -128,29 +128,7 @@ void TrackingWidget::_MaskOutRegions() {
       CameraWidget::DrawMask, IsMouseOver(), InputState::GetInstance(),
       [this] { return GetMousePos(); }, _fieldMask);
   _maskEditor.SaveIfDirty(_fieldMask);
-
-  // Visual feedback when Draw Mask is on: show mask overlay and drag rectangle
-  if (CameraWidget::DrawMask && !_trackingMat.empty() &&
-      _fieldMask.rows == _trackingMat.rows &&
-      _fieldMask.cols == _trackingMat.cols) {
-    if (_trackingMat.channels() == 3) {
-      for (int y = 0; y < _fieldMask.rows; ++y) {
-        const uint8_t* m = _fieldMask.ptr<uint8_t>(y);
-        cv::Vec3b* p = _trackingMat.ptr<cv::Vec3b>(y);
-        for (int x = 0; x < _fieldMask.cols; ++x) {
-          if (m[x] == 255) {
-            p[x] = cv::Vec3b(0, 0, 80);  // dark red tint where masked
-          }
-        }
-      }
-    }
-    if (_maskEditor.IsDragging()) {
-      cv::Point2f tl, br;
-      _maskEditor.GetDragRect(tl, br);
-      cv::rectangle(_trackingMat, cv::Point(tl.x, tl.y), cv::Point(br.x, br.y),
-                    cv::Scalar(0, 255, 0), 2);
-    }
-  }
+  _maskEditor.RenderOverlay(CameraWidget::DrawMask, _trackingMat, _fieldMask);
 }
 
 void TrackingWidget::ClearMask() {

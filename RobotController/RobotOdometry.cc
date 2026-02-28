@@ -329,7 +329,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   }
 
   // Robot position (manual override has highest priority)
-
   if (isFresh(inputs.us_override.pos)) {
     output.robot.pos = inputs.us_override.pos;
   } else if (isFresh(inputs.us_heuristic.pos)) {
@@ -368,14 +367,15 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.robot.angle = inputs.us_override.angle;
   } else if (isFresh(inputs.us_imu.angle)) {
     output.robot.angle = inputs.us_imu.angle;
+  } else if (isFresh(inputs.us_lkflow.angle)) {
+    output.robot.angle = inputs.us_lkflow.angle;
+  } else if (isFresh(inputs.us_blob.angle)) {
+    output.robot.angle = inputs.us_blob.angle;
   } else if (isFresh(inputs.us_neuralrot.angle)) {
     output.robot.angle = inputs.us_neuralrot.angle;
     output.robot.angle.value().velocity = 0;
-  } else if (isFresh(inputs.us_blob.angle)) {
-    output.robot.angle = inputs.us_blob.angle;
-  } else if (isFresh(inputs.us_lkflow.angle)) {
-    output.robot.angle = inputs.us_lkflow.angle;
   }
+
 
   // Opponent position (manual override has highest priority)
   if (isFresh(inputs.them_override.pos)) {

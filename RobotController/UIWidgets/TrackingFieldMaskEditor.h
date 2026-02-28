@@ -31,11 +31,11 @@ class TrackingFieldMaskEditor {
   /** Write mask to disk when dirty; throttle to ~250ms. Clear dirty after successful write. */
   void SaveIfDirty(const cv::Mat& mask);
 
-  /** True while the user is dragging a rectangle. */
-  bool IsDragging() const;
-
-  /** Current drag rectangle (valid when IsDragging()). */
-  void GetDragRect(cv::Point2f& topLeft, cv::Point2f& bottomRight) const;
+  /**
+   * Draw mask overlay on frame when drawMaskMode is true: dark red tint where mask==255,
+   * and green drag-rect outline when dragging. No-op if frame/mask invalid or sizes mismatch.
+   */
+  void RenderOverlay(bool drawMaskMode, cv::Mat& frameBgr, const cv::Mat& mask) const;
 
  private:
   enum class MaskState { LOCKED = 0, WAITING_FOR_CLICK, DRAGGING };
