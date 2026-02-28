@@ -40,13 +40,12 @@ TrackingWidget::TrackingWidget()
 }
 
 void TrackingWidget::_GrabFrame() {
-  static int last_id = 0;
-
-  // 1. populate the tracking mat (for display purposes)
-  static ICameraReceiver* camera = ICameraReceiver::GetInstance();
-  if (camera != nullptr && camera->NewFrameReady(last_id)) {
-    last_id = camera->GetFrame(
-        variantImages[static_cast<size_t>(DebugVariant::Camera)], last_id);
+  // Fetch camera each call to avoid stale pointer if subsystem is
+  // reinitialized.
+  ICameraReceiver* camera = ICameraReceiver::GetInstance();
+  if (camera != nullptr && camera->NewFrameReady(_lastFrameId)) {
+    _lastFrameId = camera->GetFrame(
+        variantImages[static_cast<size_t>(DebugVariant::Camera)], _lastFrameId);
   }
 }
 

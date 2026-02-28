@@ -48,6 +48,8 @@ class TrackingWidget : public ImageWidget {
 
   static TrackingWidget* _instance;
 
+  int _lastFrameId = 0;
+
   cv::Mat _fieldMask;
   TrackingFieldCropEditor _cropEditor;
   TrackingFieldMaskEditor _maskEditor;
