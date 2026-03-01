@@ -124,12 +124,13 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   for (int i = 0; i < 2; ++i) {
     LKFlowTargetState& state = _targets[i];
     cv::Rect roi = _GetROI(state.pos, _imageSize);
+    cv::Rect otherRoi = _GetROI(_targets[1 - i].pos, _imageSize);
     bool shouldRespawn =
         (frameTime - state.lastRespawnTime) >= kRespawnIntervalSeconds ||
         state.forceRespawnNextFrame;
     if (roi.width > 0 && roi.height > 0 && shouldRespawn) {
       _RespawnPoints(gray, roi, state.tracks, kTargetPointCount, frameTime,
-                     state.lastRespawnTime);
+                     state.lastRespawnTime, otherRoi);
       state.forceRespawnNextFrame = false;
     }
   }
@@ -422,7 +423,8 @@ void LKFlowTracker::_UpdateAngleFromRotations(
 bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    std::vector<TrackPt>& tracks,
                                    int targetCount, double frameTime,
-                                   double& lastRespawnTime) {
+                                   double& lastRespawnTime,
+                                   cv::Rect excludeRoi) {
   const int needed = targetCount - tracks.size();
 
   if (needed <= 0) {
@@ -452,10 +454,17 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
   }
 
   const double minDistSq = kMinCornerDistance * kMinCornerDistance;
+  const bool hasExclude = excludeRoi.width > 0 && excludeRoi.height > 0;
   int added = 0;
   for (const auto& newPt : newPts) {
     if (added >= needed) {
       break;
+    }
+
+    if (hasExclude &&
+        newPt.x >= excludeRoi.x && newPt.x < excludeRoi.x + excludeRoi.width &&
+        newPt.y >= excludeRoi.y && newPt.y < excludeRoi.y + excludeRoi.height) {
+      continue;
     }
 
     bool tooClose = false;

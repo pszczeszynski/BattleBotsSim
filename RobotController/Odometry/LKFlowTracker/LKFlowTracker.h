@@ -71,7 +71,8 @@ class LKFlowTracker : public OdometryBase {
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                      std::vector<TrackPt>& tracks, int targetCount,
-                     double frameTime, double& lastRespawnTime);
+                     double frameTime, double& lastRespawnTime,
+                     cv::Rect excludeRoi = cv::Rect(0, 0, 0, 0));
   void _DrawDebugImage(cv::Size imageSize,
                        const std::vector<cv::Point2f>& nextPts,
                        const std::vector<uchar>& status,
