@@ -6,9 +6,9 @@
 #include "CameraReceiver.h"
 #include "Odometry/OdometryBase.h"
 
-
+// C:\Users\5353i\Documents\BattleBotsSim\RobotController\MachineLearning
 // MachineLearning/rotation_model_hoop.onnx
-#define MODEL_PATH "C:/Dev/BattlebotsSim/RobotController/MachineLearning/rotationDetectorV5.onnx"
+#define MODEL_PATH "C:/Users/5353i/Documents/BattlebotsSim/RobotController/MachineLearning/rotationDetectorV5.onnx"
 
 class CVRotation : public OdometryBase {
  public:
