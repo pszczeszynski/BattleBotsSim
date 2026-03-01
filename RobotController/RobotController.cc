@@ -107,7 +107,7 @@ void RobotController::Run() {
   // Start the odometry threads
   odometry.Run(OdometryAlg::Blob);
   // odometry.Run(OdometryAlg::Heuristic);
-  // odometry.Run(OdometryAlg::IMU);
+  odometry.Run(OdometryAlg::IMU);
   // odometry.Run(OdometryAlg::Neural);
   // odometry.Run(OdometryAlg::Human);
   // odometry.Run(OdometryAlg::NeuralRot);
