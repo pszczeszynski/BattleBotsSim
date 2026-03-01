@@ -64,8 +64,6 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
   }
 
   if (!slot.initialized) {
-    std::cout << "OpenCVTracker: not initialized "
-              << (isOpponent ? "opponent" : "robot") << std::endl;
     return;
   }
 
@@ -79,13 +77,8 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
       slot.hasLast = false;
       slot.lastTime = 0.0;
       slot.invalidCount = 0;
-      std::cout << "OpenCVTracker: recovery "
-                << (isOpponent ? "opponent" : "robot") << " (lost track)"
-                << std::endl;
     }
 
-    std::cout << "OpenCVTracker: lost track "
-              << (isOpponent ? "opponent" : "robot") << std::endl;
     return;
   }
 
@@ -107,7 +100,6 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
   slot.hasLast = true;
 
   OdometryData sample{};
-  std::cout << "Publishing OpenCV sample" << std::endl;
   sample.pos = PositionData{center, velocity, bboxLocal, frameTime};
   OdometryBase::Publish(sample, isOpponent, OdometryAlg::OpenCV);
 }
@@ -119,6 +111,9 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     currFrame.copyTo(_previousImage);
   } else if (currFrame.channels() == 4) {
     cv::cvtColor(currFrame, _previousImage, cv::COLOR_RGBA2RGB);
+  } else {
+    std::cerr << "OpenCVTracker: unsupported frame channels: " << currFrame.channels() << std::endl;
+    return;
   }
 
   _ProcessSlot(_robotSlot, false, frameTime);

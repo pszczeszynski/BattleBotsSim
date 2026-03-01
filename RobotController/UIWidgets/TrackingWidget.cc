@@ -111,6 +111,7 @@ void TrackingWidget::_DrawAlgorithmData() {
   cv::Scalar heuristicColor = toScalar(DebugVariant::Heuristic);
   cv::Scalar fusionColor = toScalar(DebugVariant::Fusion);
   cv::Scalar lkFlowColor = toScalar(DebugVariant::LKFlow);
+  cv::Scalar opencvColor = toScalar(DebugVariant::Opencv);
 
   // Map OdometryAlg to display color (uses variant color when available)
   auto colorForAlgorithm = [this, &toScalar](OdometryAlg alg) -> cv::Scalar {
@@ -146,11 +147,13 @@ void TrackingWidget::_DrawAlgorithmData() {
   HeuristicOdometry& _odometry_Heuristic = odometry.GetHeuristicOdometry();
   CVPosition& _odometry_Neural = odometry.GetNeuralOdometry();
   LKFlowTracker& _odometry_LKFlow = odometry.GetLKFlowOdometry();
+  OpenCVTracker& _odometry_OpenCV = odometry.GetOpenCVOdometry();
 
   _DrawAlgIfActive(_odometry_Blob, showBlob, blobColor, true);
   _DrawAlgIfActive(_odometry_Heuristic, showHeuristic, heuristicColor, true);
   _DrawAlgIfActive(_odometry_Neural, showNeural, neuralColor, false);
   _DrawAlgIfActive(_odometry_LKFlow, showLKFlow, lkFlowColor, true);
+  _DrawAlgIfActive(_odometry_OpenCV, showOpencv, opencvColor, true);
   if (showFusion) {
     OdometryData robotData = odometry.Robot();
     OdometryData opponentData = odometry.Opponent();
