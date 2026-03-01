@@ -232,7 +232,7 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float m
     float slowGain = 1.0f; // 0.88
     float fastGain = 0.40f; // 0.32
     float fastSpeed = 400.0f;
-    float gain = max(slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f), 0.0f);
+    float gain = (std::max)(slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f), 0.0f);
     float curvature = gain * angleError;
 
 
@@ -569,7 +569,7 @@ bool FilteredRobot::facingPoint(cv::Point2f point, bool forward) {
 // simple calculation for how long it'll take to get to a point
 float FilteredRobot::collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward) {
 
-    float driveDistance = max(distanceTo(point) - pointSizeRadius - sizeRadius, 0.0f);
+    float driveDistance = (std::max)(distanceTo(point) - pointSizeRadius - sizeRadius, 0.0f);
     float initialVel = tangentVel(forward) * cos(angleTo(point, forward) * 0.5f);
     float moveTime = moveETAAccel(driveDistance, initialVel);
 
@@ -615,7 +615,7 @@ float FilteredRobot::moveETAAccel(float distance, float startingVel) {
         float C = -distance;
 
         float disc = B*B - 4*A*C;
-        disc = max(0.0f, disc);
+        disc = (std::max)(0.0f, disc);
 
         float t_accel = (-B + std::sqrt(disc)) / (2*A);
         return t + t_accel;
@@ -646,7 +646,7 @@ bool FilteredRobot::pointCorrectSide(cv::Point2f point, bool CW, bool forward, f
 // how much distance we'd have to get closer to touch another robot
 float FilteredRobot::distanceToCollide(FilteredRobot opp) {
     float collisionRad = opp.getSizeRadius() + sizeRadius;
-    return max(distanceTo(opp.position()) - collisionRad, 0.0f);
+    return (std::max)(distanceTo(opp.position()) - collisionRad, 0.0f);
 }
 
 
@@ -683,7 +683,7 @@ float FilteredRobot::pointETAAccel(cv::Point2f target, bool forward, float margi
     float t1 = (-velFilteredSlow[2] + sqrt(dirac)) / accel;
     float t2 = (-velFilteredSlow[2] - sqrt(dirac)) / accel;
 
-    float time = min(t1, t2);
+    float time = (std::min)(t1, t2);
     if(t1 < 0.0f) { time = t2; }
     if(t2 < 0.0f) { time = t1; }
 
