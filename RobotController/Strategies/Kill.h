@@ -17,10 +17,10 @@ public:
 
 private:
 
-    FilteredRobot orbFiltered; // orb robot
-    FilteredRobot oppFiltered; // opp robot
+    FilteredRobot orbFiltered;
+    FilteredRobot oppFiltered;
 
-    Field field; // field object
+    Field field;
 
 
     float orbTimeToPoint(cv::Point2f point, std::vector<cv::Point2f> &orbSimPath, bool forward);

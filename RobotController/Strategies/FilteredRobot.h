@@ -23,24 +23,18 @@ class FilteredRobot
   std::vector<float> updateModel(std::vector<float> inputs, std::vector<float>& model, bool writePos);
 
 
-  float collideETA(FilteredRobot& opp, bool forward); 
   float collideETASimple(cv::Point2f point, float pointSizeRadius, bool forward);
-  float ETASim(FilteredRobot opp, std::vector<cv::Point2f> &path, bool stopIfHit, bool orbNeedsToFace, bool forward, bool CW, bool turnAway, float &inflectDistance, float radGain);
-  float moveETASim(float distance, float startVel, bool print);
-  float pointETASim(cv::Point2f point, float lagTime, float turnCW,
-                    float angleMargin, bool forward,
-                    bool print); 
   float pointETAAccel(cv::Point2f target, bool forward, float margin);
   float moveETAAccel(float distance, float startingVel);
   
-  float turnTimeMin(cv::Point2f point, float lagTime, float angleMargin,
-                    bool forward,
-                    bool print); 
-  float turnTimeSimple(cv::Point2f point, float angleMargin, bool forward, bool print);
 
   bool colliding(FilteredRobot opp, float tolerance);
   bool facing(FilteredRobot opp, bool forward);
   bool facingPoint(cv::Point2f point, bool forward);
+  float angleTo(cv::Point2f point, bool forward);
+  float distanceTo(cv::Point2f point);
+  float distanceToCollide(FilteredRobot opp);
+
 
   void updatePath();
   void setPos(std::vector<float> pos);
@@ -50,41 +44,38 @@ class FilteredRobot
   std::vector<std::vector<float>> kalmanExtrapAccel(float time);
   std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
-  FilteredRobot createVirtualOpp(FilteredRobot opp, bool forward, bool CW, bool turnAway, float maxExtrapTime, std::vector<cv::Point2f> &path);
-  float angleTo(cv::Point2f point, bool forward);
-  float distanceTo(cv::Point2f point);
+  
 
   // get robot data
   cv::Point2f position();
+  float angle(bool forward);
   cv::Point2f moveVel();
   cv::Point2f moveVelSlow();
   std::vector<float> getPosFiltered();
   std::vector<float> getVelFiltered();
+  std::vector<float> getVelFilteredSlow();
+  std::vector<float> getVelFilteredUltraSlow();
   std::vector<float> getAccFiltered();
   float turnVel();
   float turnVelSlow();
   float moveSpeed();
   float moveSpeedSlow();
-  float getMaxTurnSpeed();
-  float getMaxMoveSpeed();
-  float moveAccel();
-  float turnAccel();
   float tangentVel(bool forward);
   float tangentVelFast(bool forward);
-  float angle(bool forward);
-  std::vector<cv::Point2f> getPath();
-  std::vector<float> getVelFilteredSlow();
-  std::vector<float> getVelFilteredUltraSlow();
-  float getWeaponAngleReach();
-  float getSizeRadius();
-  float velAwayFromPoint(cv::Point2f point);
+  float moveAccel();
+  float turnAccel();
+  float getMaxMoveSpeed();
+  float getMaxTurnSpeed();
   float getMaxMoveAccel();
   float getMaxTurnAccel();
+  float getWeaponAngleReach();
+  float getSizeRadius();
+  std::vector<cv::Point2f> getPath();
   std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
-  float distanceToCollide(FilteredRobot opp);
   void printModel();
   void setToSlowVel();
+  void displayRobot(int thick, cv::Scalar sizeColor, cv::Scalar weaponColor, bool forward);
 
 
 
@@ -96,7 +87,6 @@ class FilteredRobot
   float fieldMin = 0.0f;
 
   float prevAngleError = 0.0f; // previous angle error for curvature controller
-  float turnSpeedChangeFiltered = 0.0f; // filtered value for turn speed change rate
 
   // each are 3 big, XYT
   std::vector<float> posFiltered;  // current pos
@@ -128,5 +118,4 @@ class FilteredRobot
 
 
   int sign(float num);
-  cv::Point2f clipInBounds(cv::Point2f point);
 };

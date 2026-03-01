@@ -123,6 +123,7 @@ set(SOURCES
     Strategies/DisplayUtils.cc
     Strategies/FollowPoint.cc
     Strategies/Field.cc
+    Strategies/Approach.cc
 )
 
 # Check for opencv_tracking module

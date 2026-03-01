@@ -37,6 +37,11 @@ public:
     
     static AStarAttack* GetInstance();
 
+
+
+
+
+
 private:
 
     FilteredRobot orbFiltered; // orb robot
@@ -49,7 +54,8 @@ private:
     std::vector<FollowPoint> _lastFollowPoints; // last computed follow points (for debugging/display)
 
 
-    std::vector<float> inputs; // last updates inputs to the model
+    std::vector<float> inputs; // real orb's initial state from last update
+    std::vector<float> trueOutputs; // real orb's state going into this update
     std::vector<float> previousGamepad; // what gamepad inputs were last time
 
     
@@ -59,38 +65,21 @@ private:
     
     static AStarAttack* _instance;
 
-    float time1 = 0;
-    float time2 = 0;
 
 
-
-
-    std::vector<cv::Point2f> arcPointsFromCenter(float radius, float angle, float pointSpacing);
-    void transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle);
     float angle(cv::Point2f point1, cv::Point2f point2);
-    cv::Point2f tangentPoint(float radius, cv::Point2f center, cv::Point2f point, bool CW);
-    std::pair<float, int> closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point);
-    int vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint);
     FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);
-    void approachCurve(FollowPoint &follow);
-    float approachRadiusEquation(float offsetAngle, float orbRad, float sweepRange);
-    cv::Point2f approachPP(cv::Point2f currPosition, FollowPoint follow, float ppRad);
-    cv::Point2f followApproachCurve(cv::Point2f currPosition, FollowPoint follow, float ppRad);
+    std::vector<float> generateEndAngles(bool CW);
     void orbToOppPath(FollowPoint &follow);
     void oppToOrbETA(FollowPoint &follow);
     float wallScore(FollowPoint &follow);
-    float turnScore(FollowPoint follow);
     float ppRad(float speed);
     float ppRadWall();
     void avoidBoundsVector(FollowPoint &follow);
-    void directionScore(FollowPoint &follow, bool forwardInput);
-    float piecewise(std::vector<cv::Point2f> points, float x);
+    void followScore(FollowPoint &follow, bool forwardInput);
     int sign(float num);
-    void commitToTarget(FollowPoint &follow, double deltaTime, float targetTime);
     void driveAngle(FollowPoint &follow);
     void display(FollowPoint follow, std::vector<FollowPoint> follows, std::vector<FollowPoint> followsFocussed);
-    bool willTurnPastOpp(FollowPoint follow);
-    float switchPointScore(FollowPoint follow);
-    void displayVirtualOrb();
+    void controlOrbVirtual(bool autoTune, bool resetState, bool resetModel);
 
 };

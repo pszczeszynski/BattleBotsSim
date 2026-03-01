@@ -3,20 +3,22 @@
 #include <opencv2/core.hpp>
 #include "../SafeDrawing.h"
 #include "FilteredRobot.h"
+#include "Approach.h"
+
+
 
 class FollowPoint {
 
 public:
 
     FollowPoint();
-    FollowPoint(bool forward, bool CW, bool turnAway, float simRadGain, FilteredRobot opp, std::vector<cv::Point2f> oppSimPath);
+    FollowPoint(bool forward, bool CW, bool turnAway, float endAngle, float collisionRad, FilteredRobot opp);
 
     cv::Point2f point; // XY point we're aiming for
     FilteredRobot opp; // opponent robot
 
     std::vector<cv::Point2f> orbSimPath; // simulated path for orb to the opponent for this point's settings
     std::vector<float> orbSimPathTimes; // how long it takes orb to get to each point in the sim path
-    std::vector<cv::Point2f> approach; // curve that defines the approach to opp
     std::vector<cv::Point2f> oppSimPath; // extrapolated path for opp for where they'll be if we were to kill rn
     std::vector<cv::Point2f> wallScanPoints; // points generated in wall score algorithm
 
@@ -24,19 +26,14 @@ public:
     bool forward; // if we're driving forwards (or backwards) to the point
     bool CW; // if this point is meant to go CW (or CCW) around the opp
     bool turnAway; // if this point is making sure to turn away from opp at first
-    float simRadGain; // the rad gain used in sim to generate the path for this point
-    float worstTimeMargin; // how much can the opp beat us to unsafe points on the path
-    float orbRad;
-    float approachSweepRange;
+    Approach approachCurve; // defines the path to the opp to collide at desired angle
 
+    float worstTimeMargin; // how much can the opp beat us to unsafe points on the path
     float driveAngle; // angle to drive when this point is active
     float oppETA; // opp time for this point
     float orbETA; // orb time to hit opp given this points parameters
-    float endingAngle; // angle at which the approach path targets opp
-
     int enforceTurnDirection; // forces curvature control to turn a certain way, used for walls mainly
     bool crossesOppFront; // if we cross by the opp's front during the sim path
-    bool hit; // if the opp hits us
 
     std::vector<float> directionScores; // score numbers for how good this follow point is, last entry is the total score
 

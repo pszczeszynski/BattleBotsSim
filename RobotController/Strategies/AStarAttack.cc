@@ -57,12 +57,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
 
-    float time1 = updateClock.getElapsedTime();
-
-
     // save what this updates inputs were
     inputs = {previousGamepad[0], previousGamepad[1], orbFiltered.tangentVelFast(true), orbFiltered.turnVel(), (float) deltaTime };
-
 
 
     // get odometry data for orb and opp
@@ -74,32 +70,19 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     oppFiltered.updateFilters(deltaTime, oppData.robotPosition, oppData.GetAngle()); 
     
 
-
     // what did orb actually end up doing
-    std::vector<float> trueOutputs = {orbFiltered.tangentVelFast(true), orbFiltered.turnVel()};
+    trueOutputs = {orbFiltered.tangentVelFast(true), orbFiltered.turnVel()};
 
 
+    // control orbVirtual and model tuning
+    bool autoTune = gamepad.GetLeftBumper() && !gamepad.GetRightBumper();
+    bool resetState = gamepad.GetRightBumper();
+    bool resetModel = gamepad.GetRightBumper() && gamepad.GetLeftBumper();
+    bool displayOrbVirtual = gamepad.GetLeftTrigger() > 0.3f;
 
-    // run the virtual orb model, tune if wanted
-    // orbVirtual.tuneModel(gamepad.GetLeftBumper(), inputs, trueOutputs);
-
-
-    if(gamepad.GetRightBumper()) {
-        orbVirtual.setPos(orbFiltered.getPosFiltered());
-        orbVirtual.setVel(orbFiltered.getVelFiltered());
+    if(displayOrbVirtual || autoTune || resetState || resetModel) {
+        controlOrbVirtual(autoTune, resetState, resetModel);
     }
-
-    if(gamepad.GetRightBumper() && gamepad.GetLeftBumper()) {
-        orbVirtual = orbFiltered;
-    }
-
-
-    // make virtual orb do something
-    std::vector<float> orbVirtualInputs = orbVirtual.curvatureController(angle(orbVirtual.position(), oppFiltered.position()), 1.0f, deltaTime, true, 0);
-    std::vector<float> modelInputs = {orbVirtualInputs[0], orbVirtualInputs[1], 0.0f, 0.0f, (float) deltaTime};
-
-    // run orbvirtual to the opponent
-    orbVirtual.tuneModel(false, modelInputs, {});
 
 
 
@@ -118,18 +101,22 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
     FollowPoint follow = createFollowPoint(deltaTime, forwardInput, enable, follows, followsFocussed); // generate follow point
 
-    // _lastFollowPoints = followsFocussed; // store the followPoints for debugging/display
-    _lastFollowPoints = follows;
+
+    // store the followPoints for debugging/display
+    _lastFollowPoints = followsFocussed; 
+    // _lastFollowPoints = follows;
 
     
     
 
 
     display(follow, follows, followsFocussed); // display follow point data
-    displayVirtualOrb(); // display virtual orb
     DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // display field bound lines
 
 
+
+
+    // follow.approachCurve.followCurve(orbFiltered.position(), 40, true);
 
     // std::cout << ", orb eta = " << follow.orbETA << ", opp eta = " << follow.oppETA;
     // std::cout << ", turn enforce = " << follow.enforceTurnDirection;
@@ -138,8 +125,6 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     
 
     
-
-
 
     std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 
         rightStickY, deltaTime, follow.forward, follow.enforceTurnDirection);
@@ -151,13 +136,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     ret.driveCommand.movement = driveInputs[0];
     ret.driveCommand.turn = driveInputs[1];
 
-    
-    previousGamepad = {(float) rightStickY, gamepad.GetLeftStickX() }; // save what the gamepad was
-    
+        
     processingTimeVisualizer.markEnd();
 
 
-    // std::cout << "time = " << time2 - time1;
+    previousGamepad = {(float) rightStickY, gamepad.GetLeftStickX() }; // save what the gamepad was for next update
 
     return ret;
 }
@@ -225,7 +208,7 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     
     // display every orb sim path
     for(int testFollow = 0; testFollow < follows.size(); testFollow++) {
-        cv::Scalar color = follows[testFollow].hit? cv::Scalar{128, 128, 230} : cv::Scalar{128, 128, 128};
+        cv::Scalar color = cv::Scalar{128, 128, 128};
         DisplayUtils::displayPath(follows[testFollow].orbSimPath, color, color, 1);
     }
 
@@ -236,10 +219,6 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), colorOrbLight, 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRadWall(), colorOrbLight, 1); // draw pp wall radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.opp.position(), 10, colorOpp, 2); // draw dot on the extrap opp
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppFiltered.getSizeRadius(), colorOpp, 2); // draw opp size
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw orb size
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
 
 
@@ -248,17 +227,9 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     DisplayUtils::displayPath(follow.oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
     DisplayUtils::displayPath(orbFiltered.getPath(), cv::Scalar(100, 100, 100), colorOrbLight, 3); // display orb path
     DisplayUtils::displayPath(follow.opp.getPath(), cv::Scalar(200, 200, 200), colorOppLight, 3); // display opp path
-    DisplayUtils::displayPath(follow.approach, cv::Scalar(200, 255, 200), cv::Scalar(100, 255, 100), 2); // display approach curve
+    DisplayUtils::displayPath(follow.approachCurve.getCurvePoints(), cv::Scalar(200, 255, 200), cv::Scalar(100, 255, 100), 2); // display approach curve
     DisplayUtils::displayPoints(follow.wallScanPoints, wallColor, wallColor, 2);
 
-
-    if(follow.wallScanPoints.empty()) {
-        std::cout << "empty";
-    }
-
-    // display lines
-    cv::Point2f oppOrientationEnd = cv::Point2f(oppFiltered.position().x + oppFiltered.getSizeRadius()*cos(oppFiltered.angle(true)), oppFiltered.position().y + oppFiltered.getSizeRadius()*sin(oppFiltered.angle(true)));
-    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppOrientationEnd, colorOpp, 2);
 
 
     // display text
@@ -270,32 +241,10 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     cv::putText(RobotController::GetInstance().GetDrawingImage(), CWStatus, cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 1, colorOrb, 2);
 
 
+    // display robot sizes and weapon regions
+    orbFiltered.displayRobot(2, colorOrb, colorOrbLight, follow.forward);
+    oppFiltered.displayRobot(2, colorOpp, colorOppLight, true);
 
-
-    // add lines to show weapon regions
-    cv::Point2f oppWeapon1 = oppFiltered.position() + oppFiltered.getSizeRadius()*cv::Point2f(cos(oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()), sin(oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()));
-    cv::Point2f oppWeapon2 = oppFiltered.position() + oppFiltered.getSizeRadius()*cv::Point2f(cos(oppFiltered.angle(true) - oppFiltered.getWeaponAngleReach()), sin(oppFiltered.angle(true) - oppFiltered.getWeaponAngleReach()));
-    
-    cv::Point2f orbWeapon1 = orbFiltered.position() + orbFiltered.getSizeRadius()*cv::Point2f(cos(orbFiltered.angle(follow.forward) + orbFiltered.getWeaponAngleReach()), sin(orbFiltered.angle(follow.forward) + orbFiltered.getWeaponAngleReach()));
-    cv::Point2f orbWeapon2 = orbFiltered.position() + orbFiltered.getSizeRadius()*cv::Point2f(cos(orbFiltered.angle(follow.forward) - orbFiltered.getWeaponAngleReach()), sin(orbFiltered.angle(follow.forward) - orbFiltered.getWeaponAngleReach()));
-
-    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppWeapon1, colorOppLight, 2);
-    cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), oppWeapon2, colorOppLight, 2);
-
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbWeapon1, colorOrbLight, 2);
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbWeapon2, colorOrbLight, 2);
-
-}
-
-
-// displays virtual orb's data
-void AStarAttack::displayVirtualOrb() {
-
-    cv::Point2f secondPoint = orbVirtual.position() + 40.0f*cv::Point2f(cos(orbVirtual.angle(true)), sin(orbVirtual.angle(true)));
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), secondPoint, cv::Scalar(0, 200, 255), 3);
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), 5, cv::Scalar(0, 127, 255), 3);
-
-    // orbVirtual.printModel();
 }
 
 
@@ -315,7 +264,7 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
     // default values for parameters that don't vary
     bool defaultForward = forwardInput;
     bool defaultCW = true;
-    bool defaultTurnAway = false;
+    bool defaultTurnAway = true;
 
     // generate every combination of follow point
     for(int forward = 0; forward < 2; forward++) {
@@ -339,60 +288,23 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                     turnAway = defaultTurnAway;
                 }
 
-                
                 // tracks the best point of this set so we don't list every radius combination
                 float lowestScoreFocussed = 0.0f;
                 int lowestIndexFocussed = 0;
 
-                // int totalPathEnds = 20; // 9 how many circular divisions around opp are available, only on his back region
+                std::vector<float> endAngles = generateEndAngles(CW); // generate list of collision angles
 
-                int pathsAtCollide = 9;
-                int pathsFar = 3;
-                float farAway = 400.0f; 
-                int totalPathEnds = (int) (pathsAtCollide + (pathsFar - pathsAtCollide)*std::clamp(orbFiltered.distanceToCollide(oppFiltered) / farAway, 0.0f, 1.0f));
-                // totalPathEnds = 12;
-
-                float backRegion = 2*(M_PI - oppFiltered.getWeaponAngleReach()); // angular span of opp's back region
-                float endSpacing = backRegion / (totalPathEnds + 1); // angle between adjacent path ends
-
-
-                // build the array of end angles to target
-                std::vector<float> endAngles = {};
-                for(int end = 0; end < totalPathEnds; end++) {
-                    float endAngle = angle_wrap(((end + 1) * endSpacing) + oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()); // end angle for this point
-
-                    // only create this point if the end angle is within some range of us
-                    float angleToOrb = angle(oppFiltered.position(), orbFiltered.position());
-                    float wrapOffset = CW? 90.0f*TO_RAD : -90.0f*TO_RAD;
-                    float radialTravel = angle_wrap(endAngle - angleToOrb - wrapOffset) + wrapOffset;
-
-                    radialTravel = CW? radialTravel : -radialTravel;
-
-                    // add this end to the list if it's in range
-                    if(radialTravel > -(endSpacing + 0.01f) && radialTravel < 190*TO_RAD) { // 190
-                        endAngles.emplace_back(endAngle);
-                    }
-                }
-
-                // if nothing is in range, add the opp's back
-                if(endAngles.empty()) { 
-                    endAngles.emplace_back(angle_wrap((float) M_PI + oppFiltered.angle(true))); 
-                }
-
-
-                // create a point for end angle in range
+                // create a point for every end angle
                 for(int end = 0; end < endAngles.size(); end++) {
 
                     // create a point with this config
-                    FollowPoint testFollow = FollowPoint(forward, CW, turnAway, 0, oppFiltered, {});
-                    testFollow.endingAngle = endAngles[end];
-
+                    FollowPoint testFollow = FollowPoint(forward, CW, turnAway, endAngles[end], orbFiltered.getSizeRadius() + oppFiltered.getSizeRadius(), oppFiltered);
 
                     orbToOppPath(testFollow); // generate our path to opp
                     oppToOrbETA(testFollow); // calculate opp's time to turn to us
                     driveAngle(testFollow); // generate drive angle for this point
                     avoidBoundsVector(testFollow); // adjust turn direction to avoid wall if needed
-                    directionScore(testFollow, forwardInput); // score this point
+                    followScore(testFollow, forwardInput); // score this point
 
 
                     follows.emplace_back(testFollow); // add to the list
@@ -414,14 +326,58 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                 }
 
                 followsFocussed.emplace_back(follows[lowestIndexFocussed]); // add the best point to the focussed list
-            } // turnAway
-        } // CW
-    } // forward
-
-    // std::cout << std::endl;
+            }
+        }
+    }
 
     if(follows.empty()) { return FollowPoint(); } // no crashy
     return follows[lowestIndex]; // return the global best point
+}
+
+
+
+
+// generates the list of absolute angles to try colliding with opp at
+std::vector<float> AStarAttack::generateEndAngles(bool CW) {
+
+    int pathsAtCollide = 9;
+    int pathsFar = 4;
+    float farAway = 400.0f; 
+    int totalPathEnds = (int) (pathsAtCollide + (pathsFar - pathsAtCollide)*std::clamp(orbFiltered.distanceToCollide(oppFiltered) / farAway, 0.0f, 1.0f));
+    // totalPathEnds = 1;
+
+    float backRegion = 2*(M_PI - oppFiltered.getWeaponAngleReach()); // angular span of opp's back region
+    float endSpacing = backRegion / (totalPathEnds + 1); // angle between adjacent path ends
+
+
+    // build the array of end angles to target
+    std::vector<float> endAngles = {};
+
+    for(int end = 0; end < totalPathEnds; end++) {
+        float endAngle = angle_wrap(((end + 1) * endSpacing) + oppFiltered.angle(true) + oppFiltered.getWeaponAngleReach()); // end angle for this point
+
+        float upperScanBound = 190*TO_RAD; // 190
+        float lowerScanBound = -(endSpacing + 0.01f); // make sure to generate 1 path that goes right to opp
+
+        // only create this point if the end angle is within some range of us
+        float angleToOrb = angle(oppFiltered.position(), orbFiltered.position());
+        float wrapOffset = M_PI - upperScanBound; if(CW) { wrapOffset *= -1; }
+        float radialTravel = angle_wrap(endAngle - angleToOrb - wrapOffset) + wrapOffset;
+
+        if(!CW) { radialTravel *= -1; }
+
+        // add this end to the list if it's in range
+        if(radialTravel > lowerScanBound && radialTravel < upperScanBound) {
+            endAngles.emplace_back(endAngle);
+        }
+    }
+
+    // if nothing is in range, add the opp's back
+    if(endAngles.empty()) { 
+        endAngles.emplace_back(angle_wrap(oppFiltered.angle(false))); 
+    }
+
+    return endAngles;
 }
 
 
@@ -458,8 +414,6 @@ void AStarAttack::oppToOrbETA(FollowPoint &follow) {
         follow.oppSimPath.emplace_back(virtualOpp.position());
 
 
-
-
         // opp's eta is when orb is first in the weapon region while he's turning the right way
         if(virtualOpp.facingPoint(follow.orbSimPath.back(), true)) { 
             break;
@@ -479,7 +433,6 @@ void AStarAttack::oppToOrbETA(FollowPoint &follow) {
         // cv::line(RobotController::GetInstance().GetDrawingImage(), virtualOpp.position(), secondPoint, cv::Scalar(0, 120, 255), 1);
 
 
-
         simTime += timeStep;
     }
 
@@ -487,180 +440,6 @@ void AStarAttack::oppToOrbETA(FollowPoint &follow) {
 }
 
 
-
-// generates a pure pursuit point to follow the approach curve
-cv::Point2f AStarAttack::followApproachCurve(cv::Point2f currPosition, FollowPoint follow, float ppRad) {
-
-    cv::Point2f point = follow.opp.position(); // default, will get set to the right point
-    if(follow.approach.size() == 0) { return point; } // no crashy
-
-
-
-    // target the opp directly if you're wrapping around
-    float angleHere = angle(follow.opp.position(), currPosition);
-
-    float wrapOffset = 90.0f*TO_RAD; wrapOffset *= follow.CW? 1 : -1;
-    float offsetAngle = angle_wrap(follow.endingAngle - angleHere - wrapOffset) + wrapOffset;
-
-    if(offsetAngle*(follow.CW? 1 : -1) < 0.0f*TO_RAD) { return point; }
-
-
-
-
-    float radiusHere = approachRadiusEquation(offsetAngle, follow.orbRad, follow.approachSweepRange);
-    float distanceFromCenter = cv::norm(currPosition - follow.opp.position());
-    bool outsideApproach = distanceFromCenter > radiusHere;
-
-
-
-    // if we're outside the curve, go to the tangent point
-    if(outsideApproach) {
-        float mostTangentAngle = 0;
-
-        for(int i = 0; i < follow.approach.size(); i++) {
-            float angleToPoint = angle(currPosition, follow.approach[i]);
-            float offset = angle_wrap(angleToPoint - mostTangentAngle);
-            offset *= follow.CW? 1 : -1;
-
-            // set the point to the most tangent point
-            if(offset < 0 || i == 0) { 
-                mostTangentAngle = angleToPoint;
-                point = follow.approach[i];
-            }
-        }
-
-        // tangent point is good to use as long as it's further away than the pp rad
-        if(cv::norm(point - currPosition) > ppRad) { return point; }
-    }
-
-
-    // set the point to the pp point, will be compared against if inside the curve
-    point = approachPP(currPosition, follow, ppRad);
-
-
-    // if we're inside the curve, so drive out at specified angle
-    if(!outsideApproach) {
-
-        // angles are offset relative to line that starts at opp and connects to orb
-        float angleAtRadius = 90.0f*TO_RAD; // 90
-        float angleAtCollision = 30.0f*TO_RAD; // 40
-
-
-        // drive angle is linearly interpolated from collision angle to at the radius
-        float collisionRadius = follow.opp.getSizeRadius() + orbFiltered.getSizeRadius();
-        float distanceAway = std::max(follow.opp.distanceTo(currPosition) - collisionRadius, 0.0f);
-        float radiusPercent = std::clamp(distanceAway / (radiusHere - collisionRadius), 0.0f, 1.0f);
-        float driveAngle = angleAtCollision + radiusPercent*(angleAtRadius - angleAtCollision);
-
-
-
-
-        // clip the drive angle if the pp angle is more extreme
-        if(cv::norm(currPosition - follow.opp.position()) > radiusHere - ppRad) {
-
-            float angleToPPGlobal = angle(currPosition, point);
-            float angleToPP = angle_wrap(angleToPPGlobal - angleHere); // angle to pp point in opp's coordinates
-
-            driveAngle = std::max(driveAngle, abs(angleToPP));
-        }
-
-        
-        driveAngle = angle_wrap(angleHere + driveAngle*(follow.CW? 1 : -1));
-        
-
-        // safe_circle(RobotController::GetInstance().GetDrawingImage(), ppFollow, 2, cv::Scalar(255, 0, 255), 5);
-
-        // generate a point at the pp rad at the correct angle
-        point = currPosition + ppRad*cv::Point2f(cos(driveAngle), sin(driveAngle));
-
-    }
-
-    return point;
-}
-
-
-
-// finds pure pursuit solution to follow the approach curve
-cv::Point2f AStarAttack::approachPP(cv::Point2f currPosition, FollowPoint follow, float ppRad) {
-
-    float closestDistance = 99999.0f;
-    int closestIndex = 0;
-
-    // list is ordered, so first point found in the pp rad is the one to follow
-    for(int i = 0; i < follow.approach.size(); i++) {
-
-        float distance = cv::norm(follow.approach[i] - currPosition);
-
-        // first point to be in the pp rad is used
-        if(distance < ppRad) { 
-            if(i == 0) { return follow.opp.position(); }
-            return follow.approach[i]; 
-        }
-
-        // save which point was closest to us in case there is no pp intersection
-        if(distance < closestDistance) {
-            closestDistance = distance;
-            closestIndex = i;
-        }
-    }
-
-    // return closest point if there was no pp intersection
-    return follow.approach[closestIndex];
-}
-
-
-
-// defines the radius of the approach curve as a function of offset angle
-float AStarAttack::approachRadiusEquation(float offsetAngle, float orbRad, float sweepRange) {
-
-    float collisionRad = oppFiltered.getSizeRadius() + orbFiltered.getSizeRadius();
-    float angleSpan = sweepRange; // 80
-    float maxRad = orbRad; // 120
-    float power = 70.0f / angleSpan;
-    float radius = collisionRad + pow(abs(offsetAngle) / angleSpan, power) * (maxRad - collisionRad);
-    radius = std::clamp(radius, 0.0f, maxRad);
-
-    
-    float radAtAngle = 120.0f;
-    float angle = 120.0f*TO_RAD;
-    float a = 0.68; // controls how sharp the curvature is at the end, lower makes it wait more to curve
-    float b = (radAtAngle - collisionRad) / pow(angle, a);
-
-    radius = b*pow(abs(offsetAngle), a) + collisionRad;
-
-    return radius;
-}
-
-
-// function that defines how we approach opp
-void AStarAttack::approachCurve(FollowPoint &follow) {
-
-    float angleIncrement = 1.0f*TO_RAD; // 5
-    float offsetAngle = 0.0f;
-
-    follow.approach = {};
-
-    // how many degrees around should we generate the curve
-    float wrapOffset = follow.CW? -M_PI : M_PI;
-    float angleToOrb = angle(follow.opp.position(), orbFiltered.position());
-    float sweepRange = angle_wrap(angleToOrb - follow.endingAngle - wrapOffset) + wrapOffset;
-    float orbRad = follow.opp.distanceTo(orbFiltered.position());
-
-    follow.orbRad = std::clamp(orbRad, 120.0f, 300.0f);
-    follow.approachSweepRange = abs(sweepRange);
-
-    // sweep up to the the specified range for this follow point
-    while(abs(offsetAngle) < abs(sweepRange)) {
-
-        float radius = approachRadiusEquation(offsetAngle, follow.orbRad, follow.approachSweepRange);
-
-        float currAngle = angle_wrap(follow.endingAngle + offsetAngle);
-        cv::Point2f newPoint = follow.opp.position() + radius*cv::Point2f(cos(currAngle), sin(currAngle));
-        follow.approach.emplace_back(newPoint);
-
-        offsetAngle += angleIncrement * (follow.CW? -1 : 1); 
-    }
-}
 
 
 
@@ -676,8 +455,6 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
     FilteredRobot virtualOrb = orbFiltered; // start simulated orb at our current state
     virtualOrb.setToSlowVel(); // use slow vel as starting reference
-
-    approachCurve(follow); // generate approach curve for this point
 
     bool reachedFollowPoint = false; // if we've been aligned with the follow point yet
     bool reachedSpeed = false; // if we've reached a threshold speed yet
@@ -702,10 +479,8 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         }
 
 
-
         // create the follow point using approach curve
-        cv::Point2f virtualFollow = followApproachCurve(virtualOrb.position(), follow, ppRad(virtualOrb.moveSpeed()));
-
+        cv::Point2f virtualFollow = follow.approachCurve.followCurve(virtualOrb.position(), ppRad(ppRad(virtualOrb.moveSpeed())), false);
 
         // how far off we are from the simulated follow point
         float angleError = virtualOrb.angleTo(virtualFollow, follow.forward); 
@@ -724,12 +499,14 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         
         // force a turn around if necessary
         float wrapOffset2 = 0;
-        if(follow.CW && !oppCorrectSide && follow.turnAway) { wrapOffset2 = M_PI; }
-        if(!follow.CW && !oppCorrectSide && follow.turnAway) { wrapOffset2 = -M_PI; }
-
-        if(follow.CW && !oppCorrectSide && !follow.turnAway) { wrapOffset2 = -M_PI; }
-        if(!follow.CW && !oppCorrectSide && !follow.turnAway) { wrapOffset2 = M_PI; }
-
+        if(!oppCorrectSide) {
+            if(follow.CW && follow.turnAway) { wrapOffset2 = M_PI; }
+            if(!follow.CW && follow.turnAway) { wrapOffset2 = -M_PI; }
+    
+            if(follow.CW && !follow.turnAway) { wrapOffset2 = -M_PI; }
+            if(!follow.CW && !follow.turnAway) { wrapOffset2 = M_PI; }
+        }
+        
         angleError = angle_wrap(angleError - wrapOffset2) + wrapOffset2;
 
 
@@ -816,34 +593,6 @@ void AStarAttack::driveAngle(FollowPoint &follow) {
 
 
 
-// if we ever directly target the opp, enforce that we keep targetting them for a minimum time
-void AStarAttack::commitToTarget(FollowPoint &follow, double deltaTime, float targetTime) {
-
-    static bool enforceTarget = false; // if we're currently running the clock to force target the opp
-    static float timeTargetting = 0.0f; // how long we've been force targetting the opp
-
-    // if the follow point is basically right on the opp, turn on force targeting and reset the clock
-    if(oppFiltered.distanceTo(follow.point) < oppFiltered.getSizeRadius() * 0.2f) { 
-        enforceTarget = true;
-        timeTargetting = 0.0f;
-    }
-
-    // if we've been targetting for long enough, don't enforce the target anymore and reset clock
-    if(timeTargetting > targetTime) { 
-        enforceTarget = false;
-        timeTargetting = 0.0f;
-    }
-
-    // if we're currently enforcing target, then set followPoint and increment the clock
-    if(enforceTarget) { 
-        follow.point = oppFiltered.position(); 
-        timeTargetting += deltaTime;
-    }
-
-    // std::cout << "timeTargetting = " << timeTargetting << "     " << std::endl;
-}
-
-
 
 
 void AdjustRadiusWithBumpers() {
@@ -868,120 +617,11 @@ void AdjustRadiusWithBumpers() {
 
 
 
-// evalutates a piecewise function defined by the point array
-float AStarAttack::piecewise(std::vector<cv::Point2f> points, float x) {
-
-    // Clamp below
-    if (x <= points.front().x) { return points.front().y; }
-
-    // Clamp above
-    if (x >= points.back().x) { return points.back().y; }
-
-    // Interpolate between points
-    for (int i = 0; i < points.size() - 1; i++) {
-        cv::Point2f p0 = points[i];
-        cv::Point2f p1 = points[i + 1];
-
-        if (x >= p0.x && x < p1.x) {
-            float percent = (x - p0.x) / (p1.x - p0.x);
-            return p0.y + percent * (p1.y - p0.y);
-        }
-    }
-
-    return 0.0f; // fallback
-}
-
-
-// returns the tangent point of a circle with set radius around the opponent
-cv::Point2f AStarAttack::tangentPoint(float radius, cv::Point2f center, cv::Point2f point, bool CW) {
-
-    float d = cv::norm(center - point);
-
-    // tangent doesn't exist if point is inside the circle
-    if(d < radius) { return center; }
-    
-    // epic math
-    float theta = acos(radius / d);
-    float alpha = atan2(point.y - center.y, point.x - center.x);
-    float theta2 = angle_wrap(alpha + (CW? 1 : -1)*theta);
-
-    return center + radius*(cv::Point2f(cos(theta2), sin(theta2)));
-}
-
-
-
-
-// generates a list of arc points from the center
-std::vector<cv::Point2f> AStarAttack::arcPointsFromCenter(float radius, float angle, float pointSpacing) {
-
-    float arcLength = radius * angle;
-    float thetaIncrement = pointSpacing / radius;
-    int increments = (int) (angle / thetaIncrement);
-
-    std::vector<cv::Point2f> points;
-
-    for (int i = 0; i < increments; i++) {
-        float currentAngle = i * thetaIncrement;
-        float currentX = radius*cos(currentAngle);
-        float currentY = radius*sin(currentAngle);
-        points.emplace_back(cv::Point2f(currentX, currentY));
-    }
-
-    // make sure the exact final point is added
-    points.emplace_back(cv::Point2f(radius*cos(angle), radius*sin(angle)));
-    return points;
-}
-
-
-// moves a list of points to the input point and angle, rewrites to the existing list
-void AStarAttack::transformList(std::vector<cv::Point2f>& list, cv::Point2f startPoint, float angle) {
-
-    for(int i = 0; i < list.size(); i++) {
-
-        cv::Point2f currentPoint = list[i];
-        float newX = startPoint.x + currentPoint.x*cos(angle) - currentPoint.y*sin(angle);
-        float newY = startPoint.y + currentPoint.x*sin(angle) + currentPoint.y*cos(angle);
-
-        list[i] = cv::Point2f(newX, newY);
-    }
-}
-
-
-
 // absolute angle made by 2 points
 float AStarAttack::angle(cv::Point2f point1, cv::Point2f point2) {
     return std::atan2(point2.y - point1.y, point2.x - point1.x);
 }
 
-
-
-// distance to the closest line from the list
-std::pair<float, int> AStarAttack::closestFromLineList(std::vector<Line> lineList, const cv::Point2f& point) {
-
-    float closest = 999999999.9f; // will always be further away than anything else
-    int index = -1;
-
-    // check the whole list and record closest distance
-    for (int i = 0; i < lineList.size(); i++) {
-        float distance = lineList[i].howClosePoint(point);
-        if (distance < closest) { 
-            closest = distance; 
-            index = i;
-        }
-    }
-    return std::pair<float, int>(closest, index);
-}
-
-
-
-// does a point list include this point, returns -1 if not found
-int AStarAttack::vectorPointIndex(std::vector<cv::Point2f> pointList, cv::Point2f testPoint) {
-
-    for(int i = 0; i < pointList.size(); i++) {
-        if(pointList[i] == testPoint) { return i; }
-    }
-    return -1;
-}
 
 
 
@@ -1048,154 +688,6 @@ float AStarAttack::wallScore(FollowPoint &follow) {
 
 // returns sign of the input
 int AStarAttack::sign(float num) { return (num < 0)? -1 : 1; }
-
-
-// // true if turning towards this follow point will require it to turn past the opp
-// bool AStarAttack::willTurnPastOpp(FollowPoint follow) {
-
-//     float angleToOpp = orbFiltered.angleTo(oppFiltered.position(), follow.forward);
-//     float targetAngle = orbFiltered.angleTo(follow.point, follow.forward);
-
-//     // turn direction is either what's enforced or whatever default direction
-//     float turnDirection = follow.turnRight ? 1 : -1;
-
-//     if(turnDirection == 1) { targetAngle = angleWrapRad(targetAngle - M_PI) + M_PI; }
-//     if(turnDirection == -1) { targetAngle = angleWrapRad(targetAngle + M_PI) - M_PI; }
-
-//     // std::cout << "turn direction = " << turnDirection;
-
-//     float startMargin = orbFiltered.getTurnPastStartMargin() * turnDirection; // if we turn by the opp in the first few degrees anyway then ignore
-//     float endMargin = orbFiltered.getTurnPastEndMargin() * turnDirection; // if we don't have to turn past the opp anyway (or just barely turn past) then ignore
-
-
-//     // std::cout << "target = " << targetAngle << ", start = " << startMargin << ", end = " << endMargin;
-
-
-//     // if the sweep range is a full circle we don't turn past opp
-//     if(turnDirection * (targetAngle - startMargin - endMargin) < 0) { // don't touch
-//         // std::cout << "full circle";
-//         return false; } 
-
-//     float endAngle = angleWrapRad(targetAngle - endMargin); // end of the range we'll turn through
-
-
-//     // std::cout << "turn direction = " << turnDirection;
-
-
-
-//     // float globalStart = angleWrapRad(startMargin + orbFiltered.angle(follow.forward));
-//     // float globalEnd = angleWrapRad(endAngle + orbFiltered.angle(follow.forward));
-//     // cv::Point2f startPoint = ppRad() * cv::Point2f(cos(globalStart), sin(globalStart)) + orbFiltered.position();
-//     // cv::Point2f endPoint = ppRad() * cv::Point2f(cos(globalEnd), sin(globalEnd)) + orbFiltered.position();
-
-//     // cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), startPoint, cv::Scalar(255, 255, 255), 2);
-//     // cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), endPoint, cv::Scalar(0, 255, 255), 2);
-
-
-//     // rotate everything such the start of the range is on the wrap around line
-//     float rotatedEnd = angleWrapRad(endAngle - startMargin + M_PI);
-//     float rotatedOpp = angleWrapRad(angleToOpp - startMargin + M_PI);
-
-//     // we turn past the opp if it's on the turned-through side of the range
-//     if(rotatedOpp*turnDirection < rotatedEnd*turnDirection) { 
-//         // std::cout << " turning past opp";
-//         return true; }
-
-//     // std::cout << "not turning past opp";
-//     return false;
-// }
-
-
-
-// scores how bad a point based on the curve we need to execute to switch to it
-float AStarAttack::switchPointScore(FollowPoint follow) {
-
-    // create a fake opponent at the follow point so we can use ETASim
-    FilteredRobot ghostOpp = FilteredRobot();
-    ghostOpp.setPos({follow.point.x, follow.point.y, 0.0f});
-    ghostOpp.setSizeRadius(0.1f);
-
-    // generate a predicted path to the follow point
-    std::vector<cv::Point2f> path = {};
-    float garbage = 0.0f;
-    orbFiltered.ETASim(ghostOpp, path, false, false, follow.forward, follow.CW, follow.turnAway, garbage, 0.6f);
-
-
-    // see how long it'll take opp to get to each point
-    float worstTimeMargin = -99999999999999.0f;
-    int worstIndex = 0;
-    for(int i = 0; i < path.size(); i++) {
-
-        float oppTime = (abs(oppFiltered.angleTo(path[i], true)) - oppFiltered.getWeaponAngleReach())/oppFiltered.getMaxTurnSpeed()
-        + std::max(oppFiltered.distanceTo(path[i]) - oppFiltered.getSizeRadius() - orbFiltered.getSizeRadius(), 0.0f)/oppFiltered.getMaxMoveSpeed();
-
-        // increases as opp gets there faster, positive if opp will get there first
-        // float timeMargin = pathTimes[i] - oppTime; 
-        float timeMargin = 0.0f;
-        
-        // save the point that's closest to us getting hit
-        if(timeMargin > worstTimeMargin || i == 0) { 
-            worstTimeMargin = timeMargin; 
-            worstIndex = i;
-        }
-    }
-
-
-    // // check to see how much this path cuts into the radius
-    // float maxSqueeze = 0.0f;
-    // int maxIndex = 0;
-    // for(int i = 0; i < path.size(); i++) {
-    //     float squeeze = std::max(follow.radius - oppFiltered.distanceTo(path[i]), 0.0f);
-    //     if(squeeze > maxSqueeze) { 
-    //         maxSqueeze = squeeze; 
-    //         maxIndex = i;
-    //     }
-    // }
-
-
-    // DisplayUtils::displayPoints(path, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), 1);
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(), path[worstIndex], 3, cv::Scalar(255, 255, 255), 2);
-
-    // std::cout << "  worst time = " << worstTimeMargin << "    ";
-
-    return worstTimeMargin;
-
-
-
-
-
-
-    // float distanceToPoint = orbFiltered.distanceTo(follow.point);
-    // float testCurveRad = std::min(25.0f, 0.5f*distanceToPoint);
-
-    // float orbSideAngle = 90.0f*TO_RAD; if(!follow.turnRight) { orbSideAngle *= -1; }
-    // float centerOffsetAngle = angleWrapRad(orbFiltered.angle(follow.forward) + orbSideAngle);
-
-    // cv::Point2f arcCenter = orbFiltered.position() + testCurveRad*cv::Point2f(cos(centerOffsetAngle), sin(centerOffsetAngle));
-
-    // float distance = cv::norm(arcCenter - follow.point);
-    // float theta = acos(testCurveRad / distance);
-    // float alpha = atan2(follow.point.y - arcCenter.y, follow.point.x - arcCenter.x);
-
-    // int invert = follow.turnRight? -1 : 1;
-    // cv::Point2f arcEnd = arcCenter + testCurveRad*cv::Point2f(cos(theta*invert + alpha), sin(theta*invert + alpha));
-
-
-    // float squeezeDistance = std::max(testCurveRad + follow.radius - cv::norm(oppFiltered.position() - arcCenter), 0.0);
-
-    // float startToOpp = oppFiltered.distanceTo(orbFiltered.position());
-    // float endToOpp = oppFiltered.distanceTo(arcEnd);
-
-    // safe_circle(RobotController::GetInstance().GetDrawingImage(), arcCenter, testCurveRad, cv::Scalar(255, 255, 255), 1);
-    // cv::line(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), arcCenter, cv::Scalar(255, 255, 255), 2);
-    // cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), arcCenter, cv::Scalar(255, 255, 255), 2);
-    // cv::line(RobotController::GetInstance().GetDrawingImage(), arcEnd, arcCenter, cv::Scalar(255, 255, 255), 2);
-
-
-    // // std::cout << "squeeze = " << squeezeDistance << "   ";
-
-    // return squeezeDistance;
-}
 
 
 
@@ -1338,7 +830,7 @@ void AStarAttack::avoidBoundsVector(FollowPoint &follow) {
 
 
 // score how good a follow point is
-void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
+void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
 
 
     // main score is fraction based on ETAs
@@ -1354,42 +846,17 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     follow.directionScores.emplace_back(extra);
 
 
-    // float stupid = 9999999.0f;
-    // if(follow.oppETA > 0.001f) { stupid = follow.orbETA / follow.oppETA; }
-    // follow.directionScores.emplace_back(stupid);
-
-
-
-
-    // float fraction1 = 99999999.0f;
-    // if(follow.oppETA > 0.001f) { fraction1 = std::max((follow.orbETA - follow.oppETA) / (follow.oppETA), 0.0f); }
-    // follow.directionScores.emplace_back(fraction1 * 100.0f);
-
-    // float fraction3 = 0.0f;
-    // if(follow.orbETA + follow.oppETA > 0.001f) { fraction3 = std::max((follow.orbETA - follow.oppETA) / (follow.orbETA + follow.oppETA * 50000.0f), 0.0f); }
-    // follow.directionScores.emplace_back(fraction3 * 100.0f);
-
-    // float difference = follow.orbETA - follow.oppETA;
-    // follow.directionScores.emplace_back(difference * 100.0f);
-
-
-
-    // better points collide with the opponent faster
-    // ADD VELOCITY SCORE
-
-
 
 
     // add score for unsafe points
     float safeScore = 999999.0f;
     if(follow.worstTimeMargin > 0.001f) { safeScore = 0.8f / follow.worstTimeMargin; } // 1.2
-    
     follow.directionScores.emplace_back(safeScore);
 
 
 
-    // how close is the nearest wall in this direction
-    float wallGain = 70.0f;
+    // add penalty for points that might take us near a wall
+    float wallGain = 50.0f; // 70
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
        
 
@@ -1412,36 +879,6 @@ void AStarAttack::directionScore(FollowPoint &follow, bool forwardInput) {
     follow.directionScores.emplace_back(totalScore);
 }
 
-
-
-// returns score based on how much we have to turn to face the follow point
-float AStarAttack::turnScore(FollowPoint follow) {
-
-    // how far we need to rotate to match the drive angle, includes enforced turn direction
-    float reverseOffset = follow.forward ? 0 : M_PI;
-    float angleError = angle_wrap(follow.driveAngle - orbFiltered.getPosFiltered()[2] + reverseOffset);
-
-    // bool turningCorrect = (orbFiltered.angleTo(oppFiltered.position(), follow.forward) > 0 && follow.CW) || (orbFiltered.angleTo(oppFiltered.position(), follow.forward) < 0 && !follow.CW);
-    // if(follow.turnAway && follow.CW && !turningCorrect) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
-    // if(follow.turnAway && !follow.CW && !turningCorrect) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
-
-    float wrapOffset = follow.enforceTurnDirection * M_PI;
-    angleError = angle_wrap(angleError - wrapOffset) + wrapOffset;
-    
-
-    float accel = orbFiltered.getMaxTurnAccel() * sign(angleError); // assume we accel in the direction we're going to turn
-    float dirac = pow(orbFiltered.turnVelSlow(), 2.0f) + (2.0f * accel * angleError);
-    float t1 = (-orbFiltered.turnVelSlow() + sqrt(dirac)) / accel;
-    float t2 = (-orbFiltered.turnVelSlow() - sqrt(dirac)) / accel;
-
-    float time = std::min(t1, t2);
-    if(t1 < 0.0f) { time = t2; }
-    if(t2 < 0.0f) { time = t1; }
-
-    // std::cout << "turn time = " << time;
-
-    return time;
-}
 
 
 
@@ -1504,3 +941,42 @@ void AStarAttack::ResetFieldBoundariesToDefault() {
 
 // forces field to regenerate bound lines
 void AStarAttack::RegenerateFieldBoundaryLines() { field.generateBoundLines(); }
+
+
+
+// controls everything with orbVirtual
+void AStarAttack::controlOrbVirtual(bool autoTune, bool resetState, bool resetModel) {
+
+    // run the virtual orb model, tune if wanted
+    orbVirtual.tuneModel(autoTune, inputs, trueOutputs);
+
+    if(resetState) {
+        orbVirtual.setPos(orbFiltered.getPosFiltered());
+        orbVirtual.setVel(orbFiltered.getVelFiltered());
+        // std::cout << "reset state";
+    }
+
+    if(resetModel) {
+        orbVirtual = orbFiltered;
+        // std::cout << "reset model";
+    }
+
+
+    // // make virtual orb go towards opp constantly
+    // std::vector<float> orbVirtualInputs = orbVirtual.curvatureController(angle(orbVirtual.position(), oppFiltered.position()), 1.0f, deltaTime, true, 0);
+    // std::vector<float> modelInputs = {orbVirtualInputs[0], orbVirtualInputs[1], 0.0f, 0.0f, (float) deltaTime};
+
+    // // run orbvirtual to the opponent
+    // orbVirtual.tuneModel(false, modelInputs, {});
+
+
+
+    cv::Point2f secondPoint = orbVirtual.position() + 40.0f*cv::Point2f(cos(orbVirtual.angle(true)), sin(orbVirtual.angle(true)));
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), secondPoint, cv::Scalar(0, 200, 255), 3);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbVirtual.position(), 5, cv::Scalar(0, 127, 255), 3);
+    
+    if(autoTune) { std::cout << "auto tuning, "; }
+    if(resetModel) { std::cout << "reset model, "; }
+    if(resetState) { std::cout << "reset state, "; }
+    orbVirtual.printModel();
+}

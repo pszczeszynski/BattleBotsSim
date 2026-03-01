@@ -65,8 +65,8 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
    
 
     // colors
-    cv::Scalar colorOrb = cv::Scalar(255, 200, 0);
-    if(!forwardInput) { colorOrb = cv::Scalar(0, 200, 255); }
+    cv::Scalar colorOrb = forwardInput? cv::Scalar(255, 200, 0) : cv::Scalar(0, 200, 255);
+    cv::Scalar colorOrbLight = forwardInput ? cv::Scalar(255, 230, 200) : cv::Scalar(200, 230, 255);
 
     cv::Scalar colorOpp = cv::Scalar(0, 50, 255);
     cv::Scalar colorOppLight = cv::Scalar(200, 200, 255);
@@ -85,14 +85,13 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // display things we want
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppSimPath.back(), 10, colorOpp, 2); // draw dot on the extrap opp
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), oppFiltered.position(), 10, colorOpp, 2); // draw dot on the actual opp
     safe_circle(RobotController::GetInstance().GetDrawingImage(), oppSimPath.back(), oppFiltered.getSizeRadius(), colorOpp, 2); // draw op size
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), orbFiltered.getSizeRadius(), colorOrb, 2); // draw op size
 
     DisplayUtils::displayPath(orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
     DisplayUtils::displayPath(oppSimPath, colorOpp, cv::Scalar(255, 255, 255), 6); // display opp's simulated path
-    // DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // draw field bound lines
 
+    orbFiltered.displayRobot(2, colorOrb, colorOrbLight, forwardInput); // display orb robot shape
+    oppFiltered.displayRobot(2, colorOpp, colorOppLight, true); // display opp robot shape
 
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(3) << collideTime;
