@@ -16,10 +16,7 @@
 #include "Odometry/Neural/CVPosition.h"
 #include "Odometry/OdometryBase.h"
 #include "OdometryPoller.h"
-
-#ifdef USE_OPENCV_TRACKER
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
-#endif
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
 #define DEFAULT_ODOMETRY_EXTRAPOLATION Clock::programClock.getElapsedTime()
@@ -90,9 +87,7 @@ class RobotOdometry {
   CVRotation& GetNeuralRotOdometry();
   LKFlowTracker& GetLKFlowOdometry();
   ManualOverrideOdometry& GetManualOverrideOdometry();
-#ifdef USE_OPENCV_TRACKER
   OpenCVTracker& GetOpenCVOdometry();
-#endif
 
   void _AdjustAngleWithArrowKeys();
 
@@ -119,10 +114,7 @@ class RobotOdometry {
   OdometryIMU _odometry_IMU;
   LKFlowTracker _odometry_LKFlow;
   ManualOverrideOdometry _odometry_Override;
-
-#ifdef USE_OPENCV_TRACKER
   OpenCVTracker _odometry_opencv;
-#endif
 
   // Dispatch table: std::array indexed by OdometryAlg.
   std::array<OdometryBase*, kOdometryAlgCount> _algorithms{};

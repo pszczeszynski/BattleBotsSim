@@ -30,18 +30,11 @@ bool PollStream(OdometryBase& odometry, const StreamRef& stream,
 
 }  // namespace
 
-OdometryPoller::OdometryPoller(BlobDetection& blob,
-                               HeuristicOdometry& heuristic, CVPosition& neural,
-                               CVRotation& neuralrot, OdometryIMU& imu,
-                               HumanPosition& human,
-                               HumanPosition& human_heuristic,
-                               LKFlowTracker& lkflow,
-                               ManualOverrideOdometry& manual_override
-#ifdef USE_OPENCV_TRACKER
-                               ,
-                               OpenCVTracker& opencv
-#endif
-                               )
+OdometryPoller::OdometryPoller(
+    BlobDetection& blob, HeuristicOdometry& heuristic, CVPosition& neural,
+    CVRotation& neuralrot, OdometryIMU& imu, HumanPosition& human,
+    HumanPosition& human_heuristic, LKFlowTracker& lkflow,
+    ManualOverrideOdometry& manual_override, OpenCVTracker& opencv)
     : _odometry_Blob(blob),
       _odometry_Heuristic(heuristic),
       _odometry_Neural(neural),
@@ -50,13 +43,8 @@ OdometryPoller::OdometryPoller(BlobDetection& blob,
       _odometry_Human(human),
       _odometry_Human_Heuristic(human_heuristic),
       _odometry_LKFlow(lkflow),
-      _odometry_Override(manual_override)
-#ifdef USE_OPENCV_TRACKER
-      ,
-      _odometry_opencv(opencv)
-#endif
-{
-}
+      _odometry_Override(manual_override),
+      _odometry_opencv(opencv) {}
 
 RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
   // Explicitly zero-initialize
@@ -82,7 +70,6 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
                        RawInputs::THEM_HEURISTIC, true},
              inputs.updatedMask);
 
-#ifdef USE_OPENCV_TRACKER
   // Poll OpenCV tracker (us and them)
   PollStream(_odometry_opencv,
              StreamRef{inputs.us_opencv, prevInputs.us_opencv,
@@ -92,7 +79,6 @@ RawInputs OdometryPoller::Poll(const RawInputs& prevInputs) {
              StreamRef{inputs.them_opencv, prevInputs.them_opencv,
                        RawInputs::THEM_OPENCV, true},
              inputs.updatedMask);
-#endif
   // Poll LKFlow tracker (us and them)
   PollStream(_odometry_LKFlow,
              StreamRef{inputs.us_lkflow, prevInputs.us_lkflow,

@@ -47,7 +47,6 @@ void VariantsWidget::Draw() {
   ImGui::Begin("Variant Selection");
 
   // **********************
-#ifdef USE_OPENCV_TRACKER
   _DrawStartStopButton("OpenCV Tracker", ODO_OPENCV_ENABLED,
                        OdometryAlg::OpenCV);
 
@@ -55,7 +54,6 @@ void VariantsWidget::Draw() {
   ImGui::PushID(OdometryAlg::OpenCV);
   ImGui::SliderFloat("Min Confidence", &TRACKER_MIN_CONFIDENCE, 0.0f, 1.0f);
   ImGui::PopID();
-#endif
 
   // **********************
   _DrawStartStopButton("Blob Detection", ODO_BLOB_ENABLED, OdometryAlg::Blob);

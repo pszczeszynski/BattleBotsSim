@@ -22,6 +22,8 @@ BlobDetection::BlobDetection(ICameraReceiver* videoSource)
 void BlobDetection::_ProcessNewFrame(const cv::Mat currFrame,
                                      double frameTime) {
   if (_previousImage.empty()) {
+    std::cout << "[BlobDetection] First frame, storing as prev (no diff yet)"
+              << std::endl;
     _previousImage = currFrame.clone();
     _prevFrameTime = frameTime;
     return;
@@ -41,8 +43,18 @@ void BlobDetection::_ProcessNewFrame(const cv::Mat currFrame,
   // Move currFrame to previousImage
   // But only if both our robot and opponent robot have been found, or we
   // exceeded a timer
-  if (robotData.robot.has_value() || robotData.opponent.has_value() ||
-      (frameTime - _prevFrameTime) > (1.0 / BLOBS_MIN_FPS)) {
+  bool willUpdatePrev =
+      robotData.robot.has_value() || robotData.opponent.has_value() ||
+      (frameTime - _prevFrameTime) > (1.0 / BLOBS_MIN_FPS);
+  static int s_blobProcessCount = 0;
+  if (++s_blobProcessCount <= 20 || willUpdatePrev) {
+    std::cout << "[BlobDetection] Process #" << s_blobProcessCount
+              << " updatePrev=" << willUpdatePrev
+              << " robot=" << robotData.robot.has_value()
+              << " opponent=" << robotData.opponent.has_value()
+              << " dt=" << (frameTime - _prevFrameTime) << std::endl;
+  }
+  if (willUpdatePrev) {
     // save the current frame as the previous frame
     _previousImage = currFrame.clone();
     _prevFrameTime = frameTime;

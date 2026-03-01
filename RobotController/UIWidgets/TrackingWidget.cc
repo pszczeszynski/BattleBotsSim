@@ -399,9 +399,7 @@ void TrackingWidget::_RenderFrames() {
       {DebugVariant::Neural, showNeural},
       {DebugVariant::Fusion, showFusion},
       {DebugVariant::NeuralRot, showNeuralRot},
-#ifdef USE_OPENCV_TRACKER
       {DebugVariant::Opencv, showOpencv},
-#endif
       {DebugVariant::LKFlow, showLKFlow},
   };
 
@@ -436,13 +434,11 @@ void TrackingWidget::_RenderFrames() {
         variantImages[static_cast<size_t>(DebugVariant::LKFlow)],
         variantOffsets[static_cast<size_t>(DebugVariant::LKFlow)]);
   }
-#ifdef USE_OPENCV_TRACKER
   if (showOpencv) {
     odometry.GetOpenCVOdometry().GetDebugImage(
         variantImages[static_cast<size_t>(DebugVariant::Opencv)],
         variantOffsets[static_cast<size_t>(DebugVariant::Opencv)]);
   }
-#endif
 
   std::vector<VariantLayer> layers;
   layers.reserve(variants.size());
@@ -510,9 +506,7 @@ void TrackingWidget::DrawGUI() {
   _DrawShowButton(DebugVariant::Heuristic, showHeuristic);
   _DrawShowButton(DebugVariant::Neural, showNeural);
   _DrawShowButton(DebugVariant::NeuralRot, showNeuralRot);
-#ifdef USE_OPENCV_TRACKER
   _DrawShowButton(DebugVariant::Opencv, showOpencv);
-#endif
   _DrawShowButton(DebugVariant::LKFlow, showLKFlow);
   _DrawShowButton(DebugVariant::Fusion, showFusion);
 
@@ -627,11 +621,7 @@ TrackingWidgetSettings TrackingWidget::_GetSettings() const {
   s.showNeural = showNeural;
   s.showNeuralRot = showNeuralRot;
   s.showFusion = showFusion;
-#ifdef USE_OPENCV_TRACKER
   s.showOpencv = showOpencv;
-#else
-  s.showOpencv = false;
-#endif
   s.showLKFlow = showLKFlow;
   s.outputVideoFile = outputVideoFile;
   s.variantColors = variantColors;
@@ -646,9 +636,7 @@ void TrackingWidget::_ApplySettings(const TrackingWidgetSettings& s) {
   showNeural = s.showNeural;
   showNeuralRot = s.showNeuralRot;
   showFusion = s.showFusion;
-#ifdef USE_OPENCV_TRACKER
   showOpencv = s.showOpencv;
-#endif
   showLKFlow = s.showLKFlow;
   outputVideoFile = s.outputVideoFile;
   variantColors = s.variantColors;

@@ -66,20 +66,12 @@ RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
       _odometry_Human_Heuristic(&videoSource, "11121", true),
       _odometry_NeuralRot(&videoSource),
       _odometry_LKFlow(&videoSource),
-      _odometry_Override()
-#ifdef USE_OPENCV_TRACKER
-      ,
-      _odometry_opencv(&videoSource)
-#endif
-      ,
+      _odometry_Override(),
+      _odometry_opencv(&videoSource),
       _poller(_odometry_Blob, _odometry_Heuristic, _odometry_Neural,
               _odometry_NeuralRot, _odometry_IMU, _odometry_Human,
-              _odometry_Human_Heuristic, _odometry_LKFlow, _odometry_Override
-#ifdef USE_OPENCV_TRACKER
-              ,
-              _odometry_opencv
-#endif
-      ) {
+              _odometry_Human_Heuristic, _odometry_LKFlow, _odometry_Override,
+              _odometry_opencv) {
   _InitAlgorithmTable();
   Run(OdometryAlg::ManualOverride);
 }
@@ -94,11 +86,7 @@ void RobotOdometry::_InitAlgorithmTable() {
   _algorithms[OdometryAlg::LKFlow] = &_odometry_LKFlow;
   _algorithms[OdometryAlg::Gyro] = nullptr;
   _algorithms[OdometryAlg::ManualOverride] = &_odometry_Override;
-#ifdef USE_OPENCV_TRACKER
   _algorithms[OdometryAlg::OpenCV] = &_odometry_opencv;
-#else
-  _algorithms[OdometryAlg::OpenCV] = nullptr;
-#endif
 }
 
 RobotOdometry::~RobotOdometry() {
@@ -199,11 +187,10 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   _odometry_Blob.ForcePosition(opponentPos, true);
   _odometry_LKFlow.ForcePosition(opponentPos, true);
 
-#ifdef USE_OPENCV_TRACKER
-  _odometry_opencv.ForcePosition(opponentPos, true);
+  _odometry_opencv.SetPosition(robotPos, false);
+  _odometry_opencv.SetPosition(opponentPos, true);
   _odometry_opencv.SetAngle(opponentAngle, true);
   _odometry_opencv.SetVelocity(opponentPos.velocity, true);
-#endif
 
   fusionStateMachine = FUSION_NORMAL;
 
@@ -308,11 +295,11 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     }
 
     if (isFresh(inputs.us_lkflow.pos) &&
-        !inputs.us_lkflow.IsPointInside(inputs.us_neural.pos.value().position)) {
+        !inputs.us_lkflow.IsPointInside(
+            inputs.us_neural.pos.value().position)) {
       inputs.us_lkflow.pos.reset();
       inputs.us_lkflow.angle.reset();
     }
-
 
     // Neural agrees with blob, but heuristic doesn't agree
     if (isFresh(inputs.us_blob.pos) &&
@@ -375,7 +362,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.robot.angle = inputs.us_neuralrot.angle;
     output.robot.angle.value().velocity = 0;
   }
-
 
   // Opponent position (manual override has highest priority)
   if (isFresh(inputs.them_override.pos)) {
@@ -463,6 +449,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
     _odometry_LKFlow.SetPosition(robot.pos.value(), false);
     _odometry_LKFlow.SetVelocity(robot.pos.value().velocity, false);
+    _odometry_opencv.SetPosition(robot.pos.value(), false);
   }
 
   // Robot Angle
@@ -470,6 +457,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Heuristic.SetAngle(robot.angle.value(), false);
     _odometry_Blob.SetAngle(robot.angle.value(), false);
     _odometry_LKFlow.SetAngle(robot.angle.value(), false);
+    _odometry_opencv.SetAngle(robot.angle.value(), false);
   }
 
   // Opponent Position
@@ -480,6 +468,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Blob.SetVelocity(opponent.pos.value().velocity, true);
     _odometry_LKFlow.SetPosition(opponent.pos.value(), true);
     _odometry_LKFlow.SetVelocity(opponent.pos.value().velocity, true);
+    _odometry_opencv.SetPosition(opponent.pos.value(), true);
   }
 
   // Opponent Angle
@@ -487,6 +476,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
     _odometry_LKFlow.SetAngle(opponent.angle.value(), true);
+    _odometry_opencv.SetAngle(opponent.angle.value(), true);
   }
 }
 
@@ -561,15 +551,14 @@ void RobotOdometry::UpdateForceSetPosAndVel(cv::Point2f newPos,
   _odometry_Heuristic.SetVelocity(newVel, opponentRobot);
   _odometry_LKFlow.SetPosition(posData, opponentRobot);
   _odometry_LKFlow.SetVelocity(newVel, opponentRobot);
-#ifdef USE_OPENCV_TRACKER
   _odometry_opencv.SetPosition(posData, opponentRobot);
-#endif
 }
 
 bool RobotOdometry::Run(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
+  std::cout << "Running algorithm: " << OdometryAlgToString(algorithm) << std::endl;
   OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->Run();
 }
@@ -610,9 +599,7 @@ ManualOverrideOdometry &RobotOdometry::GetManualOverrideOdometry() {
   return _odometry_Override;
 }
 
-#ifdef USE_OPENCV_TRACKER
 OpenCVTracker &RobotOdometry::GetOpenCVOdometry() { return _odometry_opencv; }
-#endif
 
 std::string getCurrentDateTime() {
   std::time_t now = std::time(nullptr);

@@ -67,7 +67,14 @@ private:
     uint64_t _robotEpoch = 0;
     uint64_t _oppEpoch = 0;
 
+    // Consecutive invalid update() count for recovery
+    int _robotInvalidCount = 0;
+    int _opponentInvalidCount = 0;
 
+    void _ProcessSlot(cv::Ptr<cv::Tracker>& tracker, cv::Rect& bbox,
+                     TrackerState& state, uint64_t& epoch,
+                     cv::Point2f& lastCenter, double& lastTime, bool& hasLast,
+                     int& invalidCount, bool isOpponent, double frameTime);
 };
 #else // Dummy class for when OpenCV tracking is not available
 

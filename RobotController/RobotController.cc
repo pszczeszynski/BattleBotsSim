@@ -111,7 +111,7 @@ void RobotController::Run() {
   // odometry.Run(OdometryAlg::Neural);
   // odometry.Run(OdometryAlg::Human);
   // odometry.Run(OdometryAlg::NeuralRot);
-  // odometry.Run(OdometryAlg::OpenCV);
+  odometry.Run(OdometryAlg::OpenCV);
 
   std::cout << "Starting GUI threads..." << std::endl;
 
