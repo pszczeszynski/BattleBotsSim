@@ -17,7 +17,7 @@ constexpr int kMaxLevel = 3;
 constexpr int kNumRotationPairs = 200;
 constexpr int kMinTrackFrames = 2;
 constexpr double kRespawnIntervalSeconds = 0.3;
-constexpr int kTargetPointCount = 40;
+constexpr int kTargetPointCount = 30;
 }  // namespace
 
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
@@ -124,10 +124,13 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   for (int i = 0; i < 2; ++i) {
     LKFlowTargetState& state = _targets[i];
     cv::Rect roi = _GetROI(state.pos, _imageSize);
-    if (roi.width > 0 && roi.height > 0 &&
-        (frameTime - state.lastRespawnTime) >= kRespawnIntervalSeconds) {
+    bool shouldRespawn =
+        (frameTime - state.lastRespawnTime) >= kRespawnIntervalSeconds ||
+        state.forceRespawnNextFrame;
+    if (roi.width > 0 && roi.height > 0 && shouldRespawn) {
       _RespawnPoints(gray, roi, state.tracks, kTargetPointCount, frameTime,
                      state.lastRespawnTime);
+      state.forceRespawnNextFrame = false;
     }
   }
 
@@ -174,9 +177,9 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   _ComputeRotationsFromPairs(state.tracks, nextPts, status, angleDelta,
                              validPairs);
 
-  // Compute translation from motion deltas (prev -> next) before compaction
-  cv::Point2f deltaPos =
-      _ComputeTranslationFromPoints(state.tracks, prevPts, nextPts, status);
+  // // Compute translation from motion deltas (prev -> next) before compaction
+  // cv::Point2f deltaPos =
+  //     _ComputeTranslationFromPoints(state.tracks, prevPts, nextPts, status);
 
   // Single-pass compaction: keep only good points, increment age
   std::vector<TrackPt> tracksNext;
@@ -197,8 +200,9 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
 
   state.angle = state.angle + Angle(angleDelta);
-  state.pos += deltaPos;
-
+  cv::Point2f oldPos = state.pos;
+  state.pos = _ComputeCenterFromPoints(tracksNext);
+  cv::Point2f deltaPos = state.pos - oldPos;
   cv::Point2f visualVelocity = cv::Point2f(0, 0);
   double deltaTime =
       state.prevTime.has_value() ? (frameTime - state.prevTime.value()) : 0.0;
@@ -477,16 +481,16 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
 }
 
 cv::Point2f LKFlowTracker::_ComputeCenterFromPoints(
-    const std::vector<cv::Point2f>& points) {
-  if (points.empty()) {
+    const std::vector<TrackPt>& tracks) {
+  if (tracks.empty()) {
     return cv::Point2f(0, 0);
   }
 
   cv::Point2f sum(0, 0);
-  for (const auto& pt : points) {
-    sum += pt;
+  for (const auto& pt : tracks) {
+    sum += pt.pt;
   }
-  return sum / static_cast<float>(points.size());
+  return sum / static_cast<float>(tracks.size());
 }
 
 void LKFlowTracker::_InterpolatePosTowardCenter(
@@ -568,6 +572,7 @@ void LKFlowTracker::SetPosition(const PositionData& newPos,
   }
 
   state.pos = newPosPt;
+  state.forceRespawnNextFrame = true;
   cv::Rect roi = _GetROI(state.pos, _imageSize);
   _FilterPointsByROI(state.tracks, roi);
 }

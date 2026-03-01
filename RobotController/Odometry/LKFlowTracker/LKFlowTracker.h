@@ -29,6 +29,7 @@ struct LKFlowTargetState {
   std::vector<TrackPt> tracks;
   std::optional<double> prevTime;
   double lastRespawnTime = 0.0;
+  bool forceRespawnNextFrame = false;
   bool initialized = false;
 };
 
@@ -77,7 +78,7 @@ class LKFlowTracker : public OdometryBase {
                        const std::vector<std::pair<int, int>>& validPairs,
                        cv::Rect roi, const cv::Scalar& color);
   void _DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist);
-  cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
+  cv::Point2f _ComputeCenterFromPoints(const std::vector<TrackPt>& tracks);
   void _InterpolatePosTowardCenter(const std::vector<TrackPt>& tracks,
                                   cv::Point2f& pos);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);
