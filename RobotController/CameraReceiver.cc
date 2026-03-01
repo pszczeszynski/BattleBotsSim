@@ -1,5 +1,6 @@
 #include "CameraReceiver.h"
 
+#include <algorithm>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -18,7 +19,6 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/TrackingWidget.h"
 #include "VisionPreprocessor.h"
-
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -75,6 +75,9 @@ void ICameraReceiver::_StartCaptureThread() {
       }
 
       if (!success) {
+        std::cerr
+            << "[CameraReceiver] _CaptureFrame failed 5x, reinitializing camera"
+            << std::endl;
         Sleep(1000);
         // try to initialize camera
         while (!_InitializeCamera()) {
@@ -654,79 +657,114 @@ CameraType CameraReceiverVideo::GetType() { return CameraType::VIDEO_CAMERA; }
 bool CameraReceiverVideo::_CaptureFrame() {
   PlaybackController& playback = PlaybackController::GetInstance();
 
-  static float prev_video_pos = playback.GetVideoPosition();
+  // 1. File change: reinitialize and skip this iteration
   if (playback.HasFileChanged()) {
+    std::cout << "[CameraReceiverVideo] HasFileChanged=true, calling "
+                 "_InitializeCamera"
+              << std::endl;
     _InitializeCamera();
+    return false;
   }
 
-  // if the video is not open, return false
   if (!_cap.isOpened()) {
     std::cerr << "ERROR: video not open!" << std::endl;
     return false;
   }
 
-  if (!playback.IsPlaying()) {
-    _prevFrameTimer.markStart();
-    return false;
-  }
+  bool needSeek = false;
 
-  // wait for the previous frame to be at 1/AX_CAP_FPS long
-  float videoFramePeriod = 1.0 / MAX_CAP_FPS / playback.GetSpeed();
-
-  while (_prevFrameTimer.getElapsedTime() < videoFramePeriod) {
-    double currelapsedtime = _prevFrameTimer.getElapsedTime();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-
-  float deltaTimeLeft = min(_prevFrameTimer.getElapsedTime() - videoFramePeriod,
-                            videoFramePeriod);
-
-  _prevFrameTimer.markStart(deltaTimeLeft);
-
-  float currentVideoPos = playback.GetVideoPosition();
-  float videoLength = playback.GetVideoLength();
-
-  if (std::abs(currentVideoPos - prev_video_pos) > 0.01) {
-    _videoFrame = int((currentVideoPos / videoLength) * _maxFrameCount);
-    _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
-  } else {
-    float newPos = float(_videoFrame) / _maxFrameCount * videoLength;
-    playback.SetVideoPosition(newPos);
-    currentVideoPos = newPos;
-  }
-
-  prev_video_pos = currentVideoPos;
-
-  // read the next frame
-  if (playback.IsReversing() || playback.ShouldRestart() ||
-      playback.IsPaused()) {
-    // Go backwards
-    if (playback.IsReversing() && !playback.IsPaused()) {
-      _videoFrame -= 1;
+  // 2. Paused: produce no frames unless seek or step-forward/back
+  if (!playback.IsPlaying() || playback.IsPaused()) {
+    int64_t seekFrame;
+    if (playback.ConsumeSeekFrame(seekFrame)) {
+      _videoFrame = seekFrame;
+      needSeek = true;
+    } else {
+      StepRequest step = playback.ConsumeStepRequest();
+      if (step == StepRequest::StepForward) {
+        _videoFrame = (std::min)(_videoFrame + 1, _maxFrameCount - 1);
+        if (_videoFrame < 0) _videoFrame = 0;
+        needSeek = true;
+      } else if (step == StepRequest::StepBackward) {
+        _videoFrame = (std::max)(_videoFrame - 1, 0L);
+        needSeek = true;
+      } else {
+        _prevFrameTimer.markStart();
+        return true;  // Paused, no step/seek: no frame produced, but not a
+                      // failure (avoids reinit)
+      }
     }
-    // Otherwise we didn't increment it so its stays on the same image
+  } else {
+    // 3. Seek frame (user scrubber) - when not paused
+    int64_t seekFrame;
+    if (playback.ConsumeSeekFrame(seekFrame)) {
+      _videoFrame = seekFrame;
+      needSeek = true;
+    }
 
+    // 4. Restart
     if (playback.ShouldRestart()) {
       _videoFrame = 0;
+      needSeek = true;
     }
 
-    if (_videoFrame < 0) {
-      _videoFrame = 0;
+    // 5. Reversing (seek every frame when going backwards)
+    if (playback.IsReversing()) {
+      _videoFrame = (std::max)(_videoFrame - 1, 0L);
+      needSeek = true;
     }
 
-    // Move to the previous frame
-    _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
-  } else {
-    _videoFrame++;
+    // 6. Normal play: no seek, read next frame
+    if (!needSeek) {
+      _videoFrame = playback.GetFrame();
+      if (_videoFrame >= _maxFrameCount - 1) {
+        _videoFrame = _maxFrameCount - 1;
+        needSeek = true;  // Stay on last frame
+      } else {
+        _videoFrame++;
+      }
+    }
   }
 
-  // read in the frame
+  // Clamp _videoFrame
+  _videoFrame = (std::max)(0L, (std::min)(_videoFrame, _maxFrameCount - 1));
+
+  // Rate limiting for play/reverse (not when paused/stepping)
+  if (playback.IsPlaying() && !playback.IsPaused()) {
+    float videoFramePeriod = 1.0f / MAX_CAP_FPS / playback.GetSpeed();
+    while (_prevFrameTimer.getElapsedTime() < videoFramePeriod) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    float deltaTimeLeft =
+        (std::min)((float)(_prevFrameTimer.getElapsedTime() - videoFramePeriod),
+                   videoFramePeriod);
+    _prevFrameTimer.markStart(deltaTimeLeft);
+  }
+
+  // Seek ONLY when needed (discontinuity)
+  if (needSeek) {
+    _cap.set(cv::CAP_PROP_POS_FRAMES, _videoFrame);
+  }
+
+  // Read exactly one frame
   cv::Mat _rawFrame;
   if (!_cap.read(_rawFrame)) {
-    // Silently exit
     return false;
   }
+
+  // Determine frame we just read: when we sought, use _videoFrame; else use cap
+  // position
+  int64_t frameRead;
+  if (needSeek) {
+    frameRead = _videoFrame;
+  } else {
+    double pos = _cap.get(cv::CAP_PROP_POS_FRAMES);
+    frameRead = static_cast<int64_t>(pos) - 1;
+    if (frameRead < 0) frameRead = 0;
+    frameRead = (std::min)((int64_t)frameRead, (int64_t)_maxFrameCount - 1);
+    _videoFrame = frameRead;
+  }
+  playback.SetFrame(frameRead);
 
   // Convert to gray scale
   if (_rawFrame.channels() == 1) {
@@ -737,71 +775,42 @@ bool CameraReceiverVideo::_CaptureFrame() {
     cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
   }
 
-  // Apply processing to it
+  // Apply processing
   cv::Mat finalImage;
-
   bool isImageCorrectSize = false;
-
-  // If we dont want preprocessing, then do a few checks to make sure its
-  // possible
   if (!PLAYBACK_PREPROCESS) {
-    // The file can have the image smaller than the expected size but not larger
     if (_rawFrame.size().width <= WIDTH && _rawFrame.size().height <= HEIGHT) {
       isImageCorrectSize = true;
-
-      // Create a black background image of size WIDTH x HEIGHT
       finalImage = cv::Mat::zeros(HEIGHT, WIDTH, _rawFrame.type());
-
-      // Calculate the offsets to center the original image
       int xOffset = (WIDTH - _rawFrame.size().width) / 2;
       int yOffset = (HEIGHT - _rawFrame.size().height) / 2;
-
-      // Copy the original image to the center of the new image
       cv::Rect roi(xOffset, yOffset, _rawFrame.size().width,
                    _rawFrame.size().height);
       _rawFrame.copyTo(finalImage(roi));
     }
   }
-
   if (!isImageCorrectSize || PLAYBACK_PREPROCESS) {
     PLAYBACK_PREPROCESS = true;
     TrackingWidget* tw = TrackingWidget::GetInstance();
     const cv::Mat* fieldMask = (tw != nullptr) ? &tw->GetMask() : nullptr;
     birdsEyePreprocessor.Preprocess(_rawFrame, finalImage, fieldMask);
   }
-
-  // std::cout << "size: " << finalImage.size() << std::endl;
-
-  // convert to gray if it is not
   if (_rawFrame.channels() == 3) {
     cv::cvtColor(finalImage, finalImage, cv::COLOR_BGR2GRAY);
   }
 
   std::unique_lock<std::mutex> locker(_frameMutex);
-
-  // Copy it over
   finalImage.copyTo(_frame);
-  // std::cout << "frame size: " << _frame.size() << std::endl;
-
-  // increase _frameID
   _frameID++;
   bool empty = _frame.empty();
-
-  // Update time
   _frameTime = Clock::programClock.getElapsedTime();
-
   locker.unlock();
-
-  // Notify all frame is ready
   _frameCV.notify_all();
 
-  // if the frame is empty, return false
   if (empty) {
     std::cerr << "ERROR: frame empty!" << std::endl;
     return false;
   }
-
-  // return SUCCESS
   return true;
 }
 
@@ -809,7 +818,8 @@ bool CameraReceiverVideo::_InitializeCamera() {
   PlaybackController& playback = PlaybackController::GetInstance();
 
   std::string filename = playback.GetFile();
-  std::cout << "Initializing playback for " << filename << std::endl;
+  std::cout << "[CameraReceiverVideo] _InitializeCamera called for " << filename
+            << std::endl;
   _cap = cv::VideoCapture(filename);
   _videoFrame = 0;
 
@@ -828,22 +838,17 @@ bool CameraReceiverVideo::_InitializeCamera() {
 
   // Set the frame rate
   MAX_CAP_FPS = _cap.get(cv::CAP_PROP_FPS);
-  _maxFrameCount = _cap.get(cv::CAP_PROP_FRAME_COUNT);
-  _maxFrameCount = 30000;
+  _maxFrameCount = static_cast<long>(_cap.get(cv::CAP_PROP_FRAME_COUNT));
   if (_maxFrameCount <= 0) {
     // Alternative: Seek to end to estimate duration (backend-dependent)
     _cap.set(cv::CAP_PROP_POS_MSEC, 1e9);  // Seek to far future
     double durationMs = _cap.get(cv::CAP_PROP_POS_MSEC);
     _cap.set(cv::CAP_PROP_POS_FRAMES, 0);  // Reset
-    float videoLength = durationMs / 1000.0;
-    playback.SetVideoLength(videoLength);
-
-    _maxFrameCount = long(videoLength * MAX_CAP_FPS);
-
-  } else {
-    float videoLength = float(_maxFrameCount) / MAX_CAP_FPS;
-    playback.SetVideoLength(videoLength);
+    _maxFrameCount = static_cast<long>(durationMs / 1000.0 * MAX_CAP_FPS);
+    if (_maxFrameCount <= 0) _maxFrameCount = 1;
   }
+  playback.SetFrameCount(static_cast<int64_t>(_maxFrameCount));
+  playback.SetFrame(0);
 
   // If the property didn't exit properly, set MAX_CAP_FPS to default value
   if (MAX_CAP_FPS > 500.0) {

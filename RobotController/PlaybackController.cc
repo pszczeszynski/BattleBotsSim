@@ -41,6 +41,26 @@ void PlaybackController::ToggleReverse()
     _reversing = !_reversing;
 }
 
+void PlaybackController::RequestStepForward()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _stepRequest = StepRequest::StepForward;
+}
+
+void PlaybackController::RequestStepBackward()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _stepRequest = StepRequest::StepBackward;
+}
+
+StepRequest PlaybackController::ConsumeStepRequest()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    StepRequest req = _stepRequest;
+    _stepRequest = StepRequest::None;
+    return req;
+}
+
 void PlaybackController::SetSpeed(float speed)
 {
     std::lock_guard<std::mutex> lock(_mutex);
@@ -55,20 +75,49 @@ void PlaybackController::SetFile(const std::string& filename)
     {
         _filename = filename;
         _fileChanged = true;
-        _videoPositionSeconds = 0.0f;
+        _frame = 0;
     }
 }
 
-void PlaybackController::SetVideoLength(float lengthSeconds)
+int64_t PlaybackController::GetFrame() const
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    _videoLengthSeconds = lengthSeconds;
+    return _frame;
 }
 
-void PlaybackController::SetVideoPosition(float positionSeconds)
+void PlaybackController::SetFrame(int64_t frame)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    _videoPositionSeconds = positionSeconds;
+    _frame = frame;
+}
+
+void PlaybackController::SetFrameCount(int64_t count)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _frameCount = (count > 0) ? count : 1;
+}
+
+void PlaybackController::RequestSeekFrame(int64_t frame)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _seekRequested = true;
+    _seekFrame = frame;
+}
+
+bool PlaybackController::ConsumeSeekFrame(int64_t& outFrame)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!_seekRequested)
+        return false;
+    _seekRequested = false;
+    outFrame = _seekFrame;
+    return true;
+}
+
+int64_t PlaybackController::GetFrameCount() const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _frameCount;
 }
 
 bool PlaybackController::IsPlaying() const
@@ -117,14 +166,3 @@ bool PlaybackController::HasFileChanged()
     return changed;
 }
 
-float PlaybackController::GetVideoLength() const
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-    return _videoLengthSeconds;
-}
-
-float PlaybackController::GetVideoPosition() const
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-    return _videoPositionSeconds;
-}

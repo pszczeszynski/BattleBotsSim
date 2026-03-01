@@ -33,6 +33,20 @@ void PlaybackWidget::Draw()
 
     if (ImGui::Begin("Playback"))
     {
+        // Keyboard shortcuts for step (N/P) when window focused and paused
+        // Edge-triggered: one press = one step (no repeat when holding)
+        if (ImGui::IsWindowFocused() && playback.IsPaused())
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_N, false))
+            {
+                playback.RequestStepForward();
+            }
+            else if (ImGui::IsKeyPressed(ImGuiKey_P, false))
+            {
+                playback.RequestStepBackward();
+            }
+        }
+
         if (ImGui::Button("Play"))
         {
             playback.Play();
@@ -74,7 +88,20 @@ void PlaybackWidget::Draw()
 
         ImGui::SameLine();
 
-
+        // Step forward/backward (only when paused)
+        if (playback.IsPaused())
+        {
+            if (ImGui::Button("Step Fwd (N)"))
+            {
+                playback.RequestStepForward();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Step Back (P)"))
+            {
+                playback.RequestStepBackward();
+            }
+            ImGui::SameLine();
+        }
 
         if (playback.IsReversing())
         {
@@ -139,13 +166,20 @@ void PlaybackWidget::Draw()
             playback.SetFile(selectedFile);
         }
 
-        // video scrub
-        float videoPos = playback.GetVideoPosition();
-        float videoLength = playback.GetVideoLength();
-        if (ImGui::SliderFloat("Video Slider", &videoPos, 0.0f, videoLength))
+        // video scrub (frame-based) - sync from playback only when not dragging to avoid bounce
+        static int displayFrame = 0;
+        static bool sliderWasActive = false;
+        int64_t maxFrame = playback.GetFrameCount() - 1;
+        int maxFrameInt = static_cast<int>(maxFrame > 0 ? maxFrame : 0);
+        if (!sliderWasActive)
         {
-            playback.SetVideoPosition(videoPos);
+            displayFrame = static_cast<int>(playback.GetFrame());
         }
+        if (ImGui::SliderInt("Frame", &displayFrame, 0, maxFrameInt))
+        {
+            playback.RequestSeekFrame(static_cast<int64_t>(displayFrame));
+        }
+        sliderWasActive = ImGui::IsItemActive();
 
         // Allow preprocessing
         ImGui::Checkbox(":Preprocess Image", &PLAYBACK_PREPROCESS);
