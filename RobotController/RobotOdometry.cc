@@ -8,9 +8,9 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
+#include "SimulationState.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
-#include "SimulationState.h"
 
 namespace {
 enum FUSION_SM {
@@ -56,6 +56,27 @@ void MaybeDisqualifyBlobByLKFlow(
     blob_angle_out.reset();
   }
 }
+
+constexpr double kMinSeparationToUseBlob = 125;
+
+void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
+                                   const OdometryData &prevRobot,
+                                   const OdometryData &prevOpponent) {
+  if (!prevRobot.pos.has_value() || !prevOpponent.pos.has_value()) {
+    return;
+  }
+
+  double distBetweenPrev = cv::norm(prevRobot.pos.value().position -
+                                    prevOpponent.pos.value().position);
+
+  if (distBetweenPrev < kMinSeparationToUseBlob) {
+    usBlob.pos.reset();
+    usBlob.angle.reset();
+    themBlob.pos.reset();
+    themBlob.angle.reset();
+  }
+}
+
 }  // namespace
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
@@ -270,6 +291,9 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   MaybeDisqualifyBlobByLKFlow(inputs.us_lkflow.pos, _prevInputs.us_lkflow.pos,
                               inputs.us_blob.pos, _prevInputs.us_blob.pos,
                               inputs.us_blob.pos, inputs.us_blob.angle);
+
+  MaybeDisqualifyBlobByDistance(inputs.us_blob, inputs.them_blob, prevRobot,
+                                prevOpponent);
 
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
@@ -559,7 +583,8 @@ bool RobotOdometry::Run(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
-  std::cout << "Running algorithm: " << OdometryAlgToString(algorithm) << std::endl;
+  std::cout << "Running algorithm: " << OdometryAlgToString(algorithm)
+            << std::endl;
   OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->Run();
 }
