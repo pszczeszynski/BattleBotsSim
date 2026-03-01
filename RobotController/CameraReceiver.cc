@@ -6,11 +6,16 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+
 #define NOMINMAX
 #include <stdlib.h>
 #include <windows.h>
 
 #include <iostream>
+#include <sstream>
+#include <vector>
+#include <fstream>
+#include <string>
 
 #include "Clock.h"
 #include "Globals.h"
@@ -19,6 +24,9 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/TrackingWidget.h"
 #include "VisionPreprocessor.h"
+#include "SpinGenApi/SpinnakerGenApi.h"
+using namespace Spinnaker::GenApi;
+
 
 #define GET_FRAME_TIMEOUT_MS 500
 #define GET_FRAME_MUTEX_TIMEOUT std::chrono::milliseconds(150)
@@ -165,77 +173,150 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam) {
     // periodically its alive)
     pCam->GevGVCPHeartbeatDisable();
 
-    // ******** General Settings ***************
-    // Set exposure mode
-    // pCam->ExposureAuto.SetValue(ExposureAutoEnums::ExposureAuto_Once);  //
-    // turn off auto pCam->ExposureMode.SetValue(Spinnaker::ExposureMode_Timed);
-    // // set it to fixed time pCam->ExposureTime.SetValue(10002.0); // Set to
-    // 2ms. Longer is less noisy
+    // ******** Settings ***************
+    // Camera settings should all be saved to it via user registers.
+    // Here we will only configure what can not be saved: the LUT table.
+    // The GenICam standard LUT interface uses LUTSelector/LUTEnable/LUTIndex/LUTValue nodes.
+    // There is no LUTFile or LUTLoad node in Spinnaker — entries must be written one by one.
+    try
+    {
+        // Find the LUT CSV file (format: "index,value" per line, no header)
+        auto findLutPath = []() -> std::string {
+            std::vector<std::string> candidates = {
+                "IPCamera/cameraLUT.lut",
+                "./IPCamera/cameraLUT.lut",
+                "../IPCamera/cameraLUT.lut",
+                "IPCamera\\cameraLUT.lut",
+                "./IPCamera\\cameraLUT.lut",
+                "..\\IPCamera\\cameraLUT.lut"
+            };
+            for (auto &c : candidates)
+            {
+                std::ifstream f(c);
+                if (f.good())
+                {
+                    f.close();
+                    return c;
+                }
+            }
+            return std::string();
+        };
 
-    // Set Gain Mode
-    // pCam->GainAuto.SetValue(Spinnaker::GainAutoEnums::GainAuto_Once); // Turn
-    // off auto gain pCam->Gain.SetValue(8.0); // Set gain in dB (between 0
-    // and 47.99)
+        std::string lutPath = findLutPath();
+        if (lutPath.empty())
+        {
+            std::cout << "LUT: file not found, skipping LUT load." << std::endl;
+        }
+        else
+        {
+            INodeMap& nodeMap = pCam->GetNodeMap();
 
-    // Turn off Gama correction
-    pCam->GammaEnable.SetValue(false);
-    // pCam->Gamma.SetValue(1.0f, false); // Gamma correction if enabled. 0 to 4
-    // nominal range
+            // Check if LUT is already enabled
+            bool lutAlreadyEnabled = false;
+            CBooleanPtr ptrLUTEnable = nodeMap.GetNode("LUTEnable");
+            if (IsAvailable(ptrLUTEnable) && IsReadable(ptrLUTEnable))
+            {
+                try { lutAlreadyEnabled = ptrLUTEnable->GetValue(); } catch (...) {}
+            }
 
-    // Turn off white balance
-    // pCam->BalanceWhiteAuto.SetValue(Spinnaker::BalanceWhiteAuto_Off);
+            if (lutAlreadyEnabled)
+            {
+                std::cout << "LUT: already enabled, skipping load." << std::endl;
+            }
+            else
+            {
+                // Parse the CSV LUT file
+                std::vector<std::pair<int,int>> lutEntries;
+                {
+                    std::ifstream file(lutPath);
+                    std::string line;
+                    while (std::getline(file, line))
+                    {
+                        if (line.empty()) continue;
+                        std::istringstream ss(line);
+                        std::string idxStr, valStr;
+                        if (std::getline(ss, idxStr, ',') && std::getline(ss, valStr, ','))
+                        {
+                            try { lutEntries.push_back({ std::stoi(idxStr), std::stoi(valStr) }); }
+                            catch (...) {}  // skip malformed lines
+                        }
+                    }
+                }
 
-    // Allocate all bandwidth to this one camera 125000000 is max, reduce to
-    // 122000000 for margin
-    pCam->DeviceLinkThroughputLimit.SetValue(122000000);
+                if (lutEntries.empty())
+                {
+                    std::cout << "LUT: no valid entries in file, skipping." << std::endl;
+                }
+                else
+                {
+                    // Step 1: Select the LUT channel ("Luminance" on Blackfly S / Forge FG-P5G)
+                    CEnumerationPtr ptrLUTSelector = nodeMap.GetNode("LUTSelector");
+                    if (IsAvailable(ptrLUTSelector) && IsWritable(ptrLUTSelector))
+                    {
+                        // Try "Luminance" first; fall back to first available entry
+                        CEnumEntryPtr ptrEntry = ptrLUTSelector->GetEntryByName("Luminance");
+                        if (!IsAvailable(ptrEntry) || !IsReadable(ptrEntry))
+                            ptrEntry = ptrLUTSelector->GetCurrentEntry();
+                        if (IsAvailable(ptrEntry) && IsReadable(ptrEntry))
+                            ptrLUTSelector->SetIntValue(ptrEntry->GetValue());
+                    }
 
-    // Turn off trigger
-    pCam->TriggerMode.SetValue(Spinnaker::TriggerMode_Off);
+                    // Step 2: Get LUTIndex and LUTValue nodes
+                    CIntegerPtr ptrLUTIndex = nodeMap.GetNode("LUTIndex");
+                    CIntegerPtr ptrLUTValue = nodeMap.GetNode("LUTValue");
 
-    // Turn off sequencer
-    // pCam->SequencerConfigurationMode.SetValue(Spinnaker::SequencerConfigurationMode_Off);
-    // pCam->SequencerFeatureEnable.SetValue(false);
-    // pCam->SequencerMode.SetValue( SequencerModeEnums::SequencerMode_Off);
+                    if (IsAvailable(ptrLUTIndex) && IsWritable(ptrLUTIndex) &&
+                        IsAvailable(ptrLUTValue) && IsWritable(ptrLUTValue))
+                    {
+                        int64_t idxMin = ptrLUTIndex->GetMin();
+                        int64_t idxMax = ptrLUTIndex->GetMax();
+                        int64_t valMin = ptrLUTValue->GetMin();
+                        int64_t valMax = ptrLUTValue->GetMax();
 
-    // ******** Image Settings ***************
-    // Reducing image size saves bandwidth for faster refresh rate
-    // We need to reset offsets first before changing this
-    // pCam->OffsetX.SetValue(0);
-    // pCam->OffsetY.SetValue(0);
+                        std::cout << "LUT: loading " << lutEntries.size() << " entries "
+                                  << "(idx [" << idxMin << "," << idxMax << "], "
+                                  << "val [" << valMin << "," << valMax << "])..." << std::endl;
 
-    // Now setting width/height should cause issues
-    int my_width = 1440;
-    int my_height = 600;
+                        // Step 3: Write each entry via LUTIndex + LUTValue
+                        int written = 0;
+                        for (auto& entry : lutEntries)
+                        {
+                            int64_t idx = entry.first;
+                            int64_t val = entry.second;
+                            if (idx < idxMin || idx > idxMax) continue;
+                            val = max(valMin, min(valMax, val));  // clamp
+                            ptrLUTIndex->SetValue(idx);
+                            ptrLUTValue->SetValue(val);
+                            ++written;
+                        }
+                        std::cout << "LUT: wrote " << written << " entries." << std::endl;
 
-    // try
-    // {
-    //     pCam->Width.SetValue(my_width);   // Max 1440 for this camera
-    //     pCam->Height.SetValue(my_height); // Max 1080 for this camera
-    // }
-    // catch (Spinnaker::Exception &e)
-    // {
-    //     std::cout << "Error: " << e.what() << std::endl;
-    //     return -1;
-    // }
+                        // Step 4: Enable the LUT
+                        if (IsAvailable(ptrLUTEnable) && IsWritable(ptrLUTEnable))
+                        {
+                            ptrLUTEnable->SetValue(true);
+                            std::cout << "LUT: enabled." << std::endl;
+                        }
+                        else
+                        {
+                            std::cout << "LUT: LUTEnable node not writable." << std::endl;
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "LUT: LUTIndex/LUTValue nodes not available — LUT not loaded." << std::endl;
+                    }
+                }
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "LUT: exception during load: " << e.what() << std::endl;
+    }
+    catch (...) { std::cout << "LUT: unknown exception during load." << std::endl; }
 
-    // pCam->OffsetX.SetValue((1440 - my_width) / 2);  // Set to center of ccd
-    // pCam->OffsetY.SetValue((1080 - my_height) / 2); // Set to center of ccd
-
-    // pCam->IspEnable.SetValue(false);                         // Turn off
-    // image processing pCam->AdcBitDepth.SetValue(Spinnaker::AdcBitDepth_Bit8);
-    // // Set to 8-bit color resolution
-
-    // ******* Output Data Settings *******
-
-    // pCam->PixelFormat.SetValue(Spinnaker::PixelFormat_Mono8); // Only some of
-    // the formats work, this is one of them and is fast.
-
-    // Compression may be useful, but not tested for delay
-    // pCam->ImageCompressionMode.SetValue(Spinnaker::ImageCompressionModeEnums::ImageCompressionMode_Off);
-
-    // Set Acquisition to continouse
-    // pCam->AcquisitionMode.SetValue(Spinnaker::AcquisitionMode_Continuous);
-
+    
     //
     // Make it always return latest image (This option is not available via the
     // easy access mode)
@@ -246,9 +327,7 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam) {
     ptrHandlingMode->SetIntValue(
         Spinnaker::StreamBufferHandlingMode_NewestOnly);
 
-    // Save settings to user register 0
-    // pCam->UserSetSelector = UserSetSelectorEnums::UserSetSelector_UserSet0;
-    // pCam->UserSetSave();
+
   } catch (Spinnaker::Exception& e) {
     std::cout << "********* CONFIG ERROR *********" << std::endl;
     std::cout << "Error: " << e.what() << std::endl << std::endl;

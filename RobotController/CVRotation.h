@@ -8,7 +8,8 @@
 
 
 // MachineLearning/rotation_model_hoop.onnx
-#define MODEL_PATH "C:/Dev/BattlebotsSim/RobotController/MachineLearning/rotationDetectorV5.onnx"
+// #define MODEL_PATH "C:/Dev/BattlebotsSim/RobotController/MachineLearning/rotationDetectorV5.onnx"
+#define MODEL_PATH "MachineLearning/rotationDetectorV5.onnx"
 
 class CVRotation : public OdometryBase {
  public:

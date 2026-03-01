@@ -47,6 +47,8 @@
 #include <iostream>
 #include <chrono>
 #include <opencv2/opencv.hpp>
+#include <vector>
+#include <fstream>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -194,6 +196,8 @@ int ConfigureCamera(CameraPtr pCam)
     try
     {
         pCam->Init();
+
+       
 
         // Disable heartbeat (a GiGe standard requiring program to reconfirm periodically its alive)
         pCam->GevGVCPHeartbeatDisable();
