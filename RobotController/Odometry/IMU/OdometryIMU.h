@@ -9,8 +9,7 @@ class OdometryIMU : public OdometryBase
 {
   public:
     OdometryIMU();
-    void SetAngle(Angle newAngle, bool opponentRobot, double angleFrameTime,
-                  double newAngleVelocity, bool valid) override;
+    void SetAngle(AngleData angleData, bool opponentRobot) override;
 
     bool Run() override; // Starts the thread(s) to decode data. Returns true if
                          // succesful
@@ -24,4 +23,5 @@ class OdometryIMU : public OdometryBase
     double _lastImuAngle = 0;
     Angle _lastAngle;
     int _lastRadioChannel = 0;
+    bool _needImuResync = false; // flag to reset IMU continuity on next packet
 };

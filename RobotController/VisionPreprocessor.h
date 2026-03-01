@@ -5,9 +5,12 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#define NOMINMAX
+#include <windows.h>
+#include <mutex>
+#include <condition_variable>
+#include <shared_mutex>
 
-#include "Globals.h"
-#include "ThreadPool.h"
 // #define MACHINE_LEARNING
 
 #ifndef MACHINE_LEARNING
@@ -17,7 +20,8 @@ class VisionPreprocessor
 {
 public:
     VisionPreprocessor();
-    void Preprocess(cv::Mat &frame, cv::Mat &dst);
+    /** Optional fieldMask: where non-zero, output pixels are set to 0. Applied after warp/fisheye. */
+    void Preprocess(cv::Mat &frame, cv::Mat &dst, const cv::Mat* fieldMask = nullptr);
     cv::Point2f TransformPoint(const cv::Point2f &pt);
     float fisheyeScale = 0;
 

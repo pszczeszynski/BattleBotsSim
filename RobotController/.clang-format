@@ -1,8 +1,3 @@
----
-Language: Cpp
-IndentWidth: 4
-UseTab: Never
-BreakBeforeBraces: Allman
-PointerAlignment: Left
-# max line length
-ColumnLimit: 120
+BasedOnStyle: Google
+# Optional overrides (uncomment to customize)
+# ColumnLimit: 120

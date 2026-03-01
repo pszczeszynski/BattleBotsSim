@@ -4,7 +4,6 @@
 
 #pragma once
 #include <chrono>
-#include "Clock.h"
 
 class Clock
 {

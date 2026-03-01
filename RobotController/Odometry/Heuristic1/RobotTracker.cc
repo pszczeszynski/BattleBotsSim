@@ -116,16 +116,6 @@ void printText(std::string text, cv::Mat& image, int yoffset, int xoffset)
     }
 }
 
-// Generic function to print text on the image for debugging
-//void printText(std::string text, cv::Mat &image, int yoffset, int xoffset)
-//{
-//    cv::Point org(xoffset, yoffset); // bottom-left corner of the text string in the image
-//    int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-//    double fontScale = 0.4;
-//    cv::Scalar color(255, 255, 255); // white color
-    // Add the text to the image
-//    cv::putText(image, text, org, fontFace, fontScale, color);
-//}
 
 
 

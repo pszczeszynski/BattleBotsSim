@@ -1,9 +1,8 @@
 #include "RobotController.h"
 
 #include <algorithm>
-#include <thread>
-#include <chrono>
 #include <opencv2/core.hpp>
+#include <thread>
 
 #include "DriverStationLog.h"
 #include "Input/Gamepad.h"
@@ -16,6 +15,7 @@
 #include "UIWidgets/ClockWidget.h"
 #include "UIWidgets/RobotControllerGUI.h"
 #include "imgui.h"
+
 
 #define SAVE_VIDEO
 
@@ -32,6 +32,7 @@ RobotController::RobotController()
     : drawingImage(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0, 0, 0)),
       gamepad2{1},
       _logger{},
+      _lastCANMessage{},
 #ifdef SIMULATION
       overheadCamL_sim{"overheadCamL"},
       odometry{overheadCamL_sim},
@@ -54,9 +55,6 @@ RobotController::RobotController()
   std::cout << "Running in real robot mode" << std::endl;
   robotLink.RegisterLogger(&_logger);
 #endif
-
-  // memset last can message
-  memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
 
 #ifdef SAVE_VIDEO
   std::string _logDirectory = _logger.GetLogDirectory();
@@ -108,12 +106,12 @@ void RobotController::Run() {
 
   // Start the odometry threads
   odometry.Run(OdometryAlg::Blob);
-  odometry.Run(OdometryAlg::Heuristic);
-  odometry.Run(OdometryAlg::IMU);
-  odometry.Run(OdometryAlg::Neural);
-  odometry.Run(OdometryAlg::Human);
-  odometry.Run(OdometryAlg::NeuralRot);
-  odometry.Run(OdometryAlg::OpenCV);
+  // odometry.Run(OdometryAlg::Heuristic);
+  // odometry.Run(OdometryAlg::IMU);
+  // odometry.Run(OdometryAlg::Neural);
+  // odometry.Run(OdometryAlg::Human);
+  // odometry.Run(OdometryAlg::NeuralRot);
+  // odometry.Run(OdometryAlg::OpenCV);
 
   std::cout << "Starting GUI threads..." << std::endl;
 
@@ -130,7 +128,7 @@ void RobotController::Run() {
     }
     std::cout << "GUI thread exiting cleanly" << std::endl;
   });
-  
+
   ClockWidget loopClock("Total loop time");
   cv::Mat zeroArray;
 
@@ -412,8 +410,8 @@ DriverStationMessage RobotController::RobotLogic() {
   // draw arrow in the direction of the robot
   OdometryData odoData = RobotController::GetInstance().odometry.Robot();
 
-  cv::Point2f robotPos = odoData.robotPosition;
-  Angle robotAngle = odoData.GetAngle();
+  cv::Point2f robotPos = odoData.GetPositionOrZero();
+  Angle robotAngle = odoData.GetAngleOrZero();
   float robotAnglef = (double)robotAngle;
   cv::Point2f arrowEnd =
       robotPos + cv::Point2f{cos(robotAnglef), sin(robotAnglef)} * 50;
@@ -589,17 +587,4 @@ void RobotController::DrawStatusIndicators() {
   safe_circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
   cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254),
               cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  std::string trackText = "";
-  // tracking status indicator
-  if (odometry.IsTrackingGoodQuality()) {
-    color = cv::Scalar(0, 255, 0);
-    trackText = "GOOD TRACK";
-  } else {
-    color = cv::Scalar(0, 0, 255);
-    trackText = "MID TRACK";
-  }
-
-  cv::putText(drawingImage, trackText,
-              cv::Point2f(WIDTH / 2 - 100, HEIGHT * 0.9), 1, 2, color, 3);
 }
