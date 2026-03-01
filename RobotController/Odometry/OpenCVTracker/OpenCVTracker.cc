@@ -4,15 +4,21 @@
 #include <utility>
 
 #include "../../Globals.h"
-#include "../../RobotConfig.h"
+#include "opencv2/tracking.hpp"
+#include "opencv2/video/tracking.hpp"
+
+namespace {
+constexpr double kReinitPeriod = 0.5;
+}  // namespace
 
 constexpr double MAX_VELOCITY_TIME_GAP = 0.5;
-constexpr int INVALID_RECOVERY_THRESHOLD = 10;
+constexpr int INVALID_RECOVERY_THRESHOLD = 1;
+constexpr int ROI_SIZE = 50;
 
 static cv::Rect ClampBBoxToImage(cv::Point2f center) {
   cv::Rect r;
-  r.width = MIN_ROBOT_BLOB_SIZE;
-  r.height = MIN_ROBOT_BLOB_SIZE;
+  r.width = ROI_SIZE;
+  r.height = ROI_SIZE;
   r.x = static_cast<int>(center.x - r.width / 2.0f);
   r.y = static_cast<int>(center.y - r.height / 2.0f);
   if (r.x < 0) r.x = 0;
@@ -45,6 +51,9 @@ void OpenCVTracker::SetPosition(const PositionData& newPos,
   slot.invalidCount = 0;
 }
 
+void OpenCVTracker::SetAngle(AngleData angleData, bool opponentRobot) {
+}
+
 void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
                                  double frameTime) {
   // Pending init: (re)create tracker, init with bbox, no publish
@@ -58,8 +67,6 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
     slot.hasLast = false;
     slot.lastTime = 0.0;
     slot.invalidCount = 0;
-    std::cout << "OpenCVTracker: init " << (isOpponent ? "opponent" : "robot")
-              << std::endl;
     return;
   }
 
@@ -118,4 +125,29 @@ void OpenCVTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
 
   _ProcessSlot(_robotSlot, false, frameTime);
   _ProcessSlot(_opponentSlot, true, frameTime);
+
+  std::lock_guard<std::mutex> lock(_mutexDebugImage);
+  _debugRobotBbox = _robotSlot.bbox;
+  _debugOpponentBbox = _opponentSlot.bbox;
+  _debugRobotInitialized = _robotSlot.initialized;
+  _debugOpponentInitialized = _opponentSlot.initialized;
+}
+
+void OpenCVTracker::GetDebugImage(cv::Mat& target, cv::Point offset) {
+  OdometryBase::GetDebugImage(target, offset);
+
+  cv::Rect robotBbox, opponentBbox;
+  bool robotInit, opponentInit;
+  {
+    std::lock_guard<std::mutex> lock(_mutexDebugImage);
+    robotBbox = _debugRobotBbox;
+    opponentBbox = _debugOpponentBbox;
+    robotInit = _debugRobotInitialized;
+    opponentInit = _debugOpponentInitialized;
+  }
+
+  const cv::Scalar kRobotColor(0, 255, 0);    // Green (BGR)
+  const cv::Scalar kOpponentColor(0, 0, 255);  // Red (BGR)
+  if (robotInit && robotBbox.area() > 0) cv::rectangle(target, robotBbox, kRobotColor, 2);
+  if (opponentInit && opponentBbox.area() > 0) cv::rectangle(target, opponentBbox, kOpponentColor, 2);
 }
