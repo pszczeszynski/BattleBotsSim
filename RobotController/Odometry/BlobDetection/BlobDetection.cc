@@ -413,7 +413,9 @@ void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
 }
 
 void BlobDetection::SetAngle(AngleData angleData, bool opponentRobot) {
-  OdometryBase::SetAngle(angleData, opponentRobot);
+  if (angleData.algorithm == OdometryAlg::Blob) {
+    return;
+  }
 
   BlobTrackState& state = opponentRobot ? _themState : _usState;
   std::lock_guard<std::mutex> lock(_updateMutex);
