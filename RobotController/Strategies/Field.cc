@@ -86,6 +86,8 @@ cv::Point2f Field::boundIntersection(Line testLine) {
             return intersection;
         }
     }
+
+    return cv::Point2f(-1.0f, -1.0f); // return invalid point if no intersection found
 }
 
 

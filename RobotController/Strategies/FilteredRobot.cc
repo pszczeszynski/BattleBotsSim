@@ -3,8 +3,9 @@
 #include "../RobotController.h"
 #include <iostream>
 #include <cstdlib>
-
-
+#include <algorithm>
+using std::max;
+using std::min;
 
 
 // CONSTRUCTOR

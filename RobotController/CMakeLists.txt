@@ -37,7 +37,7 @@ if(FORCE_SIM_DATA)
 endif()
 
 
-find_package( OpenCV REQUIRED COMPONENTS core)
+find_package( OpenCV REQUIRED COMPONENTS core tracking)
 add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
