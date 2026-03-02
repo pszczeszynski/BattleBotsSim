@@ -23,7 +23,14 @@ static cv::Rect ClampBBoxToImage(cv::Point2f center) {
 }
 
 OpenCVTracker::OpenCVTracker(ICameraReceiver* videoSource)
-    : OdometryBase(videoSource) {}
+    : OdometryBase(videoSource) {
+  _trackerParams.model = "dasiamrpn_model.onnx";
+  _trackerParams.kernel_cls1 = "dasiamrpn_kernel_cls1.onnx";
+  _trackerParams.kernel_r1 = "dasiamrpn_kernel_r1.onnx";
+  _trackerParams.backend = cv::dnn::DNN_BACKEND_CUDA;
+  _trackerParams.target = cv::dnn::DNN_TARGET_CUDA;
+
+}
 
 void OpenCVTracker::SwitchRobots(void) {
   std::swap(_robotSlot, _opponentSlot);
@@ -39,6 +46,23 @@ void OpenCVTracker::SetPosition(const PositionData& newPos,
   }
 
   TrackSlot& slot = opponentRobot ? _opponentSlot : _robotSlot;
+
+  // Skip if new position is within MIN_ROBOT_BLOB_SIZE/2 of current
+  std::optional<cv::Point2f> currentCenter;
+  if (slot.pendingInitBBox.has_value()) {
+    const cv::Rect& r = slot.pendingInitBBox.value();
+    currentCenter = cv::Point2f(r.x + r.width / 2.0f, r.y + r.height / 2.0f);
+  } else if (slot.initialized) {
+    currentCenter = cv::Point2f(slot.bbox.x + slot.bbox.width / 2.0f,
+                                slot.bbox.y + slot.bbox.height / 2.0f);
+  }
+  if (currentCenter.has_value()) {
+    const float threshold = MIN_ROBOT_BLOB_SIZE / 2.0f;
+    if (cv::norm(newPos.position - currentCenter.value()) <= threshold) {
+      return;
+    }
+  }
+
   slot.pendingInitBBox = ClampBBoxToImage(newPos.position);
   slot.hasLast = false;
   slot.lastTime = 0.0;
@@ -51,7 +75,7 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
   if (slot.pendingInitBBox.has_value()) {
     cv::Rect bboxLocal = slot.pendingInitBBox.value();
     slot.pendingInitBBox.reset();
-    slot.tracker = cv::TrackerCSRT::create();
+    slot.tracker = cv::TrackerDaSiamRPN::create(_trackerParams);
     slot.tracker->init(_previousImage, bboxLocal);
     slot.bbox = bboxLocal;
     slot.initialized = true;

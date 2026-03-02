@@ -31,5 +31,6 @@ class OpenCVTracker : public OdometryBase {
 
   TrackSlot _robotSlot;
   TrackSlot _opponentSlot;
+  cv::TrackerDaSiamRPN::Params _trackerParams;
   cv::Mat _previousImage;
 };
