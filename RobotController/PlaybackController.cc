@@ -76,6 +76,7 @@ void PlaybackController::SetFile(const std::string& filename)
         _filename = filename;
         _fileChanged = true;
         _frame = 0;
+        _paused = true;
     }
 }
 
