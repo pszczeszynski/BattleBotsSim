@@ -2,7 +2,6 @@
 
 #include <algorithm>
 
-#include "../../Clock.h"
 #include "../../Globals.h"
 #include "../../RobotConfig.h"
 #include "../../SafeDrawing.h"
@@ -192,9 +191,6 @@ void BlobDetection::_ProcessStream(const MotionBlob& blob,
   state.last_rect = blob.rect;
   state.last_position_time = timestamp;
 
-  // Update angle-path-tangent
-  _UpdateAnglePathTangent(state, newPos, timestamp);
-
   // Publish the new data
   _PublishFromState(state, isOpponent, timestamp);
 }
@@ -248,115 +244,6 @@ constexpr double kDistBetweenAngUpdatesPx = 5;
 // how fast the robot needs to be moving to update the angle
 constexpr double kVelocityThresholdForAngleUpdate = 30 * WIDTH / 720.0;
 
-/**
- * @brief updates the angle of the robot using the velocity
- */
-void BlobDetection::_UpdateAnglePathTangent(BlobTrackState& state,
-                                            cv::Point2f newPos,
-                                            double timestamp) {
-  constexpr float kAngleSmoothingTimeConstantMs = 80;
-  constexpr float kMinVelocityForAngleWeight =
-      0.5 * kVelocityThresholdForAngleUpdate;
-  constexpr float kMaxVelocityForAngleWeight =
-      2.0 * kVelocityThresholdForAngleUpdate;
-
-  // Initialize APT velocity accumulator if needed
-  if (!state.prev_vel_for_apt_set) {
-    state.prev_vel_for_apt_set = true;
-    state.apt_velocity = cv::Point2f(0, 0);
-    state.apt_velocity_time = timestamp;
-  }
-
-  // Update APT velocity lowpass accumulator
-  double delta_apt_time = timestamp - state.apt_velocity_time;
-  // Never add in the full amount due to the noise
-  double scaling_apt = (std::min)(delta_apt_time / kAptVelocityAveraging, 0.25);
-  state.apt_velocity = state.apt_velocity * (1.0 - scaling_apt) +
-                       scaling_apt * state.last_velocity;
-  state.apt_velocity_time = timestamp;
-
-  // Calculate elapsed time and delta position for angle update
-  double elapsedAngleTime = timestamp - state.prev_angle_ref_time;
-
-  // Initialize angle reference if this is the first update
-  if (!state.prev_angle_ref_pos.has_value()) {
-    state.prev_angle_ref_pos = newPos;
-    state.prev_angle_ref_time = timestamp;
-    return;  // Can't calculate angle without previous position
-  }
-
-  cv::Point2f delta = newPos - state.prev_angle_ref_pos.value();
-
-  double robotVel = cv::norm(state.last_velocity);
-  double aptRobotVel = cv::norm(state.apt_velocity);
-  double minRobotVel = (std::min)(robotVel, aptRobotVel);
-
-  // Check both distance and time thresholds
-  if (cv::norm(delta) < kDistBetweenAngUpdatesPx || elapsedAngleTime < 0.001 ||
-      !state.last_position.has_value()) {
-    // Don't update angle - keep previous reference state
-    return;
-  }
-
-  // Update the angle
-  Angle newAngle = Angle(atan2(delta.y, delta.x));
-  if (std::isnan((double)newAngle)) {
-    return;
-  }
-
-  // If the angle is closer to 180 degrees to the last angle
-  if (state.prev_angle_ref_angle.has_value() &&
-      abs(Angle(newAngle + M_PI - state.prev_angle_ref_angle.value())) <
-          abs(Angle(newAngle - state.prev_angle_ref_angle.value()))) {
-    // Add 180 degrees to the angle
-    newAngle = Angle(newAngle + M_PI);
-  }
-
-  Angle newAngleInterpolated{0};
-  double angularVelocity{0};
-
-  // Calculate angular velocity
-  if (state.prev_angle_ref_angle.has_value() &&
-      !std::isnan((double)state.prev_angle_ref_angle.value())) {
-    // Base time-based weight
-    double time_weight =
-        (std::min)(elapsedAngleTime * 1000.0 / kAngleSmoothingTimeConstantMs,
-                   1.0);
-
-    // Inverse time weight: if time updates exceeds reasonable levels, that
-    // means there is a discontinuity in the data
-    // Normally we expect 20ms per update or faster.
-    // if it approaches 150ms, its junk.
-    time_weight *= (std::max)((0.15 - elapsedAngleTime) / 0.15, 0.02);
-
-    // Velocity-based weight: scale based on aptRobotVel
-    double velocity_weight = std::clamp(
-        (minRobotVel - kMinVelocityForAngleWeight) /
-            (kMaxVelocityForAngleWeight - kMinVelocityForAngleWeight),
-        0.0, 1.0);
-
-    // Combine time and velocity weights
-    // Limit the weight to prevent huge jumps
-    double final_weight = (std::max)(time_weight * velocity_weight, 0.25);
-
-    // Interpolate the angle with velocity-modulated weight
-    newAngleInterpolated = InterpolateAngles(state.prev_angle_ref_angle.value(),
-                                             newAngle, final_weight);
-    angularVelocity =
-        (newAngleInterpolated - state.prev_angle_ref_angle.value()) /
-        elapsedAngleTime;
-  } else {
-    newAngleInterpolated = newAngle;
-    angularVelocity = 0;
-  }
-
-  // Update angle reference state for next iteration
-  state.prev_angle_ref_pos = newPos;
-  state.prev_angle_ref_time = timestamp;
-  state.prev_angle_ref_angle = newAngleInterpolated;
-  state.prev_angle_ref_angular_velocity = angularVelocity;
-}
-
 void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
                                       double timestamp) {
   OdometryData sample{};
@@ -366,12 +253,6 @@ void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
     sample.pos = PositionData{state.last_position.value(), state.last_velocity,
                               timestamp};
     sample.pos.value().rect = state.last_rect;
-  }
-
-  // Set angle data (if we have angle reference)
-  if (state.prev_angle_ref_angle.has_value()) {
-    sample.angle = AngleData(state.prev_angle_ref_angle.value(),
-                             state.prev_angle_ref_angular_velocity, timestamp);
   }
 
   // Publish (base class will increment id from previous value)
@@ -410,20 +291,4 @@ void BlobDetection::SetPosition(const PositionData& newPos,
 
 void BlobDetection::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
   // Not implemented - velocity is calculated from position updates
-}
-
-void BlobDetection::SetAngle(AngleData angleData, bool opponentRobot) {
-  if (angleData.algorithm == OdometryAlg::Blob) {
-    return;
-  }
-
-  BlobTrackState& state = opponentRobot ? _themState : _usState;
-  std::lock_guard<std::mutex> lock(_updateMutex);
-
-  state.prev_angle_ref_angle = angleData.angle;
-  state.prev_angle_ref_angular_velocity = angleData.velocity;
-  state.prev_angle_ref_time = angleData.time;
-  if (state.last_position.has_value()) {
-    state.prev_angle_ref_pos = state.last_position.value();
-  }
 }

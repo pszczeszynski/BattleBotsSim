@@ -64,8 +64,6 @@ class RobotOdometry {
   OdometryData Robot(double currTime = DEFAULT_ODOMETRY_EXTRAPOLATION);
   OdometryData Opponent(double currTime = DEFAULT_ODOMETRY_EXTRAPOLATION);
 
-  float GetIMUOffset();
-
   void Update();  // Updates the odometry based on current data
 
   FusionOutput Fuse(RawInputs inputs, double now,

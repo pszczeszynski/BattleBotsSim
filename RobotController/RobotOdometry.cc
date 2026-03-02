@@ -8,7 +8,6 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
-#include "SimulationState.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
 
@@ -133,13 +132,13 @@ void RobotOdometry::_AdjustAngleWithArrowKeys() {
   updateClock.markStart();
 
   if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow) &&
-      _dataRobot.angle.has_value()) {
-    UpdateForceSetAngle(_dataRobot.angle.value().angle - angleUserAdjust,
-                        false);
+      _dataOpponent.angle.has_value()) {
+    UpdateForceSetAngle(_dataOpponent.angle.value().angle - angleUserAdjust,
+                        true);
   } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow) &&
-             _dataRobot.angle.has_value()) {
-    UpdateForceSetAngle(_dataRobot.angle.value().angle + angleUserAdjust,
-                        false);
+             _dataOpponent.angle.has_value()) {
+    UpdateForceSetAngle(_dataOpponent.angle.value().angle + angleUserAdjust,
+                        true);
   }
 
   // opponent with up and 1 and 3
@@ -381,8 +380,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.robot.angle = inputs.us_imu.angle;
   } else if (isFresh(inputs.us_lkflow.angle)) {
     output.robot.angle = inputs.us_lkflow.angle;
-  } else if (isFresh(inputs.us_blob.angle)) {
-    output.robot.angle = inputs.us_blob.angle;
   } else if (isFresh(inputs.us_neuralrot.angle)) {
     output.robot.angle = inputs.us_neuralrot.angle;
     output.robot.angle.value().velocity = 0;
@@ -423,10 +420,20 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.opponent.angle = inputs.us_human.angle;
   } else if (isFresh(inputs.them_lkflow.angle)) {
     output.opponent.angle = inputs.them_lkflow.angle;
-  } else if (isFresh(inputs.them_blob.angle)) {
-    output.opponent.angle = inputs.them_blob.angle;
   } else if (isFresh(inputs.them_heuristic.angle)) {
     output.opponent.angle = inputs.them_heuristic.angle;
+  }
+
+  // fuse towards the blob angle if it is fresh
+  if (isFresh(inputs.them_blob.angle)) {
+    AngleData blobAngle = inputs.them_blob.angle.value();
+    double deltaTime = now - blobAngle.time;
+    double interpolateAmount = (std::min)(1.0, deltaTime * 1.0);
+    output.opponent.angle.value().angle =
+        InterpolateAngles(output.opponent.angle.value().angle, blobAngle.angle,
+                          interpolateAmount);
+    std::cout << "fused towards blob angle: "
+              << output.opponent.angle.value().angle.degrees() << std::endl;
   }
 
 #ifdef FORCE_SIM_DATA
@@ -483,6 +490,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Blob.SetAngle(robot.angle.value(), false);
     _odometry_LKFlow.SetAngle(robot.angle.value(), false);
     _odometry_opencv.SetAngle(robot.angle.value(), false);
+    _odometry_IMU.SetAngle(robot.angle.value(), false);
   }
 
   // Opponent Position
@@ -516,12 +524,6 @@ OdometryData RobotOdometry::Robot(double currTime) {
   // extrapolate it to the current time
   return currData.ExtrapolateBoundedTo(currTime);
 }
-
-/**
- * @brief Returns the angle to add to the global angle to get the internal imu
- * angle (in radians)
- */
-float RobotOdometry::GetIMUOffset() { return _odometry_IMU.GetOffset(); }
 
 OdometryData RobotOdometry::Opponent(double currTime) {
   std::unique_lock<std::mutex> locker(_updateMutex);
