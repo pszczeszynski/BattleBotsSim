@@ -1,8 +1,15 @@
-#pragma comment(lib, \
-                "legacy_stdio_definitions.lib")  // necessary in release builds
-                                                 // for imgui to work
+#pragma comment(lib, "legacy_stdio_definitions.lib")
 
 #include "RobotControllerGUI.h"
+
+#include "../GuiUtils.h"
+#include "../Input/InputState.h"
+#include "ClockWidget.h"
+#include "ColorScheme.h"
+#include "FieldWidget.h"
+#include "GraphWidget.h"
+#include "TrackingWidget.h"
+
 
 namespace {
 
@@ -11,14 +18,6 @@ constexpr int IMGUI_HEIGHT = 1;
 constexpr int IMGUI_ENABLE_VSYNC = 1;
 
 }  // namespace
-
-#include "../GuiUtils.h"
-#include "../Input/InputState.h"
-#include "../RobotController.h"
-#include "ClockWidget.h"
-#include "ColorScheme.h"
-#include "GraphWidget.h"
-
 
 RobotControllerGUI::RobotControllerGUI() {
   // 1. Setup window
