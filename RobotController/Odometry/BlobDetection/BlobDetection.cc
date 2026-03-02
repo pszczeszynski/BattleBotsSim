@@ -234,16 +234,6 @@ void BlobDetection::_UpdateSmoothedVelocity(
   state.last_vel_time = timestamp;
 }
 
-// Number of seconds to average velocity for APT threshold calcs. This sets the
-// settling time constant.
-constexpr double kAptVelocityAveraging = 0.5;
-
-// the displacement required to update the angle
-constexpr double kDistBetweenAngUpdatesPx = 5;
-
-// how fast the robot needs to be moving to update the angle
-constexpr double kVelocityThresholdForAngleUpdate = 30 * WIDTH / 720.0;
-
 void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
                                       double timestamp) {
   OdometryData sample{};
