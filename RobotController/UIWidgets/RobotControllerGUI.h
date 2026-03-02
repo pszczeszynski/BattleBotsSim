@@ -18,7 +18,7 @@
 #include "PlaybackWidget.h"
 #include "ManualControlWidget.h"
 #include "CameraWidget.h"
-#include "AStarAttackWidget.h"
+#include "PurePursuitRadiusWidget.h"
 
 ////////// GLOBALS //////////
 
@@ -52,7 +52,7 @@ private:
     PlaybackWidget _playbackWidget;
     ManualControlWidget _manualControlWidget;
     CameraWidget _cameraWidget;
-    AStarAttackWidget _astarAttackWidget;
+    PurePursuitRadiusWidget _purePursuitRadiusWidget;
 };
 
 static void glfw_error_callback(int error, const char *description)

@@ -3,9 +3,6 @@
 #include "Strategy.h"
 #include "../Input/Gamepad.h"
 #include "../PurePursuit.h"
-#include <algorithm>
-#include <cmath>
-#include "Line.h"
 #include "FilteredRobot.h"
 #include "FollowPoint.h"
 #include "Field.h"
@@ -27,19 +24,10 @@ public:
     void ResetFieldBoundariesToDefault();
     void RegenerateFieldBoundaryLines();
     
-    // Radius curve parameter interface
-    void GetRadiusCurvePoints(float radiusCurveX[4], float radiusCurveY[4]);
-    void SetRadiusCurvePoints(const float radiusCurveX[4], const float radiusCurveY[4]);
-    void ResetRadiusCurveToDefault();
-    
     // Get the last computed followPoints (for debugging/display)
     const std::vector<FollowPoint>& GetFollowPoints() const;
     
     static AStarAttack* GetInstance();
-
-
-
-
 
 
 private:
@@ -58,14 +46,7 @@ private:
     std::vector<float> trueOutputs; // real orb's state going into this update
     std::vector<float> previousGamepad; // what gamepad inputs were last time
 
-    
-    // Note: Radius curve parameters are now in RobotConfig.h as:
-    // RADIUS_CURVE_X0, RADIUS_CURVE_X1, RADIUS_CURVE_X2, RADIUS_CURVE_X3
-    // RADIUS_CURVE_Y0, RADIUS_CURVE_Y1, RADIUS_CURVE_Y2, RADIUS_CURVE_Y3
-    
     static AStarAttack* _instance;
-
-
 
     float angle(cv::Point2f point1, cv::Point2f point2);
     FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);
