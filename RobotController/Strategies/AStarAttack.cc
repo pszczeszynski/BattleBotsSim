@@ -65,9 +65,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
-    
+    orbFiltered.updateFilters(deltaTime, orbData.pos, orbData.angle); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, oppData.pos, oppData.angle);     
 
     // what did orb actually end up doing
     trueOutputs = {orbFiltered.tangentVelFast(true), orbFiltered.turnVel()};

@@ -125,6 +125,10 @@ class RobotOdometry {
 
   Angle CalcAnglePathTangent();
   bool _visualAngleValid = false;
+
+  /// Slowly blends opponent angle towards velocity direction when moving fast.
+  /// Uses a slow moving average; result is back-annotated via fusion output.
+  void _BlendOpponentAngleTowardsVelocity(FusionOutput& output);
   Clock _lastVisualAngleValidClock;
 
   cv::Point2f

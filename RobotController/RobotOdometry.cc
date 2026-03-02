@@ -530,7 +530,7 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  // currData.ExtrapolateBoundedTo(currTime);
+  currData.ExtrapolateBoundedTo(currTime);
 
   return currData;
 }

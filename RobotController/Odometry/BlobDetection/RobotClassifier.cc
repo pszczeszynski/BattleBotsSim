@@ -66,7 +66,8 @@ MotionBlob GetClosestBlobAndRemove(std::vector<MotionBlob> &blobs,
 VisionClassification RobotClassifier::ClassifyBlobs(
     std::vector<MotionBlob> &blobs, const cv::Mat &frame,
     const cv::Mat &motionImage, const TrackPrior &usPrior,
-    const TrackPrior &themPrior, double frameTime) {
+    const TrackPrior &themPrior, double frameTime,
+    std::vector<BlobDebugInfo>* outDebugInfo) {
   VisionClassification classificationResult;
 
   static int lastBlobsSize = 0;
@@ -80,6 +81,12 @@ VisionClassification RobotClassifier::ClassifyBlobs(
   // Use default positions if priors are invalid
   cv::Point2f usPos = usPrior.valid ? usPrior.pos : cv::Point2f(0, 0);
   cv::Point2f themPos = themPrior.valid ? themPrior.pos : cv::Point2f(0, 0);
+
+  auto addDebug = [&](const MotionBlob& b, bool valid, const std::string& reason) {
+    if (outDebugInfo) {
+      outDebugInfo->push_back({b.rect, b.center, valid, reason});
+    }
+  };
 
   // if only one blob
   if (blobs.size() == 1) {
@@ -102,21 +109,43 @@ VisionClassification RobotClassifier::ClassifyBlobs(
       isRobot = cv::norm(usPrior.vel) > cv::norm(themPrior.vel);
     }
 
+    double blobSize = sqrt(blobs[0].rect.area());
+
     // if this is the robot (not the opponent)
     if (isRobot) {
       if (distanceToRobot < matchingDistThresholdRobot &&
-          sqrt(blobs[0].rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
-          sqrt(blobs[0].rect.area()) <= MAX_ROBOT_BLOB_SIZE) {
+          blobSize >= MIN_ROBOT_BLOB_SIZE &&
+          blobSize <= MAX_ROBOT_BLOB_SIZE) {
         classificationResult.robot = blobs[0];
         noRobotClock.markStart();
+        addDebug(blobs[0], true, "");
+      } else {
+        std::string reason;
+        if (distanceToRobot >= matchingDistThresholdRobot)
+          reason = "robot too far (" + std::to_string((int)distanceToRobot) + "px)";
+        else if (blobSize < MIN_ROBOT_BLOB_SIZE)
+          reason = "robot too small (" + std::to_string((int)blobSize) + ")";
+        else
+          reason = "robot too large (" + std::to_string((int)blobSize) + ")";
+        addDebug(blobs[0], false, reason);
       }
     } else {
       // make sure it's close enough and the size is big enough
       if (distanceToOpponent < matchingDistThresholdOpponent &&
-          sqrt(blobs[0].rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
-          sqrt(blobs[0].rect.area()) <= MAX_OPPONENT_BLOB_SIZE) {
+          blobSize >= MIN_OPPONENT_BLOB_SIZE &&
+          blobSize <= MAX_OPPONENT_BLOB_SIZE) {
         classificationResult.opponent = blobs[0];
         noRobotClock.markStart();
+        addDebug(blobs[0], true, "");
+      } else {
+        std::string reason;
+        if (distanceToOpponent >= matchingDistThresholdOpponent)
+          reason = "opponent too far (" + std::to_string((int)distanceToOpponent) + "px)";
+        else if (blobSize < MIN_OPPONENT_BLOB_SIZE)
+          reason = "opponent too small (" + std::to_string((int)blobSize) + ")";
+        else
+          reason = "opponent too large (" + std::to_string((int)blobSize) + ")";
+        addDebug(blobs[0], false, reason);
       }
     }
   }
@@ -130,6 +159,11 @@ VisionClassification RobotClassifier::ClassifyBlobs(
     filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, usPos));
     filtered.push_back(GetClosestBlobAndRemove(blobsToChooseFrom, themPos));
 
+    // Add debug for blobs not in top 2
+    for (const MotionBlob& b : blobsToChooseFrom) {
+      addDebug(b, false, "not in top 2 closest");
+    }
+
     double firstIsRobot =
         ClassifyBlob(filtered[0], frame, motionImage, usPrior, themPrior);
     double secondIsRobot =
@@ -139,18 +173,51 @@ VisionClassification RobotClassifier::ClassifyBlobs(
     MotionBlob &robot = preference <= 0 ? filtered[0] : filtered[1];
     MotionBlob &opponent = preference <= 0 ? filtered[1] : filtered[0];
 
+    auto checkRobot = [&](const MotionBlob& b) {
+      double dist = cv::norm(b.center - usPos);
+      double sz = sqrt(b.rect.area());
+      if (dist < matchingDistThresholdRobot &&
+          sz >= MIN_ROBOT_BLOB_SIZE && sz <= MAX_ROBOT_BLOB_SIZE) {
+        addDebug(b, true, "");
+        return true;
+      }
+      std::string reason;
+      if (dist >= matchingDistThresholdRobot)
+        reason = "robot too far (" + std::to_string((int)dist) + "px)";
+      else if (sz < MIN_ROBOT_BLOB_SIZE)
+        reason = "robot too small (" + std::to_string((int)sz) + ")";
+      else
+        reason = "robot too large (" + std::to_string((int)sz) + ")";
+      addDebug(b, false, reason);
+      return false;
+    };
+    auto checkOpponent = [&](const MotionBlob& b) {
+      double dist = cv::norm(b.center - themPos);
+      double sz = sqrt(b.rect.area());
+      if (dist < matchingDistThresholdOpponent &&
+          sz >= MIN_OPPONENT_BLOB_SIZE && sz <= MAX_OPPONENT_BLOB_SIZE) {
+        addDebug(b, true, "");
+        return true;
+      }
+      std::string reason;
+      if (dist >= matchingDistThresholdOpponent)
+        reason = "opponent too far (" + std::to_string((int)dist) + "px)";
+      else if (sz < MIN_OPPONENT_BLOB_SIZE)
+        reason = "opponent too small (" + std::to_string((int)sz) + ")";
+      else
+        reason = "opponent too large (" + std::to_string((int)sz) + ")";
+      addDebug(b, false, reason);
+      return false;
+    };
+
     // if the robot blob is close to the robot tracker
-    if (cv::norm(robot.center - usPos) < matchingDistThresholdRobot &&
-        sqrt(robot.rect.area()) >= MIN_ROBOT_BLOB_SIZE &&
-        sqrt(robot.rect.area()) <= MAX_ROBOT_BLOB_SIZE) {
+    if (checkRobot(robot)) {
       classificationResult.robot = robot;
       noRobotClock.markStart();
     }
 
     // if the opponent blob is close to the opponent tracker
-    if (cv::norm(opponent.center - themPos) < matchingDistThresholdOpponent &&
-        sqrt(opponent.rect.area()) >= MIN_OPPONENT_BLOB_SIZE &&
-        sqrt(opponent.rect.area()) <= MAX_OPPONENT_BLOB_SIZE) {
+    if (checkOpponent(opponent)) {
       classificationResult.opponent = opponent;
       noRobotClock.markStart();
     }

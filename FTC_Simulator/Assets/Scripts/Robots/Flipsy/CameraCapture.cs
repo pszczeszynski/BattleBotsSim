@@ -33,8 +33,8 @@ public unsafe class CameraCapture : MonoBehaviour
     //private static int width = 1280;
     //private static int height = 720;
     private static int frameNumber = 1;
-    private static int width = 1440;
-    private static int height = 768;
+    private static int width = 1920;
+    private static int height = 1080;
     private static long bitrate = 15000000;
     // Buffer
     private byte[] frameDataArray;

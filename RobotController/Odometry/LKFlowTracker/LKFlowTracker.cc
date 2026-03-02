@@ -5,6 +5,8 @@
 #include <opencv2/imgproc.hpp>
 
 #include "../../MathUtils.h"
+#include "../../RobotController.h"
+#include "../../RobotOdometry.h"
 
 namespace {
 constexpr int kRoiSize = 60;
@@ -150,6 +152,39 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   _prevGray = gray;
 }
 
+Angle LKFlowTracker::_MoveTowardsExternalPathTangent(Angle startAngle) {
+  // first get the RobotOdometry
+  RobotController& robotController = RobotController::GetInstance();
+  RobotOdometry& robotOdometry = robotController.odometry;
+  OdometryData opponentData = robotOdometry.Opponent();
+
+  return startAngle;
+  if (opponentData.pos.has_value() && opponentData.pos.value().GetAge() < 0.1) {
+    // early exit if the opponent is not moving
+    if (cv::norm(opponentData.pos.value().velocity) < 25) {
+      return startAngle;
+    }
+
+    cv::Point2f vel = opponentData.pos.value().velocity;
+    std::cout << "got here" << std::endl;
+    Angle pathTangentAngle = Angle(std::atan2(vel.y, vel.x));
+
+    Angle interpolatedAngle =
+        InterpolateAngles(startAngle, pathTangentAngle, 0.01);
+
+    if (std::abs(interpolatedAngle) > 10.0 * TO_RAD) {
+      std::cout << "Angle delta large? " << interpolatedAngle << std::endl;
+
+      std::cout << "Start angle: " << startAngle << std::endl;
+      std::cout << "Interpolated angle: " << interpolatedAngle << std::endl;
+      std::cout << "Path tangent angle: " << pathTangentAngle << std::endl;
+      
+    }
+
+    return interpolatedAngle;
+  }
+}
+
 bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
                                     double frameTime, LKFlowTargetState& state,
                                     bool isOpponent) {
@@ -201,6 +236,11 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
 
   state.angle = state.angle + Angle(angleDelta);
+
+  if (isOpponent) {
+    state.angle = _MoveTowardsExternalPathTangent(state.angle);
+  }
+
   cv::Point2f oldPos = state.pos;
   state.pos = _ComputeCenterFromPoints(tracksNext);
   cv::Point2f deltaPos = state.pos - oldPos;
@@ -461,9 +501,9 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
       break;
     }
 
-    if (hasExclude &&
-        newPt.x >= excludeRoi.x && newPt.x < excludeRoi.x + excludeRoi.width &&
-        newPt.y >= excludeRoi.y && newPt.y < excludeRoi.y + excludeRoi.height) {
+    if (hasExclude && newPt.x >= excludeRoi.x &&
+        newPt.x < excludeRoi.x + excludeRoi.width && newPt.y >= excludeRoi.y &&
+        newPt.y < excludeRoi.y + excludeRoi.height) {
       continue;
     }
 

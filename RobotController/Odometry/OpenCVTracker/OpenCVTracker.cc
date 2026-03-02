@@ -60,7 +60,7 @@ void OpenCVTracker::_ProcessSlot(TrackSlot& slot, bool isOpponent,
   if (slot.pendingInitBBox.has_value()) {
     cv::Rect bboxLocal = slot.pendingInitBBox.value();
     slot.pendingInitBBox.reset();
-    slot.tracker = cv::TrackerCSRT::create();
+    slot.tracker = cv::TrackerDaSiamRPN::create();
     slot.tracker->init(_previousImage, bboxLocal);
     slot.bbox = bboxLocal;
     slot.initialized = true;

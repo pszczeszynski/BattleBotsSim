@@ -14,6 +14,14 @@ struct VisionClassification {
   std::optional<MotionBlob> opponent;
 };
 
+// Debug info for a blob - valid/invalid and reason
+struct BlobDebugInfo {
+  cv::Rect rect;
+  cv::Point2f center;
+  bool valid;
+  std::string reason;
+};
+
 // BlobDetection Odometry
 // Tracks objects based on the blob movement
 //

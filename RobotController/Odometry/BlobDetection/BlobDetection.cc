@@ -1,6 +1,7 @@
 #include "BlobDetection.h"
 
 #include <algorithm>
+#include <string>
 
 #include "../../Globals.h"
 #include "../../RobotConfig.h"
@@ -101,20 +102,27 @@ VisionClassification BlobDetection::_DoBlobDetection(
                                                    centroids, 8, CV_32S);
 
   std::vector<MotionBlob> motionBlobs = {};
+  std::vector<BlobDebugInfo> sizeRejectedBlobs = {};
   for (int i = 1; i < numLabels; i++) {  // Skip background label 0
     int width = stats.at<int>(i, cv::CC_STAT_WIDTH);
     int height = stats.at<int>(i, cv::CC_STAT_HEIGHT);
     int area = stats.at<int>(i, cv::CC_STAT_AREA);
+    cv::Rect rect(stats.at<int>(i, cv::CC_STAT_LEFT),
+                  stats.at<int>(i, cv::CC_STAT_TOP), width, height);
+    cv::Point2f center(centroids.at<double>(i, 0),
+                       centroids.at<double>(i, 1));
 
     // Check size constraints
     if (width >= MIN_DIM && height >= MIN_DIM && width <= MAX_DIM &&
         height <= MAX_DIM) {
-      cv::Rect rect(stats.at<int>(i, cv::CC_STAT_LEFT),
-                    stats.at<int>(i, cv::CC_STAT_TOP), width, height);
-      cv::Point2f center(centroids.at<double>(i, 0),
-                         centroids.at<double>(i, 1));
-      // MotionBlob doesn't need frame pointer - only rect and center are used
       motionBlobs.emplace_back(MotionBlob{rect, center, nullptr});
+    } else {
+      std::string reason;
+      if (width < MIN_DIM || height < MIN_DIM)
+        reason = "too small (" + std::to_string(width) + "x" + std::to_string(height) + ")";
+      else
+        reason = "too large (" + std::to_string(width) + "x" + std::to_string(height) + ")";
+      sizeRejectedBlobs.push_back({rect, center, false, reason});
     }
   }
 
@@ -140,19 +148,44 @@ VisionClassification BlobDetection::_DoBlobDetection(
 
   // Identify which blobs are our robots (finds robot positions)
   // ClassifyBlobs doesn't mutate frame, so we can pass const reference
+  std::vector<BlobDebugInfo> classifierDebugInfo;
   VisionClassification result = _robotClassifier.ClassifyBlobs(
-      motionBlobs, currFrame, thresholdImg, usPrior, themPrior, frameTime);
+      motionBlobs, currFrame, thresholdImg, usPrior, themPrior, frameTime,
+      &classifierDebugInfo);
 
   // Build debug image in BGR for color drawing (build locally, then swap under
   // lock)
   cv::Mat debugLocal;
   cv::cvtColor(thresholdImg, debugLocal, cv::COLOR_GRAY2BGR);
-  const cv::Scalar kBlobRectColor(0, 255, 0);      // Green (BGR)
-  const cv::Scalar kBlobCenterColor(0, 255, 255);  // Yellow
+  const cv::Scalar kValidRectColor(0, 255, 0);      // Green (BGR)
+  const cv::Scalar kValidCenterColor(0, 255, 255);  // Yellow
+  const cv::Scalar kInvalidRectColor(0, 0, 255);    // Red (BGR)
+  const cv::Scalar kInvalidCenterColor(0, 128, 255);  // Orange
 
-  for (const MotionBlob& blob : motionBlobs) {
-    cv::rectangle(debugLocal, blob.rect, kBlobRectColor, 2);
-    safe_circle(debugLocal, blob.center, 5, kBlobCenterColor, 2);
+  auto drawBlobWithReason = [&](const BlobDebugInfo& info, const cv::Scalar& rectColor,
+                                const cv::Scalar& centerColor) {
+    cv::rectangle(debugLocal, info.rect, rectColor, 2);
+    safe_circle(debugLocal, info.center, 5, centerColor, 2);
+    if (!info.reason.empty()) {
+      cv::Point textPos(info.rect.x, info.rect.y - 4);
+      if (textPos.y < 12) textPos.y = info.rect.y + info.rect.height + 14;
+      cv::putText(debugLocal, info.reason, textPos, cv::FONT_HERSHEY_SIMPLEX,
+                  0.4, rectColor, 1, cv::LINE_AA);
+    }
+  };
+
+  // Draw size-rejected blobs (red)
+  for (const BlobDebugInfo& info : sizeRejectedBlobs) {
+    drawBlobWithReason(info, kInvalidRectColor, kInvalidCenterColor);
+  }
+
+  // Draw classifier-considered blobs (green if valid, red if invalid)
+  for (const BlobDebugInfo& info : classifierDebugInfo) {
+    if (info.valid) {
+      drawBlobWithReason(info, kValidRectColor, kValidCenterColor);
+    } else {
+      drawBlobWithReason(info, kInvalidRectColor, kInvalidCenterColor);
+    }
   }
 
   {

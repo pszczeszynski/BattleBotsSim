@@ -37,8 +37,8 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
+    orbFiltered.updateFilters(deltaTime, orbData.pos, orbData.angle); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, oppData.pos, oppData.angle); 
 
 
     bool forwardInput = (gamepad.GetRightStickY() >= 0.0f); // if we're inputting forward driving direction
@@ -171,7 +171,6 @@ cv::Point2f Kill::extrapOpp(std::vector<cv::Point2f> &oppSimPath, std::vector<cv
 
         virtualOpp.setPos(newPos);
         virtualOpp.setVel(newVel);
-        virtualOpp.setAccel({0, 0, 0});
 
         extrapTime += increment;
     }

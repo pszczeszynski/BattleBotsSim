@@ -51,6 +51,7 @@ class LKFlowTracker : public OdometryBase {
 
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
   void _StartCalled(void) override;
+  Angle _MoveTowardsExternalPathTangent(Angle startAngle);
 
   // Core tracking: operates on one target's state. Returns true if update ok.
   bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime,

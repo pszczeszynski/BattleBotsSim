@@ -27,7 +27,6 @@ FilteredRobot::FilteredRobot(float pathSpacing, float pathLength, float moveSpee
     // initialize
     posFiltered = {0, 0, 0};
     velFiltered = {0, 0, 0};
-    accFiltered = {0, 0, 0};
 
     velFilteredSlow = {0, 0, 0};
     velFilteredUltraSlow = {0, 0, 0};
@@ -50,7 +49,6 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) { // make a
 
     posFiltered = {position.x, position.y, 0.0f};
     velFiltered = {0, 0, 0};
-    accFiltered = {0, 0, 0};
 
     velFilteredSlow = {0, 0, 0};
     velFilteredUltraSlow = {0, 0, 0};
@@ -60,101 +58,7 @@ FilteredRobot::FilteredRobot(cv::Point2f position, float sizeRadius) { // make a
 // hard sets the pos
 void FilteredRobot::setPos(std::vector<float> pos) { posFiltered = pos; }
 void FilteredRobot::setVel(std::vector<float> vel) { velFiltered = vel; velFilteredSlow = vel; }
-void FilteredRobot::setAccel(std::vector<float> acc) { accFiltered = acc; }
 void FilteredRobot::setSizeRadius(float sizeRadius) { this->sizeRadius = sizeRadius; }
-
-
-
-
-// incrementally extrapolates with constant accel
-std::vector<std::vector<float>> FilteredRobot::kalmanExtrapAccel(float time) {
-
-    // start at current values
-    std::vector<float> extrapolatedPos = posFiltered;
-    std::vector<float> extrapolatedVel = velFiltered;
-    std::vector<float> extrapolatedAcc = accFiltered;
-
-    int increments = 50.0f;
-    float timeIncrement = time / increments;
-
-    for(int i = 0; i < increments; i++) {
-
-        // save so we can see the increment
-        float previousAngle = extrapolatedPos[2];
-
-        // extrapolate the increment at the current angle
-        for(int i = 0; i < 3; i++) { extrapolatedPos[i] += (extrapolatedVel[i] * timeIncrement) + 0.5f*(extrapolatedAcc[i] * pow(timeIncrement, 2)); }
-        for(int i = 0; i < 3; i++) { extrapolatedVel[i] += (extrapolatedAcc[i] * timeIncrement); }
-        extrapolatedPos[2] = angle_wrap(extrapolatedPos[2]);
-
-        // how much the angle incremented
-        float angleIncrement = angle_wrap(extrapolatedPos[2] - previousAngle);
-
-        // new directions are incremented by the angle increment
-        float newVelDirection = angle_wrap(atan2(extrapolatedVel[1], extrapolatedVel[0]) + angleIncrement);
-        float newAccDirection = angle_wrap(atan2(extrapolatedAcc[1], extrapolatedAcc[0]) + angleIncrement);
-
-        float velMag = cv::norm(cv::Point2f(extrapolatedVel[0], extrapolatedVel[1]));
-        float accMag = cv::norm(cv::Point2f(extrapolatedAcc[0], extrapolatedAcc[1]));
-
-        // rotate the magnitudes by the new new angle
-        extrapolatedVel = {velMag * cos(newVelDirection), velMag * sin(newVelDirection), extrapolatedVel[2]};
-        extrapolatedAcc = {accMag * cos(newAccDirection), accMag * sin(newAccDirection), extrapolatedAcc[2]};
-    }
-
-    // return final values
-    return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel, extrapolatedAcc};
-}
-
-
-
-// extrapolates with constant vel
-std::vector<std::vector<float>> FilteredRobot::kalmanExtrapVel(float time) {
-
-    float deltaXRobot = 0.0f;
-    float deltaYRobot = 0.0f;
-    float deltaT = velFiltered[2] * time; // Δθ
-
-    float velDirection = atan2(velFiltered[1], velFiltered[0]); // direction of the current vel
-
-
-
-    if (abs(velFiltered[2]) < 1e-6f) { // straight-line motion
-        deltaXRobot = moveSpeed() * time;
-        deltaYRobot = 0.0f;
-
-    } else { // circular arc motion
-        float r = moveSpeed() / turnVel(); // path radius
-        deltaXRobot = r * std::sin(deltaT);
-        deltaYRobot = r * (1.0f - std::cos(deltaT));
-    }
-
-    // rotate from robot frame to field frame
-    float deltaXField = deltaXRobot * cos(velDirection) - deltaYRobot * sin(velDirection);
-    float deltaYField = deltaXRobot * sin(velDirection) + deltaYRobot * cos(velDirection);
-
-    // new pos
-    std::vector<float> extrapolatedPos = {
-        posFiltered[0] + deltaXField,
-        posFiltered[1] + deltaYField,
-        (float) angle_wrap(posFiltered[2] + deltaT)
-    }; 
-
-    // rotate vel by delta angle
-    float newVelX = velFiltered[0] * cos(deltaT) - velFiltered[1] * sin(deltaT);
-    float newVelY = velFiltered[0] * sin(deltaT) + velFiltered[1] * cos(deltaT);
-
-    // new vel
-    std::vector<float> extrapolatedVel = {
-        newVelX,
-        newVelY,
-        velFiltered[2]
-    };
-
-    // return final values
-    return std::vector<std::vector<float>> {extrapolatedPos, extrapolatedVel};
-}
-
 
 
 // extrapolates with constant vel (circular arc motion)
@@ -292,63 +196,17 @@ void FilteredRobot::displayRobot(int thick, cv::Scalar sizeColor, cv::Scalar wea
 
 
 // updates the position filters
-void FilteredRobot::updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta) {
+void FilteredRobot::updateFilters(float deltaTime, std::optional<PositionData> visionPos, std::optional<AngleData> visionAngle) {
+    if (!visionPos.has_value() || !visionAngle.has_value()) { return; }
 
-    if(visionPos.x < fieldMin || visionPos.x > fieldMax || std::isnan(visionPos.x)) { return; }
-    if(visionPos.y < fieldMin || visionPos.y > fieldMax || std::isnan(visionPos.y)) { return; }
-
-
-    // extrapolate each state for new beliefs
-    std::vector<std::vector<float>> outputs = kalmanExtrapAccel(deltaTime);
-    // std::vector<std::vector<float>> outputs = kalmanExtrapVel(deltaTime);
-    std::vector<float> posBelief = outputs[0];
-    std::vector<float> velBelief = outputs[1];
-    std::vector<float> accBelief = outputs[2];
-
-
- 
-    // from measurement, find deltas to pos
-    std::vector<float> posDelta = {visionPos.x - posBelief[0], visionPos.y - posBelief[1], angle_wrap(visionTheta - posBelief[2])};
-
-
-
-    // what even are covariances, determines percentage of delta to use
-    float positionKalmanGain = 1 - exp(-deltaTime / 0.05f); // std::clamp(deltaTime * 30.0f, 0.05f, 1.0f);
-    float turnKalmanGain = 1 - exp(-deltaTime / 0.03f); // std::clamp(deltaTime * 50.0f, 0.05f, 1.0f);
-    std::vector<float> kalmanGain = {positionKalmanGain, positionKalmanGain, turnKalmanGain};
-
-
-    std::vector<float> posFilteredNew = {0, 0, 0};
-    std::vector<float> velFilteredNew = {0, 0, 0};
-    std::vector<float> accFilteredNew = {0, 0, 0};
-
-    float maxVel = 1000.0f;
-    float maxAccel = 100000.0f;
-
-
-    // update each axis
-    for(int i = 0; i < 3; i++) { 
-
-        // update pos
-        posFilteredNew[i] = posBelief[i] + (kalmanGain[i] * posDelta[i]); 
-        if(i == 0 || i == 1) { posFilteredNew[i] = std::clamp(posFilteredNew[i], fieldMin, fieldMax); }
-        if(i == 2) { posFilteredNew[i] = angle_wrap(posFilteredNew[i]); }
-
-        // update vel
-        velFilteredNew[i] = (posFilteredNew[i] - posFiltered[i]) / deltaTime; if(i == 2) { velFilteredNew[i] = angle_wrap(posFilteredNew[i] - posFiltered[i]) / deltaTime; }
-        velFilteredNew[i] = velFiltered[i] + (velFilteredNew[i] - velFiltered[i]) * (1.0f - (pow(1.0f - kalmanGain[i], 2)));
-        velFilteredNew[i] = std::clamp(velFilteredNew[i], -maxVel, maxVel);
-
-        // update acc
-        accFilteredNew[i] = (velFilteredNew[i] - velFiltered[i]) / deltaTime;
-        accFilteredNew[i] = accFiltered[i] + (accFilteredNew[i] - accFiltered[i]) * (1.0f - (pow(1.0f - kalmanGain[i], 3)));
-        accFilteredNew[i] = std::clamp(accFilteredNew[i], -maxAccel, maxAccel);
-    }
-    
+    cv::Point2f visionPosPoint = visionPos.value().position;
+    cv::Point2f visionVel = visionPos.value().velocity;
     // write new data
-    posFiltered = posFilteredNew;
-    velFiltered = velFilteredNew;
-    accFiltered = accFilteredNew;
+    posFiltered = {
+        visionPosPoint.x, visionPosPoint.y,
+        // Steven uses floats :(
+        static_cast<float>(static_cast<double>(visionAngle.value().angle))};
+    velFiltered = {visionVel.x, visionVel.y, static_cast<float>(visionAngle.value().velocity)};
 
     // update slow filters
     for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.05f)) * (velFiltered[i] - velFilteredSlow[i]); }
@@ -537,12 +395,6 @@ std::vector<float> FilteredRobot::updateModel(std::vector<float> inputs, std::ve
         };
     
         for(int i = 0; i < 3; i++) { velFilteredSlow[i] += (1 - exp(-deltaTime / 0.05f)) * (velFiltered[i] - velFilteredSlow[i]); }
-    
-        accFiltered = {
-            0,
-            0,
-            0
-        };
     }
 
     return std::vector<float> {newMoveVel, newTurnVel};
@@ -752,10 +604,6 @@ float FilteredRobot::turnVel() { return velFiltered[2]; }
 float FilteredRobot::turnVelSlow() { return velFilteredSlow[2]; }
 float FilteredRobot::getMaxTurnSpeed() { return maxTurnSpeed; }
 float FilteredRobot::getMaxMoveSpeed() { return maxMoveSpeed; }
-float FilteredRobot::getMaxMoveAccel() { return maxMoveAccel; }
-float FilteredRobot::getMaxTurnAccel() { return maxTurnAccel; }
-float FilteredRobot::moveAccel() { return cv::norm(cv::Point2f(accFiltered[0], accFiltered[1])); }
-float FilteredRobot::turnAccel() { return accFiltered[2]; }
 std::vector<cv::Point2f> FilteredRobot::getPath() { return path; }
 float FilteredRobot::getWeaponAngleReach() { return weaponAngleReach; }
 float FilteredRobot::getSizeRadius() { return sizeRadius; }
@@ -765,6 +613,5 @@ float FilteredRobot::moveSpeedSlow() { return cv::norm(moveVelSlow()); }
 
 std::vector<float> FilteredRobot::getPosFiltered() { return posFiltered; }
 std::vector<float> FilteredRobot::getVelFiltered() { return velFiltered; }
-std::vector<float> FilteredRobot::getAccFiltered() { return accFiltered; }
 std::vector<float> FilteredRobot::getVelFilteredSlow() { return velFilteredSlow; }
 std::vector<float> FilteredRobot::getVelFilteredUltraSlow() { return velFilteredUltraSlow; }
