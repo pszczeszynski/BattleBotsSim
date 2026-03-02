@@ -71,6 +71,7 @@ set(SOURCES
     UIWidgets/TrackingWidget.cc
     UIWidgets/TrackingWidgetSettings.cc
     UIWidgets/RobotTelemetryWidget.cc
+    UIWidgets/StatusIndicatorWidget.cc
     libs/IMGUI/imgui.cpp
     libs/IMGUI/imgui_draw.cpp
     libs/IMGUI/imgui_widgets.cpp

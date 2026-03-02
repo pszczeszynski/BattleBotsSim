@@ -72,6 +72,7 @@ bool RobotControllerGUI::Update() {
 
   _configWidget.Draw();
   _purePursuitRadiusWidget.Draw();
+  _statusIndicatorWidget.Draw();
   _robotTelemetryWidget.Draw();
   _variantsWidget.Draw();
   _cameraWidget.Draw();

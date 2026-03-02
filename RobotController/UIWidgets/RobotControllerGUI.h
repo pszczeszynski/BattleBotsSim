@@ -12,6 +12,7 @@
 #include "PlaybackWidget.h"
 #include "PurePursuitRadiusWidget.h"
 #include "RobotTelemetryWidget.h"
+#include "StatusIndicatorWidget.h"
 #include "VariantsWidget.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -37,6 +38,7 @@ class RobotControllerGUI {
   IMUWidget _imuWidget;
   ConfigWidget _configWidget;
   RobotTelemetryWidget _robotTelemetryWidget;
+  StatusIndicatorWidget _statusIndicatorWidget;
   VariantsWidget _variantsWidget;
   PlaybackWidget _playbackWidget;
   ManualControlWidget _manualControlWidget;
