@@ -1,65 +1,49 @@
 #pragma once
 
+#include <GLFW/glfw3.h>
+#include <stdio.h>
+
+#include <opencv2/opencv.hpp>
+
+#include "CameraWidget.h"
+#include "ConfigWidget.h"
+#include "IMUWidget.h"
+#include "ManualControlWidget.h"
+#include "PlaybackWidget.h"
+#include "PurePursuitRadiusWidget.h"
+#include "RobotTelemetryWidget.h"
+#include "VariantsWidget.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
 
-#include "ConfigWidget.h"
-#include "FieldWidget.h"
-#include "IMUWidget.h"
-#include "RobotTelemetryWidget.h"
+class RobotControllerGUI {
+ public:
+  RobotControllerGUI();
+  bool Update();
+  void Shutdown();
 
-#include <stdio.h>
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <opencv2/opencv.hpp>
-#include "ImageWidget.h"
-#include "FieldWidget.h"
-#include "VariantsWidget.h"
-#include "PlaybackWidget.h"
-#include "ManualControlWidget.h"
-#include "CameraWidget.h"
-#include "PurePursuitRadiusWidget.h"
+  // singleton
+  static RobotControllerGUI &GetInstance();
 
-////////// GLOBALS //////////
+ private:
+  void Render();
+  GLFWwindow *SetupWindow();
+  void SetupIMGUI(GLFWwindow *window);
+  void InitializeImGUIFrame();
+  void Render(GLFWwindow *window, ImVec4 clearColor);
 
-#define IMGUI_WIDTH 1
-#define IMGUI_HEIGHT 1
-#define IMGUI_ENABLE_VSYNC 1
+  GLFWwindow *window;
 
-class RobotControllerGUI
-{
-public:
-    RobotControllerGUI();
-    bool Update();
-    void Shutdown();
-
-    // singleton
-    static RobotControllerGUI& GetInstance();
-
-private:
-    void Render();
-    GLFWwindow *SetupWindow();
-    void SetupIMGUI(GLFWwindow *window);
-    void InitializeImGUIFrame();
-    void Render(GLFWwindow *window, ImVec4 clearColor);
-
-    GLFWwindow *window;
-
-    IMUWidget _imuWidget;
-    ConfigWidget _configWidget;
-    RobotTelemetryWidget _robotTelemetryWidget;
-    VariantsWidget _variantsWidget;
-    PlaybackWidget _playbackWidget;
-    ManualControlWidget _manualControlWidget;
-    CameraWidget _cameraWidget;
-    PurePursuitRadiusWidget _purePursuitRadiusWidget;
+  IMUWidget _imuWidget;
+  ConfigWidget _configWidget;
+  RobotTelemetryWidget _robotTelemetryWidget;
+  VariantsWidget _variantsWidget;
+  PlaybackWidget _playbackWidget;
+  ManualControlWidget _manualControlWidget;
+  CameraWidget _cameraWidget;
+  PurePursuitRadiusWidget _purePursuitRadiusWidget;
 };
 
-static void glfw_error_callback(int error, const char *description)
-{
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+static void glfw_error_callback(int error, const char *description) {
+  fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
-
-
-
-
