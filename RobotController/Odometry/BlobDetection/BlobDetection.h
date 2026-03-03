@@ -14,6 +14,11 @@ struct VisionClassification {
   std::optional<MotionBlob> opponent;
 };
 
+struct prevFrameData {
+  cv::Mat previousImage;
+  double previousFrameTime;
+};
+
 // Debug info for a blob - valid/invalid and reason
 struct BlobDebugInfo {
   cv::Rect rect;
@@ -78,9 +83,13 @@ class BlobDetection : public OdometryBase {
                          double timestamp);
 
   RobotClassifier _robotClassifier;  // Takes the blobs and figures out whos who
-  cv::Mat _previousImage;            // The previous image to do delta on
-  double _prevFrameTime = 0;  // The previous time for velocity calcs and when
+  // cv::Mat _previousImage;            // The previous image to do delta on
+  // double _prevFrameTime = 0;  // The previous time for velocity calcs and when
                               // we updated our previous image
+  prevFrameData _prevFrameData[100];
+  int currIndex = 0;
+  // int prevIndex = 0;
+  
   std::mutex _mutexDebugImage;
   cv::Mat _debugImage;
 
