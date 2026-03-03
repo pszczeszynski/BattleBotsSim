@@ -74,14 +74,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
     // control orbVirtual and model tuning
-    bool autoTune = gamepad.GetLeftBumper() && !gamepad.GetRightBumper();
-    bool resetState = gamepad.GetRightBumper();
-    bool resetModel = gamepad.GetRightBumper() && gamepad.GetLeftBumper();
-    bool displayOrbVirtual = gamepad.GetLeftTrigger() > 0.3f;
-
-    if(displayOrbVirtual || autoTune || resetState || resetModel) {
-        controlOrbVirtual(autoTune, resetState, resetModel);
-    }
+    controlOrbVirtual(gamepad);
 
 
 
@@ -944,7 +937,15 @@ void AStarAttack::RegenerateFieldBoundaryLines() { field.generateBoundLines(); }
 
 
 // controls everything with orbVirtual
-void AStarAttack::controlOrbVirtual(bool autoTune, bool resetState, bool resetModel) {
+void AStarAttack::controlOrbVirtual(Gamepad& gamepad) {
+
+    bool autoTune = gamepad.GetLeftBumper() && !gamepad.GetRightBumper();
+    bool resetState = gamepad.GetRightBumper();
+    bool resetModel = gamepad.GetRightBumper() && gamepad.GetLeftBumper();
+    bool display = gamepad.GetLeftTrigger() > 0.3f;
+
+    if(!autoTune && !resetState && !resetModel && !display) { return; } // don't run anything if we're not inputting anything
+
 
     // run the virtual orb model, tune if wanted
     orbVirtual.tuneModel(autoTune, inputs, trueOutputs);

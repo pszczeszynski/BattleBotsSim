@@ -80,6 +80,6 @@ private:
     int sign(float num);
     void driveAngle(FollowPoint &follow);
     void display(FollowPoint follow, std::vector<FollowPoint> follows, std::vector<FollowPoint> followsFocussed);
-    void controlOrbVirtual(bool autoTune, bool resetState, bool resetModel);
+    void controlOrbVirtual(Gamepad& gamepad);
 
 };
