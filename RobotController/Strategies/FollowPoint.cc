@@ -23,6 +23,7 @@ FollowPoint::FollowPoint(bool forward, bool CW, bool turnAway, float endAngle, f
     crossesOppFront = false;
 
     directionScores = {};
+    directionScoreNames = {};
     orbSimPath = {};
     orbSimPathTimes = {};
     directionScores = {};

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <opencv2/core.hpp>
+#include <string>
 #include "../SafeDrawing.h"
 #include "FilteredRobot.h"
 #include "Approach.h"
@@ -36,6 +37,7 @@ public:
     bool crossesOppFront; // if we cross by the opp's front during the sim path
 
     std::vector<float> directionScores; // score numbers for how good this follow point is, last entry is the total score
+    std::vector<std::string> directionScoreNames; // names of the scores for each direction
 
 private:
 
