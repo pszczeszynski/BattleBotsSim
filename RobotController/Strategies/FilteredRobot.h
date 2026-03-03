@@ -3,6 +3,7 @@
 #include <cmath>
 #include <opencv2/core.hpp>
 #include "../Globals.h"
+#include "../Odometry/OdometryData.h"
 
 // kalman filtered robot data
 class FilteredRobot
@@ -18,7 +19,7 @@ class FilteredRobot
   // for virtual opp with zero speed
   FilteredRobot(cv::Point2f position, float sizeRadius);
 
-  void updateFilters(float deltaTime, cv::Point2f visionPos, float visionTheta);
+  void updateFilters(float deltaTime, std::optional<PositionData> robotPos, std::optional<AngleData> robotAngle);
   void tuneModel(bool autoTune, std::vector<float> inputs, std::vector<float> trueOutputs);
   std::vector<float> updateModel(std::vector<float> inputs, std::vector<float>& model, bool writePos);
 
@@ -39,10 +40,7 @@ class FilteredRobot
   void updatePath();
   void setPos(std::vector<float> pos);
   void setVel(std::vector<float> vel);
-  void setAccel(std::vector<float> acc);
   void setSizeRadius(float sizeRadius);
-  std::vector<std::vector<float>> kalmanExtrapAccel(float time);
-  std::vector<std::vector<float>> kalmanExtrapVel(float time);
   std::vector<std::vector<float>> constVelExtrap(float time);
   
 
@@ -55,19 +53,14 @@ class FilteredRobot
   std::vector<float> getVelFiltered();
   std::vector<float> getVelFilteredSlow();
   std::vector<float> getVelFilteredUltraSlow();
-  std::vector<float> getAccFiltered();
   float turnVel();
   float turnVelSlow();
   float moveSpeed();
   float moveSpeedSlow();
   float tangentVel(bool forward);
   float tangentVelFast(bool forward);
-  float moveAccel();
-  float turnAccel();
   float getMaxMoveSpeed();
   float getMaxTurnSpeed();
-  float getMaxMoveAccel();
-  float getMaxTurnAccel();
   float getWeaponAngleReach();
   float getSizeRadius();
   std::vector<cv::Point2f> getPath();
@@ -91,7 +84,6 @@ class FilteredRobot
   // each are 3 big, XYT
   std::vector<float> posFiltered;  // current pos
   std::vector<float> velFiltered;  // current vel
-  std::vector<float> accFiltered;  // current accel
 
   // extra filtered for threshold use
   std::vector<float> velFilteredSlow;

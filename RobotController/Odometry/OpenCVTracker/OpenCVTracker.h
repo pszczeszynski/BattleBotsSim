@@ -1,89 +1,49 @@
 #pragma once
 
-#include "../OdometryBase.h"
-
-#ifdef _OPENCV_TRACKING
-
-#include <iostream>
-
+#include <mutex>
+#include <optional>
+#include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
-#include <opencv2/core/core.hpp>
 
-#ifdef _OPENCV_TRACKING
-    #if defined(CV_VERSION_MAJOR) && CV_VERSION_MAJOR >= 4
-        #include <opencv2/tracking.hpp> // OpenCV 4.x
-    #else
-        #include <opencv2/video/tracking.hpp> // OpenCV 3.x
-    #endif
-#endif
+#include "../OdometryBase.h"
 
-
-
-
-
-enum TrackerState
-{
-    UNINITIALIZED = 0,
-    INIT_STARTED,
-    INITIALIZED
+struct TrackSlot {
+  cv::Ptr<cv::Tracker> tracker;
+  cv::Rect bbox;
+  std::optional<cv::Rect> pendingInitBBox;
+  bool initialized = false;
+  double lastInitTime = 0.0;
+  cv::Point2f lastCenter{};
+  double lastTime = 0.0;
+  bool hasLast = false;
+  int invalidCount = 0;
+  std::optional<AngleData> angle;
 };
 
-class OpenCVTracker : public OdometryBase
-{
-public:
-    OpenCVTracker(ICameraReceiver *videoSource);
+class OpenCVTracker : public OdometryBase {
+ public:
+  OpenCVTracker(ICameraReceiver* videoSource);
 
-    void SwitchRobots(void) override;
-    void SetPosition(const PositionData& newPos, bool opponentRobot) override;
+  void SwitchRobots(void) override;
+  void SetPosition(const PositionData& newPos, bool opponentRobot) override;
+  void SetAngle(AngleData angleData, bool opponentRobot) override;
+  void GetDebugImage(cv::Mat& target, cv::Point offset = cv::Point(0, 0)) override;
 
-private:
-    void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
+ private:
+  void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
+  void _ProcessSlot(TrackSlot& slot, bool isOpponent, double frameTime);
 
-    cv::Ptr<cv::Tracker> _robotTracker;
-    cv::Ptr<cv::Tracker> _opponentTracker;
-    cv::TrackerDaSiamRPN::Params _trackerParams;
+  TrackSlot _robotSlot;
+  TrackSlot _opponentSlot;
+  cv::Mat _previousImage;
 
-    cv::Rect _robotBBox;
-    cv::Rect _opponentBBox;
+  std::mutex _slotsMutex;
+  std::mutex _mutexDebugImage;
+  cv::Rect _debugRobotBbox;
+  cv::Rect _debugOpponentBbox;
+  bool _debugRobotInitialized = false;
+  bool _debugOpponentInitialized = false;
 
-    cv::Mat _previousImage;
-
-    // Tracker needs initial bbox to start
-    // indicates whether the bbox has been given since launch
-    enum TrackerState _robotTrackerState = TrackerState::UNINITIALIZED;
-    enum TrackerState _opponentTrackerState = TrackerState::UNINITIALIZED;
-
-    // Per-robot state for velocity computation (last published position/time)
-    cv::Point2f _robotLastCenter{};
-    double _robotLastTime = 0.0;
-    bool _robotHasLast = false;
-
-    cv::Point2f _opponentLastCenter{};
-    double _opponentLastTime = 0.0;
-    bool _opponentHasLast = false;
-
-    // Epoch counters to detect TOCTOU races with SwitchRobots()/SetPosition()
-    uint64_t _robotEpoch = 0;
-    uint64_t _oppEpoch = 0;
-
-    // Consecutive invalid update() count for recovery
-    int _robotInvalidCount = 0;
-    int _opponentInvalidCount = 0;
-
-    void _ProcessSlot(cv::Ptr<cv::Tracker>& tracker, cv::Rect& bbox,
-                     TrackerState& state, uint64_t& epoch,
-                     cv::Point2f& lastCenter, double& lastTime, bool& hasLast,
-                     int& invalidCount, bool isOpponent, double frameTime);
+  static constexpr bool kDebugOpenCVTracker = false;
 };
-#else // Dummy class for when OpenCV tracking is not available
-
-class OpenCVTracker : public OdometryBase
-{
-public:
-    OpenCVTracker(ICameraReceiver *videoSource) {};
-}
-
-
-#endif // _OPENCV_TRACKING
-;

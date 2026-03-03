@@ -13,8 +13,8 @@ void TrackingFieldCropEditor::Update(cv::Point2f mousePos, bool mouseOverImage,
       InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift);
   const bool leftMouseDown = InputState::GetInstance().IsMouseDown(0);
   const cv::Size frameSize = overlayMat.empty()
-                                ? cv::Size(WIDTH, HEIGHT)
-                                : cv::Size(overlayMat.cols, overlayMat.rows);
+                                 ? cv::Size(WIDTH, HEIGHT)
+                                 : cv::Size(overlayMat.cols, overlayMat.rows);
   const int w = frameSize.width;
   const int h = frameSize.height;
 
@@ -37,12 +37,14 @@ void TrackingFieldCropEditor::Update(cv::Point2f mousePos, bool mouseOverImage,
     }
   }
 
-  // Corner selection/dragging only when: enabled, mouse over image, no shift, left mouse down
-  const bool canAdjust =
+  // Corner selection: only when enabled, mouse over image, no shift, left mouse
+  // down Once dragging, continue until mouse released (allows dragging off
+  // window)
+  const bool canSelectCorner =
       enabledCrop && mouseOverImage && !shiftDown && leftMouseDown;
 
   if (!shiftDown) {
-    if (canAdjust) {
+    if (canSelectCorner) {
       if (_cornerToAdjust == -1) {
         for (int i = 0; i < 4; i++) {
           if (cv::norm(cornerHandles[i] - mousePos) < kCornerDistThresh) {
@@ -52,7 +54,10 @@ void TrackingFieldCropEditor::Update(cv::Point2f mousePos, bool mouseOverImage,
         }
       }
     } else {
-      _cornerToAdjust = -1;
+      // Only reset when mouse is released - allows dragging off window
+      if (!leftMouseDown) {
+        _cornerToAdjust = -1;
+      }
     }
 
     cv::Point2f adjustment = _mousePosLast - mousePos;

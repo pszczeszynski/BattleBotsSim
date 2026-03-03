@@ -10,7 +10,6 @@
 #include "RobotController.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
-#include "SimulationState.h"
 
 namespace {
 enum FUSION_SM {
@@ -56,6 +55,27 @@ void MaybeDisqualifyBlobByLKFlow(
     blob_angle_out.reset();
   }
 }
+
+constexpr double kMinSeparationToUseBlob = 125;
+
+void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
+                                   const OdometryData &prevRobot,
+                                   const OdometryData &prevOpponent) {
+  if (!prevRobot.pos.has_value() || !prevOpponent.pos.has_value()) {
+    return;
+  }
+
+  double distBetweenPrev = cv::norm(prevRobot.pos.value().position -
+                                    prevOpponent.pos.value().position);
+
+  if (distBetweenPrev < kMinSeparationToUseBlob) {
+    usBlob.pos.reset();
+    usBlob.angle.reset();
+    themBlob.pos.reset();
+    themBlob.angle.reset();
+  }
+}
+
 }  // namespace
 
 RobotOdometry::RobotOdometry(ICameraReceiver &videoSource)
@@ -112,13 +132,13 @@ void RobotOdometry::_AdjustAngleWithArrowKeys() {
   updateClock.markStart();
 
   if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow) &&
-      _dataRobot.angle.has_value()) {
-    UpdateForceSetAngle(_dataRobot.angle.value().angle - angleUserAdjust,
-                        false);
+      _dataOpponent.angle.has_value()) {
+    UpdateForceSetAngle(_dataOpponent.angle.value().angle - angleUserAdjust,
+                        true);
   } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow) &&
-             _dataRobot.angle.has_value()) {
-    UpdateForceSetAngle(_dataRobot.angle.value().angle + angleUserAdjust,
-                        false);
+             _dataOpponent.angle.has_value()) {
+    UpdateForceSetAngle(_dataOpponent.angle.value().angle + angleUserAdjust,
+                        true);
   }
 
   // opponent with up and 1 and 3
@@ -271,6 +291,9 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
                               inputs.us_blob.pos, _prevInputs.us_blob.pos,
                               inputs.us_blob.pos, inputs.us_blob.angle);
 
+  MaybeDisqualifyBlobByDistance(inputs.us_blob, inputs.them_blob, prevRobot,
+                                prevOpponent);
+
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
     // G1) if Neural US = Heuristic.them: SWAP Heuristic and invalidate them
@@ -357,8 +380,6 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.robot.angle = inputs.us_imu.angle;
   } else if (isFresh(inputs.us_lkflow.angle)) {
     output.robot.angle = inputs.us_lkflow.angle;
-  } else if (isFresh(inputs.us_blob.angle)) {
-    output.robot.angle = inputs.us_blob.angle;
   } else if (isFresh(inputs.us_neuralrot.angle)) {
     output.robot.angle = inputs.us_neuralrot.angle;
     output.robot.angle.value().velocity = 0;
@@ -399,10 +420,20 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.opponent.angle = inputs.us_human.angle;
   } else if (isFresh(inputs.them_lkflow.angle)) {
     output.opponent.angle = inputs.them_lkflow.angle;
-  } else if (isFresh(inputs.them_blob.angle)) {
-    output.opponent.angle = inputs.them_blob.angle;
   } else if (isFresh(inputs.them_heuristic.angle)) {
     output.opponent.angle = inputs.them_heuristic.angle;
+  }
+
+  // fuse towards the blob angle if it is fresh
+  if (isFresh(inputs.them_blob.angle)) {
+    AngleData blobAngle = inputs.them_blob.angle.value();
+    double deltaTime = now - blobAngle.time;
+    double interpolateAmount = (std::min)(1.0, deltaTime * 1.0);
+    output.opponent.angle.value().angle =
+        InterpolateAngles(output.opponent.angle.value().angle, blobAngle.angle,
+                          interpolateAmount);
+    std::cout << "fused towards blob angle: "
+              << output.opponent.angle.value().angle.degrees() << std::endl;
   }
 
 #ifdef FORCE_SIM_DATA
@@ -439,7 +470,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   }
 
   // Robot Position
-  if (robot.pos.has_value()) {
+  if (isFresh(robot.pos)) {
     if (backAnnotate.forceRobotPos_Heuristic) {
       _odometry_Heuristic.ForcePosition(robot.pos.value(), false);
     } else {
@@ -454,15 +485,16 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   }
 
   // Robot Angle
-  if (robot.angle.has_value()) {
+  if (isFresh(robot.angle)) {
     _odometry_Heuristic.SetAngle(robot.angle.value(), false);
     _odometry_Blob.SetAngle(robot.angle.value(), false);
     _odometry_LKFlow.SetAngle(robot.angle.value(), false);
     _odometry_opencv.SetAngle(robot.angle.value(), false);
+    _odometry_IMU.SetAngle(robot.angle.value(), false);
   }
 
   // Opponent Position
-  if (opponent.pos.has_value()) {
+  if (isFresh(opponent.pos)) {
     _odometry_Heuristic.SetPosition(opponent.pos.value(), true);
     _odometry_Heuristic.SetVelocity(opponent.pos.value().velocity, true);
     _odometry_Blob.SetPosition(opponent.pos.value(), true);
@@ -473,7 +505,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
   }
 
   // Opponent Angle
-  if (opponent.angle.has_value()) {
+  if (isFresh(opponent.angle)) {
     _odometry_Heuristic.SetAngle(opponent.angle.value(), true);
     _odometry_Blob.SetAngle(opponent.angle.value(), true);
     _odometry_LKFlow.SetAngle(opponent.angle.value(), true);
@@ -493,18 +525,12 @@ OdometryData RobotOdometry::Robot(double currTime) {
   return currData.ExtrapolateBoundedTo(currTime);
 }
 
-/**
- * @brief Returns the angle to add to the global angle to get the internal imu
- * angle (in radians)
- */
-float RobotOdometry::GetIMUOffset() { return _odometry_IMU.GetOffset(); }
-
 OdometryData RobotOdometry::Opponent(double currTime) {
   std::unique_lock<std::mutex> locker(_updateMutex);
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  // currData.ExtrapolateBoundedTo(currTime);
+  currData.ExtrapolateBoundedTo(currTime);
 
   return currData;
 }
@@ -559,7 +585,8 @@ bool RobotOdometry::Run(OdometryAlg algorithm) {
   if (algorithm == OdometryAlg::Human) {
     return _odometry_Human.Run() && _odometry_Human_Heuristic.Run();
   }
-  std::cout << "Running algorithm: " << OdometryAlgToString(algorithm) << std::endl;
+  std::cout << "Running algorithm: " << OdometryAlgToString(algorithm)
+            << std::endl;
   OdometryBase *p = _algorithms.at(algorithm);
   return p != nullptr && p->Run();
 }

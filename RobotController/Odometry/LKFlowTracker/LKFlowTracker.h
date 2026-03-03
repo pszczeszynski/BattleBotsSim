@@ -29,6 +29,7 @@ struct LKFlowTargetState {
   std::vector<TrackPt> tracks;
   std::optional<double> prevTime;
   double lastRespawnTime = 0.0;
+  bool forceRespawnNextFrame = false;
   bool initialized = false;
 };
 
@@ -50,6 +51,7 @@ class LKFlowTracker : public OdometryBase {
 
   void _ProcessNewFrame(cv::Mat currFrame, double frameTime) override;
   void _StartCalled(void) override;
+  Angle _MoveTowardsExternalPathTangent(Angle startAngle);
 
   // Core tracking: operates on one target's state. Returns true if update ok.
   bool _UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray, double frameTime,
@@ -70,14 +72,15 @@ class LKFlowTracker : public OdometryBase {
                                  double& angleDelta);
   bool _RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                      std::vector<TrackPt>& tracks, int targetCount,
-                     double frameTime, double& lastRespawnTime);
+                     double frameTime, double& lastRespawnTime,
+                     cv::Rect excludeRoi = cv::Rect(0, 0, 0, 0));
   void _DrawDebugImage(cv::Size imageSize,
                        const std::vector<cv::Point2f>& nextPts,
                        const std::vector<uchar>& status,
                        const std::vector<std::pair<int, int>>& validPairs,
                        cv::Rect roi, const cv::Scalar& color);
   void _DeduplicateTracks(std::vector<TrackPt>& tracks, float minDist);
-  cv::Point2f _ComputeCenterFromPoints(const std::vector<cv::Point2f>& points);
+  cv::Point2f _ComputeCenterFromPoints(const std::vector<TrackPt>& tracks);
   void _InterpolatePosTowardCenter(const std::vector<TrackPt>& tracks,
                                   cv::Point2f& pos);
   std::vector<std::pair<int, int>> _GeneratePointPairs(int nPts);

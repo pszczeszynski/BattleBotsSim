@@ -40,57 +40,45 @@ void OdometryData::Clear() {
   userDataDouble.clear();
 }
 
-std::optional<PositionData> OdometryData::_ExtrapolatePosition(
-    double posExtrapTime) const {
-  if (!pos.has_value()) {
-    return std::nullopt;
-  }
+PositionData PositionData::ExtrapolateBoundedTo(double targetTime,
+                                                double maxRelativeTime) const {
+  double extrapTime = std::min(targetTime, time + maxRelativeTime);
   double deltaTime =
-      posExtrapTime - (pos.value().extrapolated_time.has_value()
-                           ? pos.value().extrapolated_time.value()
-                           : pos.value().time);
-  PositionData newPos = pos.value();
-  newPos.position += newPos.velocity * deltaTime;
-  newPos.extrapolated_time = posExtrapTime;
-  return newPos;
+      extrapTime -
+      (extrapolated_time.has_value() ? extrapolated_time.value() : time);
+  PositionData result = *this;
+  result.position += result.velocity * static_cast<float>(deltaTime);
+  result.extrapolated_time = extrapTime;
+  return result;
 }
 
-std::optional<AngleData> OdometryData::_ExtrapolateAngle(
-    double angleExtrapTime) const {
-  if (!angle.has_value()) {
-    return std::nullopt;
-  }
+AngleData AngleData::ExtrapolateBoundedTo(double targetTime,
+                                          double maxRelativeTime) const {
+  double extrapTime = std::min(targetTime, time + maxRelativeTime);
   double deltaTime =
-      angleExtrapTime - (angle.value().extrapolated_time.has_value()
-                             ? angle.value().extrapolated_time.value()
-                             : angle.value().time);
-
-  AngleData newAngleData = angle.value();
-  Angle newAngle =
-      angle.value().angle + Angle(angle.value().velocity * deltaTime);
-  newAngleData.angle = newAngle;
-  newAngleData.extrapolated_time = angleExtrapTime;
-  return newAngleData;
+      extrapTime -
+      (extrapolated_time.has_value() ? extrapolated_time.value() : time);
+  AngleData result = *this;
+  result.angle = angle + Angle(velocity * deltaTime);
+  result.extrapolated_time = extrapTime;
+  return result;
 }
 
 OdometryData OdometryData::ExtrapolateBoundedTo(double targetTime,
                                                 double maxRelativeTime) const {
   OdometryData result = *this;
   if (pos.has_value()) {
-    double posExtrapTime =
-        std::min(targetTime, pos.value().time + maxRelativeTime);
-    result.pos = _ExtrapolatePosition(posExtrapTime).value();
+    result.pos = pos.value().ExtrapolateBoundedTo(targetTime, maxRelativeTime);
   }
   if (angle.has_value()) {
-    double angleExtrapTime =
-        std::min(targetTime, angle.value().time + maxRelativeTime);
-    result.angle = _ExtrapolateAngle(angleExtrapTime).value();
+    result.angle =
+        angle.value().ExtrapolateBoundedTo(targetTime, maxRelativeTime);
   }
   return result;
 }
 
 // Adds to the passed image odometry data for debugging purposes.
-void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
+void OdometryData::GetDebugImage(cv::Mat& target, cv::Point offset) {
   if (target.empty()) {
     target = cv::Mat(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
   }
@@ -116,8 +104,9 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   } else {
     ss << "no value";
   }
-  ss << " [" << (pos.has_value() ? OdometryAlgToString(pos.value().algorithm)
-                                 : "not set")
+  ss << " ["
+     << (pos.has_value() ? OdometryAlgToString(pos.value().algorithm)
+                         : "not set")
      << "]\n";
 
   // Velocity
@@ -151,9 +140,9 @@ void OdometryData::GetDebugImage(cv::Mat &target, cv::Point offset) {
   } else {
     ss << "no value";
   }
-  ss << " [" << (angle.has_value()
-                     ? OdometryAlgToString(angle.value().algorithm)
-                     : "Unknown")
+  ss << " ["
+     << (angle.has_value() ? OdometryAlgToString(angle.value().algorithm)
+                           : "Unknown")
      << "]\n";
   if (!angle.has_value()) {
     ss << "Invalid ";

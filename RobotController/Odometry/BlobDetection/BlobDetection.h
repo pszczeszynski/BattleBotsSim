@@ -14,6 +14,14 @@ struct VisionClassification {
   std::optional<MotionBlob> opponent;
 };
 
+// Debug info for a blob - valid/invalid and reason
+struct BlobDebugInfo {
+  cv::Rect rect;
+  cv::Point2f center;
+  bool valid;
+  std::string reason;
+};
+
 // BlobDetection Odometry
 // Tracks objects based on the blob movement
 //
@@ -28,7 +36,6 @@ class BlobDetection : public OdometryBase {
   void SwitchRobots(void) override;
   void SetPosition(const PositionData& newPos, bool opponentRobot) override;
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
-  void SetAngle(AngleData angleData, bool opponentRobot) override;
   void GetDebugImage(cv::Mat &target, cv::Point offset = cv::Point(0, 0))
       override;  // Returns an image that is used for debugging purposes.
 
@@ -47,15 +54,6 @@ class BlobDetection : public OdometryBase {
 
     // Velocity smoothing state
     double last_vel_time = 0;
-
-    // Angle-path-tangent state
-    std::optional<cv::Point2f> prev_angle_ref_pos;
-    double prev_angle_ref_time = 0;
-    std::optional<Angle> prev_angle_ref_angle;
-    double prev_angle_ref_angular_velocity = 0;
-    cv::Point2f apt_velocity = cv::Point2f(0, 0);
-    double apt_velocity_time = 0;
-    bool prev_vel_for_apt_set = false;
   };
 
   // Run every time a new frame is available
@@ -74,10 +72,6 @@ class BlobDetection : public OdometryBase {
   void _UpdateSmoothedVelocity(BlobTrackState &state, cv::Point2f newPos,
                                double timestamp,
                                const std::optional<cv::Point2f> &prevPos);
-
-  // Calculate angle-path-tangent and update state
-  void _UpdateAnglePathTangent(BlobTrackState &state, cv::Point2f newPos,
-                               double timestamp);
 
   // Construct and publish OdometryData from current state
   void _PublishFromState(BlobTrackState &state, bool isOpponent,

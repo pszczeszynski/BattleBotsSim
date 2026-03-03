@@ -65,9 +65,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     OdometryData oppData = RobotController::GetInstance().odometry.Opponent();
 
     // update filtered positions/velocities and paths
-    orbFiltered.updateFilters(deltaTime, orbData.GetPositionOrZero(), orbData.GetAngleOrZero()); orbFiltered.updatePath();
-    oppFiltered.updateFilters(deltaTime, oppData.GetPositionOrZero(), oppData.GetAngleOrZero()); 
-    
+    orbFiltered.updateFilters(deltaTime, orbData.pos, orbData.angle); orbFiltered.updatePath();
+    oppFiltered.updateFilters(deltaTime, oppData.pos, oppData.angle);     
 
     // what did orb actually end up doing
     trueOutputs = {orbFiltered.tangentVelFast(true), orbFiltered.turnVel()};
@@ -585,30 +584,6 @@ void AStarAttack::driveAngle(FollowPoint &follow) {
 
 
 
-
-
-void AdjustRadiusWithBumpers() {
-    static bool prevRightBumper = false;
-    static bool prevLeftBumper = false;
-    bool currRightBumper = RobotController::GetInstance().gamepad.GetRightBumper();
-    bool currLeftBumper = RobotController::GetInstance().gamepad.GetLeftBumper();
-    if (currRightBumper && !prevRightBumper) {
-        RADIUS_CURVE_Y1 += 5;
-    }
-    if (currLeftBumper && !prevLeftBumper) {
-        RADIUS_CURVE_Y1 -= 5;
-    }
-
-    RADIUS_CURVE_Y1 = fmin(RADIUS_CURVE_Y1, RADIUS_CURVE_Y2 - 10);
-    RADIUS_CURVE_Y1 = fmax(RADIUS_CURVE_Y1, 0);
-
-    prevRightBumper = currRightBumper;
-    prevLeftBumper = currLeftBumper;
-}
-
-
-
-
 // absolute angle made by 2 points
 float AStarAttack::angle(cv::Point2f point1, cv::Point2f point2) {
     return std::atan2(point2.y - point1.y, point2.x - point1.x);
@@ -829,9 +804,6 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
     float fraction2 = (follow.orbETA - follow.oppETA) / (follow.orbETA + 0.00001f);
     follow.directionScores.emplace_back(fraction2*100.0f);
 
-    // std::cout << "orb eta = " << follow.orbETA;
-
-
     // also penalize very low opp times
     float extra = 9999999.0f;
     if(follow.oppETA > 0.001f) { extra = 0.3f / pow(follow.oppETA, 1.0f); } // 0.25, 1
@@ -889,39 +861,9 @@ std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() { return field.g
 
 
 
-// Radius curve parameter interface implementation
-void AStarAttack::GetRadiusCurvePoints(float radiusCurveX[4], float radiusCurveY[4]) {
-    radiusCurveX[0] = RADIUS_CURVE_X0;
-    radiusCurveX[1] = RADIUS_CURVE_X1;
-    radiusCurveX[2] = RADIUS_CURVE_X2;
-    radiusCurveX[3] = RADIUS_CURVE_X3;
-    radiusCurveY[0] = RADIUS_CURVE_Y0;
-    radiusCurveY[1] = RADIUS_CURVE_Y1;
-    radiusCurveY[2] = RADIUS_CURVE_Y2;
-    radiusCurveY[3] = RADIUS_CURVE_Y3;
-}
 
 
 
-void AStarAttack::SetRadiusCurvePoints(const float radiusCurveX[4], const float radiusCurveY[4]) {
-    RADIUS_CURVE_X0 = radiusCurveX[0];
-    RADIUS_CURVE_X1 = radiusCurveX[1];
-    RADIUS_CURVE_X2 = radiusCurveX[2];
-    RADIUS_CURVE_X3 = radiusCurveX[3];
-    RADIUS_CURVE_Y0 = radiusCurveY[0];
-    RADIUS_CURVE_Y1 = radiusCurveY[1];
-    RADIUS_CURVE_Y2 = radiusCurveY[2];
-    RADIUS_CURVE_Y3 = radiusCurveY[3];
-}
-
-
-
-void AStarAttack::ResetRadiusCurveToDefault() {
-    RADIUS_CURVE_X0 = 0.0f;   RADIUS_CURVE_Y0 = 0.0f;
-    RADIUS_CURVE_X1 = 15.0f;  RADIUS_CURVE_Y1 = 85.0f;
-    RADIUS_CURVE_X2 = 100.0f; RADIUS_CURVE_Y2 = 150.0f;
-    RADIUS_CURVE_X3 = 200.0f; RADIUS_CURVE_Y3 = 150.0f;
-}
 
 
 

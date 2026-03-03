@@ -107,7 +107,7 @@ void RobotController::Run() {
   // Start the odometry threads
   odometry.Run(OdometryAlg::Blob);
   // odometry.Run(OdometryAlg::Heuristic);
-  // odometry.Run(OdometryAlg::IMU);
+  odometry.Run(OdometryAlg::IMU);
   // odometry.Run(OdometryAlg::Neural);
   // odometry.Run(OdometryAlg::Human);
   // odometry.Run(OdometryAlg::NeuralRot);
@@ -181,8 +181,6 @@ void RobotController::Run() {
       // std::cerr << "main loop 1.06" << std::endl;
       // send the response to the robot
       robotLink.Drive(response);
-      // std::cerr << "main loop 1.07" << std::endl;
-      DrawStatusIndicators();
       // std::cerr << "main loop 1.08" << std::endl;
       // ClickOnHeuristic();
 
@@ -506,85 +504,4 @@ void RobotController::ApplyMoveScales(DriverStationMessage& msg) {
       command.selfRighterPower *= -1;
     }
   }
-}
-
-/**
- * Draws status indicators for each critical part of the robot. This includes:
- * 1. Radio connection (only if transmitter working)
- * 2. Transmitter is connected
- * 3. Gamepad1 is connected
- * 4. Gamepad2 is connected
- */
-void RobotController::DrawStatusIndicators() {
-  // get the latest can datax
-  RadioData data = robotLink.GetLastRadioMessage().radioData;
-
-  cv::Scalar color = cv::Scalar(0, 255, 0);
-  // draw green circle at top right with text radio if average delay is less
-  // than 10
-  if (data.averageDelayMS < 20 && data.averageDelayMS >= 0) {
-    color = cv::Scalar(0, 255, 0);
-  } else if (data.averageDelayMS < 50 && data.averageDelayMS >= 0) {
-    color = cv::Scalar(0, 255, 255);
-  } else {
-    color = cv::Scalar(0, 0, 255);
-  }
-  safe_circle(drawingImage, cv::Point(WIDTH - 50, 50), 17, color, -1);
-  cv::putText(drawingImage, "Radio", cv::Point(WIDTH - 63, 54),
-              cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  // check if robotlink transmission is working
-  bool transmitterConnected = robotLink.IsTransmitterConnected();
-
-  if (transmitterConnected) {
-    color = cv::Scalar(0, 255, 0);
-  } else {
-    color = cv::Scalar(0, 0, 255);
-  }
-
-  safe_circle(drawingImage, cv::Point(WIDTH - 50, 100), 17, color, -1);
-  cv::putText(drawingImage, "TX", cv::Point(WIDTH - 57, 104),
-              cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  // check if secondary robotlink transmission is working
-  bool secondaryTransmitterConnected =
-      robotLink.IsSecondaryTransmitterConnected();
-
-  if (secondaryTransmitterConnected) {
-    color = cv::Scalar(0, 255, 0);
-  } else {
-    color = cv::Scalar(0, 0, 255);
-  }
-
-  safe_circle(drawingImage, cv::Point(WIDTH - 50, 150), 17, color, -1);
-  cv::putText(drawingImage, "TX2", cv::Point(WIDTH - 57, 154),
-              cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  // check the gamepad is connected
-
-  bool gamepadConnected = gamepad.IsConnected();
-
-  if (gamepadConnected) {
-    color = cv::Scalar(0, 255, 0);
-  } else {
-    color = cv::Scalar(0, 0, 255);
-  }
-
-  safe_circle(drawingImage, cv::Point(WIDTH - 50, 200), 17, color, -1);
-  cv::putText(drawingImage, "GP1", cv::Point(WIDTH - 59, 204),
-              cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
-
-  // check if gamepad2 is connected
-
-  bool gamepad2Connected = gamepad2.IsConnected();
-
-  if (gamepad2Connected) {
-    color = cv::Scalar(0, 255, 0);
-  } else {
-    color = cv::Scalar(0, 0, 255);
-  }
-
-  safe_circle(drawingImage, cv::Point(WIDTH - 50, 250), 17, color, -1);
-  cv::putText(drawingImage, "GP2", cv::Point(WIDTH - 59, 254),
-              cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 0), 1);
 }

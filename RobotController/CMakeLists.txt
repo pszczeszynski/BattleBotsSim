@@ -37,7 +37,7 @@ if(FORCE_SIM_DATA)
 endif()
 
 
-find_package( OpenCV REQUIRED COMPONENTS core)
+find_package( OpenCV REQUIRED COMPONENTS core tracking)
 add_definitions(-D_MBCS)
 
 set(JSON_INCLUDE_PATH "./libs/json/include")
@@ -71,6 +71,7 @@ set(SOURCES
     UIWidgets/TrackingWidget.cc
     UIWidgets/TrackingWidgetSettings.cc
     UIWidgets/RobotTelemetryWidget.cc
+    UIWidgets/StatusIndicatorWidget.cc
     libs/IMGUI/imgui.cpp
     libs/IMGUI/imgui_draw.cpp
     libs/IMGUI/imgui_widgets.cpp
@@ -114,9 +115,9 @@ set(SOURCES
     UIWidgets/UIUtilities.cc
     UIWidgets/ManualControlWidget.cc
     UIWidgets/CameraWidget.cc
+    UIWidgets/PurePursuitRadiusWidget.cc
     UIWidgets/DebugVariant.cc
     UIWidgets/ColorScheme.cc
-    UIWidgets/AStarAttackWidget.cc
     CVRotation.cc
     Odometry/Neural/CVPosition.cc
     Strategies/Kill.cc

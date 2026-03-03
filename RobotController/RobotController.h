@@ -57,7 +57,6 @@ private:
     cv::Mat drawingImage;
 
     void ApplyMoveScales(DriverStationMessage& command);
-    void DrawStatusIndicators();
 
     // IMU DATA
     // Mutex and CV to allow odometry to independently poll this

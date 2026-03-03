@@ -39,6 +39,12 @@ struct AngleData {
   double GetAge() const { return Clock::programClock.getElapsedTime() - time; }
 
   AngleData(Angle a, double v, double t) : angle(a), velocity(v), time(t) {}
+
+  /// Returns a new instance extrapolated to targetTime. Creation time is
+  /// unchanged; extrapolated_time is set. Clamped so disparity never exceeds
+  /// maxRelativeTime.
+  AngleData ExtrapolateBoundedTo(
+      double targetTime, double maxRelativeTime = kMaxExtrapTimeS) const;
 };
 
 struct PositionData {
@@ -57,6 +63,12 @@ struct PositionData {
       : position(pos), velocity(vel), rect(r), time(t) {}
 
   double GetAge() const { return Clock::programClock.getElapsedTime() - time; }
+
+  /// Returns a new instance extrapolated to targetTime. Creation time is
+  /// unchanged; extrapolated_time is set. Clamped so disparity never exceeds
+  /// maxRelativeTime.
+  PositionData ExtrapolateBoundedTo(
+      double targetTime, double maxRelativeTime = kMaxExtrapTimeS) const;
 };
 
 class OdometryData {
@@ -92,10 +104,9 @@ class OdometryData {
     return cv::Point2f(0, 0);
   }
 
-  // Returns a new instance with position/angle extrapolated to a target time.
-  // Creation times (pos.time, angle.time) are unchanged; pos.extrapolated_time
-  // and angle.extrapolated_time are set to the time we extrapolated to. The
-  // extrapolation is clamped so the disparity never exceeds maxRelativeTime.
+  /// Returns a new instance with position/angle extrapolated to a target time.
+  /// Creation times (pos.time, angle.time) are unchanged; extrapolated_time
+  /// fields are set. Clamped so disparity never exceeds maxRelativeTime.
   OdometryData ExtrapolateBoundedTo(
       double targetTime, double maxRelativeTime = kMaxExtrapTimeS) const;
 
@@ -116,7 +127,4 @@ class OdometryData {
       cv::Mat& target,
       cv::Point offset = cv::Point(
           0, 0));  // Returns an image that is used for debugging purposes.
- private:
-  std::optional<PositionData> _ExtrapolatePosition(double posExtrapTime) const;
-  std::optional<AngleData> _ExtrapolateAngle(double angleExtrapTime) const;
 };
