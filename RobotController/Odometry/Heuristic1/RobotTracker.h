@@ -181,7 +181,6 @@ public:
 
     // Tracking Info
     int numFramesOld = 0; // Number of frames this tracker has been active
-    bool lockedOn = false;
     float trackingError = 0;
     int numFramesNotTracked = 0;
     double timeNotMoving = 0;

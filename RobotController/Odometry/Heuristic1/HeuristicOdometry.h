@@ -198,6 +198,9 @@ class HeuristicOdometry : public OdometryBase {
   double currTime = 0.0;  // Current frame time
   RobotTracker *ourRobotTracker = NULL;
   RobotTracker *opponentRobotTracker = NULL;
+  OdometryData ourLastSetData; // Last time set or force data was called for us
+  OdometryData opponentLastSetData; // Last time set or force data was called for them
+
   double deleteForNoMovementTime =
       0.7;  // Number of s to delete a tracked object for not moving
   int deleteForNoTrackingCount =
@@ -215,7 +218,9 @@ class HeuristicOdometry : public OdometryBase {
   float start_brightness_soak_period2 =
       0.5f;  // Additional time in seconds to wait before we start considering
              // foreground. Heuristic is started after
+  
   bool tracking_started = false;  // True if we have started tracking robots
+  bool use_new_start_alg = true; // If true tries to start tracking robots as soon as brightness is stable. If false, waits for robots to clear starting area before starting tracking
   int clear_margin = 10;  // Number of pixels to clear around the tracked bbox
                           // to avoid interference with the background healing
 

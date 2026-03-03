@@ -23,7 +23,7 @@ float RobotTracker::distanceDerating_start = 1.0;     // The mutliplier to resul
 float RobotTracker::distanceDerating_stop = 0.5;      // The maximum derating for things far away
 float RobotTracker::distanceDerating_distance = 15.0; // The radial distance at which we reach _stop intensity
 int RobotTracker::distanceDeratingMatSize = 999;      // Width/Height. Large enough to ensure we never run out. Most we will every use is mayb 100x100.
-int RobotTracker::ageBeforeStartInit = 4; // Number of frames before we start tracking the start position
+int RobotTracker::ageBeforeStartInit = 4;           // Number of frames before we start tracking the start position
 
 // Find Pos and Rotation using Match TemplateSearch. This will be done using parallel operation
 float RobotTracker::deltaAngleSweep = 8;  // Delta +/- angle to sweep
@@ -445,6 +445,8 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     // Increment age
     numFramesOld++;
 
+    // When a new tracking box appears, it waits for numFramesOld before marking its bbox area at start.
+    // Once it marks the start area, it waits until the bbox area no longer overlaps with the start area to mark that the start area has been cleared. This is to prevent marking the start area as cleared before we even start tracking.
     // Detect if we have cleared the start box
     if( !startInitialized && numFramesOld >= ageBeforeStartInit && bbox.area() > 0 )
     {

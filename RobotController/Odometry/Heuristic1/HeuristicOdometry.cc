@@ -90,9 +90,11 @@ enum CAMDECODER_SM {
   CMSM_LOADBACK = 0,            // Initial state: Load saved background
   CMSM_WAIT_BRIGHTNESS,         // Wait for brightness to stabilize
   CMSM_WAIT_BRIGHTNESS2,        // Second part of waiting for brightness
+
+  // Old Algorithm: Wait for robots to clear area
   CMSM_START_WAIT_ROBOT_CLEAR,  // Wait for robots to clear starting areas
   CMSM_RECOVER_DETECTION,       // Set current image to background and wait for
-                                // robots to be detected
+                                // robots to be detected if tracker movest past initial square
   CMSM_DETECT_MOVING_TRACKERS,  // Wait for detecting trackers that may be
                                 // moving
   CMSM_STARTNOW,                // User indicating foreground is ready
@@ -765,6 +767,8 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker *tracker, bool isOpponent,
                                         double timestamp,
                                         HeuStreamState &state) {
   // If tracker is null or not tracked, don't publish
+  // NOTE: extrapolation for a few frames is ok, may want to publish for TBD frames
+  //       but report lower confidence.
   if (tracker == nullptr || tracker->numFramesNotTracked > 0) {
     return;
   }
@@ -780,7 +784,7 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker *tracker, bool isOpponent,
 
   // Fill angle data
   Angle newAngle = Angle(tracker->rotation.angleRad());
-
+  
   // Compute angular velocity using previous published angle time only
   double newAngleVelocity = 0.0;
   if (state.last_angle.has_value()) {
@@ -799,11 +803,23 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker *tracker, bool isOpponent,
           state.last_angle.value()
               .velocity;  // Keep previous velocity if deltaTime is too small
     }
+
   }
   // If old angle was invalid, publish angle velocity as 0 (same behavior as old
   // code)
 
   sample.angle = AngleData(newAngle, newAngleVelocity, timestamp);
+
+  // Additional information to help fusion decide
+  if( tracker->IsTrackerCombined() ) {
+    sample.userDataDouble["Combined"] = 1.0;
+  } 
+
+  // If confidence is low, publish confidence
+  // No confidence means fully confident
+  if( tracker->numFramesNotTracked > 0 ) {
+    sample.userDataDouble["Confidence"] = std::max(0.0, 1.0 - (tracker->numFramesNotTracked / 10.0));
+  }
 
   // Publish the sample
   OdometryBase::Publish(sample, isOpponent, OdometryAlg::Heuristic);
@@ -816,8 +832,18 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker *tracker, bool isOpponent,
 // Sets the position to a found tracker's position
 // If no tracker is found, tracker mutations are done but no publish occurs
 // until tracker becomes valid
-void HeuristicOdometry::SetPosition(const PositionData &newPos,
-                                    bool opponentRobot) {
+void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRobot) 
+{
+  // Remember this data in case no trackers are available now and we want best guess when some appear
+  if( opponentRobot ) 
+  {
+    opponentLastSetData.pos = newPos;
+  }
+  else
+  {
+    ourLastSetData.pos = newPos;
+  }
+
   // Locate the robots
   LocateRobots(newPos.position, opponentRobot);
 
@@ -833,8 +859,18 @@ void HeuristicOdometry::SetPosition(const PositionData &newPos,
   }
 }
 
-void HeuristicOdometry::ForcePosition(const PositionData &newPos,
-                                      bool opponentRobot) {
+void HeuristicOdometry::ForcePosition(const PositionData &newPos,bool opponentRobot) 
+{
+  // Remember this data in case no trackers are available now and we want best guess when some appear
+  if( opponentRobot ) 
+  {
+    opponentLastSetData.pos = newPos;
+  }
+  else
+  {
+    ourLastSetData.pos = newPos;
+  }
+
   cv::Point2f newPosPt = newPos.position;
   // Here we assume newPos is inside the current tracked box.
   // If we have no tracker, use setPosition First
@@ -925,6 +961,16 @@ void HeuristicOdometry::ForcePosition(const PositionData &newPos,
 }
 
 void HeuristicOdometry::SetAngle(AngleData angleData, bool opponentRobot) {
+  // Remember this data in case no trackers are available now and we want best guess when some appear
+  if( opponentRobot ) 
+  {
+    opponentLastSetData.angle = angleData;
+  }
+  else
+  {
+    ourLastSetData.angle = angleData;
+  }
+
   // First lock for all robot tracking and find the robot
   std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
 
