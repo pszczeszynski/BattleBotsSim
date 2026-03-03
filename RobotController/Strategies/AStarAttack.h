@@ -2,7 +2,6 @@
 
 #include "Strategy.h"
 #include "../Input/Gamepad.h"
-#include "../PurePursuit.h"
 #include "FilteredRobot.h"
 #include "FollowPoint.h"
 #include "Field.h"

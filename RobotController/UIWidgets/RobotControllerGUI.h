@@ -16,6 +16,7 @@
 #include "VariantsWidget.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+#include "AStarAttackWidget.h"
 
 class RobotControllerGUI {
  public:
@@ -40,6 +41,7 @@ class RobotControllerGUI {
   RobotTelemetryWidget _robotTelemetryWidget;
   StatusIndicatorWidget _statusIndicatorWidget;
   VariantsWidget _variantsWidget;
+  AStarAttackWidget _aStarAttackWidget;
   PlaybackWidget _playbackWidget;
   ManualControlWidget _manualControlWidget;
   CameraWidget _cameraWidget;

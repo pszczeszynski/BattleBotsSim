@@ -7,18 +7,15 @@
 #include <algorithm>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
-#include "../UIWidgets/GraphWidget.h"
 #include "../UIWidgets/ClockWidget.h"
 #include "../MathUtils.h"
 #include <cstdlib>
 #include "DisplayUtils.h"
 #include "FollowPoint.h"
-#include "opencv2/core/check.hpp"
 #include "opencv2/core/types.hpp"
-#include "opencv2/opencv.hpp"
-#include <limits>
 #include <vector>
 #include <wingdi.h>
+#include "../PurePursuit.h"
 
 AStarAttack* AStarAttack::_instance = nullptr;
 

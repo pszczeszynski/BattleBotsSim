@@ -10,6 +10,7 @@
 #include "RobotController.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
+#include "SimulationState.h"
 
 namespace {
 enum FUSION_SM {

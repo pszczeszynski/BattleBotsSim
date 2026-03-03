@@ -1,10 +1,10 @@
+#ifdef USE_OPENCV_TRACKER
 #include "OpenCVTracker.h"
 
 #include <iostream>
 #include <utility>
 
 #include "../../Globals.h"
-#include "opencv2/tracking.hpp"
 #include "opencv2/video/tracking.hpp"
 
 namespace {
@@ -151,3 +151,4 @@ void OpenCVTracker::GetDebugImage(cv::Mat& target, cv::Point offset) {
   if (robotInit && robotBbox.area() > 0) cv::rectangle(target, robotBbox, kRobotColor, 2);
   if (opponentInit && opponentBbox.area() > 0) cv::rectangle(target, opponentBbox, kOpponentColor, 2);
 }
+#endif
