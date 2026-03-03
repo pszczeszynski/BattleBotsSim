@@ -450,9 +450,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Blob.SetVelocity(robot.pos.value().velocity, false);
     _odometry_LKFlow.SetPosition(robot.pos.value(), false);
     _odometry_LKFlow.SetVelocity(robot.pos.value().velocity, false);
-#ifdef USE_OPENCV_TRACKER
     _odometry_opencv.SetPosition(robot.pos.value(), false);
-#endif
   }
 
   // Robot Angle
@@ -471,9 +469,7 @@ void RobotOdometry::ApplyBackAnnotation(const BackAnnotation &backAnnotate,
     _odometry_Blob.SetVelocity(opponent.pos.value().velocity, true);
     _odometry_LKFlow.SetPosition(opponent.pos.value(), true);
     _odometry_LKFlow.SetVelocity(opponent.pos.value().velocity, true);
-#ifdef USE_OPENCV_TRACKER
     _odometry_opencv.SetPosition(opponent.pos.value(), true);
-#endif
   }
 
   // Opponent Angle

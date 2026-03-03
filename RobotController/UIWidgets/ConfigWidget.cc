@@ -31,6 +31,7 @@ void ConfigWidget::Draw()
     ImGui::SliderInt("Motion Low Threshold", &MOTION_LOW_THRESHOLD, 0, 100);
     ImGui::SliderInt("Matching Dist Thresh", &BLOB_MATCHING_DIST_THRESHOLD, 0, 100);
     ImGui::SliderFloat("Min fps", &BLOBS_MIN_FPS, 0, 100);
+    ImGui::SliderInt("Blob frame count", &BLOBS_FRAME_COUNT, 0, 100);
     EndSetMaxWidthWithMargin();
 
     

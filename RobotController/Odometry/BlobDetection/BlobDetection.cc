@@ -21,17 +21,68 @@ BlobDetection::BlobDetection(ICameraReceiver* videoSource)
 
 void BlobDetection::_ProcessNewFrame(const cv::Mat currFrame,
                                      double frameTime) {
-  if (_previousImage.empty()) {
-    std::cout << "[BlobDetection] First frame, storing as prev (no diff yet)"
-              << std::endl;
-    _previousImage = currFrame.clone();
-    _prevFrameTime = frameTime;
+  // if (_previousImage.empty()) {
+  //   std::cout << "[BlobDetection] First frame, storing as prev (no diff yet)"
+  //             << std::endl;
+  //   _previousImage = currFrame.clone();
+  //   _prevFrameTime = frameTime;
+  //   return;
+  // }
+  
+  _prevFrameData[currIndex].previousImage = currFrame.clone();
+  _prevFrameData[currIndex].previousFrameTime = frameTime;
+
+  // Determine if either robot is moving fast based on recent velocities
+  bool fast_moving = false;
+  {
+    std::lock_guard<std::mutex> lock(_updateMutex);
+
+    constexpr double kVelocityRecencyThreshold = 0.1;  // seconds
+    double max_speed = 0.0;
+
+    // Check "us" robot velocity recency and magnitude
+    if (_usState.last_vel_time > 0 &&
+        (frameTime - _usState.last_vel_time) <= kVelocityRecencyThreshold) {
+      const cv::Point2f &v = _usState.last_velocity;
+      double speed = std::sqrt(static_cast<double>(v.x) * v.x +
+                                static_cast<double>(v.y) * v.y);
+      max_speed = (std::max)(max_speed, speed);
+    }
+
+    // Check "them" robot velocity recency and magnitude
+    if (_themState.last_vel_time > 0 &&
+        (frameTime - _themState.last_vel_time) <= kVelocityRecencyThreshold) {
+      const cv::Point2f &v = _themState.last_velocity;
+      double speed = std::sqrt(static_cast<double>(v.x) * v.x +
+                                static_cast<double>(v.y) * v.y);
+      max_speed = (std::max)(max_speed, speed);
+    }
+
+    if (max_speed > 50.0) {
+      fast_moving = true;
+    }
+  }
+
+  int prevIndex = currIndex - BLOBS_FRAME_COUNT;
+
+  if (fast_moving) {
+    prevIndex = currIndex - 1;
+    std::cout << "[BlobDetection] Fast moving, using prevIndex: " << prevIndex << std::endl;
+  }
+
+  if (prevIndex < 0) {
+    prevIndex += 100;
+  }
+
+  if (_prevFrameData[prevIndex].previousImage.empty()) {
+    currIndex = (currIndex + 1) % 100;
     return;
   }
 
+
   // Run expensive vision work first (no lock)
   VisionClassification robotData =
-      _DoBlobDetection(currFrame, _previousImage, frameTime);
+      _DoBlobDetection(currFrame, _prevFrameData[prevIndex].previousImage, frameTime);
 
   if (robotData.robot.has_value()) {
     _ProcessStream(robotData.robot.value(), _usState, false, frameTime);
@@ -43,22 +94,25 @@ void BlobDetection::_ProcessNewFrame(const cv::Mat currFrame,
   // Move currFrame to previousImage
   // But only if both our robot and opponent robot have been found, or we
   // exceeded a timer
-  bool willUpdatePrev =
-      robotData.robot.has_value() || robotData.opponent.has_value() ||
-      (frameTime - _prevFrameTime) > (1.0 / BLOBS_MIN_FPS);
-  static int s_blobProcessCount = 0;
-  if (++s_blobProcessCount <= 20 || willUpdatePrev) {
-    std::cout << "[BlobDetection] Process #" << s_blobProcessCount
-              << " updatePrev=" << willUpdatePrev
-              << " robot=" << robotData.robot.has_value()
-              << " opponent=" << robotData.opponent.has_value()
-              << " dt=" << (frameTime - _prevFrameTime) << std::endl;
-  }
-  if (willUpdatePrev) {
-    // save the current frame as the previous frame
-    _previousImage = currFrame.clone();
-    _prevFrameTime = frameTime;
-  }
+  // bool willUpdatePrev =
+  //     robotData.robot.has_value() || robotData.opponent.has_value() ||
+  //     (frameTime - _prevFrameTime) > (1.0 / BLOBS_MIN_FPS);
+  // static int s_blobProcessCount = 0;
+  // if (++s_blobProcessCount <= 20 || willUpdatePrev) {
+  //   std::cout << "[BlobDetection] Process #" << s_blobProcessCount
+  //             << " updatePrev=" << willUpdatePrev
+  //             << " robot=" << robotData.robot.has_value()
+  //             << " opponent=" << robotData.opponent.has_value()
+  //             << " dt=" << (frameTime - _prevFrameTime) << std::endl;
+  // }
+  // if (willUpdatePrev) {
+  //   // save the current frame as the previous frame
+  //   _previousImage = currFrame.clone();
+  //   _prevFrameTime = frameTime;
+  // }
+  // _prevFrameData[currIndex].previousImage = currFrame.clone();
+  // _prevFrameData[currIndex].previousFrameTime = frameTime;
+  currIndex = (currIndex + 1) % 100;
 }
 
 /**
