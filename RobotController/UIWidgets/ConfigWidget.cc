@@ -269,7 +269,7 @@ void ConfigWidget::Draw()
         }
         else if (RADIO_CHANNEL == TEENSY_RADIO_3)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx1->Rx3"))
@@ -296,7 +296,7 @@ void ConfigWidget::Draw()
         }
         else if (RADIO_CHANNEL == TEENSY_RADIO_4)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx1->Rx4"))
@@ -326,7 +326,7 @@ void ConfigWidget::Draw()
         }
         else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_1)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx2->Rx1"))
@@ -353,7 +353,7 @@ void ConfigWidget::Draw()
         }
         else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_2)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx2->Rx2"))
@@ -380,7 +380,7 @@ void ConfigWidget::Draw()
         }
         else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_3)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx2->Rx3"))
@@ -407,7 +407,7 @@ void ConfigWidget::Draw()
         }
         else if (SECONDARY_RADIO_CHANNEL == TEENSY_RADIO_4)
         {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
         }
 
         if (ImGui::Button("Tx2->Rx4"))
@@ -433,11 +433,11 @@ void ConfigWidget::Draw()
 
     if(FUSE_IMU)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
     }
     else
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_ERROR);
     }
 
     if(ImGui::Button("Fuse IMU"))
@@ -452,11 +452,11 @@ void ConfigWidget::Draw()
 
     if(INTEGRATE_GYRO_VEL)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
     }
     else
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_ERROR);
     }
 
     if(ImGui::Button("Use IMU Vel"))
@@ -470,11 +470,11 @@ void ConfigWidget::Draw()
 
     if(MANUAL_AUTODRIVE)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_SUCCESS);
     }
     else
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_ERROR);
     }
 
     if(ImGui::Button("Autodrive Logic on Computer"))

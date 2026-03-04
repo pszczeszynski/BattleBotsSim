@@ -63,11 +63,13 @@ void ManualControlWidget::Draw() {
 
   // text for weapons
   ImGui::Text("Weapons");
-  // sliders for the weapon speeds
+  // sliders for the weapon speeds, styled via ColorScheme
+  ColorScheme::PushInputColors();
   ImGui::SliderFloat("Bar Speed", &MAX_FRONT_WEAPON_SPEED, 0, 300.0);
   ImGui::SliderFloat("Disk Speed", &MAX_BACK_WEAPON_SPEED, 0, 300.0);
   ImGui::SliderFloat("Self Righter Idle current", &SELF_RIGHTER_IDLE_CURRENT, 0,
                      3.0);
+  ColorScheme::PopInputColors();
 
 #ifdef SIMULATION
   ImGui::Checkbox("Gamepad1 controls opponent", &CONTROL_OPPONENT_ENABLED);
@@ -79,18 +81,13 @@ void ManualControlWidget::Draw() {
 
   // Get the robot controller instance
   RobotController& robotController = RobotController::GetInstance();
-  // Define colors
-  ImVec4 orbitColor = isOrbiting ? ImVec4(0.5f, 0.0f, 0.5f, 1.0f)
-                                 : ImVec4(0.75f, 0.0f, 0.75f, 1.0f);  // Purple
-  ImVec4 killColor = isKilling ? ImVec4(1.0f, 0.5f, 0.0f, 1.0f)
-                               : ImVec4(1.0f, 0.65f, 0.0f, 1.0f);  // Orange
 
-  // Button for orbit
+  // Button for orbit (use primary blue accent)
   if (isOrbiting) {
-    ColorScheme::PushButtonColors(ColorScheme::PRIMARY_PURPLE);
+    ColorScheme::PushButtonColors(ColorScheme::PRIMARY_BLUE);
   } else {
     ColorScheme::PushButtonColors(
-        ColorScheme::WithAlpha(ColorScheme::PRIMARY_PURPLE, 0.7f));
+        ColorScheme::WithAlpha(ColorScheme::PRIMARY_BLUE, 0.7f));
   }
 
   if (ImGui::Button("Orbit", ImVec2(ImGui::GetWindowWidth(), 20))) {
@@ -108,12 +105,13 @@ void ManualControlWidget::Draw() {
   }
   ColorScheme::PopButtonColors();
 
-  // Button for kill
+  // Button for kill (use BACK SPINNER gold theme)
+  ImVec4 killGold      = ImVec4(1.0f, 0.8f, 0.0f, 1.0f);  // match BACK SPINNER primary
+  ImVec4 killGoldIdle  = ImVec4(1.0f, 0.8f, 0.0f, 0.7f);
   if (isKilling) {
-    ColorScheme::PushButtonColors(ColorScheme::PRIMARY_ORANGE);
+    ColorScheme::PushButtonColors(killGold);
   } else {
-    ColorScheme::PushButtonColors(
-        ColorScheme::WithAlpha(ColorScheme::PRIMARY_ORANGE, 0.7f));
+    ColorScheme::PushButtonColors(killGoldIdle);
   }
 
   if (ImGui::Button("Kill", ImVec2(ImGui::GetWindowWidth(), 20))) {

@@ -70,7 +70,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
     // control orbVirtual and model tuning
-    controlOrbVirtual(gamepad);
+    // controlOrbVirtual(gamepad);
 
 
 
@@ -102,6 +102,11 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // display field bound lines
 
 
+    float angle = orbFiltered.getDriveAngleFiltered();
+    cv::Point2f other = orbFiltered.position() + 70.0f*cv::Point2f(cos(angle), sin(angle));
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), other, cv::Scalar(255, 255, 255), 2);
+
+
 
 
     // follow.approachCurve.followCurve(orbFiltered.position(), 40, true);
@@ -115,7 +120,8 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     
 
     std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 
-        rightStickY, deltaTime, follow.forward, follow.enforceTurnDirection);
+        rightStickY, deltaTime, follow.forward, 
+        follow.enforceTurnDirection, true);
 
 
     // create and send drive command
@@ -444,6 +450,8 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
     FilteredRobot virtualOrb = orbFiltered; // start simulated orb at our current state
     virtualOrb.setToSlowVel(); // use slow vel as starting reference
 
+    // std::cout << "speed = " << virtualOrb.moveSpeed();
+
     bool reachedFollowPoint = false; // if we've been aligned with the follow point yet
     bool reachedSpeed = false; // if we've reached a threshold speed yet
     float startingAngle = follow.opp.angleTo(virtualOrb.position(), true); // what side of opp we start on
@@ -468,7 +476,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
 
         // create the follow point using approach curve
-        cv::Point2f virtualFollow = follow.approachCurve.followCurve(virtualOrb.position(), ppRad(ppRad(virtualOrb.moveSpeed())), false);
+        cv::Point2f virtualFollow = follow.approachCurve.followCurve(virtualOrb.position(), ppRad(virtualOrb.moveSpeed()), false);
 
         // how far off we are from the simulated follow point
         float angleError = virtualOrb.angleTo(virtualFollow, follow.forward); 
@@ -532,7 +540,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
 
         std::vector<float> driveInputs = virtualOrb.curvatureController(driveAngle, 
-            1.0f, timeStep, follow.forward, enforce);
+            1.0f, timeStep, follow.forward, enforce, false);
 
 
         // timestep is larger if you're further away
@@ -806,7 +814,7 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
     float extra = 9999999.0f;
     if(follow.oppETA > 0.001f) { extra = 0.3f / pow(follow.oppETA, 1.0f); } // 0.25, 1
     follow.directionScores.emplace_back(extra);
-    follow.directionScoreNames.emplace_back("Opp Time Penalty");
+    follow.directionScoreNames.emplace_back("Opp Time");
 
 
 
@@ -815,14 +823,14 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
     float safeScore = 999999.0f;
     if(follow.worstTimeMargin > 0.001f) { safeScore = 0.8f / follow.worstTimeMargin; } // 1.2
     follow.directionScores.emplace_back(safeScore);
-    follow.directionScoreNames.emplace_back("Unsafe Penalty");
+    follow.directionScoreNames.emplace_back("Unsafe");
 
 
 
     // add penalty for points that might take us near a wall
     float wallGain = 50.0f; // 70
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
-    follow.directionScoreNames.emplace_back("Wall Penalty");
+    follow.directionScoreNames.emplace_back("Wall");
        
 
     // // how much velocity we already have built up in a given direction, ensures we don't switch to other direction randomly
@@ -833,17 +841,17 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
 
 
 
-    // add a penalty for disagreeing with the input direction
-    bool directionDisagree = (follow.forward != forwardInput);
-    follow.directionScores.emplace_back(1.0f*directionDisagree);
-    follow.directionScoreNames.emplace_back("Direction Disagree");
+    // // add a penalty for disagreeing with the input direction
+    // bool directionDisagree = (follow.forward != forwardInput);
+    // follow.directionScores.emplace_back(1.0f*directionDisagree);
+    // follow.directionScoreNames.emplace_back("Direction");
 
 
     // sum up the scores and add it as the last entry
     float totalScore = 0.0f;
     for(int i = 0; i < follow.directionScores.size(); i++) { totalScore += follow.directionScores[i]; }
     follow.directionScores.emplace_back(totalScore);
-    follow.directionScoreNames.emplace_back("Total Score");
+    follow.directionScoreNames.emplace_back("Total");
 }
 
 

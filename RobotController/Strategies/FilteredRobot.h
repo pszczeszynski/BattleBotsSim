@@ -64,7 +64,8 @@ class FilteredRobot
   float getWeaponAngleReach();
   float getSizeRadius();
   std::vector<cv::Point2f> getPath();
-  std::vector<float> curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection);
+  float getDriveAngleFiltered();
+  std::vector<float> curvatureController(float driveAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter);
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   void printModel();
   void setToSlowVel();
@@ -79,7 +80,8 @@ class FilteredRobot
   float fieldMax = WIDTH;
   float fieldMin = 0.0f;
 
-  float prevAngleError = 0.0f; // previous angle error for curvature controller
+  float driveAngleFiltered = 0.0f; // filtered drive angle for curvature controller
+  float prevTurnInput = 0.0f; // previous turn duty cycle input for curvature controller
 
   // each are 3 big, XYT
   std::vector<float> posFiltered;  // current pos

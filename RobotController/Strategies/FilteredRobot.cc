@@ -115,24 +115,40 @@ void FilteredRobot::setToSlowVel() {
 }
 
 
+// returns the number
+float FilteredRobot::getDriveAngleFiltered() { return driveAngleFiltered; }
 
 
-// calculates move and turn speeds to follow the followPoint WEIRD PD BS
-std::vector<float> FilteredRobot::curvatureController(float targetAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection) {
+
+
+// calculates move and turn speeds to follow the follow angle
+std::vector<float> FilteredRobot::curvatureController(float driveAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter) {
 
     float ogMoveInput = moveInput;
 
+
+    // the filter moves directly to the target angle, not necessarily the direction of turn enforcement
+    float filterGain = 1 - exp(-deltaTime / 0.01f); if(!useFilter) { filterGain = 1.0f; }
+    driveAngleFiltered += filterGain * angle_wrap(driveAngle - driveAngleFiltered);
+    driveAngleFiltered = angle_wrap(driveAngleFiltered);
+
+
     float reverseOffset = forward ? 0 : M_PI; // add a 180deg offset to target angle if going backward
-    float angleError = angle_wrap(targetAngle - posFiltered[2] + reverseOffset); // how far off we are from target
+    float angleError = angle_wrap(driveAngleFiltered - posFiltered[2] + reverseOffset); // how far off we are from target
+
+
 
     // rewrap based on specified turn direction
-    if(enforceTurnDirection == 1) { angleError = angle_wrap(angleError - M_PI) + M_PI; }
-    if(enforceTurnDirection == -1) { angleError = angle_wrap(angleError + M_PI) - M_PI; }
+    float wrapOffset = 0;
+    if(enforceTurnDirection == 1) { wrapOffset = M_PI; }
+    if(enforceTurnDirection == -1) { wrapOffset = -M_PI; }
+
+    angleError = angle_wrap(angleError - wrapOffset) + wrapOffset;
+
+
 
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
-
-
 
     float slowGain = 1.0f; // 0.88
     float fastGain = 0.40f; // 0.32
@@ -154,11 +170,10 @@ std::vector<float> FilteredRobot::curvatureController(float targetAngle, float m
     }
 
 
-    float turnSpeedChange = (turnInput - prevAngleError) / deltaTime; // angular acceleration needed for curvature change
-    prevAngleError = turnInput; // save the turn speed wanted for the normal amount of curvature
+    float turnSpeedChange = (turnInput - prevTurnInput) / deltaTime; // angular acceleration needed to track requested speed changes
+    prevTurnInput = turnInput; // save the turn speed wanted for the normal amount of curvature
 
 
-    // float turnSpeedOffset = pow(abs(turnSpeedChange), 1.3f) * sign(turnSpeedChange) * 0.14f;
     float turnSpeedOffset = 0.11f * turnSpeedChange;
     turnInput = std::clamp(turnInput + turnSpeedOffset, -1.0f, 1.0f);
 

@@ -55,7 +55,7 @@ DriverStationMessage Kill::Execute(Gamepad &gamepad)
 
     // calculate drive inputs based on curvature controller (it's just atan2)
     float targetAngle = angle(orbFiltered.position(), target);
-    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, gamepad.GetRightStickY(), deltaTime, forwardInput, 0);
+    std::vector<float> driveInputs = orbFiltered.curvatureController(targetAngle, gamepad.GetRightStickY(), deltaTime, forwardInput, 0, true);
 
 
 
@@ -216,7 +216,7 @@ float Kill::orbTimeToPoint(cv::Point2f point, std::vector<cv::Point2f> &orbSimPa
         float driveAngle = angle(virtualOrb.position(), point);
 
         std::vector<float> driveInputs = virtualOrb.curvatureController(driveAngle, 
-            1.0f, timeStep, forward, 0);
+            1.0f, timeStep, forward, 0, false);
 
         std::vector<float> modelInputs = {driveInputs[0], driveInputs[1], 0.0f, 0.0f, timeStep};
         virtualOrb.tuneModel(false, modelInputs, {});
