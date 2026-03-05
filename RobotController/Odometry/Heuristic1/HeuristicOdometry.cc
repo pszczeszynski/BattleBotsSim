@@ -384,6 +384,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
             IsClearOfArea(ourRobotTracker, right_start_rect)) {
           // Position will be set by tracker update, just mark as valid
           // We have cleared the starting area
+          usHasPos = true;
         }
       }
 
@@ -393,6 +394,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
             IsClearOfArea(opponentRobotTracker, right_start_rect)) {
           // Position will be set by tracker update, just mark as valid
           // We have cleared the starting area
+          themHasPos = true;
         }
       }
     }
