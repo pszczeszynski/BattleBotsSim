@@ -45,7 +45,8 @@ private:
     std::vector<float> trueOutputs; // real orb's state going into this update
     std::vector<float> previousGamepad; // what gamepad inputs were last time
 
-    static AStarAttack* _instance;
+    //static AStarAttack* _instance;
+    static std::atomic<AStarAttack*> _instance;
 
     float angle(cv::Point2f point1, cv::Point2f point2);
     FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);

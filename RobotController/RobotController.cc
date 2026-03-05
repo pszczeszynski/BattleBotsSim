@@ -163,9 +163,8 @@ void RobotController::Run() {
         locker.unlock();
         _imuCV.notify_all();
       } else if (msg.type == RobotMessageType::CAN_DATA) {
-        _lastCanMessageMutex.lock();
+        std::lock_guard<std::mutex> lock(_lastCanMessageMutex);
         _lastCANMessage = msg;
-        _lastCanMessageMutex.unlock();
       }
 
       // std::cerr << "main loop 1.03" << std::endl;

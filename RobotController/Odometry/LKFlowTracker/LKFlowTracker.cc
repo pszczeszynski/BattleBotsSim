@@ -116,6 +116,12 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   cv::Mat gray;
   EnforceGrayscale(currFrame, gray);
 
+  // Check for gray being empty which can happen if unsupported format encountered. This would cause a crash
+  if (gray.empty()) {
+    std::cerr << "Gray frame is empty, skipping processing" << std::endl;
+    return;
+  }
+
   _imageSize = gray.size();
 
   {
@@ -137,7 +143,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     }
   }
 
-  if (_prevGray.empty()) {
+  // If np _prevGrey or if a size-mismatch occured (say due to reconnection), then just initialize and return without tracking
+  if (_prevGray.empty() || _prevGray.size() != gray.size()) {
     _prevGray = gray;
     return;
   }
@@ -332,7 +339,7 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
 cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
     const std::vector<TrackPt>& tracks, const std::vector<cv::Point2f>& prevPts,
     const std::vector<cv::Point2f>& nextPts, const std::vector<uchar>& status) {
-  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size()) {
+  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size() || prevPts.size() != tracks.size() || prevPts.empty()) {
     return cv::Point2f(0, 0);
   }
   std::vector<std::pair<float, cv::Point2f>> translations;
@@ -461,7 +468,8 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    int targetCount, double frameTime,
                                    double& lastRespawnTime,
                                    cv::Rect excludeRoi) {
-  const int needed = targetCount - tracks.size();
+                                    
+  const int needed = targetCount - static_cast<int>(tracks.size()); // Make sure wrap around on size_t doesnt occur during subtraction
 
   if (needed <= 0) {
     return true;

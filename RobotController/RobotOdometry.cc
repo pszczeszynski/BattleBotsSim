@@ -635,9 +635,7 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  currData.ExtrapolateBoundedTo(currTime);
-
-  return currData;
+  return currData.ExtrapolateBoundedTo(currTime);
 }
 
 static double GetImuAngleRad() {

@@ -17,7 +17,8 @@
 #include <wingdi.h>
 #include "../PurePursuit.h"
 
-AStarAttack* AStarAttack::_instance = nullptr;
+std::atomic<AStarAttack*> AStarAttack::_instance{nullptr};
+
 
 AStarAttack::AStarAttack()
 {
@@ -207,8 +208,11 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), colorOrbLight, 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRadWall(), colorOrbLight, 1); // draw pp wall radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
-
+   
+    // Prevent rare but possible crash
+    if (!follow.orbSimPath.empty()) {
+        safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
+    }
 
     // display paths
     DisplayUtils::displayPath(follow.orbSimPath, colorOrb, cv::Scalar(255, 255, 255), 6); // display orb's simulated path
@@ -313,7 +317,10 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
                     }
                 }
 
-                followsFocussed.emplace_back(follows[lowestIndexFocussed]); // add the best point to the focussed list
+                // Guard before accessing:
+                if (!follows.empty()) {
+                    followsFocussed.emplace_back(follows[lowestIndexFocussed]); // add the best point to the focussed list
+                }
             }
         }
     }
@@ -403,7 +410,7 @@ void AStarAttack::oppToOrbETA(FollowPoint &follow) {
 
 
         // opp's eta is when orb is first in the weapon region while he's turning the right way
-        if(virtualOpp.facingPoint(follow.orbSimPath.back(), true)) { 
+        if(!follow.orbSimPath.empty() &&virtualOpp.facingPoint(follow.orbSimPath.back(), true)) { 
             break;
         }
 
@@ -564,6 +571,12 @@ void AStarAttack::driveAngle(FollowPoint &follow) {
     float oppSpeed = oppFiltered.moveSpeedSlow(); // how fast the opp is moving in absolute
     float maxCancel = orbFiltered.getMaxMoveSpeed() * 0.9f; // reserve some speed margin
     if(oppSpeed > maxCancel) { oppVel *= abs(maxCancel / oppSpeed); }
+
+    // if we don't have position yet, dont do anything???
+    // This should never happen but is here to prevent crash
+    if( orbFiltered.getPosFiltered().size() < 2  ) { 
+        return;
+    }
 
     float pointAngle = angle(cv::Point2f(orbFiltered.getPosFiltered()[0], orbFiltered.getPosFiltered()[1]), follow.point); // absolute angle to the point
 
@@ -844,7 +857,7 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
 
 
 // Field boundary editing interface implementation
-AStarAttack* AStarAttack::GetInstance() { return _instance; }
+AStarAttack* AStarAttack::GetInstance() { return _instance.load(std::memory_order_acquire); }
 
 const std::vector<FollowPoint>& AStarAttack::GetFollowPoints() const {
     return _lastFollowPoints;
