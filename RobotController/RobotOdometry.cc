@@ -8,9 +8,9 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
+#include "SimulationState.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
-#include "SimulationState.h"
 
 namespace {
 enum FUSION_SM {
@@ -298,7 +298,7 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   output.opponent = prevOpponent;
 
   // GLOBAL PRECHECK:
-	//
+  //
   // Step 1) Check blob sanity
   //
   // If blob moved much faster than LK flow (same target), disqualify blob.
@@ -374,7 +374,7 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   // Robot position (manual override has highest priority)
   if (isFresh(inputs.us_override.pos)) {
     output.robot.pos = inputs.us_override.pos;
-  } else if (isFresh(inputs.us_heuristic.pos)) {   
+  } else if (isFresh(inputs.us_heuristic.pos)) {
     // If Heuristic is combined or has non 100% confidence then deprioritize it
     if(inputs.us_heuristic.userDataDouble.find("Combined") != inputs.us_heuristic.userDataDouble.end() ||
        inputs.us_heuristic.userDataDouble.find("Confidence") != inputs.us_heuristic.userDataDouble.end()){
@@ -488,26 +488,33 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
       output.opponent.pos.value().velocity =
           inputs.them_override.pos.value().velocity;
     } else if (isFresh(inputs.them_heuristic.pos)) {
-            // If Heuristic is combined or has non 100% confidence then deprioritize it
-      if(inputs.them_heuristic.userDataDouble.find("Combined") != inputs.them_heuristic.userDataDouble.end() ||
-         inputs.them_heuristic.userDataDouble.find("Confidence") != inputs.them_heuristic.userDataDouble.end()){
-
+      // If Heuristic is combined or has non 100% confidence then deprioritize
+      // it
+      if (inputs.them_heuristic.userDataDouble.find("Combined") !=
+              inputs.them_heuristic.userDataDouble.end() ||
+          inputs.them_heuristic.userDataDouble.find("Confidence") !=
+              inputs.them_heuristic.userDataDouble.end()) {
         if (isFresh(inputs.them_blob.pos)) {
-          output.opponent.pos.value().velocity = inputs.them_blob.pos.value().velocity;
+          output.opponent.pos.value().velocity =
+              inputs.them_blob.pos.value().velocity;
         } else if (isFresh(inputs.them_lkflow.pos)) {
-          output.opponent.pos.value().velocity = inputs.them_lkflow.pos.value().velocity;
+          output.opponent.pos.value().velocity =
+              inputs.them_lkflow.pos.value().velocity;
         } else {
-          output.opponent.pos.value().velocity = inputs.them_heuristic.pos.value().velocity;
-        } 
+          output.opponent.pos.value().velocity =
+              inputs.them_heuristic.pos.value().velocity;
+        }
+      } else {
+        output.opponent.pos.value().velocity =
+            inputs.them_heuristic.pos.value().velocity;
       }
-      else {
-        output.opponent.pos.value().velocity = inputs.them_heuristic.pos.value().velocity;
-      }
-      
+
     } else if (isFresh(inputs.them_blob.pos)) {
-      output.opponent.pos.value().velocity = inputs.them_blob.pos.value().velocity;
+      output.opponent.pos.value().velocity =
+          inputs.them_blob.pos.value().velocity;
     } else if (isFresh(inputs.them_lkflow.pos)) {
-      output.opponent.pos.value().velocity = inputs.them_lkflow.pos.value().velocity;
+      output.opponent.pos.value().velocity =
+          inputs.them_lkflow.pos.value().velocity;
     }
   }
 
