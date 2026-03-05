@@ -59,9 +59,9 @@ void MaybeDisqualifyBlobByLKFlow(
 
 constexpr double kMinSeparationToUseBlob = 125;
 
-void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
-                                   const OdometryData &prevRobot,
-                                   const OdometryData &prevOpponent) {
+void DisqualifyIfTooClose(OdometryData &usAlg, OdometryData &themAlg,
+                          const OdometryData &prevRobot,
+                          const OdometryData &prevOpponent) {
   if (!prevRobot.pos.has_value() || !prevOpponent.pos.has_value()) {
     return;
   }
@@ -70,10 +70,10 @@ void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
                                     prevOpponent.pos.value().position);
 
   if (distBetweenPrev < kMinSeparationToUseBlob) {
-    usBlob.pos.reset();
-    usBlob.angle.reset();
-    themBlob.pos.reset();
-    themBlob.angle.reset();
+    usAlg.pos.reset();
+    usAlg.angle.reset();
+    themAlg.pos.reset();
+    themAlg.angle.reset();
   }
 }
 
@@ -309,9 +309,10 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
                               inputs.us_blob.pos, _prevInputs.us_blob.pos,
                               inputs.us_blob.pos, inputs.us_blob.angle);
 
-  MaybeDisqualifyBlobByDistance(inputs.us_blob, inputs.them_blob, prevRobot,
-                                prevOpponent);
-
+  DisqualifyIfTooClose(inputs.us_blob, inputs.them_blob, prevRobot,
+                       prevOpponent);
+  DisqualifyIfTooClose(inputs.us_heuristic, inputs.them_heuristic, prevRobot,
+                       prevOpponent);
 
   //      If Neural says we should be swapped, then swap
   //      G1) if Neural = Heuristic.them: SWAP Heuristic
