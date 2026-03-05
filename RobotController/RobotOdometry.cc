@@ -287,7 +287,7 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   // Blob      |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
   // Neural    |   X    |        |         |          |          |          |           |
   // NeuralRot |        |        |     X   |          |          |          |           |
-	// LKR       |   ?    |    ?   |     ?   |    ?     |    X     |   X      |     X     |     X
+	// LKR       |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
   // IMU       |        |        |     X   |    X     |          |          |           |
   // Human     |        |        |     X   |          |          |          |     X     |     
   //
