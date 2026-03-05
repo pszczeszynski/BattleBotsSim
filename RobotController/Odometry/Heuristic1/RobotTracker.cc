@@ -414,7 +414,7 @@ void RobotTracker::InitializeDeratingMat(void)
 // Find the best bbox and assigns it
 void RobotTracker::FindBestBBox(double currTime, std::vector<myRect> &allBBoxes)
 {
-    // Clear bestBBox
+   
     bestBBox = nullptr;
 
     // Find the best overlap bboundingbox
@@ -438,9 +438,29 @@ void RobotTracker::FindBestBBox(double currTime, std::vector<myRect> &allBBoxes)
         bestBBox = &allBBoxes[index2];
         bestBBox->numOfOwners++;
     }
+
 }
 
-void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat)
+// Make a copy of bestBBox now that everyone had a chance to mark ownership
+void RobotTracker::MakeCopyOfBestBBox()
+{
+    if( bestBBox_copy != nullptr )
+    {
+        delete bestBBox_copy;
+    }
+
+    if (bestBBox != nullptr)
+    {
+        bestBBox_copy = new myRect(*bestBBox); // Make a copy of the best bbox to be used for processing. This is to prevent issues with the best bbox being changed by other trackers while we're processing.
+    }
+    else
+    {
+        bestBBox_copy = nullptr;
+    }
+}
+
+
+void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat, std::mutex &debugFrameMutex)
 {
     // Increment age
     numFramesOld++;
@@ -468,6 +488,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     if (debug_DumpInfo)
     {
         debugImage = debugMat;
+        debugImage_mutex = &debugFrameMutex;
     }
 
     // time used for dumping video for debugging
@@ -532,7 +553,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     // NOTE: FindBestBBox was already run by heuristic class before running this process frame in parallel mode.
 
     // Case (1): no bounding box found
-    if ((bestBBox == NULL) || bestBBox->empty())
+    if ((bestBBox_copy == NULL) || bestBBox_copy->empty())
     {
         // Extrapolate position based on velocity
         // Only doing position extrapolation, may want to add rotation as well in future
@@ -546,7 +567,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         return;
     }
 
-    cv::Rect matchingBBox = *bestBBox;
+    cv::Rect matchingBBox = *bestBBox_copy;
     bool useNewBBox = true;
 
     // Case (2): much smaller bounding box
@@ -563,7 +584,7 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
 
     // ***************************
     // Case 3: If a big combined box is used, etract our best guess location from within it (or if owned by multiple owners)
-    if (bestBBox->numOfOwners > 1)
+    if (bestBBox_copy->numOfOwners > 1)
     {
         useNewBBox = false;
         numFramesNotTracked++;
@@ -776,12 +797,12 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     // Assign best BBox to new bbox, unless we are in special case where we want to keep our old one
     if (doFixPartialForeground)
     {
-        FixPartialForeground(currFrame, foreground, new_fg_mask, *bestBBox);
+        FixPartialForeground(currFrame, foreground, new_fg_mask, *bestBBox_copy);
     }
     else if (useNewBBox) // Case 0: Normal case
     {
         // Use the new bbox and foreground
-        bbox = *bestBBox;
+        bbox = *bestBBox_copy;
         fg_image = foreground(bbox).clone();
         fg_mask = new_fg_mask(bbox).clone();
     }
@@ -789,6 +810,14 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
     {
         // In this case we can't use the bbox, thus we need to instead use the matched images and not the new ones
         // First calculate the reduced bbox (rotation keeps growing it, so make sure its only as big as required)
+        
+        // Protect against edge case
+        if( finalMask.empty() || cv::countNonZero(finalMask) == 0 )
+        {
+            // Something went wrong and we didnt get a good match, just return and hope for better luck next frame. We should still have the new position and rotation though which is the most important part, just not the best foreground image
+            return;
+        }
+        
         cv::Rect cropRect = CalculateMaskBBox(finalMask);
 
         // Crop the foreground and mask images to the new rect
@@ -978,7 +1007,7 @@ void RobotTracker::matchTemplateThread(const cv::Rect &matLocation, const cv::Ma
     int i_debug = 0;
     bool debugDoDump = false;
 
-    if (debug_DumpInfo && !debugImage.empty() && (debug_timeToSnapRotation > 0) && (currTimeSaved >= debug_timeToSnapRotation) && (currTimeSaved <= debug_timeToSnapRotation + debug_timeToSnapRotationduration))
+    if (debug_DumpInfo && !debugImage.empty() && debugImage_mutex && (debug_timeToSnapRotation > 0) && (currTimeSaved >= debug_timeToSnapRotation) && (currTimeSaved <= debug_timeToSnapRotation + debug_timeToSnapRotationduration))
     {
         debugDoDump = true;
     }
@@ -1040,10 +1069,12 @@ void RobotTracker::matchTemplateThread(const cv::Rect &matLocation, const cv::Ma
             cv::Point minLoc, maxLoc;
             cv::minMaxLoc(matchResult, &minVal, &maxVal, &minLoc, &maxLoc);
 
-            if (debugDoDump)
+            if (debugDoDump )
             {
                 // Draw the fg_image and fg_mask
                 cv::Rect targetROI(86 * i_debug++, 20, rotated_fg_image.cols, rotated_fg_image.rows);
+
+                std::lock_guard<std::mutex> lock(*debugImage_mutex);
 
                 // Add images if it doesn't exceed width
                 if (targetROI.x + targetROI.width < debugImage.rows)
@@ -1087,6 +1118,7 @@ void RobotTracker::matchTemplateThread(const cv::Rect &matLocation, const cv::Ma
     {
         if (debugDoDump)
         {
+            std::lock_guard<std::mutex> lock(*debugImage_mutex);
             printText("matchTemplateThread failed", debugImage, 20, 20);
         }
     }
@@ -1095,6 +1127,7 @@ void RobotTracker::matchTemplateThread(const cv::Rect &matLocation, const cv::Ma
     {
         if (debugDoDump)
         {
+            std::lock_guard<std::mutex> lock(*debugImage_mutex);
             printText("matchTemplateThread failed", debugImage, 20, 20);
         }
     }

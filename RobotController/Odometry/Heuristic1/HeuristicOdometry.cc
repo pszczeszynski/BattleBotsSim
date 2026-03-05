@@ -375,6 +375,9 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
       statusstring += (!themHasPos) ? "opponent " : "";
       statusstring += "robot to clear starting area...";
 
+      {
+      std::unique_lock<std::mutex> locker(_mutexAllBBoxes);
+      
       // Lets do our robot first
       if (!usHasPos && (ourRobotTracker != nullptr)) {
         if (IsClearOfArea(ourRobotTracker, left_start_rect) &&
@@ -392,6 +395,7 @@ void HeuristicOdometry::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
           // We have cleared the starting area
         }
       }
+    }
 
       // Final checks to move state machine to done is done at end of tracking
       // detection below
@@ -834,6 +838,11 @@ void HeuristicOdometry::_PublishIfValid(RobotTracker *tracker, bool isOpponent,
 // until tracker becomes valid
 void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRobot) 
 {
+  SetPosition(newPos,opponentRobot, false); 
+}
+
+void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRobot, bool skipMutexLock) 
+{
   // Remember this data in case no trackers are available now and we want best guess when some appear
   if( opponentRobot ) 
   {
@@ -845,7 +854,7 @@ void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRob
   }
 
   // Locate the robots
-  LocateRobots(newPos.position, opponentRobot);
+  LocateRobots(newPos.position, opponentRobot, skipMutexLock);
 
   // Update tracker if found - next frame will publish if tracker is valid
   RobotTracker *tracker =
@@ -875,33 +884,28 @@ void HeuristicOdometry::ForcePosition(const PositionData &newPos,bool opponentRo
   // Here we assume newPos is inside the current tracked box.
   // If we have no tracker, use setPosition First
   // If setPosition fails, than continue on with force position
-  std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes, std::defer_lock);
+  std::unique_lock<std::mutex> locktracking(_mutexAllBBoxes);
 
   if (opponentRobot && opponentRobotTracker == nullptr) {
-    // It will lock allboxes
-    SetPosition(newPos, opponentRobot);
+    
+    SetPosition(newPos, opponentRobot, true);
 
-    // Now we need to lock it ourselves
-    locktracking.lock();
     if (opponentRobotTracker == nullptr) {
       _themState.last_pos.reset();
       _themState.last_angle.reset();
       return;
     }
   } else if (!opponentRobot && ourRobotTracker == nullptr) {
-    // It will lock mallboxes
-    SetPosition(newPos, opponentRobot);
+    
+    SetPosition(newPos, opponentRobot, true);
 
-    // Now we need to lock it ourselves
-    locktracking.lock();
     if (ourRobotTracker == nullptr) {
       _usState.last_pos.reset();
       _usState.last_angle.reset();
       return;
     }
-  } else {
-    locktracking.lock();
-  }
+  } 
+
 
   RobotTracker *&firstbot =
       (opponentRobot) ? opponentRobotTracker
@@ -909,6 +913,24 @@ void HeuristicOdometry::ForcePosition(const PositionData &newPos,bool opponentRo
   RobotTracker *&secondbot = (opponentRobot)
                                  ? ourRobotTracker
                                  : opponentRobotTracker;  // could be nullptr
+
+  // Theres a rare possibility that firstbot could be null if it got altered in-between locks.
+  // If this is the case then we need to quit
+  if( firstbot == nullptr )
+  {
+    if( opponentRobot )
+    {
+      _themState.last_pos.reset();
+      _themState.last_angle.reset();
+    }
+    else
+    {
+      _usState.last_pos.reset();
+      _usState.last_angle.reset();
+    }
+    return;
+  }
+
 
   // Next we have have the following scenario:
   // 1) newPos is inside our robot and our tracker is not combined
@@ -1071,6 +1093,12 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame,
     currItem->FindBestBBox(currTime, all_bboxes);
   }
 
+  // Now that all bboxes updated their ownership, have the trackers make a copy to prevent
+  // possible multithreading edge conditional issues
+  for (auto currItem : _allRobotTrackers) {
+    currItem->MakeCopyOfBestBBox();
+  }
+
   // Step 2:
   // Go through each tracker and and process current frame
   int processes_run = 0;
@@ -1085,7 +1113,7 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame,
           conditionVarTrackRobots, _mutexTrackData,
           (save_video_enabled && save_to_video_match_debug && i == itarget)
               ? channels[1]
-              : nullMat);
+              : nullMat, _debugFrameMutex);
     } else {
       ++processes_run;
       auto boundFunction = std::bind(
@@ -1096,7 +1124,8 @@ void HeuristicOdometry::TrackRobots(cv::Mat &croppedFrame,
           std::ref(
               (save_video_enabled && save_to_video_match_debug && i == itarget)
                   ? channels[1]
-                  : nullMat));
+                  : nullMat),
+          std::ref(_debugFrameMutex));
 
       ThreadPool::myThreads.enqueue(boundFunction);
     }

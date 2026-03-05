@@ -44,6 +44,7 @@ class HeuristicOdometry : public OdometryBase {
   void processNewFrame(cv::Mat &newFrame);
   void SetPosition(const PositionData &newPos, bool opponentRobot)
       override;  // Will pick the tracked foreground thats closest to this point
+  void SetPosition(const PositionData &newPos, bool opponentRobot, bool skipMutexLock);  // Same as above but with option to skip mutex lock for internal use when we know caller already has lock    
   void ForcePosition(const PositionData &newPos, bool opponentRobot) override;
   void SwitchRobots(void) override;  // Switches who's who
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
@@ -276,6 +277,7 @@ class HeuristicOdometry : public OdometryBase {
   std::mutex
       _mutexTrackData;  // Used for parallel processes to report back they are
                         // done with the conditional variable below
+  std::mutex _debugFrameMutex;  // Used to control access to the debug frame
   std::condition_variable_any conditionVarTrackRobots;
 
   void TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDisplay);
