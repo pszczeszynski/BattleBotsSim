@@ -178,7 +178,6 @@ Angle LKFlowTracker::_MoveTowardsExternalPathTangent(Angle startAngle) {
       std::cout << "Start angle: " << startAngle << std::endl;
       std::cout << "Interpolated angle: " << interpolatedAngle << std::endl;
       std::cout << "Path tangent angle: " << pathTangentAngle << std::endl;
-      
     }
 
     return interpolatedAngle;
@@ -196,76 +195,71 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   cv::Rect roi;
   OdometryData sample{};
 
-  {
-    std::lock_guard<std::mutex> lk(_updateMutex);
+  prevPts.reserve(state.tracks.size());
+  for (const auto& track : state.tracks) {
+    prevPts.push_back(track.pt);
+  }
 
-    prevPts.reserve(state.tracks.size());
-    for (const auto& track : state.tracks) {
-      prevPts.push_back(track.pt);
+  std::vector<float> err;
+  cv::calcOpticalFlowPyrLK(
+      prevGray, currGray, prevPts, nextPts, status, err, kWindowSize, kMaxLevel,
+      cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30,
+                       0.01));
+
+  if (nextPts.empty()) {
+    return false;
+  }
+
+  // Compute rotation from point pairs BEFORE compaction
+  _ComputeRotationsFromPairs(state.tracks, nextPts, status, angleDelta,
+                             validPairs);
+
+  // Single-pass compaction: keep only good points, increment age
+  std::vector<TrackPt> tracksNext;
+  tracksNext.reserve(state.tracks.size());
+  for (size_t i = 0; i < status.size(); ++i) {
+    if (status[i] != 1) {
+      continue;
     }
+    tracksNext.push_back({nextPts[i], state.tracks[i].age + 1});
+  }
 
-    std::vector<float> err;
-    cv::calcOpticalFlowPyrLK(
-        prevGray, currGray, prevPts, nextPts, status, err, kWindowSize,
-        kMaxLevel,
-        cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30,
-                         0.01));
+  roi = _GetROI(state.pos, _imageSize);
+  _FilterPointsByROI(tracksNext, roi);
+  _DeduplicateTracks(tracksNext, kMinCornerDistance * 0.8f);
 
-    if (nextPts.empty()) {
-      return false;
-    }
+  if (tracksNext.size() < 6) {
+    return false;
+  }
 
-    // Compute rotation from point pairs BEFORE compaction
-    _ComputeRotationsFromPairs(state.tracks, nextPts, status, angleDelta,
-                               validPairs);
+  state.angle = state.angle + Angle(angleDelta);
 
-    // Single-pass compaction: keep only good points, increment age
-    std::vector<TrackPt> tracksNext;
-    tracksNext.reserve(state.tracks.size());
-    for (size_t i = 0; i < status.size(); ++i) {
-      if (status[i] != 1) {
-        continue;
-      }
-      tracksNext.push_back({nextPts[i], state.tracks[i].age + 1});
-    }
+  if (isOpponent) {
+    state.angle = _MoveTowardsExternalPathTangent(state.angle);
+  }
 
-    roi = _GetROI(state.pos, _imageSize);
-    _FilterPointsByROI(tracksNext, roi);
-    _DeduplicateTracks(tracksNext, kMinCornerDistance * 0.8f);
+  cv::Point2f oldPos = state.pos;
+  state.pos = _ComputeCenterFromPoints(tracksNext);
+  cv::Point2f deltaPos = state.pos - oldPos;
+  cv::Point2f visualVelocity = cv::Point2f(0, 0);
+  double deltaTime =
+      state.prevTime.has_value() ? (frameTime - state.prevTime.value()) : 0.0;
 
-    if (tracksNext.size() < 6) {
-      return false;
-    }
+  if (deltaTime > 0.001) {
+    visualVelocity = deltaPos / static_cast<float>(deltaTime);
+  }
 
-    state.angle = state.angle + Angle(angleDelta);
+  double angularVelocity = 0.0;
+  if (deltaTime > 0.001) {
+    angularVelocity = angleDelta / deltaTime;
+  }
 
-    if (isOpponent) {
-      state.angle = _MoveTowardsExternalPathTangent(state.angle);
-    }
+  state.tracks = std::move(tracksNext);
+  state.prevTime = frameTime;
 
-    cv::Point2f oldPos = state.pos;
-    state.pos = _ComputeCenterFromPoints(tracksNext);
-    cv::Point2f deltaPos = state.pos - oldPos;
-    cv::Point2f visualVelocity = cv::Point2f(0, 0);
-    double deltaTime =
-        state.prevTime.has_value() ? (frameTime - state.prevTime.value()) : 0.0;
-
-    if (deltaTime > 0.001) {
-      visualVelocity = deltaPos / static_cast<float>(deltaTime);
-    }
-
-    double angularVelocity = 0.0;
-    if (deltaTime > 0.001) {
-      angularVelocity = angleDelta / deltaTime;
-    }
-
-    state.tracks = std::move(tracksNext);
-    state.prevTime = frameTime;
-
-    sample.id = _frameID++;
-    sample.pos = PositionData(state.pos, visualVelocity, frameTime);
-    sample.angle = AngleData(state.angle, angularVelocity, frameTime);
-  }  // _updateMutex released here, before Publish locks it
+  sample.id = _frameID++;
+  sample.pos = PositionData(state.pos, visualVelocity, frameTime);
+  sample.angle = AngleData(state.angle, angularVelocity, frameTime);
 
   OdometryBase::Publish(sample, isOpponent, OdometryAlg::LKFlow);
 
@@ -612,7 +606,6 @@ void LKFlowTracker::SetPosition(const PositionData& newPos,
   if (newPos.algorithm == OdometryAlg::LKFlow) {
     return;
   }
-  std::lock_guard<std::mutex> lk(_updateMutex);
   LKFlowTargetState& state = _targets[opponentRobot ? 1 : 0];
   cv::Point2f newPosPt = newPos.position;
   constexpr float kHardSkipThresholdPx = 10;
@@ -639,8 +632,6 @@ void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
   if (angleData.algorithm == OdometryAlg::LKFlow) {
     return;
   }
-
-  std::lock_guard<std::mutex> lk(_updateMutex);
 
   constexpr float kHardSkipThresholdRad = 10.0f * TO_RAD;
   if (std::abs(angleData.angle - state.angle) < kHardSkipThresholdRad) {
