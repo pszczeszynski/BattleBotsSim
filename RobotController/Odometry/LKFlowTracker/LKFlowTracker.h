@@ -31,6 +31,7 @@ struct LKFlowTargetState {
   double lastRespawnTime = 0.0;
   bool forceRespawnNextFrame = false;
   bool initialized = false;
+  int consecutiveTrackingFrames = 0;  // Reset on teleport; velocity=0 until >=2
 };
 
 // LKFlowTracker Odometry

@@ -20,6 +20,7 @@ constexpr int kNumRotationPairs = 200;
 constexpr int kMinTrackFrames = 2;
 constexpr double kRespawnIntervalSeconds = 0.3;
 constexpr int kTargetPointCount = 30;
+constexpr double kVelocityFilterTimeConstant = 0.1;
 }  // namespace
 
 LKFlowTracker::LKFlowTracker(ICameraReceiver* videoSource)
@@ -116,7 +117,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   cv::Mat gray;
   EnforceGrayscale(currFrame, gray);
 
-  // Check for gray being empty which can happen if unsupported format encountered. This would cause a crash
+  // Check for gray being empty which can happen if unsupported format
+  // encountered. This would cause a crash
   if (gray.empty()) {
     std::cerr << "Gray frame is empty, skipping processing" << std::endl;
     return;
@@ -143,7 +145,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     }
   }
 
-  // If np _prevGrey or if a size-mismatch occured (say due to reconnection), then just initialize and return without tracking
+  // If np _prevGrey or if a size-mismatch occured (say due to reconnection),
+  // then just initialize and return without tracking
   if (_prevGray.empty() || _prevGray.size() != gray.size()) {
     _prevGray = gray;
     return;
@@ -153,7 +156,9 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     LKFlowTargetState& state = _targets[i];
     if (state.tracks.size() < 6) continue;
     bool success = _UpdateTracking(_prevGray, gray, frameTime, state, i == 1);
-    if (!success) state.initialized = false;
+    if (!success) {
+      state.initialized = false;
+    }
   }
 
   _prevGray = gray;
@@ -252,12 +257,13 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   double deltaTime =
       state.prevTime.has_value() ? (frameTime - state.prevTime.value()) : 0.0;
 
-  if (deltaTime > 0.001) {
+  state.consecutiveTrackingFrames++;
+  if (deltaTime > 0.001 && state.consecutiveTrackingFrames >= 2) {
     visualVelocity = deltaPos / static_cast<float>(deltaTime);
   }
 
   double angularVelocity = 0.0;
-  if (deltaTime > 0.001) {
+  if (deltaTime > 0.001 && state.consecutiveTrackingFrames >= 2) {
     angularVelocity = angleDelta / deltaTime;
   }
 
@@ -268,7 +274,8 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   sample.pos = PositionData(state.pos, visualVelocity, frameTime);
   sample.angle = AngleData(state.angle, angularVelocity, frameTime);
 
-  OdometryBase::Publish(sample, isOpponent, OdometryAlg::LKFlow);
+  OdometryBase::Publish(sample, isOpponent, OdometryAlg::LKFlow,
+                        kVelocityFilterTimeConstant);
 
   const cv::Scalar kUsColor(0, 255, 0);          // Green – us
   const cv::Scalar kOpponentColor(255, 165, 0);  // Orange – opponent
@@ -339,7 +346,8 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
 cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
     const std::vector<TrackPt>& tracks, const std::vector<cv::Point2f>& prevPts,
     const std::vector<cv::Point2f>& nextPts, const std::vector<uchar>& status) {
-  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size() || prevPts.size() != tracks.size() || prevPts.empty()) {
+  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size() ||
+      prevPts.size() != tracks.size() || prevPts.empty()) {
     return cv::Point2f(0, 0);
   }
   std::vector<std::pair<float, cv::Point2f>> translations;
@@ -468,8 +476,10 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    int targetCount, double frameTime,
                                    double& lastRespawnTime,
                                    cv::Rect excludeRoi) {
-                                    
-  const int needed = targetCount - static_cast<int>(tracks.size()); // Make sure wrap around on size_t doesnt occur during subtraction
+  const int needed =
+      targetCount -
+      static_cast<int>(tracks.size());  // Make sure wrap around on size_t
+                                        // doesnt occur during subtraction
 
   if (needed <= 0) {
     return true;
@@ -626,6 +636,8 @@ void LKFlowTracker::SetPosition(const PositionData& newPos,
 
   state.pos = newPosPt;
   state.forceRespawnNextFrame = true;
+  state.consecutiveTrackingFrames =
+      0;  // Velocity=0 until we have 2 of our frames
   cv::Rect roi = _GetROI(state.pos, _imageSize);
   _FilterPointsByROI(state.tracks, roi);
 }
@@ -648,6 +660,8 @@ void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
   }
 
   state.angle = angleData.angle;
+  state.consecutiveTrackingFrames =
+      0;  // Angular velocity=0 until we have 2 frames
 }
 
 void LKFlowTracker::GetDebugImage(cv::Mat& debugImage, cv::Point offset) {

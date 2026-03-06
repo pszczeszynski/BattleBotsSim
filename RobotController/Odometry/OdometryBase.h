@@ -1,6 +1,7 @@
 #pragma once
-#include <thread>
 #include <array>
+#include <optional>
+#include <thread>
 #include <opencv2/core.hpp>
 #include <opencv2/core/core.hpp>
 #include "../CameraReceiver.h"
@@ -44,7 +45,8 @@ protected:
     virtual void _ProcessNewFrame(cv::Mat currFrame, double frameTime){ }; // Run every time a new frame is available. currFrame is a copy.
     virtual void _StopCalled(){};                                         // Run when stop is initiated
 
-    void Publish(OdometryData sample, bool isOpponent, OdometryAlg alg);
+    void Publish(OdometryData sample, bool isOpponent, OdometryAlg alg,
+                 std::optional<double> velocityFilterTimeConstant = std::nullopt);
 
     ICameraReceiver *_videoSource = nullptr;
 
@@ -58,4 +60,8 @@ protected:
     // Data that stores results
     std::mutex _updateMutex;        // Mutex for updating core results
     std::array<OdometryData, 2> _data;  // [0] = Us, [1] = Opponent
+
+    // Per-slot velocity filter state (first-order low-pass)
+    std::array<cv::Point2f, 2> _lastFilteredVelocity{};
+    std::array<double, 2> _lastFilterTime{-1.0, -1.0};
 };

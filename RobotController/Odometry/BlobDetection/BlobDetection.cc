@@ -269,8 +269,7 @@ void BlobDetection::_ProcessStream(const MotionBlob& blob,
   std::optional<cv::Point2f> prevPos = state.last_position;
   cv::Point2f newPos = blob.center;
 
-  // Update velocity smoothing BEFORE updating position state
-  // (uses prevPos from state before we update it)
+  state.consecutiveTrackingFrames++;
   _UpdateSmoothedVelocity(state, newPos, timestamp, prevPos);
 
   // Update position state
@@ -292,7 +291,13 @@ void BlobDetection::_UpdateSmoothedVelocity(
     const std::optional<cv::Point2f>& prevPos) {
   // Guard: first sample, no previous position, or last_vel_time not initialized
   if (!prevPos.has_value() || state.last_vel_time == 0) {
-    // First position or no previous position - start fresh
+    state.last_velocity = cv::Point2f(0, 0);
+    state.last_vel_time = timestamp;
+    return;
+  }
+
+  // Zero velocity until we have 2 frames of our own (avoids huge velocity after SetPosition teleport)
+  if (state.consecutiveTrackingFrames < 2) {
     state.last_velocity = cv::Point2f(0, 0);
     state.last_vel_time = timestamp;
     return;
@@ -302,7 +307,6 @@ void BlobDetection::_UpdateSmoothedVelocity(
 
   // Guard: invalid/zero/negative elapsed time (reset velocity and time)
   if (elapsedVelTime <= 0 || elapsedVelTime > 0.1f) {
-    // Reset velocity if elapsed time is invalid or too large
     state.last_velocity = cv::Point2f(0, 0);
     state.last_vel_time = timestamp;
     return;
@@ -333,7 +337,9 @@ void BlobDetection::_PublishFromState(BlobTrackState& state, bool isOpponent,
   }
 
   // Publish (base class will increment id from previous value)
-  OdometryBase::Publish(sample, isOpponent, OdometryAlg::Blob);
+  constexpr double kVelocityFilterTimeConstant = 0.05;
+  OdometryBase::Publish(sample, isOpponent, OdometryAlg::Blob,
+                       kVelocityFilterTimeConstant);
 }
 
 void BlobDetection::SwitchRobots(void) {
@@ -360,8 +366,9 @@ void BlobDetection::SetPosition(const PositionData& newPos,
   // Update state
   state.last_position = newPos.position;
   state.last_position_time = newPos.time;
-  state.last_velocity = newPos.velocity;
+  state.last_velocity = cv::Point2f(0, 0);  // Zero until we have 2 of our frames
   state.last_vel_time = newPos.time;
+  state.consecutiveTrackingFrames = 0;
 
   locker.unlock();
 }
