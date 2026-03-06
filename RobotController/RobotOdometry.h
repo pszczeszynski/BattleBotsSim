@@ -123,6 +123,9 @@ class RobotOdometry {
   OdometryData _dataRobot;
   OdometryData _dataOpponent;
 
+  Angle _opponentAngleOffset{Angle(0)};
+  Angle _robotAngleOffset{Angle(0)};
+
   Angle CalcAnglePathTangent();
   bool _visualAngleValid = false;
 
