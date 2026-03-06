@@ -639,12 +639,12 @@ OdometryData RobotOdometry::Opponent(double currTime) {
 }
 
 static double GetImuAngleRad() {
-  // get angular velocity from imu
+  // Get angular velocity from imu
   return RobotController::GetInstance().GetIMUData().rotation;
 }
 
 static double GetImuAngleVelocityRadPerSec() {
-  // get angular velocity from imu
+  // Get angular velocity from imu
   return RobotController::GetInstance().GetIMUData().rotationVelocity;
 }
 
