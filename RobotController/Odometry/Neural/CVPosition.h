@@ -1,8 +1,10 @@
 #pragma once
 #include <windows.h>
 
+#include <array>
 #include <cstdint>
 #include <atomic>
+#include <deque>
 #include <mutex>
 #include <optional>
 #include <opencv2/dnn.hpp>
@@ -14,7 +16,6 @@
 
 // Shared-memory header for C++ writer / Python reader. Layout: [seq:4][frame_id:4][time_ms:4].
 // Seqlock invariant: seq even => snapshot is complete; seq odd => writer is updating.
-// Only seq is accessed atomically (release when publishing); fixes torn reads and backward timestamps.
 struct alignas(4) SharedImageHeader {
   std::atomic<uint32_t> seq;
   uint32_t frame_id;
@@ -23,17 +24,28 @@ struct alignas(4) SharedImageHeader {
 static_assert(sizeof(SharedImageHeader) == 12, "SharedImageHeader must be 12 bytes");
 static_assert(alignof(SharedImageHeader) >= 4, "SharedImageHeader must be 4-byte aligned");
 
+// Bbox format from neural net: [center_x, center_y, width, height] in pixels.
+struct BBoxCxCyWh {
+  float cx, cy, w, h;
+};
+
+// Result data from Python; bbox kept as float until display/clamp.
 struct CVPositionData {
-  std::vector<int> boundingBox;  // (cx, cy, w, h) in pixels when valid
+  std::array<float, 4> boundingBox;  // (cx, cy, w, h) in pixels when valid
   cv::Point2f center;
   uint32_t frameID;
   uint32_t time_millis;
   bool valid;
 };
 
-// Bbox format from neural net: [center_x, center_y, width, height] in pixels.
-struct BBoxCxCyWh {
-  float cx, cy, w, h;
+// Python message types (explicit protocol).
+enum class PyMsgType { Ready, FrameCopied, Result, Unknown };
+
+struct PyMsg {
+  PyMsgType type;
+  uint32_t frame_id = 0;
+  uint32_t time_ms = 0;
+  std::optional<CVPositionData> result;
 };
 
 // Last valid sample used for velocity and gating (only from valid frames).
@@ -74,14 +86,24 @@ class CVPosition : public OdometryBase {
   int _validStreakCounter = 0;  // Consecutive valid frames
   int _max_distance_thresh = 100;
 
-  CVPositionData _GetDataFromPython(bool& outPythonResponded);
+  // Protocol: explicit message types, message pump, no dropped packets.
+  static constexpr int RECV_TIMEOUT_MS = 2000;
+
+  void _PumpMessages(int timeout_ms);
+  bool _PopPendingFrameCopied(uint32_t frameId, PyMsg& out);
+  bool _PopPendingResult(uint32_t frameId, CVPositionData& out);
+  bool _WaitForPythonReady(int timeout_ms);
+  bool _WaitForFrameCopied(uint32_t frameId, int timeout_ms);
+  bool _GetResultForFrame(uint32_t frameId, CVPositionData& out, int timeout_ms);
+  void _SendFrameReady(uint32_t frameId, uint32_t timeMs);
+  void _SendToPython(const std::string& msg);
 
   // Shared memory management
   std::string memName = "cv_pos_img";
   int width = 720;
   int height = 720;
-  HANDLE _hMapFile = nullptr;      // Shared memory mapping handle
-  void* _pSharedMemory = nullptr;  // Mapped memory pointer
+  HANDLE _hMapFile = nullptr;
+  void* _pSharedMemory = nullptr;
   cv::Mat sharedImage;
 
   void _InitSharedImage();
@@ -90,6 +112,9 @@ class CVPosition : public OdometryBase {
   std::atomic<bool> _pythonThreadRunning{false};
 
   ServerSocket _pythonSocket;
+  std::deque<PyMsg> _pendingMessages;
+  std::mutex _mailboxMutex;
+  bool _pythonReadySeen = false;
 
   uint32_t _inputFrameId = 0;
 
