@@ -638,16 +638,6 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   return currData.ExtrapolateBoundedTo(currTime);
 }
 
-static double GetImuAngleRad() {
-  // Get angular velocity from imu
-  return RobotController::GetInstance().GetIMUData().rotation;
-}
-
-static double GetImuAngleVelocityRadPerSec() {
-  // Get angular velocity from imu
-  return RobotController::GetInstance().GetIMUData().rotationVelocity;
-}
-
 /**
  * Allows artificially setting the angle of the robot
  * This is mainly used for manual recalibration.
