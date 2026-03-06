@@ -38,6 +38,7 @@ private:
 
     Field field; // field object
     
+    FollowPoint prevFollow; // previous follow point we were tracking
     std::vector<FollowPoint> _lastFollowPoints; // last computed follow points (for debugging/display)
 
 
@@ -49,6 +50,7 @@ private:
 
     float angle(cv::Point2f point1, cv::Point2f point2);
     FollowPoint createFollowPoint(float deltaTime, bool forwardInput, std::vector<bool> enable, std::vector<FollowPoint>& follows, std::vector<FollowPoint>& followsFocussed);
+    FollowPoint circleMode(float deltaTime, bool forwardInput);
     std::vector<float> generateEndAngles(bool CW);
     void orbToOppPath(FollowPoint &follow);
     void oppToOrbETA(FollowPoint &follow);

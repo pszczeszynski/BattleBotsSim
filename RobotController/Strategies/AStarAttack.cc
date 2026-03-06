@@ -87,7 +87,15 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     std::vector<bool> enable = {enableForward, enableCW, enableTurnAway};
 
 
+
+    bool circle = gamepad.GetRightTrigger() > 0.5f;
+
     FollowPoint follow = createFollowPoint(deltaTime, forwardInput, enable, follows, followsFocussed); // generate follow point
+
+    if(circle) { 
+        follow = circleMode(deltaTime, forwardInput); 
+        follows = {};
+    }
 
 
     // store the followPoints for debugging/display
@@ -98,13 +106,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     
 
 
-    display(follow, follows, followsFocussed); // display follow point data
+    if(true) { display(follow, follows, followsFocussed); } // display follow point data
     DisplayUtils::displayLines(field.getBoundLines(), cv::Scalar(0, 0, 255)); // display field bound lines
 
-
-    float angle = orbFiltered.getDriveAngleFiltered();
-    cv::Point2f other = orbFiltered.position() + 70.0f*cv::Point2f(cos(angle), sin(angle));
-    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), other, cv::Scalar(255, 255, 255), 2);
 
 
 
@@ -117,11 +121,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
     
 
-    
+    bool useFilter = (follow.forward == prevFollow.forward) && (follow.CW == prevFollow.CW);
+
 
     std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 
         rightStickY, deltaTime, follow.forward, 
-        follow.enforceTurnDirection, true);
+        follow.enforceTurnDirection, useFilter);
 
 
     // create and send drive command
@@ -135,6 +140,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
     previousGamepad = {(float) rightStickY, gamepad.GetLeftStickX() }; // save what the gamepad was for next update
+    prevFollow = follow; // save for next time
 
     return ret;
 }
@@ -213,7 +219,7 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), colorOrbLight, 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRadWall(), colorOrbLight, 1); // draw pp wall radius
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); // highlight the last point of our path to opp
+    if(!follow.orbSimPath.empty()) { safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); } // highlight the last point of our path to opp
 
 
     // display paths
@@ -238,6 +244,11 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
     // display robot sizes and weapon regions
     orbFiltered.displayRobot(2, colorOrb, colorOrbLight, follow.forward);
     oppFiltered.displayRobot(2, colorOpp, colorOppLight, true);
+
+
+    // display drive angle
+    cv::Point2f other = orbFiltered.position() + 70.0f*cv::Point2f(cos(orbFiltered.getDriveAngleFiltered()), sin(orbFiltered.getDriveAngleFiltered()));
+    cv::line(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), other, cv::Scalar(255, 255, 255), 2);
 
 }
 
@@ -812,7 +823,7 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
 
     // also penalize very low opp times
     float extra = 9999999.0f;
-    if(follow.oppETA > 0.001f) { extra = 0.3f / pow(follow.oppETA, 1.0f); } // 0.25, 1
+    if(follow.oppETA > 0.001f) { extra = 0.2f / pow(follow.oppETA, 1.0f); } // 0.3
     follow.directionScores.emplace_back(extra);
     follow.directionScoreNames.emplace_back("Opp Time");
 
@@ -821,14 +832,14 @@ void AStarAttack::followScore(FollowPoint &follow, bool forwardInput) {
 
     // add score for unsafe points
     float safeScore = 999999.0f;
-    if(follow.worstTimeMargin > 0.001f) { safeScore = 0.8f / follow.worstTimeMargin; } // 1.2
+    if(follow.worstTimeMargin > 0.001f) { safeScore = 0.5f / follow.worstTimeMargin; } // 1.2
     follow.directionScores.emplace_back(safeScore);
     follow.directionScoreNames.emplace_back("Unsafe");
 
 
 
     // add penalty for points that might take us near a wall
-    float wallGain = 50.0f; // 70
+    float wallGain = 70.0f; // 70
     follow.directionScores.emplace_back(wallScore(follow)*wallGain);
     follow.directionScoreNames.emplace_back("Wall");
        
@@ -873,6 +884,26 @@ std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() { return field.g
 
 
 
+// follows a circle for testing
+FollowPoint AStarAttack::circleMode(float deltaTime, bool forwardInput) {
+
+    cv::Point2f center = cv::Point2f(360, 440);
+
+    float angleToOrb = angle(center, orbFiltered.position());
+    float endAngle = angle_wrap(angleToOrb + 70.0f*TO_RAD); // change the offset to change effective rad
+
+    Approach testApproach = Approach(center, endAngle, 50, true);
+    cv::Point2f point = testApproach.followCurve(orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), false);
+
+    // std::cout << "angle = " << endAngle*TO_DEG << std::endl;
+
+    FollowPoint followMe = FollowPoint(forwardInput, true, true, endAngle, 0, oppFiltered);
+    followMe.driveAngle = angle(orbFiltered.position(), point);
+    followMe.approachCurve = testApproach;
+    followMe.point = point;
+
+    return followMe;
+}
 
 
 
