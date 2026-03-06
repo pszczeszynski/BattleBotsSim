@@ -144,6 +144,7 @@ void VariantsWidget::Draw() {
   // Fusion settings
   {
     SettingsHeader("Neural Rotation Fusion");
+    ImGui::PushID("fusion_settings");
     LabeledSlider("Confidence thresh", "##confidence_thresh", &ANGLE_FUSE_CONF_THRESH, 0.0f, 1.0f, "%.3f");
     LabeledSlider("Fuse speed", "##fuse_speed", &ANGLE_FUSE_SPEED, 0.0f, 10.0f, "%.3f");
     ImGui::PopID();

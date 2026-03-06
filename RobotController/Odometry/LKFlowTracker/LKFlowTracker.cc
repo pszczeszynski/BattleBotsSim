@@ -116,6 +116,12 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
   cv::Mat gray;
   EnforceGrayscale(currFrame, gray);
 
+  // Check for gray being empty which can happen if unsupported format encountered. This would cause a crash
+  if (gray.empty()) {
+    std::cerr << "Gray frame is empty, skipping processing" << std::endl;
+    return;
+  }
+
   _imageSize = gray.size();
 
   {
@@ -137,7 +143,8 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     }
   }
 
-  if (_prevGray.empty()) {
+  // If np _prevGrey or if a size-mismatch occured (say due to reconnection), then just initialize and return without tracking
+  if (_prevGray.empty() || _prevGray.size() != gray.size()) {
     _prevGray = gray;
     return;
   }
@@ -178,7 +185,6 @@ Angle LKFlowTracker::_MoveTowardsExternalPathTangent(Angle startAngle) {
       std::cout << "Start angle: " << startAngle << std::endl;
       std::cout << "Interpolated angle: " << interpolatedAngle << std::endl;
       std::cout << "Path tangent angle: " << pathTangentAngle << std::endl;
-      
     }
 
     return interpolatedAngle;
@@ -189,15 +195,19 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
                                     double frameTime, LKFlowTargetState& state,
                                     bool isOpponent) {
   std::vector<cv::Point2f> prevPts;
+  std::vector<uchar> status;
+  std::vector<cv::Point2f> nextPts;
+  std::vector<std::pair<int, int>> validPairs;
+  double angleDelta = 0.0;
+  cv::Rect roi;
+  OdometryData sample{};
+
   prevPts.reserve(state.tracks.size());
   for (const auto& track : state.tracks) {
     prevPts.push_back(track.pt);
   }
 
-  std::vector<cv::Point2f> nextPts;
-  std::vector<uchar> status;
   std::vector<float> err;
-
   cv::calcOpticalFlowPyrLK(
       prevGray, currGray, prevPts, nextPts, status, err, kWindowSize, kMaxLevel,
       cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30,
@@ -208,14 +218,8 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
 
   // Compute rotation from point pairs BEFORE compaction
-  double angleDelta = 0.0;
-  std::vector<std::pair<int, int>> validPairs;
   _ComputeRotationsFromPairs(state.tracks, nextPts, status, angleDelta,
                              validPairs);
-
-  // // Compute translation from motion deltas (prev -> next) before compaction
-  // cv::Point2f deltaPos =
-  //     _ComputeTranslationFromPoints(state.tracks, prevPts, nextPts, status);
 
   // Single-pass compaction: keep only good points, increment age
   std::vector<TrackPt> tracksNext;
@@ -227,7 +231,7 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
     tracksNext.push_back({nextPts[i], state.tracks[i].age + 1});
   }
 
-  cv::Rect roi = _GetROI(state.pos, _imageSize);
+  roi = _GetROI(state.pos, _imageSize);
   _FilterPointsByROI(tracksNext, roi);
   _DeduplicateTracks(tracksNext, kMinCornerDistance * 0.8f);
 
@@ -258,14 +262,13 @@ bool LKFlowTracker::_UpdateTracking(cv::Mat& prevGray, cv::Mat& currGray,
   }
 
   state.tracks = std::move(tracksNext);
+  state.prevTime = frameTime;
 
-  OdometryData sample{};
   sample.id = _frameID++;
   sample.pos = PositionData(state.pos, visualVelocity, frameTime);
   sample.angle = AngleData(state.angle, angularVelocity, frameTime);
-  OdometryBase::Publish(sample, isOpponent, OdometryAlg::LKFlow);
 
-  state.prevTime = frameTime;
+  OdometryBase::Publish(sample, isOpponent, OdometryAlg::LKFlow);
 
   const cv::Scalar kUsColor(0, 255, 0);          // Green – us
   const cv::Scalar kOpponentColor(255, 165, 0);  // Orange – opponent
@@ -336,7 +339,7 @@ void LKFlowTracker::_ComputeRotationsFromPairs(
 cv::Point2f LKFlowTracker::_ComputeTranslationFromPoints(
     const std::vector<TrackPt>& tracks, const std::vector<cv::Point2f>& prevPts,
     const std::vector<cv::Point2f>& nextPts, const std::vector<uchar>& status) {
-  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size()) {
+  if (prevPts.size() != nextPts.size() || nextPts.size() != status.size() || prevPts.size() != tracks.size() || prevPts.empty()) {
     return cv::Point2f(0, 0);
   }
   std::vector<std::pair<float, cv::Point2f>> translations;
@@ -465,7 +468,8 @@ bool LKFlowTracker::_RespawnPoints(const cv::Mat& gray, cv::Rect roi,
                                    int targetCount, double frameTime,
                                    double& lastRespawnTime,
                                    cv::Rect excludeRoi) {
-  const int needed = targetCount - tracks.size();
+                                    
+  const int needed = targetCount - static_cast<int>(tracks.size()); // Make sure wrap around on size_t doesnt occur during subtraction
 
   if (needed <= 0) {
     return true;
@@ -636,8 +640,6 @@ void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
   if (angleData.algorithm == OdometryAlg::LKFlow) {
     return;
   }
-
-  std::lock_guard<std::mutex> lk(_updateMutex);
 
   constexpr float kHardSkipThresholdRad = 10.0f * TO_RAD;
   if (std::abs(angleData.angle - state.angle) < kHardSkipThresholdRad) {

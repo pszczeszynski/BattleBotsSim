@@ -1,9 +1,9 @@
 #include "CVPosition.h"
 
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <new>
 #include <nlohmann/json.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
@@ -18,12 +18,11 @@ constexpr double MAX_VELOCITY_TIME_GAP = 0.5;
 constexpr int MIN_VALID_STREAK = 3;
 
 std::optional<BBoxCxCyWh> BBoxFromData(const CVPositionData& d) {
-  if (d.boundingBox.size() != 4) return std::nullopt;
-  float cx = static_cast<float>(d.boundingBox[0]);
-  float cy = static_cast<float>(d.boundingBox[1]);
-  float w = static_cast<float>(d.boundingBox[2]);
-  float h = static_cast<float>(d.boundingBox[3]);
-  if (w < 0 || h < 0) return std::nullopt;
+  float cx = d.boundingBox[0], cy = d.boundingBox[1];
+  float w = d.boundingBox[2], h = d.boundingBox[3];
+  if (w < 0 || h < 0 || !std::isfinite(cx) || !std::isfinite(cy) ||
+      !std::isfinite(w) || !std::isfinite(h))
+    return std::nullopt;
   return BBoxCxCyWh{cx, cy, w, h};
 }
 
@@ -95,6 +94,164 @@ static bool CreateSharedMemory(const std::string& name, int size,
   return true;
 }
 
+namespace {
+
+PyMsg ParsePyMsg(const std::string& raw) {
+  PyMsg out{};
+  out.type = PyMsgType::Unknown;
+  try {
+    auto j = nlohmann::json::parse(raw);
+    if (!j.contains("type") || !j["type"].is_string()) return out;
+    const std::string t = j["type"].get<std::string>();
+
+    if (t == "ready") {
+      out.type = PyMsgType::Ready;
+      return out;
+    }
+    if (t == "frame_copied") {
+      out.type = PyMsgType::FrameCopied;
+      if (j.contains("frame_id") && j["frame_id"].is_number_unsigned())
+        out.frame_id = j["frame_id"].get<uint32_t>();
+      if (j.contains("time_milliseconds") &&
+          j["time_milliseconds"].is_number_unsigned())
+        out.time_ms = j["time_milliseconds"].get<uint32_t>();
+      return out;
+    }
+    if (t == "result") {
+      out.type = PyMsgType::Result;
+      if (!j.contains("frame_id") || !j["frame_id"].is_number_unsigned())
+        return out;
+      if (!j.contains("time_milliseconds") ||
+          !j["time_milliseconds"].is_number_unsigned())
+        return out;
+      if (!j.contains("conf") || !j["conf"].is_number()) return out;
+      out.frame_id = j["frame_id"].get<uint32_t>();
+      out.time_ms = j["time_milliseconds"].get<uint32_t>();
+
+      CVPositionData data{};
+      data.frameID = out.frame_id;
+      data.time_millis = out.time_ms;
+      data.valid = false;
+
+      const auto& bb = j["bounding_box"];
+      if (bb.is_string() && bb.get<std::string>() == "invalid") {
+        data.boundingBox = {-1, -1, -1, -1};
+        out.result = data;
+        return out;
+      }
+      if (!bb.is_array() || bb.size() != 4) return out;
+      for (size_t i = 0; i < 4; i++) {
+        if (!bb[i].is_number()) return out;
+      }
+      float cx = bb[0].get<float>(), cy = bb[1].get<float>();
+      float w = bb[2].get<float>(), h = bb[3].get<float>();
+      if (w < 0 || h < 0) return out;
+      data.boundingBox = {cx, cy, w, h};
+      data.center = cv::Point2f(cx, cy);
+      data.valid = (j["conf"].get<float>() >= NN_MIN_CONFIDENCE);
+      out.result = data;
+      return out;
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "CVPosition: parse error: " << e.what() << std::endl;
+  }
+  return out;
+}
+
+}  // namespace
+
+void CVPosition::_PumpMessages(int timeout_ms) {
+  std::string raw = _pythonSocket.receive_one(timeout_ms, nullptr);
+  while (!raw.empty()) {
+    PyMsg msg = ParsePyMsg(raw);
+    if (msg.type == PyMsgType::Ready) _pythonReadySeen = true;
+    if (msg.type != PyMsgType::Unknown) {
+      std::lock_guard<std::mutex> lock(_mailboxMutex);
+      _pendingMessages.push_back(std::move(msg));
+    }
+    raw = _pythonSocket.receive_one_nonblock(nullptr);
+  }
+}
+
+bool CVPosition::_PopPendingFrameCopied(uint32_t frameId, PyMsg& out) {
+  std::lock_guard<std::mutex> lock(_mailboxMutex);
+  for (auto it = _pendingMessages.begin(); it != _pendingMessages.end(); ++it) {
+    if (it->type == PyMsgType::FrameCopied && it->frame_id == frameId) {
+      out = std::move(*it);
+      _pendingMessages.erase(it);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CVPosition::_PopPendingResult(uint32_t frameId, CVPositionData& out) {
+  std::lock_guard<std::mutex> lock(_mailboxMutex);
+  for (auto it = _pendingMessages.begin(); it != _pendingMessages.end(); ++it) {
+    if (it->type == PyMsgType::Result && it->result &&
+        it->result->frameID == frameId) {
+      out = *it->result;
+      _pendingMessages.erase(it);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CVPosition::_WaitForPythonReady(int timeout_ms) {
+  if (_pythonReadySeen) return true;
+  const int deadline = timeout_ms;
+  int elapsed = 0;
+  while (elapsed < deadline) {
+    _PumpMessages(std::min(100, deadline - elapsed));
+    if (_pythonReadySeen) return true;
+    elapsed += 100;
+  }
+  std::cerr << "CVPosition: timeout waiting for ready" << std::endl;
+  return false;
+}
+
+bool CVPosition::_WaitForFrameCopied(uint32_t frameId, int timeout_ms) {
+  const int deadline = timeout_ms;
+  int elapsed = 0;
+  while (elapsed < deadline) {
+    PyMsg msg;
+    if (_PopPendingFrameCopied(frameId, msg)) return true;
+    _PumpMessages(std::min(100, deadline - elapsed));
+    elapsed += 100;
+  }
+  std::cerr << "CVPosition: timeout waiting for frame_copied frame_id=" << frameId
+            << std::endl;
+  return false;
+}
+
+bool CVPosition::_GetResultForFrame(uint32_t frameId, CVPositionData& out,
+                                    int timeout_ms) {
+  const int deadline = timeout_ms;
+  int elapsed = 0;
+  while (elapsed < deadline) {
+    if (_PopPendingResult(frameId, out)) return true;
+    _PumpMessages(std::min(100, deadline - elapsed));
+    elapsed += 100;
+  }
+  std::cerr << "CVPosition: timeout waiting for result frame_id=" << frameId
+            << std::endl;
+  return false;
+}
+
+void CVPosition::_SendFrameReady(uint32_t frameId, uint32_t timeMs) {
+  nlohmann::json j;
+  j["type"] = "frame_ready";
+  j["frame_id"] = frameId;
+  j["time_milliseconds"] = timeMs;
+  _SendToPython(j.dump());
+}
+
+void CVPosition::_SendToPython(const std::string& msg) {
+  if (!_pythonReadySeen) return;
+  _pythonSocket.reply_to_last_sender(msg);
+}
+
 void CVPosition::_InitSharedImage() {
   const int type = CV_8UC1;
   const int elementSize = CV_ELEM_SIZE(type);
@@ -163,11 +320,10 @@ cv::Point2f CVPosition::_ComputeVelocity(cv::Point2f currentCenter,
 
 void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
   if (frame.type() != CV_8UC1 || frame.rows < 1 || frame.cols < 8) {
-    std::cerr << "invalid frame type or size" << std::endl;
+    std::cerr << "CVPosition: invalid frame type or size" << std::endl;
     return;
   }
   const uint32_t id = _inputFrameId++;
-  // Clamp negative frameTime to avoid uint32_t wrap when casting.
   const double tMs = frameTime >= 0 ? frameTime * 1000.0 : 0.0;
   const uint32_t timeMillis = static_cast<uint32_t>(tMs);
 
@@ -178,28 +334,25 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     adjusted.convertTo(frame, CV_8U);
   }
 
-  // Seqlock write: seq odd => "writing"; then publish header + image; then seq
-  // even => "done". Release on seq stores ensures a reader that sees the same
-  // even seq before/after sees consistent header+image.
+  if (!_pythonReadySeen && !_WaitForPythonReady(RECV_TIMEOUT_MS)) return;
+
   if (!sharedImage.empty() && _pSharedMemory != nullptr) {
     auto* header = static_cast<SharedImageHeader*>(_pSharedMemory);
     uint32_t prev = header->seq.load(std::memory_order_relaxed);
     uint32_t odd = (prev + 1) | 1u;
     header->seq.store(odd, std::memory_order_release);
-
     header->frame_id = id;
     header->time_ms = timeMillis;
     frame.copyTo(sharedImage);
-
     header->seq.store(odd + 1, std::memory_order_release);
   }
 
-  bool pythonResponded = false;
-  CVPositionData data = _GetDataFromPython(pythonResponded);
+  _SendFrameReady(id, timeMillis);
 
-  if (!pythonResponded) {
-    return;
-  }
+  if (!_WaitForFrameCopied(id, RECV_TIMEOUT_MS)) return;
+
+  CVPositionData data{};
+  if (!_GetResultForFrame(id, data, RECV_TIMEOUT_MS)) return;
 
   auto bboxOpt = BBoxFromData(data);
   if (!bboxOpt) {
@@ -211,7 +364,6 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
         std::isnan(data.center.y) || std::isinf(data.center.x) ||
         std::isinf(data.center.y)) {
       data.valid = false;
-      std::cerr << "center out of frame or non-finite" << std::endl;
     }
   }
 
@@ -236,8 +388,6 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
         _validStreakCounter++;
         _lastValid = LastValidSample{data.center, currentTime, data.frameID};
       } else {
-        std::cerr << "disqualified: distance or frame gap too large"
-                  << std::endl;
         data.valid = false;
         _validStreakCounter = 0;
         _lastValid = std::nullopt;
@@ -250,110 +400,13 @@ void CVPosition::_ProcessNewFrame(cv::Mat frame, double frameTime) {
     shouldPublish = data.valid && (_validStreakCounter >= MIN_VALID_STREAK);
   }
 
-  if (true) {
-    auto bbox = BBoxFromData(data);
-    if (!bbox) {
-      std::cerr << "CVPosition: publish path with no bbox (should not happen)"
-                << std::endl;
-      return;
-    }
-    cv::Rect bboxRect = BBoxToRectClamped(*bbox, frame.cols, frame.rows);
-    OdometryData sample{};
+  if (!shouldPublish) return;
 
-    std::cout << "received time milliseconds: " << data.time_millis
-              << std::endl;
-    sample.pos = PositionData{data.center, velocity, bboxRect,
-                              static_cast<double>(data.time_millis / 1000.0)};
-    OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
-  } else {
-    std::cout << "not publishing" << std::endl;
-  }
-}
-
-CVPositionData CVPosition::_GetDataFromPython(bool& outPythonResponded) {
-  std::string data = _pythonSocket.receive();
-
-  auto invalidFromLast = [this]() -> CVPositionData {
-    CVPositionData ret;
-    {
-      std::lock_guard<std::mutex> lock(_lastDataMutex);
-      ret = _lastData;
-    }
-    ret.valid = false;
-    return ret;
-  };
-
-  if (data.empty()) {
-    outPythonResponded = false;
-    return invalidFromLast();
-  }
-  outPythonResponded = true;
-
-  nlohmann::json j;
-  try {
-    j = nlohmann::json::parse(data);
-  } catch (const std::exception& e) {
-    std::cerr << "CVPosition: JSON parse error: " << e.what() << std::endl;
-    return invalidFromLast();
-  }
-
-  if (!j.contains("bounding_box")) {
-    std::cerr << "CVPosition: JSON missing bounding_box" << std::endl;
-    return invalidFromLast();
-  }
-  const auto& boundingBox = j["bounding_box"];
-  if (boundingBox.is_string()) {
-    // "invalid" from Python: last data with valid=false, optional frame/time
-    CVPositionData ret = invalidFromLast();
-    ret.boundingBox = {};
-    ret.frameID = 0;
-    ret.time_millis = 0;
-    if (j.contains("frame_id") && j["frame_id"].is_number_unsigned()) {
-      ret.frameID = j["frame_id"].get<uint32_t>();
-    }
-    if (j.contains("time_milliseconds") &&
-        j["time_milliseconds"].is_number_unsigned()) {
-      ret.time_millis = j["time_milliseconds"].get<uint32_t>();
-    }
-    return ret;
-  }
-  if (!boundingBox.is_array() || boundingBox.size() != 4) {
-    std::cerr << "CVPosition: bounding_box must be array of 4 numbers"
-              << std::endl;
-    return invalidFromLast();
-  }
-  for (size_t i = 0; i < 4; i++) {
-    if (!boundingBox[i].is_number()) {
-      std::cerr << "CVPosition: bounding_box[" << i << "] not a number"
-                << std::endl;
-      return invalidFromLast();
-    }
-  }
-
-  if (!j.contains("conf") || !j["conf"].is_number()) {
-    std::cerr << "CVPosition: JSON missing or invalid conf" << std::endl;
-    return invalidFromLast();
-  }
-  if (!j.contains("frame_id") || !j["frame_id"].is_number_unsigned()) {
-    std::cerr << "CVPosition: JSON missing or invalid frame_id" << std::endl;
-    return invalidFromLast();
-  }
-  if (!j.contains("time_milliseconds") ||
-      !j["time_milliseconds"].is_number_unsigned()) {
-    std::cerr << "CVPosition: JSON missing or invalid time_milliseconds"
-              << std::endl;
-    return invalidFromLast();
-  }
-
-  float cx = boundingBox[0].get<float>();
-  float cy = boundingBox[1].get<float>();
-  float w = boundingBox[2].get<float>();
-  float h = boundingBox[3].get<float>();
-  CVPositionData ret;
-  ret.boundingBox = {static_cast<int>(cx), static_cast<int>(cy),
-                     static_cast<int>(w), static_cast<int>(h)};
-  ret.frameID = j["frame_id"].get<uint32_t>();
-  ret.time_millis = j["time_milliseconds"].get<uint32_t>();
-  ret.valid = (j["conf"].get<float>() >= NN_MIN_CONFIDENCE);
-  return ret;
+  auto bbox = BBoxFromData(data);
+  if (!bbox) return;
+  cv::Rect bboxRect = BBoxToRectClamped(*bbox, frame.cols, frame.rows);
+  OdometryData sample{};
+  sample.pos = PositionData{data.center, velocity, bboxRect,
+                            static_cast<double>(data.time_millis / 1000.0)};
+  OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::Neural);
 }

@@ -107,6 +107,55 @@ std::string ServerSocket::receive(int *outError) {
   return ret;
 }
 
+std::string ServerSocket::receive_one(int timeout_ms, int* outError) {
+  DWORD tv = static_cast<DWORD>(timeout_ms);
+  setsockopt(listenSocket, SOL_SOCKET, SO_RCVTIMEO,
+             reinterpret_cast<const char*>(&tv), sizeof(tv));
+
+  last_sender_addr_len = sizeof(last_sender_addr);
+  int numBytesReceived =
+      recvfrom(listenSocket, recvbuf, recvbuflen, 0,
+               reinterpret_cast<SOCKADDR*>(&last_sender_addr),
+               &last_sender_addr_len);
+
+  DWORD zero = 0;
+  setsockopt(listenSocket, SOL_SOCKET, SO_RCVTIMEO,
+             reinterpret_cast<const char*>(&zero), sizeof(zero));
+
+  if (numBytesReceived == SOCKET_ERROR) {
+    int err = WSAGetLastError();
+    if (outError != nullptr) *outError = err;
+    if (err == WSAETIMEDOUT) return "";
+    std::cerr << "recvfrom failed: " << err << std::endl;
+    return "";
+  }
+  if (numBytesReceived <= 0) return "";
+  return std::string(recvbuf, numBytesReceived);
+}
+
+std::string ServerSocket::receive_one_nonblock(int* outError) {
+  u_long iMode = 1;
+  ioctlsocket(listenSocket, FIONBIO, &iMode);
+
+  last_sender_addr_len = sizeof(last_sender_addr);
+  int numBytesReceived =
+      recvfrom(listenSocket, recvbuf, recvbuflen, 0,
+               reinterpret_cast<SOCKADDR*>(&last_sender_addr),
+               &last_sender_addr_len);
+
+  iMode = 0;
+  ioctlsocket(listenSocket, FIONBIO, &iMode);
+
+  if (numBytesReceived == SOCKET_ERROR) {
+    int err = WSAGetLastError();
+    if (outError != nullptr) *outError = err;
+    if (err == WSAEWOULDBLOCK) return "";
+    return "";
+  }
+  if (numBytesReceived <= 0) return "";
+  return std::string(recvbuf, numBytesReceived);
+}
+
 /**
  * Replies to the last sender
  *

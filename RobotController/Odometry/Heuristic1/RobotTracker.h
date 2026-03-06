@@ -181,7 +181,6 @@ public:
 
     // Tracking Info
     int numFramesOld = 0; // Number of frames this tracker has been active
-    bool lockedOn = false;
     float trackingError = 0;
     int numFramesNotTracked = 0;
     double timeNotMoving = 0;
@@ -194,6 +193,7 @@ public:
     cv::Mat fg_image; // The foreground image contained in bbox
     cv::Mat fg_mask;  // the foreground mask contained in bbox
     cv::Mat debugImage;
+    std::mutex* debugImage_mutex = nullptr; // If not null, will be used to control access to debug image. Used when saving video to ensure we don't have multiple threads writing to the debug image at the same time.
     cv::Mat matchResultSaved;
 
     double lastTime = 0;             // Time of last velocity/position update
@@ -216,7 +216,7 @@ public:
     RobotTracker(cv::Rect bbox);
     cv::Rect GetExtrapolatedBBOX(double curr_time);
     Vector2 GetExtrapolatedPosition(double curr_time);
-    void ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat); // Porcess new frame, return true if lock occured
+    void ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat &currFrame, cv::Mat &new_fg_mask, int &doneInt, std::condition_variable_any &doneCV, std::mutex &mutex, cv::Mat &debugMat, std::mutex &debugFrameMutex); // Porcess new frame, return true if lock occured
     
     cv::Point GetCenter(void);
     void SetRotation(double angleRad);
@@ -230,7 +230,10 @@ public:
 
     cv::Rect predictedBBox;
     myRect *bestBBox = nullptr;
+    myRect *bestBBox_copy = nullptr; 
+
     void FindBestBBox(double currTime, std::vector<myRect> &allBBoxes); // Finds and saves best bbox
+    void MakeCopyOfBestBBox(); // Makes a copy of the best bbox to be used for processing. This is to prevent issues with the best bbox being changed by other trackers while we're processing.
 
     double FindNewPosAndRotUsingMatchTemplate(cv::Mat &currFrame, cv::Mat &foreground, cv::Rect &fgFoundBBox, Vector2 &newRot);
 

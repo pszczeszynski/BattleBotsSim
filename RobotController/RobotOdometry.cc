@@ -8,9 +8,9 @@
 #include "MathUtils.h"
 #include "RobotConfig.h"
 #include "RobotController.h"
+#include "SimulationState.h"
 #include "imgui.h"
 #include "odometry/Neural/CVPosition.h"
-#include "SimulationState.h"
 
 namespace {
 enum FUSION_SM {
@@ -59,9 +59,9 @@ void MaybeDisqualifyBlobByLKFlow(
 
 constexpr double kMinSeparationToUseBlob = 125;
 
-void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
-                                   const OdometryData &prevRobot,
-                                   const OdometryData &prevOpponent) {
+void DisqualifyIfTooClose(OdometryData &usAlg, OdometryData &themAlg,
+                          const OdometryData &prevRobot,
+                          const OdometryData &prevOpponent) {
   if (!prevRobot.pos.has_value() || !prevOpponent.pos.has_value()) {
     return;
   }
@@ -70,10 +70,10 @@ void MaybeDisqualifyBlobByDistance(OdometryData &usBlob, OdometryData &themBlob,
                                     prevOpponent.pos.value().position);
 
   if (distBetweenPrev < kMinSeparationToUseBlob) {
-    usBlob.pos.reset();
-    usBlob.angle.reset();
-    themBlob.pos.reset();
-    themBlob.angle.reset();
+    usAlg.pos.reset();
+    usAlg.angle.reset();
+    themAlg.pos.reset();
+    themAlg.angle.reset();
   }
 }
 
@@ -279,11 +279,28 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
                                  const OdometryData &prevRobot,
                                  const OdometryData &prevOpponent) {
   FusionOutput output{};
+  // ******************************
+  // We have the following sources of data:
+  // ALGORITH  | US POS |  US VEL | US ROT | US A.VEL | THEM POS | THEM VEL |  THEM ROT | THEM A.VEL
+  // -------------------------------------------------------------------------------------------------
+  // Heuristic |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
+  // Blob      |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
+  // Neural    |   X    |        |         |          |          |          |           |
+  // NeuralRot |        |        |     X   |          |          |          |           |
+	// LKR       |   X    |    X   |     X   |    X     |    X     |   X      |     X     |     X
+  // IMU       |        |        |     X   |    X     |          |          |           |
+  // Human     |        |        |     X   |          |          |          |     X     |     
+  //
+
 
   // Initialize output with previous state (for extrapolation baseline)
   output.robot = prevRobot;
   output.opponent = prevOpponent;
 
+  // GLOBAL PRECHECK:
+  //
+  // Step 1) Check blob sanity
+  //
   // If blob moved much faster than LK flow (same target), disqualify blob.
   MaybeDisqualifyBlobByLKFlow(
       inputs.them_lkflow.pos, _prevInputs.them_lkflow.pos, inputs.them_blob.pos,
@@ -292,9 +309,18 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
                               inputs.us_blob.pos, _prevInputs.us_blob.pos,
                               inputs.us_blob.pos, inputs.us_blob.angle);
 
-  MaybeDisqualifyBlobByDistance(inputs.us_blob, inputs.them_blob, prevRobot,
-                                prevOpponent);
+  DisqualifyIfTooClose(inputs.us_blob, inputs.them_blob, prevRobot,
+                       prevOpponent);
+  DisqualifyIfTooClose(inputs.us_heuristic, inputs.them_heuristic, prevRobot,
+                       prevOpponent);
 
+  //      If Neural says we should be swapped, then swap
+  //      G1) if Neural = Heuristic.them: SWAP Heuristic
+  //
+  //      // US POS: If Neural agrees with blob, use Neural
+  //      G2) if Neural != Heuristic.us && (Neural=Blob.us || Neural=LKR.us): Heuristic.ForcePosUs(Neural) (and invalidate Heuristic).
+  //		    if Neural != LKR.us && (Neural=Blob.us || Neural=Heuristic.us): LKR.ForcePosUs(Neural) (and invalidate LKR)
+	//	
   // Neural-based rules and disqualifications
   if (isFresh(inputs.us_neural.pos)) {
     // G1) if Neural US = Heuristic.them: SWAP Heuristic and invalidate them
@@ -340,16 +366,37 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     }
   }
 
+  //  US POS:
+	//			 If( Heuristic.Combined || Lower confidence)  1) Neural, 2) Blob*, 3) LKR, 4) Heuristic
+	//			 else  1) Heuristic, 2) Neural, 3) Blob, 4) LKR
+  // Note: Blob now diqualifies himself when combined so no need to check here.
+  // *: Unlikely for blob not to be combined if heuristic is combined
   // Robot position (manual override has highest priority)
   if (isFresh(inputs.us_override.pos)) {
     output.robot.pos = inputs.us_override.pos;
   } else if (isFresh(inputs.us_heuristic.pos)) {
-    output.robot.pos = inputs.us_heuristic.pos;
-    // If blob position isn't inside our rectangle then set position
-    if (isFresh(inputs.us_blob.pos) &&
-        !inputs.us_heuristic.IsPointInside(
-            inputs.us_blob.pos.value().position)) {
-      inputs.us_blob.pos.reset();
+    // If Heuristic is combined or has non 100% confidence then deprioritize it
+    if(inputs.us_heuristic.userDataDouble.find("Combined") != inputs.us_heuristic.userDataDouble.end() ||
+       inputs.us_heuristic.userDataDouble.find("Confidence") != inputs.us_heuristic.userDataDouble.end()){
+
+        if (isFresh(inputs.us_blob.pos)) {
+          output.robot.pos = inputs.us_blob.pos;
+        } else if (isFresh(inputs.us_lkflow.pos)) {
+          output.robot.pos = inputs.us_lkflow.pos;
+        } else if (isFresh(inputs.us_neural.pos)) {
+          output.robot.pos = inputs.us_neural.pos;
+        } else {
+          output.robot.pos = inputs.us_heuristic.pos;
+        } 
+    }
+    else  {
+      output.robot.pos = inputs.us_heuristic.pos;
+      // If blob position isn't inside our rectangle then set position
+      if (isFresh(inputs.us_blob.pos) &&
+          !inputs.us_heuristic.IsPointInside(
+              inputs.us_blob.pos.value().position)) {
+        inputs.us_blob.pos.reset();
+      }
     }
   } else if (isFresh(inputs.us_blob.pos)) {
     output.robot.pos = inputs.us_blob.pos;
@@ -360,13 +407,30 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   }
 
   // Robot velocity
+  //  US VEL:
+	//			 If( Heuristic.Combined || Lower confidence) 1) Blob, 2) LKR, 3) Heuristic
+	//			 else:  1) Heuristic, 2) Neural, 3) blob, 4) LKR
+  // Note: Blob now diqualifies himself when combined so no need to check here
   if (output.robot.pos.has_value()) {
     if (isFresh(inputs.us_override.pos)) {
       output.robot.pos.value().velocity =
           inputs.us_override.pos.value().velocity;
     } else if (isFresh(inputs.us_heuristic.pos)) {
-      output.robot.pos.value().velocity =
-          inputs.us_heuristic.pos.value().velocity;
+      // If Heuristic is combined or has non 100% confidence then deprioritize it
+      if(inputs.us_heuristic.userDataDouble.find("Combined") != inputs.us_heuristic.userDataDouble.end() ||
+      inputs.us_heuristic.userDataDouble.find("Confidence") != inputs.us_heuristic.userDataDouble.end()){
+
+        if (isFresh(inputs.us_blob.pos)) {
+          output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
+        } else if (isFresh(inputs.us_lkflow.pos)) {
+          output.robot.pos.value().velocity = inputs.us_lkflow.pos.value().velocity;
+        } else {
+          output.robot.pos.value().velocity = inputs.us_heuristic.pos.value().velocity;
+        } 
+      }
+      else {
+        output.robot.pos.value().velocity = inputs.us_heuristic.pos.value().velocity;
+      }
     } else if (isFresh(inputs.us_blob.pos)) {
       output.robot.pos.value().velocity = inputs.us_blob.pos.value().velocity;
     } else if (isFresh(inputs.us_lkflow.pos)) {
@@ -375,6 +439,7 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   }
 
   // Robot angle (manual override has highest priority)
+  // No Heuristic backfall???
   if (isFresh(inputs.us_override.angle)) {
     output.robot.angle = inputs.us_override.angle;
   } else if (isFresh(inputs.us_imu.angle)) {
@@ -386,25 +451,64 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     output.robot.angle.value().velocity = 0;
   }
 
+   //  THEM POS:
+	//			 If( Heuristic.Combined || Lower confidence)  1) Blob, 2) LKR, 3) Heuristic
+	//			 else  1) Heuristic, 3) Blob, 4) LKR
+  // Note: Blob now diqualifies himself when combined so no need to check here
   // Opponent position (manual override has highest priority)
   if (isFresh(inputs.them_override.pos)) {
     output.opponent.pos = inputs.them_override.pos;
   } else if (isFresh(inputs.them_heuristic.pos)) {
-    output.opponent.pos = inputs.them_heuristic.pos;
+      // If Heuristic is combined or has non 100% confidence then deprioritize it
+      if(inputs.them_heuristic.userDataDouble.find("Combined") != inputs.them_heuristic.userDataDouble.end() ||
+         inputs.them_heuristic.userDataDouble.find("Confidence") != inputs.them_heuristic.userDataDouble.end()){
+       if (isFresh(inputs.them_blob.pos)) {
+          output.opponent.pos.value().velocity = inputs.them_blob.pos.value().velocity;
+        } else if (isFresh(inputs.them_lkflow.pos)) {
+          output.opponent.pos.value().velocity = inputs.them_lkflow.pos.value().velocity;
+        } else {
+          output.opponent.pos.value().velocity = inputs.them_heuristic.pos.value().velocity;
+        } 
+      } else {
+        output.opponent.pos = inputs.them_heuristic.pos;
+      }
   } else if (isFresh(inputs.them_blob.pos)) {
     output.opponent.pos = inputs.them_blob.pos;
   } else if (isFresh(inputs.them_lkflow.pos)) {
     output.opponent.pos = inputs.them_lkflow.pos;
   }
 
+  
+  //			 If( Heuristic.Combined || Lower confidence)  1) Blob, 2) LKR, 3) Heuristic
+	//			 else  1) Heuristic, 3) Blob, 4) LKR
   // Opponent velocity
+  
   if (output.opponent.pos.has_value()) {
     if (isFresh(inputs.them_override.pos)) {
       output.opponent.pos.value().velocity =
           inputs.them_override.pos.value().velocity;
     } else if (isFresh(inputs.them_heuristic.pos)) {
-      output.opponent.pos.value().velocity =
-          inputs.them_heuristic.pos.value().velocity;
+      // If Heuristic is combined or has non 100% confidence then deprioritize
+      // it
+      if (inputs.them_heuristic.userDataDouble.find("Combined") !=
+              inputs.them_heuristic.userDataDouble.end() ||
+          inputs.them_heuristic.userDataDouble.find("Confidence") !=
+              inputs.them_heuristic.userDataDouble.end()) {
+        if (isFresh(inputs.them_blob.pos)) {
+          output.opponent.pos.value().velocity =
+              inputs.them_blob.pos.value().velocity;
+        } else if (isFresh(inputs.them_lkflow.pos)) {
+          output.opponent.pos.value().velocity =
+              inputs.them_lkflow.pos.value().velocity;
+        } else {
+          output.opponent.pos.value().velocity =
+              inputs.them_heuristic.pos.value().velocity;
+        }
+      } else {
+        output.opponent.pos.value().velocity =
+            inputs.them_heuristic.pos.value().velocity;
+      }
+
     } else if (isFresh(inputs.them_blob.pos)) {
       output.opponent.pos.value().velocity =
           inputs.them_blob.pos.value().velocity;
@@ -531,9 +635,7 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   OdometryData currData = _dataOpponent;
   locker.unlock();
 
-  currData.ExtrapolateBoundedTo(currTime);
-
-  return currData;
+  return currData.ExtrapolateBoundedTo(currTime);
 }
 
 static double GetImuAngleRad() {

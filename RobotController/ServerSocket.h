@@ -31,6 +31,14 @@ class ServerSocket {
   int last_sender_addr_len;
 
   std::string receive(int* outError = nullptr);
+
+  // Receive exactly one datagram. Blocks up to timeout_ms (0 = infinite).
+  // Updates last_sender_addr for reply_to_last_sender. Returns "" on timeout.
+  std::string receive_one(int timeout_ms, int* outError = nullptr);
+
+  // Non-blocking receive of one datagram. Returns "" if none available.
+  std::string receive_one_nonblock(int* outError = nullptr);
+
   void reply_to_last_sender(std::string data);
   ServerSocket(std::string port);
   ~ServerSocket();

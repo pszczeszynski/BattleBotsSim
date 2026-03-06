@@ -23,7 +23,7 @@ void DisplayUtils::displayPath(std::vector<cv::Point2f>& pathPoints, cv::Scalar 
 
     for (int i = 0; i < pathPoints.size() - 1; i++) {
 
-        float percent = (float) i / (pathPoints.size() - 2);
+        float percent = (pathPoints.size() > 2) ? (float)i / (pathPoints.size() - 2) : 0.0f;
         cv::Scalar color = (endColor - startColor)*percent + startColor;
 
         cv::line(RobotController::GetInstance().GetDrawingImage(), pathPoints[i], pathPoints[i + 1], color, thick);
@@ -65,6 +65,7 @@ void DisplayUtils::emote() {
 
         // Make sure it fits in the drawing surface
         cv::Rect roi(topLeft.x, topLeft.y, logo.cols, logo.rows);
+        roi &= cv::Rect(0, 0, drawing.cols, drawing.rows); // clamp to image bounds to prevent crash
 
         // If PNG has 4 channels (BGRA), split alpha and blend
         if (logo.channels() == 4) {

@@ -44,6 +44,7 @@ class HeuristicOdometry : public OdometryBase {
   void processNewFrame(cv::Mat &newFrame);
   void SetPosition(const PositionData &newPos, bool opponentRobot)
       override;  // Will pick the tracked foreground thats closest to this point
+  void SetPosition(const PositionData &newPos, bool opponentRobot, bool skipMutexLock);  // Same as above but with option to skip mutex lock for internal use when we know caller already has lock    
   void ForcePosition(const PositionData &newPos, bool opponentRobot) override;
   void SwitchRobots(void) override;  // Switches who's who
   void SetVelocity(cv::Point2f newVel, bool opponentRobot) override;
@@ -198,6 +199,9 @@ class HeuristicOdometry : public OdometryBase {
   double currTime = 0.0;  // Current frame time
   RobotTracker *ourRobotTracker = NULL;
   RobotTracker *opponentRobotTracker = NULL;
+  OdometryData ourLastSetData; // Last time set or force data was called for us
+  OdometryData opponentLastSetData; // Last time set or force data was called for them
+
   double deleteForNoMovementTime =
       0.7;  // Number of s to delete a tracked object for not moving
   int deleteForNoTrackingCount =
@@ -215,7 +219,9 @@ class HeuristicOdometry : public OdometryBase {
   float start_brightness_soak_period2 =
       0.5f;  // Additional time in seconds to wait before we start considering
              // foreground. Heuristic is started after
+  
   bool tracking_started = false;  // True if we have started tracking robots
+  bool use_new_start_alg = true; // If true tries to start tracking robots as soon as brightness is stable. If false, waits for robots to clear starting area before starting tracking
   int clear_margin = 10;  // Number of pixels to clear around the tracked bbox
                           // to avoid interference with the background healing
 
@@ -271,6 +277,7 @@ class HeuristicOdometry : public OdometryBase {
   std::mutex
       _mutexTrackData;  // Used for parallel processes to report back they are
                         // done with the conditional variable below
+  std::mutex _debugFrameMutex;  // Used to control access to the debug frame
   std::condition_variable_any conditionVarTrackRobots;
 
   void TrackRobots(cv::Mat &croppedFrame, cv::Mat &frameToDisplay);
