@@ -150,11 +150,15 @@ std::vector<float> FilteredRobot::curvatureController(float driveAngle, float mo
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
 
-    float slowGain = 1.0f; // 0.88
-    float fastGain = 0.40f; // 0.32
+    float slowGain = 1.0f; // 1.0
+    float fastGain = 0.40f; // 0.4
     float fastSpeed = 400.0f;
+    float maxCurveGain = 0.005f; // multiplied by speed to give max curve limit so we don't turn in place
+
     float gain = (std::max)(slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f), 0.0f);
-    float curvature = gain * angleError;
+
+    float maxCurve = maxCurveGain * abs(currSpeed);
+    float curvature = std::clamp(gain * angleError, -maxCurve, maxCurve);
 
 
     // by default, apply input velocity and turn based on that
