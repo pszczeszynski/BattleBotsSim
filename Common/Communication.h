@@ -126,6 +126,7 @@ enum RobotMessageType : char
     BOARD_TELEMETRY_DATA,
     CHANNEL_SWITCH,
     LOCAL_PING_RESPONSE,
+    AUTO_DRIVE, // deprecated don't use
 };
 
 struct IMUData
