@@ -460,7 +460,7 @@ void ConfigWidget::Draw()
         ImGui::PushStyleColor(ImGuiCol_Button, ColorScheme::STATUS_ERROR);
     }
 
-    if(ImGui::Button("Use IMU Vel"))
+    if(ImGui::Button("Integrate IMU On PC"))
     {
         INTEGRATE_GYRO_VEL = !INTEGRATE_GYRO_VEL;
     }

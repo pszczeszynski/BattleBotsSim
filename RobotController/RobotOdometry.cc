@@ -454,9 +454,8 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
     // std::cout << "using us_override" << std::endl;
     output.robot.angle = inputs.us_override.angle;
   } else if (isFresh(inputs.us_imu.angle)) {
-    // std::cout << "using us_imu" << std::endl;
     output.robot.angle = inputs.us_imu.angle;
-  } 
+  }
   // if (isFresh(inputs.us_override.angle)) {
   //   std::cout << "using us_override" << std::endl;
   //   output.robot.angle = inputs.us_override.angle;

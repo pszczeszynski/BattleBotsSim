@@ -45,7 +45,10 @@ PowerMonitor txMonitor;
 
 void HandleTxPacket()
 {
-    if (!tx_radio.Available()) return;
+    if (!tx_radio.Available()) {
+        digitalWrite(STATUS_3_LED_PIN, LOW);
+        return;
+    }
     RobotMessage message = tx_radio.Receive();
 
     if (message.type != RobotMessageType::INVALID)

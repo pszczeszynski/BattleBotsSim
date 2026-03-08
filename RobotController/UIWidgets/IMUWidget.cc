@@ -172,7 +172,8 @@ void DrawRotationIndicator(const ImVec2& center, float rotation, float radius,
 
 void IMUWidget::Draw() {
   // Get the latest IMU data and robot data
-  IMUData imuData = RobotController::GetInstance().odometry.GetIMUOdometry().GetIMUData();
+  IMUData imuData =
+      RobotController::GetInstance().odometry.GetIMUOdometry().GetIMUData();
   RobotMessage imuDebugMessage =
       RobotController::GetInstance().GetRobotLink().GetLastIMUDebugMessage();
   RobotOdometry& odometry = RobotController::GetInstance().odometry;
@@ -188,9 +189,8 @@ void IMUWidget::Draw() {
     ImVec2 contentStart = ImGui::GetCursorScreenPos();
 
     // Calculate the available width for the rotation display
-    float availableWidth = windowSize.x - 40;  // Leave some margin
-    float rotationRadius =
-        availableWidth * 0.4f;  // Use 40% of available width for rotation
+    float availableWidth = windowSize.x - 40;
+    float rotationRadius = availableWidth * 0.4f;
 
     // Center the rotation display: centered left-right in window, top at
     // content top, center moves down as radius grows

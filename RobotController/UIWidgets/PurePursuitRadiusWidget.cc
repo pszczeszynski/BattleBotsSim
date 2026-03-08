@@ -136,6 +136,63 @@ void PurePursuitRadiusWidget::Draw() {
         ImVec4(1.0f, 0.9f, 0.3f, 1.0f),
         ImVec4(1.0f, 0.95f, 0.5f, 1.0f));
 
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Slow Gain");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##slowGain", &ASTAR_PP_SLOW_GAIN, 0.0f, 3.0f, "%.2f",
+        ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+        ImVec4(0.5f, 0.85f, 1.0f, 1.0f),
+        ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Fast Gain");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##fastGain", &ASTAR_PP_FAST_GAIN, 0.0f, 3.0f, "%.2f",
+        ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+        ImVec4(0.5f, 0.85f, 1.0f, 1.0f),
+        ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Fast Speed");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##fastSpeed", &ASTAR_PP_FAST_SPEED, 0.0f, 600.0f, "%.0f",
+        ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+        ImVec4(0.5f, 0.85f, 1.0f, 1.0f),
+        ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Max Curve Gain");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##maxCurveGain", &ASTAR_PP_MAX_CURVE_GAIN, 0.0f, 0.05f, "%.4f",
+        ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+        ImVec4(0.5f, 0.85f, 1.0f, 1.0f),
+        ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+    ImGui::Text("Turn Speed FF");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##turnSpeedFF", &ASTAR_PP_TURN_SPEED_FF, 0.0f, 0.5f, "%.3f",
+        ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+        ImVec4(0.5f, 0.85f, 1.0f, 1.0f),
+        ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+
     ImGui::PopStyleColor(3);
     style.FrameRounding = oldFrameRounding;
     style.FramePadding.y = oldFramePaddingY;

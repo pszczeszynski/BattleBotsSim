@@ -52,8 +52,8 @@ RobotMessage IRobotLink::Receive() {
       _lastIMUMessage = msg;
       _lastIMUMessageMutex.unlock();
 
-      if (_imuCallback) {
-        _imuCallback(msg.imuData, msg.timestamp);
+      if (_imuCallback && messageIndex < (int)_lastMessageReceiveTimes.size()) {
+        _imuCallback(msg.imuData, _lastMessageReceiveTimes[messageIndex]);
       }
 
       hadValidMessage = true;
@@ -311,12 +311,9 @@ void RobotLinkReal::RadioThreadRecvFunction(
         if (num >= sizeof(RobotMessage)) {
           // reinterpret the buffer as a RobotMessage
           RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
-          // set the time when you get the message
-          msg.timestamp = Clock::programClock.getElapsedTime();
 
           if (msg.type != RobotMessageType::INVALID) {
             // copy over data
-
             _outstandingPacketMutex.lock();
             if (_outstandingPackets.find(msg.timestamp) !=
                 _outstandingPackets.end()) {
@@ -345,16 +342,16 @@ void RobotLinkReal::RadioThreadRecvFunction(
                         msg.timestamp) /
                   1000);
             }
-            auto elapsed =
-                std::chrono::high_resolution_clock::now() - _startTime;
             if (_logger != nullptr) {
+              auto logElapsed =
+                  std::chrono::high_resolution_clock::now() - _startTime;
               _logger->UpdateRxLog(
-                  std::chrono::duration_cast<std::chrono::microseconds>(elapsed)
+                  std::chrono::duration_cast<std::chrono::microseconds>(
+                      logElapsed)
                       .count(),
                   msg);
             }
             _outstandingPacketMutex.unlock();
-
             radioStatsMutex->lock();
             lastReceivedTimer->markStart();
             if (msg.type == RobotMessageType::RADIO_DATA) {

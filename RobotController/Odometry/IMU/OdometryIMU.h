@@ -10,7 +10,7 @@ class OdometryIMU : public OdometryBase {
   OdometryIMU();
   void SetAngle(AngleData angleData, bool opponentRobot) override;
 
-  bool Run() override { return true; }
+  bool Run() override { _running.store(true); return true; }
 
   void PushIMUData(const IMUData &data, double time);
 

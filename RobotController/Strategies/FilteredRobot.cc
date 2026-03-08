@@ -1,5 +1,6 @@
 #include "FilteredRobot.h"
 #include "../MathUtils.h"
+#include "../RobotConfig.h"
 #include "../RobotController.h"
 #include <iostream>
 #include <cstdlib>
@@ -150,10 +151,10 @@ std::vector<float> FilteredRobot::curvatureController(float driveAngle, float mo
     // determine desired path curvature/drive radius using pd controller and magic limits
     float currSpeed = moveSpeedSlow();
 
-    float slowGain = 1.0f; // 1.0
-    float fastGain = 0.40f; // 0.4
-    float fastSpeed = 400.0f;
-    float maxCurveGain = 0.005f; // multiplied by speed to give max curve limit so we don't turn in place
+    float slowGain = ASTAR_PP_SLOW_GAIN;
+    float fastGain = ASTAR_PP_FAST_GAIN;
+    float fastSpeed = ASTAR_PP_FAST_SPEED;
+    float maxCurveGain = ASTAR_PP_MAX_CURVE_GAIN;
 
     float gain = (std::max)(slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f), 0.0f);
 
@@ -178,7 +179,7 @@ std::vector<float> FilteredRobot::curvatureController(float driveAngle, float mo
     prevTurnInput = turnInput; // save the turn speed wanted for the normal amount of curvature
 
 
-    float turnSpeedOffset = 0.11f * turnSpeedChange;
+    float turnSpeedOffset = ASTAR_PP_TURN_SPEED_FF * turnSpeedChange;
     turnInput = std::clamp(turnInput + turnSpeedOffset, -1.0f, 1.0f);
 
 
