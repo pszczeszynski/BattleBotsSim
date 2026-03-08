@@ -70,14 +70,6 @@ RobotController& RobotController::GetInstance() {
 }
 
 /**
- * Gets the most recent imu data from the robot
- */
-IMUData RobotController::GetIMUData() {
-  std::lock_guard<std::mutex> lock(_imudataMutex);
-  return _lastIMUMessage.imuData;
-}
-
-/**
  * Gets the most recent can data from the robot
  */
 CANData RobotController::GetCANData() {
@@ -101,6 +93,11 @@ void RobotController::Run() {
   stopCommand.fuseIMU = true;
   robotLink.Drive(stopCommand);
 #endif
+
+  robotLink.RegisterIMUCallback(
+      [this](const IMUData &data, double time) {
+        odometry.GetIMUOdometry().PushIMUData(data, time);
+      });
 
   std::cout << "Starting odometry threads..." << std::endl;
 
@@ -153,16 +150,7 @@ void RobotController::Run() {
       // receive the latest message
       RobotMessage msg = robotLink.Receive();
       // std::cerr << "main loop 1.02" << std::endl;
-      // save the specific type information in a last struct
-      if (msg.type == RobotMessageType::IMU_DATA) {
-        std::unique_lock<std::mutex> locker(_imudataMutex);
-        // Assume each IMU message is unique
-        _lastIMUMessage = msg;
-        _imuID++;
-        _imuTime = Clock::programClock.getElapsedTime();
-        locker.unlock();
-        _imuCV.notify_all();
-      } else if (msg.type == RobotMessageType::CAN_DATA) {
+      if (msg.type == RobotMessageType::CAN_DATA) {
         std::lock_guard<std::mutex> lock(_lastCanMessageMutex);
         _lastCANMessage = msg;
       }
@@ -263,35 +251,6 @@ int RobotController::UpdateDrawingImage() {
   // std::cerr << "main loop 0.04" << std::endl;
 
   return retId;
-}
-
-long RobotController::GetIMUFrame(IMUData& output, long old_id,
-                                  double* frameTime) {
-  // Using scoped mutex locker because conditional variable integrates with it
-  // This creates the locker and locks the mutex
-  std::unique_lock<std::mutex> locker(_imudataMutex);
-
-  while ((_imuID <= 0) || (_imuID <= old_id)) {
-    // Unlock mutex, waits until conditional varables is notifed, then it locks
-    // mutex again
-    if (_imuCV.wait_for(locker, ODO_MUTEX_TIMEOUT) == std::cv_status::timeout) {
-      // Unable to get a new frame, exit
-      return -1;
-    }
-  }
-
-  // At this point our mutex is locked and a frame is ready
-  output = _lastIMUMessage.imuData;
-  old_id = _imuID;
-
-  if (frameTime != NULL) {
-    *frameTime = _imuTime;
-  }
-
-  locker.unlock();
-
-  // return ID of new frame
-  return old_id;
 }
 
 // Function to draw the rectangle and display the value underneath

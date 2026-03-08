@@ -48,39 +48,14 @@ RobotMessage IRobotLink::Receive() {
   for (RobotMessage &msg : newMessages) {
     // save the latest message of each type
     if (msg.type == RobotMessageType::IMU_DATA) {
-      double currentTimestamp;
-
-      // Use receive time if available, otherwise fall back to message timestamp
-      if (messageIndex < _lastMessageReceiveTimes.size()) {
-        currentTimestamp = _lastMessageReceiveTimes[messageIndex];
-      } else if (msg.timestamp > 0) {
-        // Convert to seconds from microseconds
-        currentTimestamp = static_cast<double>(msg.timestamp) / 1000000.0;
-      } else {
-        // Use current program time as fallback
-        currentTimestamp = Clock::programClock.getElapsedTime();
-      }
-
-      double deltaTime = currentTimestamp - _lastIMUTimestamp;
-
-      // Sanity check on delta time to prevent huge jumps
-      if (deltaTime > 0.0 && deltaTime < 0.5) {  // Between 0 and 500ms
-        // Integrate angular velocity to get angle change
-        // rotationVelocity is in rad/s, deltaTime is in seconds
-        double angleChange = msg.imuData.rotationVelocity * deltaTime;
-        _integratedAngle = _integratedAngle + angleChange;
-      }
-
-      _lastIMUTimestamp = currentTimestamp;
-
-      if (INTEGRATE_GYRO_VEL) {
-        // Replace the reported angle with our integrated angle
-        msg.imuData.rotation = _integratedAngle;
-      }
-
       _lastIMUMessageMutex.lock();
       _lastIMUMessage = msg;
       _lastIMUMessageMutex.unlock();
+
+      if (_imuCallback) {
+        _imuCallback(msg.imuData, msg.timestamp);
+      }
+
       hadValidMessage = true;
     } else if (msg.type == RobotMessageType::IMU_DEBUG_DATA) {
       _lastIMUDebugMessageMutex.lock();
@@ -182,6 +157,10 @@ bool IRobotLink::IsTransmitterConnected() { return _transmitterConnected; }
 
 bool IRobotLink::IsSecondaryTransmitterConnected() {
   return _secondaryTransmitterConnected;
+}
+
+void IRobotLink::RegisterIMUCallback(IMUCallback callback) {
+  _imuCallback = std::move(callback);
 }
 
 #ifndef SIMULATION
@@ -332,6 +311,8 @@ void RobotLinkReal::RadioThreadRecvFunction(
         if (num >= sizeof(RobotMessage)) {
           // reinterpret the buffer as a RobotMessage
           RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
+          // set the time when you get the message
+          msg.timestamp = Clock::programClock.getElapsedTime();
 
           if (msg.type != RobotMessageType::INVALID) {
             // copy over data
@@ -687,9 +668,8 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
   clockWidget.markEnd();
 }
 
-std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl()
-{
-    std::vector<RobotMessage> ret = {};
+std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl() {
+  std::vector<RobotMessage> ret = {};
 
   // lock mutex
   _unconsumedMessagesMutex.lock();

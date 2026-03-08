@@ -1,25 +1,31 @@
 #pragma once
+
+#include <optional>
+
 #include "../../../Common/Communication.h"
 #include "../OdometryBase.h"
 
-
-class RobotController;
-
-// OdometryIMU calss
 class OdometryIMU : public OdometryBase {
  public:
   OdometryIMU();
   void SetAngle(AngleData angleData, bool opponentRobot) override;
 
-  bool Run() override;  // Starts the thread(s) to decode data. Returns true if
-                        // succesful
+  bool Run() override { return true; }
+
+  void PushIMUData(const IMUData &data, double time);
+
+  IMUData GetIMUData();
 
  private:
-  void _UpdateData(IMUData &imuData, double timestamp);
-  double _lastImuAngle = 0;
-  Angle _lastAngle;
-  int _lastRadioChannel = 0;
-  bool _needImuResync = false;  // flag to reset IMU continuity on next packet
+  void _UpdateData(const IMUData &imuData, double timestamp);
 
-  std::mutex _angleMutex;
+  // Integration state (all protected by _stateMutex)
+  std::mutex _stateMutex;
+  Angle _lastAngle;
+  std::optional<double> _lastTimestamp;
+  double _lastImuAngle = 0;
+  int _lastRadioChannel = 0;
+
+  std::mutex _dataMutex;
+  IMUData _lastIMUData{};
 };

@@ -16,6 +16,7 @@
 #include "Odometry/Neural/CVPosition.h"
 #include "Odometry/OdometryBase.h"
 #include "OdometryPoller.h"
+#include "Odometry/OdometryLogger.h"
 #include "Odometry/OpenCVTracker/OpenCVTracker.h"
 
 // #define DEFAULT_ODOMETRY_EXTRAPOLATION 0
@@ -151,4 +152,6 @@ class RobotOdometry {
 
   std::mutex _mutexDebugImage;
   std::string _debugString;
+
+  OdometryLogger _fusionLogger;
 };

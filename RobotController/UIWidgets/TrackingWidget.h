@@ -38,7 +38,6 @@ class TrackingWidget : public ImageWidget {
   std::string SaveGUISettings();
   void RestoreGUISettings(const std::string& settings);
 
-  bool save_video_enabled = false;
   std::string outputVideoFile = "Recordings/Tracking_dataDump.mp4";
 
  private:
@@ -88,12 +87,17 @@ class TrackingWidget : public ImageWidget {
                             cv::Scalar opponentColor);
   template <typename T>
   void _DrawAlgIfActive(T& alg, bool show, cv::Scalar color, bool drawAngles);
+  void _DrawTimestamp();
   void _HandleMouseOverInput();
 
   // Dump to video functions
   char outputVideoFileBuffer[256] = "";  // Buffer for ImGui text input
   cv::VideoWriter video;
-  bool save_video_enabled_old = false;
+
+  // for edge detection on the save video button
+  bool _save_camera_stream = false;
+  bool _save_camera_stream_prev = false;
+
   cv::Mat _rawCameraFrame;
   void SaveToVideo();
 };

@@ -172,7 +172,7 @@ void DrawRotationIndicator(const ImVec2& center, float rotation, float radius,
 
 void IMUWidget::Draw() {
   // Get the latest IMU data and robot data
-  IMUData imuData = RobotController::GetInstance().GetIMUData();
+  IMUData imuData = RobotController::GetInstance().odometry.GetIMUOdometry().GetIMUData();
   RobotMessage imuDebugMessage =
       RobotController::GetInstance().GetRobotLink().GetLastIMUDebugMessage();
   RobotOdometry& odometry = RobotController::GetInstance().odometry;

@@ -257,6 +257,8 @@ void RobotOdometry::Update() {
 
     FusionOutput fusionResult = Fuse(inputs, currTime, prevRobot, prevOpponent);
 
+    _fusionLogger.LogFusion(inputs, fusionResult, currTime);
+
     if (fusionResult.robot.angle.has_value()) {
       fusionResult.robot.angle.value().angle =
           fusionResult.robot.angle.value().angle + _robotAngleOffset;
@@ -449,15 +451,23 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   // Robot angle (manual override has highest priority)
   // No Heuristic backfall???
   if (isFresh(inputs.us_override.angle)) {
+    // std::cout << "using us_override" << std::endl;
     output.robot.angle = inputs.us_override.angle;
   } else if (isFresh(inputs.us_imu.angle)) {
+    // std::cout << "using us_imu" << std::endl;
     output.robot.angle = inputs.us_imu.angle;
-  } else if (isFresh(inputs.us_lkflow.angle)) {
-    output.robot.angle = inputs.us_lkflow.angle;
-  } else if (isFresh(inputs.us_neuralrot.angle)) {
-    output.robot.angle = inputs.us_neuralrot.angle;
-    output.robot.angle.value().velocity = 0;
-  }
+  } 
+  // if (isFresh(inputs.us_override.angle)) {
+  //   std::cout << "using us_override" << std::endl;
+  //   output.robot.angle = inputs.us_override.angle;
+  // } else else if (isFresh(inputs.us_lkflow.angle)) {
+  //   std::cout << "using us_lkflow" << std::endl;
+  //   output.robot.angle = inputs.us_lkflow.angle;
+  // } else if (isFresh(inputs.us_neuralrot.angle)) {
+  //   std::cout << "using us_neuralrot" << std::endl;
+  //   output.robot.angle = inputs.us_neuralrot.angle;
+  //   output.robot.angle.value().velocity = 0;
+  // }
 
    //  THEM POS:
 	//			 If( Heuristic.Combined || Lower confidence)  1) Blob, 2) LKR, 3) Heuristic

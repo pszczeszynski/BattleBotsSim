@@ -7,6 +7,7 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <functional>
 #define NOMINMAX
 #include "hid/hid.h"
 #include <chrono>
@@ -28,6 +29,9 @@ public:
     const std::deque<RobotMessage>& GetMessageHistory();
     bool IsTransmitterConnected();
     bool IsSecondaryTransmitterConnected();
+
+    using IMUCallback = std::function<void(const IMUData&, double)>;
+    void RegisterIMUCallback(IMUCallback callback);
 
 protected:
     // implemented by the subclass
@@ -54,9 +58,7 @@ protected:
     bool _transmitterConnected = false;
     bool _secondaryTransmitterConnected = false;
     
-    // IMU angle integration from angular velocity
-    double _integratedAngle = 0.0;
-    double _lastIMUTimestamp = 0.0;
+    IMUCallback _imuCallback;
 };
 
 /**

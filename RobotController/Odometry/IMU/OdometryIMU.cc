@@ -1,104 +1,73 @@
 #include "OdometryIMU.h"
 
-#include "../../CVRotation.h"
 #include "../../RobotConfig.h"
-#include "../../RobotController.h"
-#include "../../RobotOdometry.h"
 
-OdometryIMU::OdometryIMU() : OdometryBase(nullptr), _lastImuAngle(0) {}
-
-// Start the thread
-// Returns false if already running
-bool OdometryIMU::Run() {
-  bool expected = false;
-  if (!_running.compare_exchange_strong(expected, true)) {
-    std::cerr
-        << "WARNING: Attempt to run OdometryIMU after it is already running.\n";
-    return false;
-  }
-
-  processingThread = std::thread([&]() {
-    long frameID = -1;
-
-    while (_running.load() && !_stopWhenAble.load()) {
-      // Get the new IMU data
-      double frameTime = -1.0f;
-
-      IMUData newMessage;
-      // Blocking read until new frame available
-      long frameIDnew = RobotController::GetInstance().GetIMUFrame(
-          newMessage, frameID, &frameTime);
-
-      // If a new frame was obtained do this
-      if (frameIDnew >= 0) {
-        frameID = frameIDnew;
-
-        // Update the data
-        _UpdateData(newMessage, frameTime);
-      }
-    }
-
-    // Exiting thread
-    _running = false;
-    _stopWhenAble = false;
-  });
-
-  return true;
+namespace {
+GraphWidget g_imuGraph("IMU rotation", -180.0f, 180.0f, "°");
+GraphWidget g_imuPublishInterval("IMU publish interval", 0.0f, 300.0f, "ms");
+Clock publishTimer{};
 }
 
-void OdometryIMU::_UpdateData(IMUData& imuData, double timestamp) {
-  RobotOdometry& odometry = RobotController::GetInstance().odometry;
-  CVRotation& cvRotation = odometry.GetNeuralRotOdometry();
+OdometryIMU::OdometryIMU() : OdometryBase(nullptr) {}
 
-  // Reset continuity if radio channel changed or resync needed
-  bool radioChannelChanged = (RADIO_CHANNEL != _lastRadioChannel);
-  if (radioChannelChanged || _needImuResync) {
+void OdometryIMU::PushIMUData(const IMUData &data, double time) {
+  {
+    std::lock_guard<std::mutex> lock(_dataMutex);
+    _lastIMUData = data;
+  }
+  _UpdateData(data, time);
+}
+
+IMUData OdometryIMU::GetIMUData() {
+  std::lock_guard<std::mutex> lock(_dataMutex);
+  return _lastIMUData;
+}
+
+void OdometryIMU::_UpdateData(const IMUData &imuData, double timestamp) {
+  std::lock_guard<std::mutex> lock(_stateMutex);
+
+  if (!_lastTimestamp.has_value()) {
+    _lastTimestamp = timestamp;
     _lastImuAngle = imuData.rotation;
+    _lastRadioChannel = RADIO_CHANNEL;
+    return;
   }
 
-  // Integrate IMU delta onto last fused angle (stateful)
-  Angle integrated = _lastAngle + Angle(imuData.rotation - _lastImuAngle);
+  bool radioChannelChanged = (RADIO_CHANNEL != _lastRadioChannel);
 
-  // Fuse towards neural rotation if confident + available
-
-  OdometryData cvRotData = cvRotation.GetData(false);
-  if (cvRotData.angle.has_value() && cvRotData.angle.value().GetAge() < 0.05) {
-    cvRotData.ExtrapolateBoundedTo(timestamp);
-    double neuralRotConfidence = cvRotation.GetLastConfidence();
-
-    if (neuralRotConfidence > ANGLE_FUSE_CONF_THRESH &&
-        cvRotData.angle.has_value()) {
-      AngleData neuralAngle = cvRotData.angle.value();
-      double deltaTime = timestamp - neuralAngle.time;
-      double interpolateAmount = (std::min)(1.0, deltaTime * ANGLE_FUSE_SPEED);
-      integrated =
-          InterpolateAngles(integrated, neuralAngle.angle, interpolateAmount);
+  Angle integrated = _lastAngle;
+  if (!radioChannelChanged) {
+    if (INTEGRATE_GYRO_VEL) {
+      double deltaTime = timestamp - _lastTimestamp.value();
+      if (deltaTime > 0.0 && deltaTime < 0.05) {
+        integrated = integrated + Angle(imuData.rotationVelocity * deltaTime);
+      }
+    } else {
+      integrated = integrated + Angle(imuData.rotation - _lastImuAngle);
     }
   }
 
-  // Build publish sample (angle only)
   OdometryData sample{};
-  sample.angle = AngleData(integrated, imuData.rotationVelocity, timestamp);
+  double programTime = Clock::programClock.getElapsedTime();
+  sample.angle = AngleData(integrated, imuData.rotationVelocity, programTime);
 
-  // Publish (this increments id internally)
   OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::IMU);
+  publishTimer.markEnd();
+  g_imuPublishInterval.AddData(publishTimer.getElapsedTime() * 1000.0f);
+  g_imuGraph.AddData(angle_wrap(imuData.rotation) * 180.0f / M_PI);
+  publishTimer.markStart();
 
+  _lastAngle = integrated;
+  _lastTimestamp = timestamp;
   _lastImuAngle = imuData.rotation;
   _lastRadioChannel = RADIO_CHANNEL;
-  _lastAngle = integrated;
-  _needImuResync = false;  // clear resync flag after handling
 }
 
 void OdometryIMU::SetAngle(AngleData angleData, bool opponentRobot) {
   if (opponentRobot) return;
+  if (angleData.algorithm == OdometryAlg::IMU) return;
 
-  if (angleData.algorithm == OdometryAlg::IMU) {
-    return;
-  }
-
-  {
-    std::unique_lock<std::mutex> locker(_angleMutex);
-    _lastAngle = angleData.angle;
-    _needImuResync = true;  // invalidate continuity so next packet resyncs IMU
-  }
+  std::lock_guard<std::mutex> lock(_stateMutex);
+  _lastAngle = angleData.angle;
+  _lastTimestamp.reset();
 }

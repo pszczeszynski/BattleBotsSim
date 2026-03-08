@@ -7,6 +7,7 @@
 #include "../Clock.h"
 #include "../Input/InputState.h"
 #include "../Odometry/OdometryData.h"
+#include "../Odometry/OdometryLogger.h"
 #include "../RobotConfig.h"
 #include "../RobotController.h"
 #include "../SafeDrawing.h"
@@ -179,7 +180,25 @@ void TrackingWidget::_DrawAlgorithmData() {
                          opponentPosColor);
   }
 
+  _DrawTimestamp();
+
   _HandleMouseOverInput();
+}
+
+void TrackingWidget::_DrawTimestamp() {
+  if (_trackingMat.empty()) return;
+  std::string ts = OdometryLogger::GetTimestampString();
+  int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+  double fontScale = 0.7;
+  int thickness = 2;
+  cv::Size textSize =
+      cv::getTextSize(ts, fontFace, fontScale, thickness, nullptr);
+  cv::Point org(10, _trackingMat.rows - 10);
+  cv::rectangle(_trackingMat, org + cv::Point(-2, 5),
+                org + cv::Point(textSize.width + 2, -textSize.height - 5),
+                cv::Scalar(0, 0, 0), cv::FILLED);
+  cv::putText(_trackingMat, ts, org, fontFace, fontScale,
+              cv::Scalar(0, 255, 0), thickness, cv::LINE_AA);
 }
 
 void TrackingWidget::_HandleMouseOverInput() {
@@ -597,14 +616,14 @@ void TrackingWidget::DrawGUI() {
   ImGui::Dummy(ImVec2(0.0f, 10.0f));
   bool doPopStyle = false;
   // Add button to toggle save_video_enabled
-  if (save_video_enabled) {
+  if (_save_camera_stream) {
     // Push red color for button background when recording
     ColorScheme::PushErrorColors();
     doPopStyle = true;
   }
-  if (ImGui::Button(save_video_enabled ? "Stop Recording"
+  if (ImGui::Button(_save_camera_stream ? "Stop Recording"
                                        : "Start Recording")) {
-    save_video_enabled = !save_video_enabled;  // Toggle the boolean
+    _save_camera_stream = !_save_camera_stream;  // Toggle the boolean
   }
 
   if (doPopStyle) {
@@ -660,12 +679,12 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
 }
 
 void TrackingWidget::SaveToVideo() {
-  if (!save_video_enabled) {
-    if (save_video_enabled_old && video.isOpened()) {
+  if (!_save_camera_stream) {
+    if (_save_camera_stream_prev && video.isOpened()) {
       video.release();
     }
 
-    save_video_enabled_old = false;
+    _save_camera_stream_prev = false;
     return;
   }
 
@@ -693,11 +712,11 @@ void TrackingWidget::SaveToVideo() {
       video.open(outputVideoFile, fourcc, 60.0, sz, true);
     }
     if (!video.isOpened()) {
-      save_video_enabled = false;
+      _save_camera_stream = false;
       return;
     }
   }
 
-  save_video_enabled_old = true;
+  _save_camera_stream_prev = true;
   video.write(frameToWrite);
 }

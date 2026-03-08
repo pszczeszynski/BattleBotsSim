@@ -70,7 +70,7 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
     // control orbVirtual and model tuning
-    // controlOrbVirtual(gamepad);
+    controlOrbVirtual(gamepad);
 
 
 

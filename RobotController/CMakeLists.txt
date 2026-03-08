@@ -92,6 +92,7 @@ set(SOURCES
     RobotStateParser.cc
     Odometry/OdometryBase.cc
     Odometry/OdometryData.cc
+    Odometry/OdometryLogger.cc
     Odometry/BlobDetection/BlobDetection.cc
     Odometry/Human/HumanPosition.cc
     Odometry/BlobDetection/RobotClassifier.cc
