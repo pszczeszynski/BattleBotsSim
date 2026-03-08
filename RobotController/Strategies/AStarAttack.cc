@@ -887,22 +887,46 @@ std::vector<cv::Point2f>& AStarAttack::GetFieldBoundaryPoints() { return field.g
 // follows a circle for testing
 FollowPoint AStarAttack::circleMode(float deltaTime, bool forwardInput) {
 
-    cv::Point2f center = cv::Point2f(360, 440);
+    // cv::Point2f center = cv::Point2f(360, 440);
 
-    float angleToOrb = angle(center, orbFiltered.position());
-    float endAngle = angle_wrap(angleToOrb + 70.0f*TO_RAD); // change the offset to change effective rad
+    // float angleToOrb = angle(center, orbFiltered.position());
+    // float endAngle = angle_wrap(angleToOrb + 70.0f*TO_RAD); // change the offset to change effective rad
 
-    Approach testApproach = Approach(center, endAngle, 50, true);
-    cv::Point2f point = testApproach.followCurve(orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), false);
+    // Approach testApproach = Approach(center, endAngle, 50, true);
+    // cv::Point2f point = testApproach.followCurve(orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), false);
 
-    // std::cout << "angle = " << endAngle*TO_DEG << std::endl;
+    // // std::cout << "angle = " << endAngle*TO_DEG << std::endl;
 
-    FollowPoint followMe = FollowPoint(forwardInput, true, true, endAngle, 0, oppFiltered);
+    // FollowPoint followMe = FollowPoint(forwardInput, true, true, endAngle, 0, oppFiltered);
+    // followMe.driveAngle = angle(orbFiltered.position(), point);
+    // followMe.approachCurve = testApproach;
+    // followMe.point = point;
+
+    // return followMe;
+
+
+
+
+
+    cv::Point2f point0 = cv::Point2f(300, 460);
+    cv::Point2f point1 = cv::Point2f(450, 460);
+
+    if(orbFiltered.position().x < point0.x) {
+        pointNum = 1;
+    }
+    if(orbFiltered.position().x > point1.x) {
+        pointNum = 0;
+    }
+
+    cv::Point2f point = pointNum == 0? point0 : point1;
+    bool CW = pointNum == 0? true : false;
+
+    FollowPoint followMe = FollowPoint(forwardInput, CW, true, 0, 0, oppFiltered);
     followMe.driveAngle = angle(orbFiltered.position(), point);
-    followMe.approachCurve = testApproach;
     followMe.point = point;
 
     return followMe;
+
 }
 
 

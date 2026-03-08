@@ -35,6 +35,7 @@ private:
     FilteredRobot oppFiltered; // opp robot
     FilteredRobot orbVirtual; // virtual orb to compare model
 
+    int pointNum = 0;
 
     Field field; // field object
     
