@@ -139,6 +139,14 @@ long ICameraReceiver::GetFrame(cv::Mat& output, long old_id, double* frameTime,
   return old_id;
 }
 
+long ICameraReceiver::GetRawFrame(cv::Mat& output, long old_id) {
+  std::unique_lock<std::mutex> locker(_frameMutex);
+  if (_frameID <= 0 || _frameID <= old_id) return old_id;
+  _rawFrame.copyTo(output);
+  locker.unlock();
+  return _frameID;
+}
+
 // Returns true if a newer frame is ready
 bool ICameraReceiver::NewFrameReady(long old_id) { return _frameID > old_id; }
 
@@ -522,25 +530,15 @@ bool CameraReceiver::_CaptureFrame() {
       (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
   birdsEyePreprocessor.Preprocess(bayerImage, finalImage, fieldMask);
 
-  // lock the mutex
   std::unique_lock<std::mutex> locker(_frameMutex);
-
-  // deep copy over the frame
+  bayerImage.copyTo(_rawFrame);
   finalImage.copyTo(_frame);
-
-  // increase _frameID
   _frameID++;
-
-  // Update time
   _frameTime = Clock::programClock.getElapsedTime();
-
-  // unlock the mutex
   locker.unlock();
 
-  // Notify new frame is ready
   _frameCV.notify_all();
 
-  // return success
   return true;
 }
 
@@ -635,26 +633,16 @@ bool CameraReceiverSim::_CaptureFrame() {
       (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
   birdsEyePreprocessor.Preprocess(captured, finalImage, fieldMask);
 
-  // lock the mutex
   std::unique_lock<std::mutex> locker(_frameMutex);
-
-  // copy the frame to the previous frame
+  captured.copyTo(_rawFrame);
   _frame.copyTo(_prevFrame);
-  // copy the frame
   finalImage.copyTo(_frame);
-  // increase _frameID
   _frameID++;
-
-  // Update time
   _frameTime = Clock::programClock.getElapsedTime();
-
-  // unlock the mutex
   locker.unlock();
 
-  // Notify all frame is ready
   _frameCV.notify_all();
 
-  // return success
   return true;
 }
 
@@ -826,8 +814,8 @@ bool CameraReceiverVideo::_CaptureFrame() {
   }
 
   // Read exactly one frame
-  cv::Mat _rawFrame;
-  if (!_cap.read(_rawFrame)) {
+  cv::Mat capturedFrame;
+  if (!_cap.read(capturedFrame)) {
     return false;
   }
 
@@ -846,39 +834,40 @@ bool CameraReceiverVideo::_CaptureFrame() {
   playback.SetFrame(frameRead);
 
   // Convert to gray scale
-  if (_rawFrame.channels() == 1) {
+  if (capturedFrame.channels() == 1) {
     // Do nothing
-  } else if (_rawFrame.channels() == 3) {
-    cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGR2GRAY);
-  } else if (_rawFrame.channels() == 4) {
-    cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
+  } else if (capturedFrame.channels() == 3) {
+    cv::cvtColor(capturedFrame, capturedFrame, cv::COLOR_BGR2GRAY);
+  } else if (capturedFrame.channels() == 4) {
+    cv::cvtColor(capturedFrame, capturedFrame, cv::COLOR_BGRA2GRAY);
   }
 
   // Apply processing
   cv::Mat finalImage;
   bool isImageCorrectSize = false;
   if (!PLAYBACK_PREPROCESS) {
-    if (_rawFrame.size().width <= WIDTH && _rawFrame.size().height <= HEIGHT) {
+    if (capturedFrame.size().width <= WIDTH && capturedFrame.size().height <= HEIGHT) {
       isImageCorrectSize = true;
-      finalImage = cv::Mat::zeros(HEIGHT, WIDTH, _rawFrame.type());
-      int xOffset = (WIDTH - _rawFrame.size().width) / 2;
-      int yOffset = (HEIGHT - _rawFrame.size().height) / 2;
-      cv::Rect roi(xOffset, yOffset, _rawFrame.size().width,
-                   _rawFrame.size().height);
-      _rawFrame.copyTo(finalImage(roi));
+      finalImage = cv::Mat::zeros(HEIGHT, WIDTH, capturedFrame.type());
+      int xOffset = (WIDTH - capturedFrame.size().width) / 2;
+      int yOffset = (HEIGHT - capturedFrame.size().height) / 2;
+      cv::Rect roi(xOffset, yOffset, capturedFrame.size().width,
+                   capturedFrame.size().height);
+      capturedFrame.copyTo(finalImage(roi));
     }
   }
   if (!isImageCorrectSize || PLAYBACK_PREPROCESS) {
     PLAYBACK_PREPROCESS = true;
     TrackingWidget* tw = TrackingWidget::GetInstance();
     const cv::Mat* fieldMask = (tw != nullptr) ? &tw->GetMask() : nullptr;
-    birdsEyePreprocessor.Preprocess(_rawFrame, finalImage, fieldMask);
+    birdsEyePreprocessor.Preprocess(capturedFrame, finalImage, fieldMask);
   }
-  if (_rawFrame.channels() == 3) {
+  if (capturedFrame.channels() == 3) {
     cv::cvtColor(finalImage, finalImage, cv::COLOR_BGR2GRAY);
   }
 
   std::unique_lock<std::mutex> locker(_frameMutex);
+  capturedFrame.copyTo(_rawFrame);
   finalImage.copyTo(_frame);
   _frameID++;
   bool empty = _frame.empty();
@@ -970,17 +959,16 @@ bool CameraReceiverUSB::_CaptureFrame() {
     return false;
   }
 
-  // read in the frame
-  cv::Mat _rawFrame;
-  _cap.read(_rawFrame);
+  cv::Mat capturedFrame;
+  _cap.read(capturedFrame);
 
   // Convert to gray scale
-  if (_rawFrame.channels() == 1) {
+  if (capturedFrame.channels() == 1) {
     // Do nothing
-  } else if (_rawFrame.channels() == 3) {
-    cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGR2GRAY);
-  } else if (_rawFrame.channels() == 4) {
-    cv::cvtColor(_rawFrame, _rawFrame, cv::COLOR_BGRA2GRAY);
+  } else if (capturedFrame.channels() == 3) {
+    cv::cvtColor(capturedFrame, capturedFrame, cv::COLOR_BGR2GRAY);
+  } else if (capturedFrame.channels() == 4) {
+    cv::cvtColor(capturedFrame, capturedFrame, cv::COLOR_BGRA2GRAY);
   }
 
   // Apply processing to it (including field mask if available)
@@ -988,25 +976,17 @@ bool CameraReceiverUSB::_CaptureFrame() {
   TrackingWidget* trackingWidget = TrackingWidget::GetInstance();
   const cv::Mat* fieldMask =
       (trackingWidget != nullptr) ? &trackingWidget->GetMask() : nullptr;
-  birdsEyePreprocessor.Preprocess(_rawFrame, finalImage, fieldMask);
+  birdsEyePreprocessor.Preprocess(capturedFrame, finalImage, fieldMask);
 
   std::unique_lock<std::mutex> locker(_frameMutex);
-
-  // Copy it over
+  capturedFrame.copyTo(_rawFrame);
   finalImage.copyTo(_frame);
-
-  // increase _frameID
   _frameID++;
-
-  // Update time
   _frameTime = Clock::programClock.getElapsedTime();
-
   locker.unlock();
 
-  // Notify all frame is ready
   _frameCV.notify_all();
 
-  // return SUCCESS
   return true;
 }
 

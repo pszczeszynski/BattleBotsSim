@@ -30,14 +30,14 @@ preprocess_br_x = 1803
 preprocess_br_y = 1091
 MIN_INTER_SEND_TIME_MS = 0
 MIN_ROBOT_BLOB_SIZE = 65
-MAX_ROBOT_BLOB_SIZE = 132
+MAX_ROBOT_BLOB_SIZE = 148
 BLOB_MATCHING_DIST_THRESHOLD = 100
 MIN_OPPONENT_BLOB_SIZE = 55
 MAX_OPPONENT_BLOB_SIZE = 127
 MOTION_LOW_THRESHOLD = 42
 BLOBS_MIN_FPS = 2.847
-BLOBS_FRAME_COUNT = 9
-POSITION_NET_ENABLED = 0
+BLOBS_FRAME_COUNT = 3
+POSITION_NET_ENABLED = 1
 ROTATION_NET_ENABLED = 0
 GYRO_ENABLED = 1
 HEU_BACKGROUND_AVGING = 170
@@ -103,6 +103,6 @@ STARTING_RIGHT_TL_y = 309
 STARTING_RIGHT_BR_x = 688
 STARTING_RIGHT_BR_y = 464
 LOG_ODOMETRY_DATA = 0
-PLAYBACK_PREPROCESS = 1
-VISION_TRACKING_GUI = showCamera=1;showBlob=0;showHeuristic=0;showNeural=0;showNeuralRot=0;showFusion=1;showOpencv=0;showLKFlow=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Blob:1,1,1,1|Heuristic:0.105652,0.898039,0,1|Neural:0,0.5,0.5,1|Fusion:1,1,1,1|NeuralRot:0,0.681416,1,1|Opencv:1,0,0,1|LKFlow:0.55,0.3,0.8,1|;variantOffsets=Camera:0,0|Blob:-7,-263|Heuristic:435,0|Neural:0,0|Fusion:13,835|NeuralRot:0,0|Opencv:0,0|LKFlow:0,0|;
+PLAYBACK_PREPROCESS = 0
+VISION_TRACKING_GUI = showCamera=1;showBlob=0;showHeuristic=0;showNeural=1;showNeuralRot=0;showFusion=1;showOpencv=0;showLKFlow=0;outputVideoFile=Recordings/Tracking_dump2.mp4;variantColors=Camera:1,1,1,1|Blob:1,1,1,1|Heuristic:0.105652,0.898039,0,1|Neural:0,0.5,0.5,1|Fusion:1,1,1,1|NeuralRot:0,0.681416,1,1|Opencv:1,0,0,1|LKFlow:0.55,0.3,0.8,1|;variantOffsets=Camera:0,0|Blob:-7,-263|Heuristic:435,0|Neural:0,0|Fusion:13,835|NeuralRot:0,0|Opencv:0,0|LKFlow:0,0|;
 CONTROL_OPPONENT_ENABLED = 0

@@ -94,5 +94,6 @@ class TrackingWidget : public ImageWidget {
   char outputVideoFileBuffer[256] = "";  // Buffer for ImGui text input
   cv::VideoWriter video;
   bool save_video_enabled_old = false;
+  cv::Mat _rawCameraFrame;
   void SaveToVideo();
 };

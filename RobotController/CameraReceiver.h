@@ -29,6 +29,7 @@ class ICameraReceiver
 {
 public:
     virtual long GetFrame(cv::Mat &output, long old_id, double* frameTime = NULL, bool blockUntilReady = true);
+    long GetRawFrame(cv::Mat &output, long old_id);
     virtual bool NewFrameReady(long old_id);
     static ICameraReceiver* GetInstance();
     virtual CameraType GetType();
@@ -42,7 +43,8 @@ protected:
 
     ICameraReceiver();
     std::thread _captureThread;
-    cv::Mat _frame; // the last frame captured
+    cv::Mat _frame; // the last frame captured (preprocessed)
+    cv::Mat _rawFrame; // the last frame before preprocessing
     std::mutex _frameMutex;
     std::condition_variable _frameCV;
 

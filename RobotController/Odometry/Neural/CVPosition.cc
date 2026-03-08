@@ -311,6 +311,7 @@ CVPosition::~CVPosition() {
 cv::Point2f CVPosition::_ComputeVelocity(cv::Point2f currentCenter,
                                          double currentTime,
                                          const LastValidSample& last) const {
+  return cv::Point2f(0, 0);
   double dt = currentTime - last.t;
   if (dt <= 0 || dt > MAX_VELOCITY_TIME_GAP) return cv::Point2f(0, 0);
   cv::Point2f delta = currentCenter - last.center;

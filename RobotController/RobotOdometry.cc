@@ -123,7 +123,6 @@ void RobotOdometry::_AdjustAngleWithArrowKeys() {
   static Clock updateClock;
 
   float speed = 1.0;
-  // if shift is held, multiply by 2
   if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
     speed = 2.0;
   }
@@ -132,25 +131,22 @@ void RobotOdometry::_AdjustAngleWithArrowKeys() {
       Angle(updateClock.getElapsedTime() * 90 * M_PI / 180.0 * speed);
   updateClock.markStart();
 
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow) &&
-      _dataOpponent.angle.has_value()) {
-    UpdateForceSetAngle(_dataOpponent.angle.value().angle - angleUserAdjust,
-                        true);
-  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow) &&
-             _dataOpponent.angle.has_value()) {
-    UpdateForceSetAngle(_dataOpponent.angle.value().angle + angleUserAdjust,
-                        true);
+  if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow)) {
+    _opponentAngleOffset = _opponentAngleOffset - angleUserAdjust;
+  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow)) {
+    _opponentAngleOffset = _opponentAngleOffset + angleUserAdjust;
   }
 
-  // opponent with up and 1 and 3
+  if (InputState::GetInstance().IsKeyDown(ImGuiKey_4)) {
+    _robotAngleOffset = _robotAngleOffset - angleUserAdjust;
+  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_6)) {
+    _robotAngleOffset = _robotAngleOffset + angleUserAdjust;
+  }
+
   if (InputState::GetInstance().IsKeyDown(ImGuiKey_1)) {
-    if (auto a = _dataOpponent.angle) {
-      UpdateForceSetAngle(a.value().angle - angleUserAdjust, true);
-    }
+    _opponentAngleOffset = _opponentAngleOffset - angleUserAdjust;
   } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_3)) {
-    if (auto a = _dataOpponent.angle) {
-      UpdateForceSetAngle(a.value().angle + angleUserAdjust, true);
-    }
+    _opponentAngleOffset = _opponentAngleOffset + angleUserAdjust;
   }
 }
 
@@ -214,6 +210,8 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   _odometry_opencv.SetAngle(opponentAngle, true);
   _odometry_opencv.SetVelocity(opponentPos.velocity, true);
 
+  _opponentAngleOffset = Angle(0);
+  _robotAngleOffset = Angle(0);
   fusionStateMachine = FUSION_NORMAL;
 
   if (!partOfAuto) {
@@ -258,6 +256,16 @@ void RobotOdometry::Update() {
     }
 
     FusionOutput fusionResult = Fuse(inputs, currTime, prevRobot, prevOpponent);
+
+    if (fusionResult.robot.angle.has_value()) {
+      fusionResult.robot.angle.value().angle =
+          fusionResult.robot.angle.value().angle + _robotAngleOffset;
+    }
+
+    if (fusionResult.opponent.angle.has_value()) {
+      fusionResult.opponent.angle.value().angle =
+          fusionResult.opponent.angle.value().angle + _opponentAngleOffset;
+    }
 
     // Apply fusion results
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -636,16 +644,6 @@ OdometryData RobotOdometry::Opponent(double currTime) {
   locker.unlock();
 
   return currData.ExtrapolateBoundedTo(currTime);
-}
-
-static double GetImuAngleRad() {
-  // Get angular velocity from imu
-  return RobotController::GetInstance().GetIMUData().rotation;
-}
-
-static double GetImuAngleVelocityRadPerSec() {
-  // Get angular velocity from imu
-  return RobotController::GetInstance().GetIMUData().rotationVelocity;
 }
 
 /**

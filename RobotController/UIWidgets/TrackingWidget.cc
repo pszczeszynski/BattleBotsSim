@@ -52,12 +52,11 @@ TrackingWidget::TrackingWidget()
 }
 
 void TrackingWidget::_GrabFrame() {
-  // Fetch camera each call to avoid stale pointer if subsystem is
-  // reinitialized.
   ICameraReceiver* camera = ICameraReceiver::GetInstance();
   if (camera != nullptr && camera->NewFrameReady(_lastFrameId)) {
     _lastFrameId = camera->GetFrame(
         variantImages[static_cast<size_t>(DebugVariant::Camera)], _lastFrameId);
+    camera->GetRawFrame(_rawCameraFrame, _lastFrameId - 1);
   }
 }
 
@@ -663,7 +662,6 @@ void TrackingWidget::RestoreGUISettings(const std::string& settings) {
 void TrackingWidget::SaveToVideo() {
   if (!save_video_enabled) {
     if (save_video_enabled_old && video.isOpened()) {
-      // If we were previously saving, close the video file
       video.release();
     }
 
@@ -671,31 +669,35 @@ void TrackingWidget::SaveToVideo() {
     return;
   }
 
-  // Try avc1 firST
-  if (!video.isOpened()) {
-    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-    video.open(outputVideoFile, fourcc, 60.0,
-               cv::Size(_trackingMat.cols, _trackingMat.rows), true);
+  if (_rawCameraFrame.empty()) return;
+
+  cv::Mat frameToWrite;
+  if (_rawCameraFrame.channels() == 1) {
+    cv::cvtColor(_rawCameraFrame, frameToWrite, cv::COLOR_GRAY2BGR);
+  } else if (_rawCameraFrame.channels() == 4) {
+    cv::cvtColor(_rawCameraFrame, frameToWrite, cv::COLOR_BGRA2BGR);
+  } else {
+    frameToWrite = _rawCameraFrame;
   }
 
-  // Make sure we are initialized
   if (!video.isOpened()) {
-    // Try XVID codec
-    int fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
-    video.open(outputVideoFile, fourcc, 60.0,
-               cv::Size(_trackingMat.cols, _trackingMat.rows), true);
+    cv::Size sz(frameToWrite.cols, frameToWrite.rows);
+    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+    video.open(outputVideoFile, fourcc, 60.0, sz, true);
     if (!video.isOpened()) {
-      // Fallback to MJPG
+      fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+      video.open(outputVideoFile, fourcc, 60.0, sz, true);
+    }
+    if (!video.isOpened()) {
       fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
-      video.open(outputVideoFile, fourcc, 60.0,
-                 cv::Size(_trackingMat.cols, _trackingMat.rows), true);
-      if (!video.isOpened()) {
-        save_video_enabled = false;
-        return;
-      }
+      video.open(outputVideoFile, fourcc, 60.0, sz, true);
+    }
+    if (!video.isOpened()) {
+      save_video_enabled = false;
+      return;
     }
   }
 
   save_video_enabled_old = true;
-  video.write(_trackingMat);
+  video.write(frameToWrite);
 }

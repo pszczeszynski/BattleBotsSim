@@ -59,6 +59,9 @@ class BlobDetection : public OdometryBase {
 
     // Velocity smoothing state
     double last_vel_time = 0;
+
+    // Reset on SetPosition teleport; velocity=0 until >=2
+    int consecutiveTrackingFrames = 0;
   };
 
   // Run every time a new frame is available
