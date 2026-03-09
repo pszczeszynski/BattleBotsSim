@@ -88,8 +88,6 @@ class RobotOdometry {
   ManualOverrideOdometry& GetManualOverrideOdometry();
   OpenCVTracker& GetOpenCVOdometry();
 
-  void _AdjustAngleWithArrowKeys();
-
   // Get the current debug string for external display (thread-safe)
   std::string GetDebugString();
 
@@ -123,9 +121,6 @@ class RobotOdometry {
   std::mutex _updateMutex;  // Mutex for updating core results
   OdometryData _dataRobot;
   OdometryData _dataOpponent;
-
-  Angle _opponentAngleOffset{Angle(0)};
-  Angle _robotAngleOffset{Angle(0)};
 
   Angle CalcAnglePathTangent();
   bool _visualAngleValid = false;

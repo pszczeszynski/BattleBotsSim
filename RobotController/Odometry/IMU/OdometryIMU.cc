@@ -1,11 +1,35 @@
 #include "OdometryIMU.h"
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+
 #include "../../RobotConfig.h"
 
 namespace {
 GraphWidget g_imuGraph("IMU rotation", -180.0f, 180.0f, "°");
 GraphWidget g_imuPublishInterval("IMU publish interval", 0.0f, 300.0f, "ms");
 Clock publishTimer{};
+
+std::ofstream &GetImuCsvLog() {
+  static std::ofstream file = [] {
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    auto now_tm = std::localtime(&now_time_t);
+    std::stringstream ss;
+    ss << std::put_time(now_tm, "%Y_%m_%d_%H_%M_%S");
+
+    std::filesystem::create_directories("Logs");
+    std::string filename = "Logs/imu_raw_" + ss.str() + ".csv";
+
+    std::ofstream f(filename);
+    f << "programTime,timestamp,rawRotation,integratedAngle,lastImuAngle\n";
+    return f;
+  }();
+  return file;
+}
 }
 
 OdometryIMU::OdometryIMU() : OdometryBase(nullptr) {}
@@ -52,6 +76,11 @@ void OdometryIMU::_UpdateData(const IMUData &imuData, double timestamp) {
   sample.angle = AngleData(integrated, imuData.rotationVelocity, programTime);
 
   OdometryBase::Publish(sample, /*isOpponent=*/false, OdometryAlg::IMU);
+
+  GetImuCsvLog() << programTime << "," << timestamp << ","
+                 << imuData.rotation << "," << static_cast<double>(integrated) << ","
+                 << _lastImuAngle << "\n";
+
   publishTimer.markEnd();
   g_imuPublishInterval.AddData(publishTimer.getElapsedTime() * 1000.0f);
   g_imuGraph.AddData(angle_wrap(imuData.rotation) * 180.0f / M_PI);

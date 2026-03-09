@@ -119,37 +119,6 @@ RobotOdometry::~RobotOdometry() {
   }
 }
 
-void RobotOdometry::_AdjustAngleWithArrowKeys() {
-  static Clock updateClock;
-
-  float speed = 1.0;
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftShift)) {
-    speed = 2.0;
-  }
-
-  Angle angleUserAdjust =
-      Angle(updateClock.getElapsedTime() * 90 * M_PI / 180.0 * speed);
-  updateClock.markStart();
-
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_LeftArrow)) {
-    _opponentAngleOffset = _opponentAngleOffset - angleUserAdjust;
-  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_RightArrow)) {
-    _opponentAngleOffset = _opponentAngleOffset + angleUserAdjust;
-  }
-
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_4)) {
-    _robotAngleOffset = _robotAngleOffset - angleUserAdjust;
-  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_6)) {
-    _robotAngleOffset = _robotAngleOffset + angleUserAdjust;
-  }
-
-  if (InputState::GetInstance().IsKeyDown(ImGuiKey_1)) {
-    _opponentAngleOffset = _opponentAngleOffset - angleUserAdjust;
-  } else if (InputState::GetInstance().IsKeyDown(ImGuiKey_3)) {
-    _opponentAngleOffset = _opponentAngleOffset + angleUserAdjust;
-  }
-}
-
 // Put odometry into auto start mode waiting for brightness to finish
 void RobotOdometry::AutoMatchStart() {
   _odometry_Heuristic.AutoMatchStart();
@@ -210,8 +179,6 @@ void RobotOdometry::MatchStart(bool partOfAuto) {
   _odometry_opencv.SetAngle(opponentAngle, true);
   _odometry_opencv.SetVelocity(opponentPos.velocity, true);
 
-  _opponentAngleOffset = Angle(0);
-  _robotAngleOffset = Angle(0);
   fusionStateMachine = FUSION_NORMAL;
 
   if (!partOfAuto) {
@@ -258,16 +225,6 @@ void RobotOdometry::Update() {
     FusionOutput fusionResult = Fuse(inputs, currTime, prevRobot, prevOpponent);
 
     _fusionLogger.LogFusion(inputs, fusionResult, currTime);
-
-    if (fusionResult.robot.angle.has_value()) {
-      fusionResult.robot.angle.value().angle =
-          fusionResult.robot.angle.value().angle + _robotAngleOffset;
-    }
-
-    if (fusionResult.opponent.angle.has_value()) {
-      fusionResult.opponent.angle.value().angle =
-          fusionResult.opponent.angle.value().angle + _opponentAngleOffset;
-    }
 
     // Apply fusion results
     std::unique_lock<std::mutex> locker(_updateMutex);
@@ -538,8 +495,8 @@ FusionOutput RobotOdometry::Fuse(RawInputs inputs, double now,
   // Opponent rotation (manual override has highest priority)
   if (isFresh(inputs.them_override.angle)) {
     output.opponent.angle = inputs.them_override.angle;
-  } else if (isFresh(inputs.us_human.angle)) {
-    output.opponent.angle = inputs.us_human.angle;
+  } else if (isFresh(inputs.them_human.angle)) {
+    output.opponent.angle = inputs.them_human.angle;
   } else if (isFresh(inputs.them_lkflow.angle)) {
     output.opponent.angle = inputs.them_lkflow.angle;
   } else if (isFresh(inputs.them_heuristic.angle)) {
