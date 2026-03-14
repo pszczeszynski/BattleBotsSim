@@ -124,9 +124,13 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     bool useFilter = (follow.forward == prevFollow.forward) && (follow.CW == prevFollow.CW);
 
 
-    std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 
-        rightStickY, deltaTime, follow.forward, 
-        follow.enforceTurnDirection, useFilter);
+    // std::vector<float> driveInputs = orbFiltered.curvatureController(follow.driveAngle, 
+    //     rightStickY, deltaTime, follow.forward, 
+    //     follow.enforceTurnDirection, useFilter);
+
+    std::vector<float> driveInputs = orbFiltered.pathController(follow.approachCurve.getCurvePoints(), follow.opp.position(), 
+    rightStickY, deltaTime, follow.forward, 
+    follow.enforceTurnDirection, useFilter, follow.turnAway);
 
 
     // create and send drive command

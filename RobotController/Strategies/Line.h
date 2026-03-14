@@ -30,6 +30,9 @@ public:
     // returns intersection of 2 lines
     cv::Point2f getIntersectionPoint(const Line& other) const;
 
+    // what absolute angle does this line point
+    float angle();
+
 private:
     cv::Point2f point1, point2;  // endpoints
     cv::Point2f _d;              // = point2 - point1

@@ -111,3 +111,7 @@ cv::Point2f Line::getIntersectionPoint(const Line& other) const {
 
     return cv::Point2f(-1.0f, -1.0f);
 }
+
+
+
+float Line::angle() { return atan2(point2.y - point1.y, point2.x - point1.x); }

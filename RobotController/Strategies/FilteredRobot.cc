@@ -120,6 +120,179 @@ float FilteredRobot::getDriveAngleFiltered() { return driveAngleFiltered; }
 
 
 
+// closest point from a list to a test point
+cv::Point2f FilteredRobot::closestPathPoint(std::vector<cv::Point2f> path, cv::Point2f pathCenter, cv::Point2f point, Line& lineSegment, float& pathCurvature) {
+
+    path.insert(path.begin(), pathCenter);
+
+    float closestDistance = 9999999999999.0f;
+    cv::Point2f closestPoint = cv::Point2f(0, 0);
+    lineSegment = Line(closestPoint, closestPoint);
+    int pointIndex = 0;
+    pathCurvature = 0;
+
+    if(path.size() == 0) { return closestPoint; } // no crashy
+    if(path.size() == 1) { return path[0]; } // no crashy
+
+
+
+    float angleToRobot = absAngle(pathCenter, position());
+
+
+    // scan the whole list
+    for(int i = 0; i < path.size() - 1; i++) {
+
+        // create a line between the point pair
+        Line testLine = Line(path[i], path[i + 1]);
+        cv::Point2f testPoint = testLine.closestLinePoint(point);
+        float testDistance = cv::norm(point - testPoint);
+        
+        float angleToPoint = absAngle(pathCenter, path[i]);
+        float offsetFromRobot = angle_wrap(angleToRobot - angleToPoint);
+
+        // if the distance is a new closest, then save that point
+        if(testDistance < closestDistance && abs(offsetFromRobot) < 10.0f*TO_RAD) {
+            closestDistance = testDistance;
+            closestPoint = testPoint;
+            lineSegment = testLine;
+            pointIndex = i;
+        }
+    }
+
+    // advance the line segment
+    int indexShift = 3 + 0.02f*moveSpeedSlow();
+    int index = std::max(pointIndex - indexShift, 1); // 30
+    closestPoint = path[index];
+    lineSegment = Line(path[index], path[index + 1]);
+    Line prevSegment = Line(path[index - 1], path[index]);
+
+
+    // calculate curvature
+    float angleHere = lineSegment.angle();
+    float anglePrev = prevSegment.angle();
+
+    float s = (lineSegment.getLength() + prevSegment.getLength()) / 2; // arc length
+    float theta = angle_wrap(angleHere - anglePrev); // angle change across arc
+    pathCurvature = theta / s; // s = theta / curvature
+
+    float maxCurve = 0.02f;
+    pathCurvature = std::clamp(pathCurvature, -maxCurve, maxCurve);
+
+    return closestPoint;
+}
+
+
+
+// bring us the W
+std::vector<float> FilteredRobot::pathController(std::vector<cv::Point2f> path, cv::Point2f pathCenter, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter, bool turnAway) {
+
+    Line closestSegment = Line(cv::Point2f(0, 0), cv::Point2f(0, 0));
+    float pathCurvature = 0;
+
+    cv::Point2f closestPoint = closestPathPoint(path, pathCenter, position(), closestSegment, pathCurvature);
+    float pathAngle = closestSegment.angle();
+    pathAngle = angle_wrap(pathAngle + M_PI);
+
+    cv::Point2f secondPoint = closestPoint + 30.0f*cv::Point2f(cos(pathAngle), sin(pathAngle));
+
+
+    // std::cout << "path curve = " << pathCurvature << std::endl;
+    float pathRad = 1 / pathCurvature;
+
+    cv::Point2f curveCenter = closestPoint + pathRad*cv::Point2f(cos(pathAngle - M_PI/2), sin(pathAngle - M_PI/2));
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), curveCenter, abs(pathRad), cv::Scalar{255, 255, 255}, 1);
+    safe_circle(RobotController::GetInstance().GetDrawingImage(), closestPoint, 3, cv::Scalar{255, 255, 255}, 3);
+    cv::line(RobotController::GetInstance().GetDrawingImage(), closestPoint, secondPoint, cv::Scalar{2180, 255, 255}, 2);
+
+
+
+    if(!turnAway) { enforceTurnDirection = 0; }
+    // enforceTurnDirection = 0;
+    // return curvatureController(pathAngle, moveInput, deltaTime, forward, enforceTurnDirection, useFilter);
+
+
+
+    float absAngleToPath = atan2(closestPoint.y - position().y, closestPoint.x - position().x);
+    float angleToPoint = angle_wrap(absAngleToPath - pathAngle);
+    float distanceError = cv::norm(position() - closestPoint) * sign(angleToPoint);
+
+    std::cout << "distanceError = " << distanceError << std::endl;
+
+
+    float maxOffset = 45.0f*TO_RAD;
+    float angleOffset = std::clamp(distanceError * 0.008f, -maxOffset, maxOffset);
+    float targetAngle = angle_wrap(pathAngle + angleOffset);
+
+
+
+    /////////////////////// now curvature control //////////////////
+
+    float ogMoveInput = moveInput;
+
+
+    // the filter moves directly to the target angle, not necessarily the direction of turn enforcement
+    float filterGain = 1 - exp(-deltaTime / 0.01f); if(!useFilter) { filterGain = 1.0f; }
+    driveAngleFiltered += filterGain * angle_wrap(targetAngle - driveAngleFiltered);
+    driveAngleFiltered = angle_wrap(driveAngleFiltered);
+
+
+    float reverseOffset = forward ? 0 : M_PI; // add a 180deg offset to target angle if going backward
+    float angleError = angle_wrap(driveAngleFiltered - posFiltered[2] + reverseOffset); // how far off we are from target
+
+
+
+    // rewrap based on specified turn direction
+    float wrapOffset = 0;
+    if(enforceTurnDirection == 1) { wrapOffset = M_PI; }
+    if(enforceTurnDirection == -1) { wrapOffset = -M_PI; }
+
+    angleError = angle_wrap(angleError - wrapOffset) + wrapOffset;
+
+
+
+    // determine desired path curvature/drive radius using pd controller and magic limits
+    float currSpeed = moveSpeedSlow();
+
+    float slowGain = 1.0f; // 0.88
+    float fastGain = 0.40f; // 0.32
+    float fastSpeed = 400.0f;
+    float gain = (std::max)(slowGain - (slowGain - fastGain)*pow(currSpeed / fastSpeed, 0.5f), 0.0f);
+
+    float curvature = -20.0f*pathCurvature + (0.5f * angleError); // feedforward is path curvature
+
+    // std::cout << "drive curve = " << curvature << std::endl;
+
+    // by default, apply input velocity and turn based on that
+    moveInput = abs(moveInput); // just take magnitude of input
+    if(!forward) { moveInput *= -1.0f; } // reverese the input if we're going backwards
+    float turnInput = abs(moveInput) * curvature; // curvature = 1/radius so this is the same as w = v/r formula
+
+    // don't demand more than 1.0 speed from any one motor side, scale everything down since that will maintain the same path curvature
+    float maxInput = abs(moveInput) + abs(turnInput);
+    if(maxInput > 1.0f) {
+        moveInput /= maxInput;
+        turnInput /= maxInput;
+    }
+
+
+    float turnSpeedChange = (turnInput - prevTurnInput) / deltaTime; // angular acceleration needed to track requested speed changes
+    prevTurnInput = turnInput; // save the turn speed wanted for the normal amount of curvature
+
+
+    float turnSpeedOffset = 0.11f * turnSpeedChange;
+    turnInput = std::clamp(turnInput + turnSpeedOffset, -1.0f, 1.0f);
+
+
+    // use up extra juice or clip
+    moveInput = (1.0f - abs(turnInput)) * sign(moveInput);
+    moveInput = std::clamp(moveInput, -abs(ogMoveInput), abs(ogMoveInput));
+    
+
+
+    return std::vector<float> {moveInput, turnInput};
+}
+
+
 
 // calculates move and turn speeds to follow the follow angle
 std::vector<float> FilteredRobot::curvatureController(float driveAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter) {
@@ -613,6 +786,11 @@ cv::Point2f FilteredRobot::moveVelSlow() { return cv::Point2f(velFilteredSlow[0]
 float FilteredRobot::angle(bool forward) { 
     float offset = forward? 0 : M_PI;
     return angle_wrap(posFiltered[2] + offset); 
+}
+
+// absolute angle made by 2 points
+float FilteredRobot::absAngle(cv::Point2f point1, cv::Point2f point2) {
+    return std::atan2(point2.y - point1.y, point2.x - point1.x);
 }
 
 float FilteredRobot::turnVel() { return velFiltered[2]; }

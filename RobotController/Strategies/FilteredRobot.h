@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 #include "../Globals.h"
 #include "../Odometry/OdometryData.h"
+#include "Line.h"
 
 // kalman filtered robot data
 class FilteredRobot
@@ -66,10 +67,13 @@ class FilteredRobot
   std::vector<cv::Point2f> getPath();
   float getDriveAngleFiltered();
   std::vector<float> curvatureController(float driveAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter);
+  std::vector<float> pathController(std::vector<cv::Point2f> path, cv::Point2f pathCenter, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter, bool turnAway);
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   void printModel();
   void setToSlowVel();
   void displayRobot(int thick, cv::Scalar sizeColor, cv::Scalar weaponColor, bool forward);
+  cv::Point2f closestPathPoint(std::vector<cv::Point2f> path, cv::Point2f pathCenter, cv::Point2f point, Line& lineSegment, float& pathCurvature);
+  float absAngle(cv::Point2f point1, cv::Point2f point2);
 
 
 
