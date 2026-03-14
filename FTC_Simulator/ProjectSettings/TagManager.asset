@@ -43,8 +43,8 @@ TagManager:
   - NoCollisionWithLayer14
   - OnlyWith26
   - OnlyWith25
-  - 
-  - 
+  - NoKillsawWheel
+  - Killsaw
   - 
   - 
   - 
