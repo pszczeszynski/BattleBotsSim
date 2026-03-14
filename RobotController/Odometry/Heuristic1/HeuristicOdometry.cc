@@ -845,6 +845,11 @@ void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRob
 
 void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRobot, bool skipMutexLock) 
 {
+  // If we are the algo that is setting the position, ignore this
+  if (newPos.algorithm == OdometryAlg::Heuristic) {
+    return;
+  }
+
   // Remember this data in case no trackers are available now and we want best guess when some appear
   if( opponentRobot ) 
   {
@@ -867,11 +872,20 @@ void HeuristicOdometry::SetPosition(const PositionData &newPos, bool opponentRob
     HeuStreamState &state = (opponentRobot) ? _themState : _usState;
     state.last_pos.reset();
     state.last_angle.reset();
+    return;
   }
+
+  // Set velocity as well
+  SetVelocity(newPos.velocity, opponentRobot);
 }
 
 void HeuristicOdometry::ForcePosition(const PositionData &newPos,bool opponentRobot) 
 {
+  // If we are the algo that is setting the position, ignore this
+  if (newPos.algorithm == OdometryAlg::Heuristic) {
+    return;
+  }
+
   // Remember this data in case no trackers are available now and we want best guess when some appear
   if( opponentRobot ) 
   {
@@ -985,6 +999,11 @@ void HeuristicOdometry::ForcePosition(const PositionData &newPos,bool opponentRo
 }
 
 void HeuristicOdometry::SetAngle(AngleData angleData, bool opponentRobot) {
+  // If we are the algo that is setting the angle, ignore this
+  if (angleData.algorithm == OdometryAlg::Heuristic) {
+    return;
+  }
+
   // Remember this data in case no trackers are available now and we want best guess when some appear
   if( opponentRobot ) 
   {
@@ -1705,8 +1724,7 @@ void HeuristicOdometry::DrawAllBBoxes(cv::Mat &mat, int thickness,
 
     // Prepare detailed information text
     std::stringstream info;
-    info << (tracked.is_clear ? " Clear" : "X")
-         << "AGE: " << tracked.frame_count << " Vel: " << std::fixed
+    info << ((tracked.is_clear) ?  "C" : "X")  << ":#=" << tracked.startBBox.numOfOwners << ",AGE=" << tracked.frame_count << ",V="
          << std::setprecision(1)
          << sqrt(tracked.velocity.x * tracked.velocity.x +
                  tracked.velocity.y * tracked.velocity.y);
@@ -1967,6 +1985,11 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame) {
   std::vector<bool> matched_new_bboxes(all_bboxes.size(), false);
   std::vector<bool> matched_tracked_bboxes(tracked_bboxes.size(), false);
 
+  // Increment age of all tracked boxes
+  for (auto &tracked : tracked_bboxes) {
+    tracked.frame_count++;
+  }
+
   // Starting Rectangle definitions
   cv::Rect leftrect(STARTING_LEFT_TL_x, STARTING_LEFT_TL_y,
                     (STARTING_LEFT_BR_x - STARTING_LEFT_TL_x),
@@ -1995,7 +2018,6 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame) {
                                                  new_center.y - old_center.y);
         tracked_bboxes[j].bbox = all_bboxes[i];
         tracked_bboxes[j].last_center = new_center;
-        tracked_bboxes[j].frame_count++;
         tracked_bboxes[j].is_active = true;
 
         // If it cleared is starting box mark it
@@ -2043,6 +2065,24 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame) {
     }
   }
 
+  // Remove duplicate active tracked boxes that share the same myRect,
+  // keeping the one that has been tracking for the longest period.
+  for (size_t i = 0; i < tracked_bboxes.size(); ++i) {
+    if (!tracked_bboxes[i].is_active) continue;
+    for (size_t j = i + 1; j < tracked_bboxes.size(); ++j) {
+      if (!tracked_bboxes[j].is_active) continue;
+      if (tracked_bboxes[i].bbox == tracked_bboxes[j].bbox) {
+        // Keep the one with the higher frame_count; mark the other inactive.
+        if (tracked_bboxes[i].frame_count >= tracked_bboxes[j].frame_count) {
+          tracked_bboxes[j].is_active = false;
+        } else {
+          tracked_bboxes[i].is_active = false;
+          break;  // i is now inactive; no need to compare it further
+        }
+      }
+    }
+  }
+
   // Remove old inactive boxes after a certain number of frames
   tracked_bboxes.erase(
       std::remove_if(tracked_bboxes.begin(), tracked_bboxes.end(),
@@ -2062,12 +2102,12 @@ void HeuristicOdometry::ExtractForeground(cv::Mat &croppedFrame) {
 void HeuristicOdometry::healBackground(cv::Mat &currFrame,
                                        bool mergeNonRobotAreas) {
   // quit if we are not enabled
-  if (!mergeNonRobotAreas && !enable_background_healing) {
+  if (!mergeNonRobotAreas && !HEU_BACKGROUND_HEALING) {
     return;
   }
 
   // If we haven't found both robots or either one is not tracking, don't heal
-  if (!mergeNonRobotAreas && !force_background_averaging &&
+  if (!mergeNonRobotAreas && !HEU_FORCE_BACKGROUND_AVERAGING &&
       ((ourRobotTracker == NULL) || (opponentRobotTracker == NULL) ||
        (ourRobotTracker->numFramesNotTracked > 1) ||
        (opponentRobotTracker->numFramesNotTracked > 1))) {

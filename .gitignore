@@ -26,3 +26,5 @@ RobotController/MachineLearning/venvrot
 RobotController/imgui.ini
 Logs/
 RobotController/.cache
+RobotController/imgui.ini
+RobotController/.vscode/extensions.json

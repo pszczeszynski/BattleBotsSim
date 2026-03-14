@@ -708,9 +708,28 @@ void RobotTracker::ProcessNewFrame(double currTime, cv::Mat &foreground, cv::Mat
         avgScaler = 1.0f;
     }
 
-    // Slowly move the point to the center of the bounding box
-    newPos.x = newPos.x * (1.0f - avgScaler) + avgScaler * center_of_new_pos.x;
-    newPos.y = newPos.y * (1.0f - avgScaler) + avgScaler * center_of_new_pos.y;
+    // Compute the target position to slowly move towards.
+    // When HUE_ROBOT_CENTER_FROM_BOT is enabled, x stays at bbox center but y
+    // is placed HUE_ROBOT_CENTER_OFFSET pixels above the bottom of the bbox
+    // instead of averaging to the geometric center.
+    cv::Point2f target_pos;
+    if (HUE_ROBOT_CENTER_FROM_BOT)
+    {
+        // Reconstruct the new bbox position from center_of_new_pos and the
+        // current bbox dimensions (the bbox hasn't been updated yet this frame)
+        int new_bbox_bottom = center_of_new_pos.y + bbox.height / 2;
+        target_pos.x = static_cast<float>(center_of_new_pos.x);
+        target_pos.y = static_cast<float>(new_bbox_bottom) - HUE_ROBOT_CENTER_OFFSET;
+    }
+    else
+    {
+        target_pos.x = static_cast<float>(center_of_new_pos.x);
+        target_pos.y = static_cast<float>(center_of_new_pos.y);
+    }
+
+    // Slowly move the point towards the target position
+    newPos.x = newPos.x * (1.0f - avgScaler) + avgScaler * target_pos.x;
+    newPos.y = newPos.y * (1.0f - avgScaler) + avgScaler * target_pos.y;
     // newPos.x += (center_of_new_pos.x>newPos.x) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
     // newPos.y += (center_of_new_pos.y>newPos.y) ?  moveTowardsCenter * deltaTime : -1.0 * moveTowardsCenter * deltaTime;
 

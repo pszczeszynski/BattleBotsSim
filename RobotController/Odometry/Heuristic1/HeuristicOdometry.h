@@ -11,6 +11,7 @@
 // Unlike robot tracker which trackes foreground movement, this track boxes of
 // interest by simply comparing overlap regions. Its faster and good enough for
 // initial filtering
+// initial filtering
 
 struct TrackedBBox {
   myRect bbox;              // Current bounding box
@@ -63,8 +64,6 @@ class HeuristicOdometry : public OdometryBase {
                               // stabilize
 
   bool enable_camera_antishake = false;   // Turn off/on anti shake
-  bool enable_background_healing = true;  // Turn off/on background healing
-  bool force_background_averaging = false;
   bool useMultithreading = false;
 
   int averagingCount =

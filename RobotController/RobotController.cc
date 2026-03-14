@@ -312,7 +312,6 @@ DriverStationMessage RobotController::ManualMode() {
                      (int)InputState::GetInstance().IsKeyDown(ImGuiKey_D);
   }
 
-  odometry._AdjustAngleWithArrowKeys();
 
   // control the self righter
   _selfRighter.Move(selfRighterPower, response, drawingImage);

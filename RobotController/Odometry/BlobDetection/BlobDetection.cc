@@ -267,7 +267,27 @@ void BlobDetection::_ProcessStream(const MotionBlob& blob,
                                    double timestamp) {
   // Save previous position before updating (needed for velocity calculation)
   std::optional<cv::Point2f> prevPos = state.last_position;
-  cv::Point2f newPos = blob.center;
+
+  // Compute the target center position.
+  // When HUE_ROBOT_CENTER_FROM_BOT is enabled, x stays at blob center but y
+  // is placed HUE_ROBOT_CENTER_OFFSET pixels above the bottom of the bounding
+  // box instead of using the geometric center.
+  cv::Point2f targetPos = blob.center;
+  if (HUE_ROBOT_CENTER_FROM_BOT) {
+    float bbox_bottom = static_cast<float>(blob.rect.y + blob.rect.height);
+    targetPos.y = bbox_bottom - HUE_ROBOT_CENTER_OFFSET;
+  }
+
+  // If we have a previous position, slowly move towards the target rather than
+  // snapping directly to it (mirrors the moveTowardsCenter logic in RobotTracker).
+  cv::Point2f newPos = targetPos;
+  if (prevPos.has_value() && HUE_ROBOT_CENTER_FROM_BOT) {
+    // Use a simple lerp: blend previous position towards target each frame.
+    // A weight of 1.0 means instant snap; lower values give smoother motion.
+    constexpr float kCenterLerpWeight = 0.3f;
+    newPos.x = prevPos.value().x + kCenterLerpWeight * (targetPos.x - prevPos.value().x);
+    newPos.y = prevPos.value().y + kCenterLerpWeight * (targetPos.y - prevPos.value().y);
+  }
 
   state.consecutiveTrackingFrames++;
   _UpdateSmoothedVelocity(state, newPos, timestamp, prevPos);

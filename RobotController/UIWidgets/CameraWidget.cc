@@ -21,7 +21,7 @@ bool CameraWidget::DrawMask = false;
 */
 void CameraWidget::Draw()
 {
-    static float LAST_CAMERA_GAIN = CAMERA_GAIN;
+    static float LAST_CAMERA_GAIN = -1.0f;  // Initialize to an invalid value to ensure the gain is set on the first run
     ImGui::Begin("Camera");
 
     ImGui::Checkbox("Lock Camera", &LockCamera);

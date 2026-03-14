@@ -71,6 +71,7 @@ void LKFlowTracker::_DeduplicateTracks(std::vector<TrackPt>& tracks,
 }
 
 void LKFlowTracker::_StartCalled(void) {
+  std::unique_lock<std::mutex> lock(_targetsMutex);
   _prevGray = cv::Mat();
   _imageSize = cv::Size(0, 0);
   _targets[0] = LKFlowTargetState{};
@@ -131,6 +132,12 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     _debugImage = cv::Mat::zeros(_imageSize, CV_8UC3);
   }
 
+  // Lock _targets[] for the entire frame-processing body.
+  // SetPosition/SetAngle (called from the fusion thread) also lock this mutex,
+  // preventing them from shrinking state.tracks between the prevPts snapshot
+  // and the loop that indexes back into state.tracks.
+  std::unique_lock<std::mutex> targetsLock(_targetsMutex);
+
   for (int i = 0; i < 2; ++i) {
     LKFlowTargetState& state = _targets[i];
     cv::Rect roi = _GetROI(state.pos, _imageSize);
@@ -145,7 +152,7 @@ void LKFlowTracker::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     }
   }
 
-  // If np _prevGrey or if a size-mismatch occured (say due to reconnection),
+  // If no _prevGray or if a size-mismatch occured (say due to reconnection),
   // then just initialize and return without tracking
   if (_prevGray.empty() || _prevGray.size() != gray.size()) {
     _prevGray = gray;
@@ -624,6 +631,7 @@ void LKFlowTracker::SetPosition(const PositionData& newPos,
   if (newPos.algorithm == OdometryAlg::LKFlow) {
     return;
   }
+  std::unique_lock<std::mutex> lock(_targetsMutex);
   LKFlowTargetState& state = _targets[opponentRobot ? 1 : 0];
   cv::Point2f newPosPt = newPos.position;
   constexpr float kHardSkipThresholdPx = 10;
@@ -647,11 +655,11 @@ void LKFlowTracker::SetVelocity(cv::Point2f newVel, bool opponentRobot) {
 }
 
 void LKFlowTracker::SetAngle(AngleData angleData, bool opponentRobot) {
-  LKFlowTargetState& state = _targets[opponentRobot ? 1 : 0];
-
   if (angleData.algorithm == OdometryAlg::LKFlow) {
     return;
   }
+  std::unique_lock<std::mutex> lock(_targetsMutex);
+  LKFlowTargetState& state = _targets[opponentRobot ? 1 : 0];
 
   constexpr float kHardSkipThresholdRad = 10.0f * TO_RAD;
   if (std::abs(angleData.angle - state.angle) < kHardSkipThresholdRad) {

@@ -126,11 +126,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
       std::to_string(HEU_UNTRACKED_MOVING_BLOB_AVGING) + MSG_FIELD_SEPERATOR;
   numOfFields++;
 
-  message += std::string((RobotController::GetInstance()
-                              .odometry.GetHeuristicOdometry()
-                              .force_background_averaging)
-                             ? "1"
-                             : "0") +
+  message += std::string(HEU_FORCE_BACKGROUND_AVERAGING ? "1" : "0") +
              MSG_FIELD_SEPERATOR;
   numOfFields++;
 
@@ -233,9 +229,7 @@ void HumanPosition::_ProcessNewFrame(cv::Mat currFrame, double frameTime) {
     if (new_slider_data > 0) {
       HEU_FOREGROUND_THRESHOLD = foreground_min_delta;
       HEU_UNTRACKED_MOVING_BLOB_AVGING = background_heal_rate;
-      RobotController::GetInstance()
-          .odometry.GetHeuristicOdometry()
-          .force_background_averaging = (bool)force_heal_value;
+      HEU_FORCE_BACKGROUND_AVERAGING = (bool)force_heal_value;
     }
 
     if (clickPosition == _lastReceivedPos && type == _lastReceivedType) {

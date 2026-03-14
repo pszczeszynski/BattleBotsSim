@@ -181,6 +181,9 @@ int ConfigureCamera(Spinnaker::CameraPtr pCam) {
     // periodically its alive)
     pCam->GevGVCPHeartbeatDisable();
 
+    // Configure camera gain
+    pCam->Gain.SetValue(CAMERA_GAIN); 
+
     // ******** Settings ***************
     // Camera settings should all be saved to it via user registers.
     // Here we will only configure what can not be saved: the LUT table.

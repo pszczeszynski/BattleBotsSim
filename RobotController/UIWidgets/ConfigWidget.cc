@@ -74,9 +74,9 @@ void ConfigWidget::Draw()
     ImGui::PushItemWidth(100);
     ImGui::SliderInt("##UntrackedDecay", &HEU_UNTRACKED_MOVING_BLOB_AVGING, 5, 400);
     ImGui::PopItemWidth();
-    ImGui::Checkbox(":EN Healing    ", &heuristic.enable_background_healing);
+    ImGui::Checkbox(":EN Healing    ", &HEU_BACKGROUND_HEALING);
     ImGui::SameLine();
-    ImGui::Checkbox(":FORCE HEALING EVEN IF NO BOTS", &heuristic.force_background_averaging);
+    ImGui::Checkbox(":FORCE HEALING EVEN IF NO BOTS", &HEU_FORCE_BACKGROUND_AVERAGING);
 
     // Foreground Management
     ImGui::Text("FOREGROUND:  ");
@@ -159,6 +159,12 @@ void ConfigWidget::Draw()
     ImGui::SameLine();
     ImGui::Text("Rot Gain:");
     ImGui::PushItemWidth(100); ImGui::SliderFloat("##HEUROTGAIN", &HEU_ROT_GAIN, 1.0, 2.0); ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::Checkbox(":Center From Bot", &HUE_ROBOT_CENTER_FROM_BOT);
+    ImGui::SameLine();
+    ImGui::Text("Bot Offset:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(120); ImGui::SliderFloat("##HUEROBOTCENTEROFFSET", &HUE_ROBOT_CENTER_OFFSET, 0.0f, 100.0f); ImGui::PopItemWidth();
 
 
     // Tracked Robot Management

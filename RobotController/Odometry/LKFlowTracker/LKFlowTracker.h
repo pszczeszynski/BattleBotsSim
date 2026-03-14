@@ -95,6 +95,10 @@ class LKFlowTracker : public OdometryBase {
   cv::Size _imageSize;
   cv::Mat _prevGray;
 
+  // Mutex protecting _targets[] state (accessed from both the processing
+  // thread and the fusion/UI thread via SetPosition/SetAngle/SetVelocity)
+  std::mutex _targetsMutex;
+
   // Debug image
   std::mutex _mutexDebugImage;
   cv::Mat _debugImage;
