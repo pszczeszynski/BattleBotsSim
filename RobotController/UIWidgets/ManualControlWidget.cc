@@ -2,7 +2,7 @@
 
 #include "../RobotConfig.h"
 #include "../RobotController.h"
-#include "../RobotLink.h"
+#include "../RobotLink/RobotLinkSim.h"
 #include "ColorScheme.h"
 #include "imgui.h"
 

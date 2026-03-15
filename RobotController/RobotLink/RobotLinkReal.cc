@@ -1,15 +1,15 @@
-#include "RobotLink.h"
+#include "RobotLinkReal.h"
 
-#include "../Common/Communication.h"
-#include "Clock.h"
-#include "Globals.h"
-#include "MathUtils.h"
-#include "RobotConfig.h"
-#include "RobotController.h"
-#include "RobotStateParser.h"
-#include "SimulationState.h"
-#include "UIWidgets/ClockWidget.h"
-#include "UIWidgets/GraphWidget.h"
+#ifndef SIMULATION
+
+#include "../../Common/Communication.h"
+#include "../Clock.h"
+#include "../Globals.h"
+#include "../MathUtils.h"
+#include "../RobotConfig.h"
+#include "../RobotController.h"
+#include "../UIWidgets/ClockWidget.h"
+#include "../UIWidgets/GraphWidget.h"
 
 #define USB_RETRY_TIME 50
 #define HID_BUFFER_SIZE 64
@@ -21,147 +21,9 @@
 
 #define PACKET_LOSS_SWITCH_TIMEOUT_MS 100
 
-/**
- * Doesn't do anything except call the timer markStart
- * Must be called for any robotlink
- */
-RobotMessage IRobotLink::Receive() {
-  // std::cerr << "RobotLink::Receive" << std::endl;
-  static GraphWidget recvIntervalTime("Received Packet Interval Time", 0, 50,
-                                      "ms");
-
-  // std::cerr << "RobotLink::Receive 0.01" << std::endl;
-  // get all new messages
-  std::vector<RobotMessage> newMessages = _ReceiveImpl();
-
-  if (newMessages.size() == 0) {
-    return RobotMessage{RobotMessageType::INVALID};
-  }
-
-  // std::cerr << "RobotLink::Receive 0.02" << std::endl;
-
-  // go through each message, save the latest IMU and CAN message
-  bool hadValidMessage = false;
-
-  // go through all the new messages
-  int messageIndex = 0;
-  for (RobotMessage &msg : newMessages) {
-    // save the latest message of each type
-    if (msg.type == RobotMessageType::IMU_DATA) {
-      _lastIMUMessageMutex.lock();
-      _lastIMUMessage = msg;
-      _lastIMUMessageMutex.unlock();
-
-      if (_imuCallback && messageIndex < (int)_lastMessageReceiveTimes.size()) {
-        _imuCallback(msg.imuData, _lastMessageReceiveTimes[messageIndex]);
-      }
-
-      hadValidMessage = true;
-    } else if (msg.type == RobotMessageType::IMU_DEBUG_DATA) {
-      _lastIMUDebugMessageMutex.lock();
-      _lastIMUDebugMessage = msg;
-      _lastIMUDebugMessageMutex.unlock();
-      hadValidMessage = true;
-    } else if (msg.type == RobotMessageType::CAN_DATA) {
-      _lastCANMessageMutex.lock();
-      _lastCANMessage = msg;
-      _lastCANMessageMutex.unlock();
-      hadValidMessage = true;
-    } else if (msg.type == RobotMessageType::RADIO_DATA) {
-      _lastRadioMessageMutex.lock();
-      _lastRadioMessage = msg;
-      _lastRadioMessageMutex.unlock();
-      hadValidMessage = true;
-    } else if (msg.type == RobotMessageType::BOARD_TELEMETRY_DATA) {
-      _lastBoardTelemetryMessageMutex.lock();
-      _lastBoardTelemetryMessage = msg;
-      _lastBoardTelemetryMessageMutex.unlock();
-      hadValidMessage = true;
-    }
-    messageIndex++;
-  }
-
-  // std::cerr << "RobotLink::Receive 0.03" << std::endl;
-
-  // if didn't get a single valid message
-  if (!hadValidMessage) {
-    // print error, return invalid
-    std::cerr << "ERROR: invalid message type" << std::endl;
-    return RobotMessage{RobotMessageType::INVALID};
-  }
-
-  // copy over new messages to the message history
-  for (RobotMessage &msg : newMessages) {
-    // display delay
-    recvIntervalTime.AddData(_receiveClock.getElapsedTime() * 1000);
-    // restart the last receive clock
-    _receiveClock.markStart();
-  }
-
-  // std::cerr << "RobotLink::Receive 0.03" << std::endl;
-
-  // return the last message
-  return newMessages.back();
-}
-
-RobotMessage IRobotLink::GetLastCANMessage() {
-  RobotMessage ret;
-  _lastCANMessageMutex.lock();
-  ret = _lastCANMessage;
-  _lastCANMessageMutex.unlock();
-  return ret;
-}
-
-RobotMessage IRobotLink::GetLastRadioMessage() {
-  RobotMessage ret;
-
-  if (_receiveClock.getElapsedTime() * 1000 > 100) {
-    // set to 0's
-    memset(&ret, 0, sizeof(RobotMessage));
-    ret.type = RobotMessageType::RADIO_DATA;
-    ret.radioData.averageDelayMS = -1;
-    return ret;
-  }
-
-  _lastRadioMessageMutex.lock();
-  ret = _lastRadioMessage;
-  _lastRadioMessageMutex.unlock();
-  return ret;
-}
-
-RobotMessage IRobotLink::GetLastBoardTelemetryMessage() {
-  RobotMessage ret;
-  _lastBoardTelemetryMessageMutex.lock();
-  ret = _lastBoardTelemetryMessage;
-  _lastBoardTelemetryMessageMutex.unlock();
-  return ret;
-}
-
-RobotMessage IRobotLink::GetLastIMUDebugMessage() {
-  RobotMessage ret;
-  _lastIMUDebugMessageMutex.lock();
-  ret = _lastIMUDebugMessage;
-  _lastIMUDebugMessageMutex.unlock();
-  return ret;
-}
-
-bool IRobotLink::IsTransmitterConnected() { return _transmitterConnected; }
-
-bool IRobotLink::IsSecondaryTransmitterConnected() {
-  return _secondaryTransmitterConnected;
-}
-
-void IRobotLink::RegisterIMUCallback(IMUCallback callback) {
-  _imuCallback = std::move(callback);
-}
-
-#ifndef SIMULATION
-
 #define RADIO_DEVICES 5
 
-// will wait for up to 5ms before quitting if only one device found
 #define PRIMARY_TIMEOUT 0.05
-// tries to connect to devices and determine which ones are TX devices
 void RobotLinkReal::TryConnection(void) {
   _transmitterConnected = false;
   _secondaryTransmitterConnected = false;
@@ -177,7 +39,6 @@ void RobotLinkReal::TryConnection(void) {
   Clock c_retryTime;
 
   while (true) {
-    // try to open devices
     int devices_opened =
         rawhid_open(RADIO_DEVICES, 0x16C0, 0x0486, 0xFFAB, 0x0200);
     c_retryTime.markStart();
@@ -190,7 +51,6 @@ void RobotLinkReal::TryConnection(void) {
         for (int i = 0; i < devices_opened; i++) {
           int num = rawhid_recv(i, recvbuf, HID_BUFFER_SIZE, 2);
           if (num >= sizeof(RobotMessage)) {
-            // reinterpret the buffer as a RobotMessage
             RobotMessage msg = *reinterpret_cast<RobotMessage *>(recvbuf);
             if (msg.type == LOCAL_PING_RESPONSE) {
               if (!_transmitterConnected) {
@@ -228,8 +88,6 @@ void RobotLinkReal::TryConnection(void) {
 }
 
 #ifdef PINGPONG
-// attempt to find a secondary radio every 5 seconds if only primary radio is
-// connected
 #define SECONDARY_RETRY 5
 #else
 #define SECONDARY_RETRY 0.5
@@ -243,8 +101,6 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage,
   char buf[HID_BUFFER_SIZE];
 
   auto start = std::chrono::high_resolution_clock::now();
-
-  // static GraphWidget statusCode("Radio status code", -5, 100, "");
 
   while (true) {
     if (!_radio_reinit && dev->IsOpen()) {
@@ -276,7 +132,6 @@ void RobotLinkReal::RadioThreadSendFunction(RawHID *dev, bool *newMessage,
         }
       }
     }
-    // std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 
@@ -292,7 +147,6 @@ void RobotLinkReal::RadioThreadRecvFunction(
   Clock recvTimeout;
 
   while (true) {
-    // only run if radios are properly working
     if (!_radio_reinit && dev->IsOpen()) {
       if (!dev->IsRecvPending()) {
         if (!dev->RecvAsync(HID_BUFFER_SIZE)) _radio_reinit = true;
@@ -301,17 +155,14 @@ void RobotLinkReal::RadioThreadRecvFunction(
         num = dev->CheckRecvAsync(HID_BUFFER_SIZE, buf);
         if (num < 0) _radio_reinit = true;
         if (num >= sizeof(RobotMessage)) {
-          // reinterpret the buffer as a RobotMessage
           RobotMessage msg = *reinterpret_cast<RobotMessage *>(buf);
 
           if (msg.type != RobotMessageType::INVALID) {
-            // copy over data
             _outstandingPacketMutex.lock();
             if (_outstandingPackets.find(msg.timestamp) !=
                 _outstandingPackets.end()) {
               _outstandingPackets.erase(msg.timestamp);
 
-              // Record the receive time
               auto elapsed =
                   std::chrono::high_resolution_clock::now() - _startTime;
               double receiveTime =
@@ -322,7 +173,6 @@ void RobotLinkReal::RadioThreadRecvFunction(
               messageMutex->lock();
               messageQueue->push_back(msg);
 
-              // Add receive time to the queue (this is _unconsumedMessages)
               if (messageQueue == &_unconsumedMessages) {
                 _messageReceiveTimes.push_back(receiveTime);
               }
@@ -359,7 +209,6 @@ void RobotLinkReal::RadioThreadRecvFunction(
         }
       }
     }
-    // std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 
@@ -409,7 +258,6 @@ void RobotLinkReal::RadioThreadFunction(void) {
         break;
       }
     }
-    // printf("Radio Reinit needed\n");
     _radios[0].Close();
     _radios[1].Close();
     _transmitterConnected = false;
@@ -420,7 +268,6 @@ void RobotLinkReal::RadioThreadFunction(void) {
 
 RobotLinkReal::RobotLinkReal()
     : _requestSend(false), _secondaryRequestSend(false) {
-  // init last can message
   memset(&_lastCANMessage, 0, sizeof(_lastCANMessage));
   _startTime = std::chrono::high_resolution_clock::now();
   _radioThread = std::thread(&RobotLinkReal::RadioThreadFunction, this);
@@ -438,7 +285,6 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage &msg) {
   static bool switchedPrimary = false;
   static bool switchedSecondary = false;
 
-  // draw WARNING if switched
   if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS) {
     cv::Mat &drawingImage = RobotController::GetInstance().GetDrawingImage();
 
@@ -456,13 +302,12 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage &msg) {
     }
   }
 
-  if (!AUTO_SWITCH_CHANNEL) return;  // don't do anything if not active
-  if (!_transmitterConnected)
-    return;  // don't do anything if no TXs connected to drive station
+  if (!AUTO_SWITCH_CHANNEL) return;
+  if (!_transmitterConnected) return;
   if (_lastRadioSwitchClock.getElapsedTime() * 1000 < SWITCH_COOLDOWN_MS)
-    return;  // don't switch if recently switched
+    return;
 
-  int32_t nextChannel = -1;  // the free channel to switch to
+  int32_t nextChannel = -1;
 
   switch (RADIO_CHANNEL) {
     case TEENSY_RADIO_1:
@@ -483,8 +328,6 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage &msg) {
   }
   if (_transmitterConnected && _secondaryTransmitterConnected) {
     for (uint8_t i = 0; i < 4; i++) {
-      // keep checking the next channel until we find one that neither radio is
-      // on
       if (RADIO_CHANNEL == nextChannel ||
           SECONDARY_RADIO_CHANNEL == nextChannel) {
         switch (nextChannel) {
@@ -521,11 +364,6 @@ void RobotLinkReal::ChooseBestChannel(DriverStationMessage &msg) {
   printf("%f %f\n", _primaryReceivedTimer.getElapsedTime(),
          _secondaryReceivedTimer.getElapsedTime());
 
-  // Switching priority (can only switch one link at a time to maintain
-  // comms): Primary radio loses comms: switch primary Secondary radio loses
-  // comms: switch secondary both radios dropping packets: switch radio with
-  // worse avg inter-packet time Single radio dropping packets: switch that
-  // radio
   if (_primaryReceivedTimer.getElapsedTime() * 1000 >
       PACKET_LOSS_SWITCH_TIMEOUT_MS) {
     switchedPrimary = true;
@@ -571,8 +409,6 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
   static GraphWidget _radioPacketLoss("Radio Packet Loss", 0, 20, "", 100);
   static Clock packetLossUpdateRate;
 
-  // set the radio channel
-  // RADIO_CHANNEL = ChooseBestChannel(command);
   ChooseBestChannel(command);
   command.radioChannel = RADIO_CHANNEL;
   if (RESET_IMU) {
@@ -582,9 +418,7 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
   }
 
   command.fuseIMU = FUSE_IMU;
-  // printf("fuseIMU: %d\n", command.fuseIMU);
 
-  // if we have sent a packet too recently, return
   if (_sendClock.getElapsedTime() * 1000 < MIN_INTER_SEND_TIME_MS) {
     return;
   }
@@ -607,27 +441,18 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
   command.timestamp =
       std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
 
-  // set valid to true
   command.valid = true;
 
   try {
-    // acquire sending mutex
     _sendMessageMutex.lock();
-    // set message to send
     _messageToSend = command;
-    // set requestSend to true
     _requestSend = true;
-    // release sending mutex
     _sendMessageMutex.unlock();
 
-    // acquire sending mutex
     _secondarySendMessageMutex.lock();
-    // set message to send
     _secondaryMessageToSend = command;
     _secondaryMessageToSend.radioChannel = SECONDARY_RADIO_CHANNEL;
-    // set requestSend to true
     _secondaryRequestSend = true;
-    // release sending mutex
     _secondarySendMessageMutex.unlock();
 
     _sendClock.markStart();
@@ -660,148 +485,22 @@ void RobotLinkReal::Drive(DriverStationMessage &command) {
 std::vector<RobotMessage> RobotLinkReal::_ReceiveImpl() {
   std::vector<RobotMessage> ret = {};
 
-  // lock mutex
   _unconsumedMessagesMutex.lock();
-  // copy over unconsumed messages to new messages
   std::copy(_unconsumedMessages.begin(), _unconsumedMessages.end(),
             std::back_inserter(ret));
-  // reset unconsumed messages since we have copied them over
   _unconsumedMessages.clear();
 
-  // Also copy and clear the receive times
   std::vector<double> receiveTimes;
   std::copy(_messageReceiveTimes.begin(), _messageReceiveTimes.end(),
             std::back_inserter(receiveTimes));
   _messageReceiveTimes.clear();
 
-  // unlock mutex
   _unconsumedMessagesMutex.unlock();
 
-  // Store receive times for use in IMU integration
   _lastMessageReceiveTimes = receiveTimes;
 
-  // return the new messages
   return ret;
 }
 
 RobotLinkReal::~RobotLinkReal() {}
 #endif
-
-/////////////////// SIMULATION //////////////////////
-
-RobotLinkSim::RobotLinkSim() : serverSocket("11115") {}
-
-void RobotLinkSim::Drive(DriverStationMessage &msg) {
-  DriveCommand command;
-
-  if (msg.type == DRIVE_COMMAND) {
-    command = msg.driveCommand;
-  }
-
-  double opponentMoveAmount = 0;
-  double opponentTurnAmount = 0;
-  if (CONTROL_OPPONENT_ENABLED) {
-    Gamepad &gamepad1 = RobotController::GetInstance().GetGamepad();
-    opponentMoveAmount = gamepad1.GetRightStickY();
-    opponentTurnAmount = -gamepad1.GetLeftStickX();
-  }
-
-  UnityDriveCommand message = {command.movement,
-                               command.turn,
-                               (double)command.frontWeaponPower,
-                               (double)command.backWeaponPower,
-                               false,
-                               opponentMoveAmount,
-                               opponentTurnAmount};
-
-  serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
-}
-
-#define ACCELEROMETER_TO_PX_SCALER 1
-
-std::vector<RobotMessage> RobotLinkSim::_ReceiveImpl() {
-  static Clock lastCanDataClock;
-  static Clock lastReceiveClock;
-  static cv::Point2f lastRobotPosSim;
-  static cv::Point2f lastOpponentPosSim;
-
-  RobotMessage ret{RobotMessageType::INVALID};
-  // zero out ret
-  memset(&ret, 0, sizeof(ret));
-
-  std::string received = "";
-  while (received == "") {
-    received = serverSocket.receive();
-  }
-  UnityRobotState message = RobotStateParser::parse(received);
-  
-  // Process robot position
-  cv::Point2f robotPos = cv::Point2f((float)message.robot_position.x,
-                                      (float)message.robot_position.z);
-  cv::Point2f opponentPos = cv::Point2f{(float)message.opponent_position.x,
-                                        (float)message.opponent_position.z};
-
-  cv::Point2f mins = {-10, -10};
-  cv::Point2f maxs = {10, 10};
-
-  // Transform robot position to screen coordinates
-  robotPos -= mins;
-  robotPos.x /= maxs.x - mins.x;
-  robotPos.y /= maxs.y - mins.y;
-  robotPos.x = 1.0 - robotPos.x;
-  robotPos *= WIDTH;
-
-  // Transform opponent position to screen coordinates
-  opponentPos -= mins;
-  opponentPos.x /= maxs.x - mins.x;
-  opponentPos.y /= maxs.y - mins.y;
-  opponentPos.x = 1.0 - opponentPos.x;
-  opponentPos *= WIDTH;
-
-  // Calculate velocities
-  double deltaTime = lastReceiveClock.getElapsedTime();
-  cv::Point2f robotVel = (robotPos - lastRobotPosSim) / deltaTime;
-  cv::Point2f opponentVel = (opponentPos - lastOpponentPosSim) / deltaTime;
-  
-  // Update last positions for next velocity calculation
-  lastRobotPosSim = robotPos;
-  lastOpponentPosSim = opponentPos;
-  lastReceiveClock.markStart();
-  
-  // Calculate opponent rotation
-  double opponentRotation = angle_wrap(message.opponent_rotation * TO_RAD + M_PI);
-  double opponentRotationVel = message.opponent_rotation_velocity;
-  double currentTime = Clock::programClock.getElapsedTime();
-
-  // Update SimulationState with thread-safe access
-  SimulationState::GetInstance().SetRobotData(robotPos, robotVel, currentTime);
-  SimulationState::GetInstance().SetOpponentData(opponentPos, opponentVel,
-                                                   opponentRotation, opponentRotationVel,
-                                                   currentTime);
-
-  // if we have already had a can message in last 1/2 second
-  if (lastCanDataClock.getElapsedTime() < 0.5) {
-    ret.type = RobotMessageType::IMU_DATA;
-    ret.imuData.rotation = Angle(message.robot_rotation + M_PI);
-    ret.imuData.rotationVelocity = message.robot_rotation_velocity;
-  } else {
-    ret.type = RobotMessageType::CAN_DATA;
-    ret.canData.motorERPM[2] =
-        (int)abs(message.spinner_1_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR) * 9;
-    ret.canData.motorERPM[3] =
-        (int)abs(message.spinner_2_RPM * RPM_TO_ERPM / ERPM_FIELD_SCALAR) * 9;
-    lastCanDataClock.markStart();
-  }
-
-  // Record the receive time for simulation
-  double receiveTime = Clock::programClock.getElapsedTime();
-  _lastMessageReceiveTimes = {receiveTime};
-
-  // return the message
-  return {ret};
-}
-
-void RobotLinkSim::ResetSimulation() {
-  UnityDriveCommand message = {0, 0, 0, 0, true};
-  serverSocket.reply_to_last_sender(RobotStateParser::serialize(message));
-}
