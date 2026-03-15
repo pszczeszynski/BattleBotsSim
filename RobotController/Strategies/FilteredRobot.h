@@ -5,6 +5,7 @@
 #include "../Globals.h"
 #include "../Odometry/OdometryData.h"
 #include "Line.h"
+#include "Approach.h"
 
 // kalman filtered robot data
 class FilteredRobot
@@ -67,7 +68,7 @@ class FilteredRobot
   std::vector<cv::Point2f> getPath();
   float getDriveAngleFiltered();
   std::vector<float> curvatureController(float driveAngle, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter);
-  std::vector<float> pathController(std::vector<cv::Point2f> path, cv::Point2f pathCenter, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter, bool turnAway);
+  std::vector<float> pathController(Approach path, float moveInput, float deltaTime, bool forward, int enforceTurnDirection, bool useFilter, bool display);
   bool pointCorrectSide(cv::Point2f point, bool CW, bool forward, float tolerance);
   void printModel();
   void setToSlowVel();

@@ -111,6 +111,12 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
 
 
 
+    // cv::Point2f tangent = follow.approachCurve.tangentPoint(orbFiltered.position());
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), tangent, 3, cv::Scalar(255, 230, 230), 3); // draw follow point
+
+
+    // float offsetToHere = follow.approachCurve.offsetToPoint(orbFiltered.position());
+    // std::cout << "outside = " << follow.approachCurve.outsideCurve(orbFiltered.position());
 
 
     // follow.approachCurve.followCurve(orbFiltered.position(), 40, true);
@@ -128,9 +134,9 @@ DriverStationMessage AStarAttack::Execute(Gamepad &gamepad, double rightStickY)
     //     rightStickY, deltaTime, follow.forward, 
     //     follow.enforceTurnDirection, useFilter);
 
-    std::vector<float> driveInputs = orbFiltered.pathController(follow.approachCurve.getCurvePoints(), follow.opp.position(), 
+    std::vector<float> driveInputs = orbFiltered.pathController(follow.approachCurve, 
     rightStickY, deltaTime, follow.forward, 
-    follow.enforceTurnDirection, useFilter, follow.turnAway);
+    follow.enforceTurnDirection, useFilter, true);
 
 
     // create and send drive command
@@ -220,8 +226,8 @@ void AStarAttack::display(FollowPoint follow, std::vector<FollowPoint> follows, 
 
 
     // display circles
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
-    safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), colorOrbLight, 2); // draw pp radius
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.point, 5, cv::Scalar(255, 230, 230), 3); // draw follow point
+    // safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRad(orbFiltered.moveSpeedSlow()), colorOrbLight, 2); // draw pp radius
     safe_circle(RobotController::GetInstance().GetDrawingImage(), orbFiltered.position(), ppRadWall(), colorOrbLight, 1); // draw pp wall radius
     if(!follow.orbSimPath.empty()) { safe_circle(RobotController::GetInstance().GetDrawingImage(), follow.orbSimPath.back(), 8, cv::Scalar(255, 255, 255), 5); } // highlight the last point of our path to opp
 
@@ -273,7 +279,7 @@ FollowPoint AStarAttack::createFollowPoint(float deltaTime, bool forwardInput, s
     // default values for parameters that don't vary
     bool defaultForward = forwardInput;
     bool defaultCW = true;
-    bool defaultTurnAway = true;
+    bool defaultTurnAway = false;
 
     // generate every combination of follow point
     for(int forward = 0; forward < 2; forward++) {
@@ -523,6 +529,7 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
 
         // save which direction was enforced at first for the actual follow point
         int enforce = sign(angleError);
+        enforce = 0;
 
         // set real follow point and turn directions to first update of simulator
         if(simTime <= 0.0f) { 
@@ -554,8 +561,13 @@ void AStarAttack::orbToOppPath(FollowPoint &follow) {
         float driveAngle = angle(virtualOrb.position(), virtualFollow);
 
 
-        std::vector<float> driveInputs = virtualOrb.curvatureController(driveAngle, 
-            1.0f, timeStep, follow.forward, enforce, false);
+        // std::vector<float> driveInputs = virtualOrb.curvatureController(driveAngle, 
+        //     1.0f, timeStep, follow.forward, enforce, false);
+
+        std::vector<float> driveInputs = virtualOrb.pathController(follow.approachCurve, 
+        1.0f, timeStep, follow.forward, 
+        enforce, false, false);
+
 
 
         // timestep is larger if you're further away

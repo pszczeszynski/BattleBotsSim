@@ -4,6 +4,10 @@ double AngleBetweenPoints(double x1, double y1, double x2, double y2) {
   return std::atan2(y2 - y1, x2 - x1);
 }
 
+float angleCVPoints(cv::Point2f point1, cv::Point2f point2) {
+  return atan2(point2.y - point1.y, point2.x - point1.x);
+}
+
 double angle_wrap(double angle_rad) {
   angle_rad = fmod(angle_rad, 2 * M_PI);
   if (angle_rad <= -M_PI) {
@@ -22,6 +26,17 @@ float angle_wrap(float angle_rad) {
     angle_rad -= 2 * M_PI;
   }
   return angle_rad;
+}
+
+
+// wraps to [posBound - 2π, posBound)
+float angle_wrap_upper(float angle_rad, float posBound) {
+
+  float wrapped = fmodf(angle_rad - posBound, 2*M_PI);
+  if (wrapped >= 0)
+      wrapped -= 2*M_PI;
+
+  return wrapped + posBound;
 }
 
 double norm(Point2f p) { return std::sqrt(p.x * p.x + p.y * p.y); }

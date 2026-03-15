@@ -12,6 +12,17 @@ public:
 
     std::vector<cv::Point2f> getCurvePoints();
     cv::Point2f followCurve(cv::Point2f currPosition, float ppRad, bool display);
+    cv::Point2f getCenter();
+    float radiusEquation(float offsetAngle);
+    float curvatureHere(float offsetAngle, bool display);
+    float offsetToPoint(cv::Point2f point);
+    cv::Point2f closestPoint(cv::Point2f point, float advance);
+    float absPathAngleHere(float offsetAngle);
+    float wrapInSweep(float angle);
+    bool getCW();
+    bool outsideCurve(cv::Point2f point);
+    cv::Point2f tangentPoint(cv::Point2f point);
+    float getEndAngle();
 
 
 
@@ -29,7 +40,6 @@ private:
 
 
     void generateCurve();
-    float radiusEquation(float offsetAngle);
     cv::Point2f ppPoint(cv::Point2f currPosition, float ppRad);
     float angle(cv::Point2f point1, cv::Point2f point2);
 

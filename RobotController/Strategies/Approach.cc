@@ -1,5 +1,6 @@
 #include "Approach.h"
 #include "../MathUtils.h"
+#include "../RobotConfig.h"
 
 
 
@@ -27,6 +28,8 @@ void Approach::generateCurve() {
     curvePoints = {}; // reset just in case
     float offsetAngle = 0.0f; // sweep up to the the specified range for this follow point
 
+    curvePoints.emplace_back(center + cv::Point2f(cos(endAngle), sin(endAngle))); // center point is always included
+
     while(abs(offsetAngle) < abs(sweepRange)) {
 
         float radius = radiusEquation(offsetAngle);
@@ -35,7 +38,7 @@ void Approach::generateCurve() {
         cv::Point2f newPoint = center + radius*cv::Point2f(cos(currAngle), sin(currAngle));
         curvePoints.emplace_back(newPoint);
 
-        offsetAngle += 1.0f*TO_RAD * (CW? -1 : 1); // 5
+        offsetAngle += 1.0f*TO_RAD * (CW? -1 : 1); // angle increment of curve generation 5
     }
 }
 
@@ -44,14 +47,112 @@ void Approach::generateCurve() {
 // defines the radius as a function of offset angle
 float Approach::radiusEquation(float offsetAngle) {
 
-    float radAtAngle = 120.0f;
-    float angle = 120.0f*TO_RAD;
-    float a = 0.65f; // 0.68 controls how sharp the curvature is at the end, lower makes it wait more to curve
-    float b = (radAtAngle - collisionRad) / pow(angle, a);
+    float offsetPositive = offsetAngle * (CW? -1 : 1);
+    if(offsetPositive < 0) { return 0; }
 
-    float radius = b*pow(abs(offsetAngle), a) + collisionRad;
+    float radAtAngle = APPROACH_RAD_AT_ANGLE;
+    float angle = APPROACH_REF_ANGLE_DEG * TO_RAD;
+    float a = APPROACH_CURVE_EXPONENT;
+
+    float b = (radAtAngle - collisionRad) / pow(angle, a);
+    float radius = b*pow(offsetPositive, a) + collisionRad;
 
     return radius;
+}
+
+
+// closest point on path, needs to be within a radial offset of point
+cv::Point2f Approach::closestPoint(cv::Point2f point, float advance) {
+
+    float absAngle = angle(center, point);
+    float radHere = radiusEquation(offsetToPoint(point));
+
+    
+
+    // approximate advance distance using an angular advance and curr radius
+    float angleAdvance = 0;
+    if(radHere > 1.0f) { angleAdvance = advance / radHere; } 
+
+    absAngle += angleAdvance * (CW? 1 : -1);
+    absAngle = angle_wrap(absAngle);
+
+    cv::Point2f testPoint = center + cv::Point2f(cos(absAngle), sin(absAngle));
+    radHere = radiusEquation(offsetToPoint(testPoint));
+
+    return center + radHere*cv::Point2f(cos(absAngle), sin(absAngle));
+}
+
+
+
+// wrap an angle within the sweep angle
+float Approach::wrapInSweep(float angle) {
+    float posBound = sweepRange > 0? sweepRange : 2*M_PI + sweepRange;
+    return angle_wrap_upper(angle, posBound);
+}
+
+
+// abs angle of the path
+float Approach::absPathAngleHere(float offsetAngle) {
+
+    float delta = 0.5f * TO_RAD; if(CW) { delta *= -1; } // small delta from offset angle used to scan for angle
+
+    float offsetPositive = offsetAngle * (CW? -1 : 1);
+    float defaultReturn = angle_wrap(endAngle + M_PI);
+    if(offsetPositive < 0.001) { return defaultReturn; }
+
+    float angle0 = angle_wrap(offsetAngle - delta + endAngle);
+    float angle1 = angle_wrap(offsetAngle + delta + endAngle);
+
+    float rad0 = radiusEquation(offsetAngle - delta);
+    float rad1 = radiusEquation(offsetAngle + delta);
+
+    if(abs(rad0) < 0.001f && abs(rad1) < 0.001f) { return angle_wrap(endAngle + M_PI); }
+
+    cv::Point2f point0 = rad0 * cv::Point2f(cos(angle0), sin(angle0));
+    cv::Point2f point1 = rad1 * cv::Point2f(cos(angle1), sin(angle1));
+
+    return angle_wrap(angle(point0, point1) + M_PI); // technically reversed because we follow path backward
+}
+
+
+// calculates curvature at this offset angle
+float Approach::curvatureHere(float offsetAngle, bool display) {
+
+    float delta = 0.5f * TO_RAD; if(CW) { delta *= -1; } // small delta from offset angle used to scan for curvature
+
+    float offsetPositive = offsetAngle * (CW? -1 : 1);
+    if(offsetPositive < 0) { return 0; } // assume 0 curvature at path end
+
+
+
+    // make 3 scan points right around the offset angle
+
+    float angle0 = wrapInSweep(offsetAngle - delta);
+    float angle1 = wrapInSweep(offsetAngle);
+    float angle2 = wrapInSweep(offsetAngle + delta);
+
+    cv::Point2f point0 = radiusEquation(angle0) * cv::Point2f(cos(angle0), sin(angle0));
+    cv::Point2f point1 = radiusEquation(angle1) * cv::Point2f(cos(angle1), sin(angle1));
+    cv::Point2f point2 = radiusEquation(angle2) * cv::Point2f(cos(angle2), sin(angle2));
+
+    // calculate angle between line segments
+    float segment1Angle = angle(point0, point1);
+    float segment2Angle = angle(point1, point2);
+    float deltaAngle = angle_wrap(segment2Angle - segment1Angle);
+    
+    // use arc length equation to get curvature
+    float arcLength = radiusEquation(offsetAngle) * abs(delta); // s = r * theta    
+
+    return deltaAngle / arcLength;
+}
+
+
+
+// what offset angle relative to end angle is this point at, wraps at sweep angle
+float Approach::offsetToPoint(cv::Point2f point) {
+
+    float absAngle = angle(center, point);
+    return wrapInSweep(absAngle - endAngle);
 }
 
 
@@ -90,6 +191,53 @@ cv::Point2f Approach::ppPoint(cv::Point2f currPosition, float ppRad) {
 // absolute angle between 2 points
 float Approach::angle(cv::Point2f point1, cv::Point2f point2) {
     return std::atan2(point2.y - point1.y, point2.x - point1.x);
+}
+
+
+
+// if a point is inside the curve shape
+bool Approach::outsideCurve(cv::Point2f point) {
+
+    float radiusHere = radiusEquation(offsetToPoint(point));
+    float distanceFromCenter = cv::norm(center - point);
+    return distanceFromCenter > radiusHere;
+}
+
+
+
+// tangent point relative to another point
+cv::Point2f Approach::tangentPoint(cv::Point2f point) {
+
+    float mostTangentAngle = 0;
+    cv::Point mostTangentPoint = cv::Point2f(0, 0);
+
+    // can't be tangent if the point is inside
+    if(!outsideCurve(point)) { return mostTangentPoint; } 
+
+
+
+    // from here point is guarenteed to be outside curve
+
+    float sweepToCurr = offsetToPoint(point);
+    // std::cout << "sweep to curr = " << sweepToCurr
+
+    for(int i = 0; i < curvePoints.size(); i++) {
+
+        float angleToPoint = angle(point, curvePoints[i]);
+        float offset = angle_wrap(angleToPoint - mostTangentAngle);
+        offset *= CW? 1 : -1;
+
+        // set the point to the most tangent point
+        if(offset < 0 || i == 0) { 
+            mostTangentAngle = angleToPoint;
+            mostTangentPoint = curvePoints[i];
+        }
+
+        float sweepToPoint = offsetToPoint(curvePoints[i]);
+        if(abs(sweepToPoint) > abs(sweepToCurr)) { break; }
+    }
+
+    return mostTangentPoint;
 }
 
 
@@ -212,3 +360,6 @@ cv::Point2f Approach::followCurve(cv::Point2f currPosition, float ppRad, bool di
 
 
 std::vector<cv::Point2f> Approach::getCurvePoints() { return curvePoints; }
+cv::Point2f Approach::getCenter() { return center; }
+bool Approach::getCW() { return CW; }
+float Approach::getEndAngle() { return endAngle; }

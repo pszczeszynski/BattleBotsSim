@@ -136,6 +136,47 @@ void PurePursuitRadiusWidget::Draw() {
         ImVec4(1.0f, 0.9f, 0.3f, 1.0f),
         ImVec4(1.0f, 0.95f, 0.5f, 1.0f));
 
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.0f, 1.0f));
+    ImGui::Text("Angle Offset Gain");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##angleOffsetGain", &PP_ANGLE_OFFSET_GAIN, 0.0f, 0.0006f, "%.5f",
+        ImVec4(1.0f, 0.8f, 0.0f, 1.0f),
+        ImVec4(1.0f, 0.9f, 0.3f, 1.0f),
+        ImVec4(1.0f, 0.95f, 0.5f, 1.0f));
+
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+    ImGui::Text("Rad At Angle");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##approachRadAtAngle", &APPROACH_RAD_AT_ANGLE, 50.0f, 200.0f, "%.1f",
+        ImVec4(0.9f, 0.2f, 0.2f, 1.0f),
+        ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+        ImVec4(1.0f, 0.55f, 0.55f, 1.0f));
+
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+    ImGui::Text("Ref Angle (deg)");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##approachRefAngleDeg", &APPROACH_REF_ANGLE_DEG, 90.0f, 180.0f, "%.1f",
+        ImVec4(0.9f, 0.2f, 0.2f, 1.0f),
+        ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+        ImVec4(1.0f, 0.55f, 0.55f, 1.0f));
+
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+    ImGui::Text("Curve Exponent");
+    ImGui::PopStyleColor();
+    SliderFloatWithFill(
+        "##approachCurveExponent", &APPROACH_CURVE_EXPONENT, 0.3f, 1.0f, "%.2f",
+        ImVec4(0.9f, 0.2f, 0.2f, 1.0f),
+        ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+        ImVec4(1.0f, 0.55f, 0.55f, 1.0f));
+
     ImGui::PopStyleColor(3);
     style.FrameRounding = oldFrameRounding;
     style.FramePadding.y = oldFramePaddingY;
