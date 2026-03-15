@@ -104,14 +104,6 @@ RobotMessage IRobotLink::Receive() {
   return newMessages.back();
 }
 
-RobotMessage IRobotLink::GetLastIMUMessage() {
-  RobotMessage ret;
-  _lastIMUMessageMutex.lock();
-  ret = _lastIMUMessage;
-  _lastIMUMessageMutex.unlock();
-  return ret;
-}
-
 RobotMessage IRobotLink::GetLastCANMessage() {
   RobotMessage ret;
   _lastCANMessageMutex.lock();

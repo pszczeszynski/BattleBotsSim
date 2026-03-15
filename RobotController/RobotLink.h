@@ -21,7 +21,6 @@ class IRobotLink
 public:
     virtual void Drive(DriverStationMessage& command) = 0; // sends data to robot
     virtual RobotMessage Receive();
-    RobotMessage GetLastIMUMessage();
     RobotMessage GetLastCANMessage();
     RobotMessage GetLastRadioMessage();
     RobotMessage GetLastBoardTelemetryMessage();
