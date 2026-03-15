@@ -86,7 +86,9 @@ set(SOURCES
     Globals.cc
     SimulationState.cc
     Odometry/BlobDetection/RobotClassifier.cc
-    RobotLink.cc
+    RobotLink/IRobotLink.cc
+    RobotLink/RobotLinkSim.cc
+    RobotLink/RobotLinkReal.cc
     RobotOdometry.cc
     OdometryPoller.cc
     RobotStateParser.cc
